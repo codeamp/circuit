@@ -1,0 +1,27 @@
+hash: 84c9327af09308ca8a87050a8baf1e0d76786ee39e8d9c95ad3026bdefc5cba9
+updated: 2017-07-05T14:42:06.054714595-07:00
+imports:
+- name: github.com/bitly/go-simplejson
+  version: da1a8928f709389522c8023062a3739f3b4af419
+- name: github.com/bww/go-json
+  version: 2855ca2724ff4b10bb71bee4ad6c2815dc9b1438
+- name: github.com/codeamp/logger
+  version: bf922dcdde5133471968cc4913a75e02e2e0d936
+- name: github.com/garyburd/redigo
+  version: 0d253a66e6e1349f4581d6d2b300ee434ee2da9f
+  subpackages:
+  - internal
+  - redis
+- name: github.com/jrallison/go-workers
+  version: d60d79dbbfbb83f849d2430013a59152845fa598
+- name: github.com/mitchellh/mapstructure
+  version: 53818660ed4955e899c0bcafa97299a388bd7c8e
+- name: github.com/satori/go.uuid
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
+- name: github.com/Sirupsen/logrus
+  version: 202f25545ea4cf9b191ff7f846df5d87c9382c2b
+- name: golang.org/x/sys
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  subpackages:
+  - unix
+testImports: []
