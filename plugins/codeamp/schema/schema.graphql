@@ -8,11 +8,9 @@ schema {
 # The query type, represents all of the entry points into our object graph
 type Query {
   # Retrieve single user by ID
-  user(id: ID!): User
+  user(id: ID): User
   # Retrieve all users
   users(): [User]!
-  # Get user token
-  userAuth(email: String!, password: String!): UserAuth
   # Retrieve single project by ID
   project(id: ID, slug: String): Project
   # Retrieve all projects
@@ -22,19 +20,17 @@ type Query {
 # The mutation type, represents all updates we can make to our data
 type Mutation {
   createProject(project: ProjectInput): Project
+  userToken(email: String!, password: String!): User
 }
 
 # User object
 interface User {
   id: ID!
   email: String!
+  token: String!
   permissions: [String!]!
 }
 
-# UserAuth object
-interface UserAuth {
-  token: String!
-}
 
 # Release object
 interface Release {
