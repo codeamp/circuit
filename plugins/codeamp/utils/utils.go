@@ -64,23 +64,36 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func CheckAuth(ctx context.Context, scopes []string) error {
+func CorsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// allow cross domain AJAX requests
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
+		if r.Method == "OPTIONS" {
+			//handle preflight in here
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
+func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 	jwtClaims := ctx.Value("jwt").(JWTClaims)
 
 	if jwtClaims.UserId == "" {
-		return errors.New(jwtClaims.TokenError)
+		return "", errors.New(jwtClaims.TokenError)
 	}
 
 	if len(scopes) == 0 {
-		return nil
+		return jwtClaims.UserId, nil
 	} else {
 		for _, scope := range scopes {
 			if transistor.SliceContains(scope, jwtClaims.Permissions) {
-				return nil
+				return jwtClaims.UserId, nil
 			}
 		}
-		return errors.New("you dont have permission to access this resource")
+		return "", errors.New("you dont have permission to access this resource")
 	}
 
-	return nil
+	return jwtClaims.UserId, nil
 }
