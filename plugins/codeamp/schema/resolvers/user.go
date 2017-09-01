@@ -2,12 +2,16 @@ package codeamp_schema_resolvers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
+	"github.com/spf13/viper"
 )
 
 type UserInput struct {
@@ -28,14 +32,37 @@ func (r *Resolver) CreateUser(args *struct{ User *UserInput }) *UserResolver {
 	return &UserResolver{DB: r.DB, User: user}
 }
 
-func (r *Resolver) User(ctx context.Context, args *struct{ ID graphql.ID }) (*UserResolver, error) {
+func (r *Resolver) UserToken(args *struct {
+	Email    string
+	Password string
+}) (*UserResolver, error) {
 	var user codeamp_models.User
 
-	if err := utils.CheckAuth(ctx, []string{"admin", fmt.Sprintf("user:%s", args.ID)}); err != nil {
+	if r.DB.Where("email = ?", args.Email).First(&user).RecordNotFound() {
+		return nil, errors.New("Authentication failed")
+	}
+
+	if !utils.CheckPasswordHash(args.Password, user.Password) {
+		return nil, errors.New("Authentication failed")
+	}
+
+	return &UserResolver{DB: r.DB, User: user}, nil
+}
+
+func (r *Resolver) User(ctx context.Context, args *struct{ ID *graphql.ID }) (*UserResolver, error) {
+	var err error
+	var userId string
+	var user codeamp_models.User
+
+	if userId, err = utils.CheckAuth(ctx, []string{"admin", fmt.Sprintf("user:%s", args.ID)}); err != nil {
 		return nil, err
 	}
 
-	if err := r.DB.Where("id = ?", args.ID).First(&user).Error; err != nil {
+	if args.ID != nil {
+		userId = string(*args.ID)
+	}
+
+	if err := r.DB.Where("id = ?", userId).First(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -67,4 +94,25 @@ func (r *UserResolver) Permissions() []string {
 	}
 
 	return permissions
+}
+
+func (r *UserResolver) Token() (string, error) {
+	claims := utils.JWTClaims{
+		UserId:      r.User.Model.ID.String(),
+		Permissions: r.Permissions(),
+		StandardClaims: jwt.StandardClaims{
+			Issuer:    viper.GetString("plugins.codeamp.jwt_issuer"),
+			IssuedAt:  time.Now().UTC().Unix(),
+			ExpiresAt: time.Now().Add(time.Minute * 60).Unix(),
+		},
+	}
+
+	key := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	token, err := key.SignedString([]byte(viper.GetString("plugins.codeamp.jwt_secret")))
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

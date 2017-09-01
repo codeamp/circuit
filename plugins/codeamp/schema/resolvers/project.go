@@ -11,7 +11,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -45,62 +44,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	return &ProjectResolver{DB: r.DB, Project: project}, nil
 }
 
-type ProjectResolver struct {
-	DB      *gorm.DB
-	Project codeamp_models.Project
-}
-
-func (r *ProjectResolver) ID() graphql.ID {
-	return graphql.ID(r.Project.Model.ID.String())
-}
-
-func (r *ProjectResolver) Name() string {
-	return r.Project.Name
-}
-
-func (r *ProjectResolver) Slug() string {
-	return r.Project.Slug
-}
-
-func (r *ProjectResolver) Repository() string {
-	return r.Project.Repository
-}
-
-func (r *ProjectResolver) Secret() string {
-	return r.Project.Secret
-}
-
-func (r *ProjectResolver) GitUrl() string {
-	return r.Project.GitUrl
-}
-
-func (r *ProjectResolver) GitProtocol() string {
-	return r.Project.GitProtocol
-}
-
-func (r *ProjectResolver) RsaPrivateKey() string {
-	return r.Project.RsaPrivateKey
-}
-
-func (r *ProjectResolver) RsaPublicKey() string {
-	return r.Project.RsaPublicKey
-}
-
-func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
-	var rows []codeamp_models.Release
-	var results []*ReleaseResolver
-
-	r.DB.Model(r.Releases).Related(&rows)
-
-	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
-	}
-
-	return results, nil
-}
-
 func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
-	spew.Dump(args)
 	project := codeamp_models.Project{
 		GitProtocol: args.Project.GitProtocol,
 		GitUrl:      args.Project.GitUrl,
@@ -152,4 +96,58 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	r.DB.Create(&project)
 
 	return &ProjectResolver{DB: r.DB, Project: project}, nil
+}
+
+type ProjectResolver struct {
+	DB      *gorm.DB
+	Project codeamp_models.Project
+}
+
+func (r *ProjectResolver) ID() graphql.ID {
+	return graphql.ID(r.Project.Model.ID.String())
+}
+
+func (r *ProjectResolver) Name() string {
+	return r.Project.Name
+}
+
+func (r *ProjectResolver) Slug() string {
+	return r.Project.Slug
+}
+
+func (r *ProjectResolver) Repository() string {
+	return r.Project.Repository
+}
+
+func (r *ProjectResolver) Secret() string {
+	return r.Project.Secret
+}
+
+func (r *ProjectResolver) GitUrl() string {
+	return r.Project.GitUrl
+}
+
+func (r *ProjectResolver) GitProtocol() string {
+	return r.Project.GitProtocol
+}
+
+func (r *ProjectResolver) RsaPrivateKey() string {
+	return r.Project.RsaPrivateKey
+}
+
+func (r *ProjectResolver) RsaPublicKey() string {
+	return r.Project.RsaPublicKey
+}
+
+func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
+	var rows []codeamp_models.Release
+	var results []*ReleaseResolver
+
+	r.DB.Model(r.Project).Related(&rows)
+
+	for _, release := range rows {
+		results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
+	}
+
+	return results, nil
 }

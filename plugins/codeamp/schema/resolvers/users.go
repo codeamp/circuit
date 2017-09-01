@@ -8,7 +8,7 @@ import (
 )
 
 func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
-	if err := utils.CheckAuth(ctx, []string{"admin"}); err != nil {
+	if _, err := utils.CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil, err
 	}
 

@@ -45,6 +45,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		})
 		if err != nil {
 			jwtClaims.TokenError = err.Error()
+			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", jwtClaims)))
 			return
 		}
@@ -55,9 +56,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 				return
 			} else {
 				jwtClaims.TokenError = "an unexpected error has occurred"
+				w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
+
 			}
 		} else {
 			jwtClaims.TokenError = "invalid access token"
+			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
 		}
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", jwtClaims)))
@@ -68,6 +72,7 @@ func CorsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// allow cross domain AJAX requests
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Expose-Headers", "Cache-Control, Content-Language, Content-Type, Expires, Last-Modified, Pragma, WWW-Authenticate")
 		w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
 		if r.Method == "OPTIONS" {
 			//handle preflight in here

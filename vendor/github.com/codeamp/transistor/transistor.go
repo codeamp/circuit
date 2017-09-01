@@ -122,7 +122,6 @@ func (t *Transistor) addPlugin(name string) error {
 			event.Error = fmt.Errorf("PayloadModel not found: %s. Did you add it to ApiRegistry?", event.PayloadModel)
 		}
 
-		// For debugging purposes
 		event.Dump()
 
 		plugin.Process(event)

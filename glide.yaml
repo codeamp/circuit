@@ -12,6 +12,8 @@ import:
   version: ^1.2.1
 - package: github.com/jrallison/go-workers
 - package: github.com/libgit2/git2go
+  repo: git@github.com:mikolajb/git2go.git
+  version: v26.0
 - package: github.com/neelance/graphql-go
   subpackages:
   - relay

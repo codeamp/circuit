@@ -66,6 +66,13 @@ func (x *CodeAmp) Migrate() {
 
 	x.DB.Exec("CREATE EXTENSION \"uuid-ossp\"")
 
+	x.DB.AutoMigrate(
+		&codeamp_models.User{},
+		&codeamp_models.UserPermission{},
+		&codeamp_models.Project{},
+		&codeamp_models.Release{},
+	)
+
 	hashedPassword, _ := utils.HashPassword("password")
 	user := codeamp_models.User{
 		Email:    "admin@codeamp.com",
@@ -86,7 +93,7 @@ func (x *CodeAmp) Listen() {
 	_, filename, _, _ := runtime.Caller(0)
 	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
 	http.Handle("/", fs)
-	http.Handle("/query", utils.AuthMiddleware(&relay.Handler{Schema: x.Schema}))
+	http.Handle("/query", utils.CorsMiddleware(utils.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
 
 	log.Info(fmt.Sprintf("running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
@@ -110,6 +117,8 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	x.DB.AutoMigrate(
 		&codeamp_models.User{},
 		&codeamp_models.UserPermission{},
+		&codeamp_models.Project{},
+		&codeamp_models.Release{},
 	)
 
 	schema, err := codeamp_schema.Schema()
