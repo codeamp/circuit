@@ -7,10 +7,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"log"
 
 	"github.com/codeamp/circuit/plugins"
-	"github.com/codeamp/circuit/plugins/codeamp/models"
+	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -20,11 +22,13 @@ import (
 type ProjectInput struct {
 	GitProtocol string
 	GitUrl      string
+	Bookmarked  bool
 }
 
 func (r *Resolver) Project(ctx context.Context, args *struct {
 	ID   *graphql.ID
 	Slug *string
+	Name *string
 }) (*ProjectResolver, error) {
 	var project codeamp_models.Project
 	var query *gorm.DB
@@ -33,6 +37,8 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 		query = r.DB.Where("id = ?", *args.ID)
 	} else if args.Slug != nil {
 		query = r.DB.Where("slug = ?", *args.Slug)
+	} else if args.Name != nil {
+		query = r.DB.Where("name = ?", *args.Name)
 	} else {
 		return nil, fmt.Errorf("Missing argument id or slug")
 	}
@@ -53,6 +59,17 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 
 	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
 	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
+
+	// Check if project already exists with same name
+	existingProject := codeamp_models.Project{}
+	spew.Dump("existingProject")
+	if err := r.DB.Unscoped().Where("repository = ?", repository).First(&existingProject).Error; err != nil {
+		log.Println("No record found")
+	} else {
+		if existingProject != (codeamp_models.Project{}) {
+			return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
+		}
+	}
 
 	project.Name = repository
 	project.Repository = repository
