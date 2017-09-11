@@ -7,9 +7,9 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/codeamp/circuit/plugins/codeamp/models"
-	"github.com/codeamp/circuit/plugins/codeamp/schema"
-	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
+	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
+	codeamp_schema "github.com/codeamp/circuit/plugins/codeamp/schema"
+	codeamp_schema_resolvers "github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
