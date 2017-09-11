@@ -43,3 +43,9 @@ type Release struct {
 	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
 	UserId    uuid.UUID `bson:"userId" json:"-" gorm:"type:uuid"`
 }
+
+type Bookmark struct {
+	Model     `json:",inline"`
+	UserId    uuid.UUID `json:"userId" gorm:"type:uuid"`
+	ProjectId uuid.UUID `json:"projectId" gorm:"type:uuid"`
+}
