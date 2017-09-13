@@ -3,7 +3,7 @@ environment: "development"
 redis:
   username:
   password:
-  server: "0.0.0.0:16379"
+  server: "0.0.0.0:6379"
   database: "0"
   pool: "30"
   process: "1"
@@ -12,9 +12,14 @@ plugins:
     workers: 1
     postgres:
       host: "0.0.0.0"
-      port: "15432"
-      user: "postgres"
+      port: "5432"
+      user: "shreyas"
       dbname: "codeamp"
       sslmode: "disable"
       password: ""
     service_address: ":3011"
+    websockets:
+      path: "/ws"
+  websockets:
+    workers: 1
+    service_address: ":3003"

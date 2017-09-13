@@ -8,6 +8,7 @@ import (
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,6 +26,8 @@ var startCmd = &cobra.Command{
 			Plugins:        viper.GetStringMap("plugins"),
 			EnabledPlugins: viper.GetStringSlice("enable"),
 		}
+
+		spew.Dump(config)
 
 		t, err := transistor.NewTransistor(config)
 
@@ -55,6 +58,6 @@ var startCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(startCmd)
-	startCmd.Flags().StringSliceP("enable", "e", []string{}, "plugin1,plugin2,plugin3")
+	startCmd.Flags().StringSliceP("enable", "e", []string{}, "websockets")
 	viper.BindPFlags(startCmd.Flags())
 }

@@ -6,7 +6,9 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
 	codeamp_schema "github.com/codeamp/circuit/plugins/codeamp/schema"
 	codeamp_schema_resolvers "github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
@@ -132,6 +134,17 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	}
 
 	go x.Listen()
+
+	go func() {
+		for {
+			wsMsg := plugins.WebsocketMsg{
+				Channel: "projects/mobxjs-mobx",
+				Payload: time.Now(),
+			}
+			x.Events <- transistor.NewEvent(wsMsg, nil)
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	return nil
 }
