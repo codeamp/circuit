@@ -15,6 +15,8 @@ type Query {
   project(id: ID, slug: String, name: String): Project
   # Retrieve all projects
   projects(): [Project]!
+  # Retrieve all features
+  features(): [Feature]!
   # Retrieve all releases
   releases(): [Release]!
 }
@@ -34,10 +36,27 @@ interface User {
 }
 
 
+# Feature object
+interface Feature {
+  id: ID!
+  project: Project
+  message: String!
+  user: String!
+  hash: String!
+  parentHash: String!
+  ref: String!
+  created: Time!
+}
+
 # Release object
 interface Release {
   id: ID!
+  project: Project
   user: User
+  headFeature: Feature!
+  tailFeature: Feature!
+  state: String!        
+  stateMessage: String!
 }
 
 # Project object
@@ -51,6 +70,7 @@ interface Project {
   gitProtocol: String!
   rsaPrivateKey: String!
   rsaPublicKey: String!
+  features: [Feature]!
   releases: [Release]!
 }
 

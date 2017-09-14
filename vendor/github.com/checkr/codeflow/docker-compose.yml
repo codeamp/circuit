@@ -1,0 +1,60 @@
+version: "2"
+services:
+  redis:
+    image: redis
+    ports:
+      - "${DOCKER_COMPOSE_REDIS_PORT}:6379"
+  mongo:
+    image: mongo
+    ports:
+      - "${DOCKER_COMPOSE_MONGODB_PORT}:27017"
+  server:
+    command: reflex -c reflex.conf
+    image: codeflow:v004
+    build:
+      context: .
+      args:
+        - NODE_ENV=development
+    environment:
+      - WORKDIR=./server
+    volumes:
+      - ./server:/go/src/github.com/checkr/codeflow/server
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${REACT_APP_API_ROOT_PORT}:3001"
+      - "${REACT_APP_WEBHOOKS_ROOT_PORT}:3002"
+      - "${REACT_APP_WS_ROOT_PORT}:3003"
+    links:
+      - "redis"
+      - "mongo"
+  dashboard:
+    command: npm run start
+    image: codeflow:v004
+    build:
+      context: .
+      args:
+        - NODE_ENV=development
+    environment:
+      - WORKDIR=./dashboard
+    volumes:
+      - ./dashboard:/go/src/github.com/checkr/codeflow/dashboard
+    ports:
+      - "${REACT_APP_ROOT_PORT}:3000"
+    env_file: 
+      - .env
+      - ./dashboard/.env
+      - ./dashboard/.env.development
+  docs:
+    command: gitbook serve
+    image: codeflow:v004
+    build:
+      context: .
+      args:
+        - NODE_ENV=development
+    environment:
+      - WORKDIR=./docs
+    volumes:
+      - ./docs:/go/src/github.com/checkr/codeflow/docs
+    ports:
+      - "${DOCKER_COMPOSE_GITBOOK_PORT}:4000"
+      - "${DOCKER_COMPOSE_GITBOOK_LIVERELOAD_PORT}:35729"

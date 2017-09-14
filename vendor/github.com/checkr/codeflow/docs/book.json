@@ -1,0 +1,10 @@
+{
+  "title": "Codeflow Docs",
+  "plugins": ["-sharing", "edit-link"],
+  "pluginsConfig": {
+    "edit-link": {
+      "base": "https://github.com/checkr/codeflow/edit/master/docs",
+      "label": "Edit This Page"
+    }
+  }
+}

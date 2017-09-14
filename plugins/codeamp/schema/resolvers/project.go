@@ -12,7 +12,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -51,8 +50,16 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 }
 
 func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
+	protocol := "HTTPS"
+	switch args.Project.GitProtocol {
+	case "private", "PRIVATE", "ssh", "SSH":
+		protocol = "SSH"
+	case "public", "PUBLIC", "https", "HTTPS":
+		protocol = "HTTPS"
+	}
+
 	project := codeamp_models.Project{
-		GitProtocol: args.Project.GitProtocol,
+		GitProtocol: protocol,
 		GitUrl:      args.Project.GitUrl,
 		Secret:      transistor.RandomString(30),
 	}
@@ -62,13 +69,11 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 
 	// Check if project already exists with same name
 	existingProject := codeamp_models.Project{}
-	spew.Dump("existingProject")
-	if err := r.DB.Unscoped().Where("repository = ?", repository).First(&existingProject).Error; err != nil {
+
+	if r.DB.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
 		log.Println("No record found")
 	} else {
-		if existingProject != (codeamp_models.Project{}) {
-			return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
-		}
+		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
 	}
 
 	project.Name = repository
@@ -154,6 +159,19 @@ func (r *ProjectResolver) RsaPrivateKey() string {
 
 func (r *ProjectResolver) RsaPublicKey() string {
 	return r.Project.RsaPublicKey
+}
+
+func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
+	var rows []codeamp_models.Feature
+	var results []*FeatureResolver
+
+	r.DB.Where("project_id = ?", r.Project.ID).Order("created desc").Find(&rows)
+
+	for _, feature := range rows {
+		results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})
+	}
+
+	return results, nil
 }
 
 func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {

@@ -6,12 +6,12 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"time"
 
 	git2go "github.com/libgit2/git2go"
+	"github.com/spf13/viper"
 )
 
-func GitCommits(from time.Time, project Project, git Git) ([]GitCommit, error) {
+func GitCommits(from string, project Project, git Git) ([]GitCommit, error) {
 	var err error
 	var commits []GitCommit
 	var repo *git2go.Repository
@@ -41,14 +41,6 @@ func GitCommits(from time.Time, project Project, git Git) ([]GitCommit, error) {
 		author := obj.Author()
 		committer := obj.Committer()
 
-		if from.IsZero() && i > 10 {
-			return false
-		}
-
-		if committer.When.Equal(from) || committer.When.Before(from) {
-			return false
-		}
-
 		commit.Repository = project.Repository
 		commit.Hash = obj.Id().String()
 		if obj.Parent(0) != nil {
@@ -58,7 +50,17 @@ func GitCommits(from time.Time, project Project, git Git) ([]GitCommit, error) {
 		commit.User = author.Name
 		commit.Created = committer.When
 		commit.Message = obj.Message()
+
+		// Stop if match is found
+		if commit.Hash == from {
+			return false
+		}
+
 		commits = append(commits, *commit)
+
+		if from == "" && i >= 10 {
+			return false
+		}
 
 		return true
 	}
@@ -75,7 +77,7 @@ func GitFetch(project Project, git Git) (*git2go.Repository, error) {
 	var repo *git2go.Repository
 	var err error
 
-	repoPath := fmt.Sprintf("%s/%s_%s", git.Workdir, project.Repository, git.Protocol)
+	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.git_sync.workdir"), project.Repository, git.Protocol)
 
 	if _, err = os.Stat(repoPath); err != nil {
 		if os.IsNotExist(err) {

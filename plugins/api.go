@@ -68,7 +68,6 @@ type Git struct {
 	Url           string `json:"gitUrl"`
 	Protocol      string `json:"protocol"`
 	Branch        string `json:"branch"`
-	Workdir       string `json:"workdir"`
 	HeadHash      string `json:"headHash,omitempty"`
 	RsaPrivateKey string `json:"rsaPrivateKey" role:"secret"`
 	RsaPublicKey  string `json:"rsaPublicKey" role:"secret"`
@@ -98,12 +97,12 @@ type GitStatus struct {
 }
 
 type GitSync struct {
-	Action       Action    `json:"action"`
-	State        State     `json:"state"`
-	StateMessage string    `json:"stateMessage"`
-	Project      Project   `json:"project"`
-	Git          Git       `json:"git"`
-	From         time.Time `json:"from"`
+	Action       Action  `json:"action"`
+	State        State   `json:"state"`
+	StateMessage string  `json:"stateMessage"`
+	Project      Project `json:"project"`
+	Git          Git     `json:"git"`
+	From         string  `json:"from"`
 }
 
 type Feature struct {

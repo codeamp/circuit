@@ -3,7 +3,7 @@ environment: "development"
 redis:
   username:
   password:
-  server: "0.0.0.0:6379"
+  server: "0.0.0.0:16379"
   database: "0"
   pool: "30"
   process: "1"
@@ -12,8 +12,8 @@ plugins:
     workers: 1
     postgres:
       host: "0.0.0.0"
-      port: "5432"
-      user: "shreyas"
+      port: "15432"
+      user: "postgres"
       dbname: "codeamp"
       sslmode: "disable"
       password: ""
@@ -22,4 +22,9 @@ plugins:
       path: "/ws"
   websockets:
     workers: 1
-    service_address: ":3003"
+    service_address: ":3013"
+  git_sync:
+    workers: 1
+    workdir: "/tmp/git_sync" 
+  heartbeat:
+    workers: 1

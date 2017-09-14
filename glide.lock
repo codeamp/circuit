@@ -1,5 +1,5 @@
-hash: 24023f0d939367d9eccbceb47f373be711bbf26ca4be28d8587cb57a0b3fc5b1
-updated: 2017-09-01T12:07:45.186823532-07:00
+hash: 3e267fc85d357c462eaa2b733c0035199cf27029632c767d53a55c65ebad0348
+updated: 2017-09-13T09:53:47.749802346-07:00
 imports:
 - name: github.com/bitly/go-simplejson
   version: da1a8928f709389522c8023062a3739f3b4af419
@@ -26,8 +26,14 @@ imports:
   - redis
 - name: github.com/go-bongo/bongo
   version: 521df41080e16bfdf6a50167d6a7e6efb80add71
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/handlers
   version: a4043c62cc2329bacda331d33fc908ab11ef0ec3
+- name: github.com/gorilla/mux
+  version: ac112f7d75a0714af1bd86ab17749b31f7809640
+- name: github.com/gorilla/websocket
+  version: a69d9f6de432e2c6b296a947d8a5ee88f68522cf
 - name: github.com/hashicorp/hcl
   version: 8f6b1344a92ff8877cf24a5de9177bf7d0a2a187
   subpackages:
@@ -62,7 +68,7 @@ imports:
 - name: github.com/mitchellh/mapstructure
   version: d0303fe809921458f417bcf828397a65db30a7e4
 - name: github.com/neelance/graphql-go
-  version: 52080e1f0951c75dd4addba57db27fc4de1d0019
+  version: 10eb949b8f4439212ef19d5d924c47c10c110cc7
   subpackages:
   - errors
   - internal/common
@@ -86,6 +92,8 @@ imports:
   version: e790cca94e6cc75c7064b1332e63811d4aae1a53
 - name: github.com/pelletier/go-toml
   version: 9c1b4e331f1e3d98e72600677699fbe212cd6d16
+- name: github.com/rk/go-cron
+  version: 4a45dd81c5dba73024b5b795cada8da469e2f15f
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/sirupsen/logrus
@@ -105,7 +113,7 @@ imports:
 - name: github.com/spf13/viper
   version: 25b30aa063fc18e48662b86996252eabdcf2f0c7
 - name: golang.org/x/crypto
-  version: 81e90905daefcd6fd217b62423c0908922eadb30
+  version: faadfbdc035307d901e69eea569f5dda451a3ee3
   subpackages:
   - bcrypt
   - blowfish
@@ -115,7 +123,7 @@ imports:
   - ssh
   - ssh/terminal
 - name: golang.org/x/net
-  version: e90d6d0afc4c315a0d87a568ae68577cc15149a0
+  version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
   subpackages:
   - context
 - name: golang.org/x/sys
@@ -134,4 +142,18 @@ imports:
   - bson
 - name: gopkg.in/yaml.v2
   version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
-testImports: []
+testImports:
+- name: github.com/checkr/codeflow
+  version: 829e7079dfa1732eda12772def3d18e680180214
+  subpackages:
+  - server/agent
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: e3a8ff8ce36581f87a15341206f205b1da467059
+  subpackages:
+  - assert
+  - require
+  - suite
