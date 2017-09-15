@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins"
 	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
@@ -54,7 +53,6 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 
 func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
 
-	spew.Dump(args.Project)
 	var project codeamp_models.Project
 
 	if args.Project.ID == nil {
