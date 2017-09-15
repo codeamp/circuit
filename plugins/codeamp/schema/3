@@ -1,0 +1,80 @@
+scalar Time
+
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+# The query type, represents all of the entry points into our object graph
+type Query {
+  # Retrieve single user by ID
+  user(id: ID): User
+  # Retrieve all users
+  users(): [User]!
+  # Retrieve single project by ID
+  project(id: ID, slug: String, name: String): Project
+  # Retrieve all projects
+  projects(): [Project]!
+  # Retrieve all releases
+  releases(): [Release]!
+}
+
+# The mutation type, represents all updates we can make to our data
+type Mutation {
+  createProject(project: ProjectInput): Project
+  userToken(email: String!, password: String!): User
+}
+
+# User object
+interface User {
+  id: ID!
+  email: String!
+  token: String!
+  permissions: [String!]!
+}
+
+
+# Feature object
+interface Feature {
+  id: ID!
+  project: Project
+  user: String!
+  hash: String!
+  parentHash: String!
+  ref: String!
+  created: Time!
+}
+
+# Release object
+interface Release {
+  id: ID!
+  project: Project
+  user: User
+  headFeatureId: String!
+  tailFeatureId: String!
+  state: String!        
+  stateMessage: String!
+}
+
+# Project object
+interface Project {
+  id: ID!
+  name: String!
+  slug: String!
+  repository: String!
+  secret: String!
+  gitUrl: String!
+  gitProtocol: String!
+  rsaPrivateKey: String!
+  rsaPublicKey: String!
+  features: [Feature]!
+  releases: [Release]!
+}
+
+# ProjectInput object and all fields needed for creating new Project
+input ProjectInput {
+  gitProtocol: String!
+  gitUrl: String!
+  bookmarked: Boolean!
+}
+

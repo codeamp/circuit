@@ -7,6 +7,7 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/codeamp/circuit/plugins"
 	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
 	codeamp_schema "github.com/codeamp/circuit/plugins/codeamp/schema"
 	codeamp_schema_resolvers "github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
@@ -71,6 +72,7 @@ func (x *CodeAmp) Migrate() {
 		&codeamp_models.UserPermission{},
 		&codeamp_models.Project{},
 		&codeamp_models.Release{},
+		&codeamp_models.Feature{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")
@@ -114,13 +116,6 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	))
 	//defer x.DB.Close()
 
-	x.DB.AutoMigrate(
-		&codeamp_models.User{},
-		&codeamp_models.UserPermission{},
-		&codeamp_models.Project{},
-		&codeamp_models.Release{},
-	)
-
 	schema, err := codeamp_schema.Schema()
 	if err != nil {
 		log.Fatal(err)
@@ -157,5 +152,19 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	log.InfoWithFields("process CodeAmp event", log.Fields{
 		"event_name": e.Name,
 	})
+
+	if e.Name == "plugins.HeartBeat" {
+		heartBeat := e.Payload.(plugins.HeartBeat)
+		switch heartBeat.Tick {
+		case "minute":
+			x.HeartBeat("minute")
+		}
+		return nil
+	}
+
+	if e.Name == "plugins.GitCommit" {
+		payload := e.Payload.(plugins.GitCommit)
+		x.GitCommit(payload)
+	}
 	return nil
 }

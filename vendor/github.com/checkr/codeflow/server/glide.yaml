@@ -1,0 +1,48 @@
+package: github.com/checkr/codeflow
+import:
+- package: github.com/ant0ine/go-json-rest
+  subpackages:
+  - rest
+- package: github.com/bww/go-json
+- package: github.com/cheungpat/go-json-rest-middleware-jwt
+- package: github.com/davecgh/go-spew
+  subpackages:
+  - spew
+- package: github.com/dgrijalva/jwt-go
+- package: github.com/docker/docker
+  subpackages:
+  - pkg/archive
+- package: github.com/extemporalgenome/slug
+- package: github.com/fsouza/go-dockerclient
+- package: github.com/google/shlex
+- package: github.com/gorilla/mux
+- package: github.com/gorilla/websocket
+- package: github.com/jrallison/go-workers
+- package: github.com/lestrrat/go-jwx
+  subpackages:
+  - jwk
+- package: github.com/libgit2/git2go
+  version: v26
+- package: github.com/maxwellhealth/bongo
+- package: github.com/pborman/uuid
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: golang.org/x/crypto
+  version: master
+  subpackages:
+  - ssh
+- package: gopkg.in/mgo.v2
+  subpackages:
+  - bson
+- package: k8s.io/client-go
+  version: v4.0.0
+- package: github.com/ashwanthkumar/slack-go-webhook
+- package: github.com/mattes/migrate
+  version: v1.3.1
+- package: github.com/aws/aws-sdk-go
+  version: v1.8.21
+- package: github.com/gogo/protobuf
+  version: ^0.4.0
+- package: github.com/sirupsen/logrus
+  version: ^1.0.3
+- package: k8s.io/apimachinery
