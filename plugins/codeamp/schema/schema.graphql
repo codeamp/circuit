@@ -24,6 +24,7 @@ type Query {
 # The mutation type, represents all updates we can make to our data
 type Mutation {
   createProject(project: ProjectInput): Project
+  updateProject(project: ProjectInput): Project
   userToken(email: String!, password: String!): User
 }
 
@@ -76,8 +77,9 @@ interface Project {
 
 # ProjectInput object and all fields needed for creating new Project
 input ProjectInput {
+  id: String
   gitProtocol: String!
   gitUrl: String!
-  bookmarked: Boolean!
+  bookmarked: Boolean
 }
 

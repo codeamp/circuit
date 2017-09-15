@@ -18,8 +18,6 @@ plugins:
       sslmode: "disable"
       password: ""
     service_address: ":3011"
-    websockets:
-      path: "/ws"
   websockets:
     workers: 1
     service_address: ":3013"

@@ -7,7 +7,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
+
+	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins"
 	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
@@ -19,9 +21,10 @@ import (
 )
 
 type ProjectInput struct {
+	ID          *string
 	GitProtocol string
 	GitUrl      string
-	Bookmarked  bool
+	Bookmarked  *bool
 }
 
 func (r *Resolver) Project(ctx context.Context, args *struct {
@@ -49,6 +52,53 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	return &ProjectResolver{DB: r.DB, Project: project}, nil
 }
 
+func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
+
+	spew.Dump(args.Project)
+	var project codeamp_models.Project
+
+	if args.Project.ID == nil {
+		return nil, fmt.Errorf("Missing argument id")
+	}
+
+	if r.DB.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
+		log.InfoWithFields("Project not found", log.Fields{
+			"id": args.Project.ID,
+		})
+		return nil, fmt.Errorf("Project not found.")
+	}
+
+	protocol := "HTTPS"
+	switch args.Project.GitProtocol {
+	case "private", "PRIVATE", "ssh", "SSH":
+		protocol = "SSH"
+	case "public", "PUBLIC", "https", "HTTPS":
+		protocol = "HTTPS"
+	}
+
+	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
+	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
+
+	project.GitUrl = args.Project.GitUrl
+
+	// Check if project already exists with same name
+	if r.DB.Unscoped().Where("id != ? and repository = ?", args.Project.ID, repository).First(&codeamp_models.Project{}).RecordNotFound() == false {
+		return nil, fmt.Errorf("Project with repository name already exists.")
+	}
+
+	project.GitUrl = args.Project.GitUrl
+	project.GitProtocol = protocol
+	project.Repository = repository
+	project.Name = repository
+	project.Slug = slug.Slug(repository)
+	r.DB.Save(project)
+
+	// Cascade delete all features and releases related to old git url
+	r.DB.Where("projectId = ?", project.ID).Delete(codeamp_models.Feature{})
+	r.DB.Where("projectId = ?", project.ID).Delete(codeamp_models.Release{})
+	return &ProjectResolver{DB: r.DB, Project: project}, nil
+}
+
 func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
 	protocol := "HTTPS"
 	switch args.Project.GitProtocol {
@@ -71,7 +121,9 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	existingProject := codeamp_models.Project{}
 
 	if r.DB.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
-		log.Println("No record found")
+		log.InfoWithFields("Project not found", log.Fields{
+			"repository": repository,
+		})
 	} else {
 		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
 	}
