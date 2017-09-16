@@ -16,7 +16,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
@@ -175,7 +174,6 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 		"host": host,
 		"port": port,
 	}
-	spew.Dump(opts)
 	//sio.SetAdaptor(redis.Redis(opts))
 
 	x.SocketIO = sio
@@ -215,7 +213,6 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		switch heartBeat.Tick {
 		case "minute":
 			x.Actions.HeartBeat("minute")
-			spew.Dump("hereee1")
 		}
 		return nil
 	}
