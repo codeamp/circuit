@@ -236,5 +236,6 @@ type Route53 struct {
 
 type WebsocketMsg struct {
 	Channel string      `json:"channel"`
+	Event   string      `json:"event"`
 	Payload interface{} `json:"data"`
 }

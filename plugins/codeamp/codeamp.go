@@ -6,14 +6,18 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 
 	"github.com/codeamp/circuit/plugins"
+	codeamp_actions "github.com/codeamp/circuit/plugins/codeamp/actions"
 	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
 	codeamp_schema "github.com/codeamp/circuit/plugins/codeamp/schema"
 	codeamp_schema_resolvers "github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -31,8 +35,9 @@ func init() {
 type CodeAmp struct {
 	ServiceAddress string `mapstructure:"service_address"`
 	Events         chan transistor.Event
-	DB             *gorm.DB
 	Schema         *graphql.Schema
+	Actions        *codeamp_actions.Actions
+	SocketIO       *socketio.Server
 }
 
 func NewCodeAmp() *CodeAmp {
@@ -42,7 +47,7 @@ func NewCodeAmp() *CodeAmp {
 func (x *CodeAmp) Migrate() {
 	var err error
 
-	x.DB, err = gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s sslmode=%s password=%s",
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s sslmode=%s password=%s",
 		viper.GetString("plugins.codeamp.postgres.host"),
 		viper.GetString("plugins.codeamp.postgres.port"),
 		viper.GetString("plugins.codeamp.postgres.user"),
@@ -53,10 +58,10 @@ func (x *CodeAmp) Migrate() {
 		log.Fatal(err)
 	}
 
-	x.DB.Exec(fmt.Sprintf("CREATE DATABASE %s", viper.GetString("plugins.codeamp.postgres.dbname")))
-	x.DB.Close()
+	db.Exec(fmt.Sprintf("CREATE DATABASE %s", viper.GetString("plugins.codeamp.postgres.dbname")))
+	db.Close()
 
-	x.DB, err = gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
+	db, err = gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		viper.GetString("plugins.codeamp.postgres.host"),
 		viper.GetString("plugins.codeamp.postgres.port"),
 		viper.GetString("plugins.codeamp.postgres.user"),
@@ -65,9 +70,9 @@ func (x *CodeAmp) Migrate() {
 		viper.GetString("plugins.codeamp.postgres.password"),
 	))
 
-	x.DB.Exec("CREATE EXTENSION \"uuid-ossp\"")
+	db.Exec("CREATE EXTENSION \"uuid-ossp\"")
 
-	x.DB.AutoMigrate(
+	db.AutoMigrate(
 		&codeamp_models.User{},
 		&codeamp_models.UserPermission{},
 		&codeamp_models.Project{},
@@ -80,18 +85,46 @@ func (x *CodeAmp) Migrate() {
 		Email:    "admin@codeamp.com",
 		Password: hashedPassword,
 	}
-	x.DB.Create(&user)
+	db.Create(&user)
 
 	userPermission := codeamp_models.UserPermission{
 		UserId: user.Model.ID,
 		Value:  "admin",
 	}
-	x.DB.Create(&userPermission)
+	db.Create(&userPermission)
 
-	defer x.DB.Close()
+	defer db.Close()
+}
+
+//Custom server which basically only contains a socketio variable
+//But we need it to enhance it with functions
+type socketIOServer struct {
+	Server *socketio.Server
+}
+
+//Header handling, this is necessary to adjust security and/or header settings in general
+//Please keep in mind to adjust that later on in a productive environment!
+//Access-Control-Allow-Origin will be set to whoever will call the server
+func (s *socketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	origin := r.Header.Get("Origin")
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	s.Server.ServeHTTP(w, r)
 }
 
 func (x *CodeAmp) Listen() {
+	x.SocketIO.On("connection", func(so socketio.Socket) {
+		so.Join("general")
+	})
+
+	x.SocketIO.On("error", func(so socketio.Socket, err error) {
+		log.Println("socket-io error:", err)
+	})
+
+	sIOServer := new(socketIOServer)
+	sIOServer.Server = x.SocketIO
+	http.Handle("/socket.io/", sIOServer)
+
 	_, filename, _, _ := runtime.Caller(0)
 	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
 	http.Handle("/", fs)
@@ -106,7 +139,7 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 
 	x.Events = events
 
-	x.DB, err = gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		viper.GetString("plugins.codeamp.postgres.host"),
 		viper.GetString("plugins.codeamp.postgres.port"),
 		viper.GetString("plugins.codeamp.postgres.user"),
@@ -116,15 +149,38 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	))
 	//defer x.DB.Close()
 
-	schema, err := codeamp_schema.Schema()
+	actions := codeamp_actions.NewActions(events, db)
+	resolver := codeamp_schema_resolvers.NewResolver(events, db, actions)
+
+	s, err := codeamp_schema.Schema()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	x.Schema, err = graphql.ParseSchema(string(schema), &codeamp_schema_resolvers.Resolver{DB: x.DB})
+	schema, err := graphql.ParseSchema(string(s), resolver)
 	if err != nil {
 		panic(err)
 	}
+
+	// Socket-io
+	sio, err := socketio.NewServer(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	split := strings.Split(viper.GetString("redis.server"), ":")
+	host, port := split[0], split[1]
+
+	opts := map[string]string{
+		"host": host,
+		"port": port,
+	}
+	spew.Dump(opts)
+	//sio.SetAdaptor(redis.Redis(opts))
+
+	x.SocketIO = sio
+	x.Actions = actions
+	x.Schema = schema
 
 	go x.Listen()
 
@@ -145,6 +201,7 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.LoadBalancer:status",
 		"plugins.DockerDeploy:status",
 		"plugins.Route53",
+		"plugins.WebsocketMsg",
 	}
 }
 
@@ -157,14 +214,26 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		heartBeat := e.Payload.(plugins.HeartBeat)
 		switch heartBeat.Tick {
 		case "minute":
-			x.HeartBeat("minute")
+			x.Actions.HeartBeat("minute")
+			spew.Dump("hereee1")
 		}
 		return nil
 	}
 
 	if e.Name == "plugins.GitCommit" {
 		payload := e.Payload.(plugins.GitCommit)
-		x.GitCommit(payload)
+		x.Actions.GitCommit(payload)
 	}
+
+	if e.Name == "plugins.WebsocketMsg" {
+		payload := e.Payload.(plugins.WebsocketMsg)
+
+		if payload.Channel == "" {
+			payload.Channel = "general"
+		}
+
+		x.SocketIO.BroadcastTo(payload.Channel, payload.Event, payload.Payload, nil)
+	}
+
 	return nil
 }

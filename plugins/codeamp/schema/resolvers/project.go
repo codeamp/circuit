@@ -35,11 +35,11 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	var query *gorm.DB
 
 	if args.ID != nil {
-		query = r.DB.Where("id = ?", *args.ID)
+		query = r.db.Where("id = ?", *args.ID)
 	} else if args.Slug != nil {
-		query = r.DB.Where("slug = ?", *args.Slug)
+		query = r.db.Where("slug = ?", *args.Slug)
 	} else if args.Name != nil {
-		query = r.DB.Where("name = ?", *args.Name)
+		query = r.db.Where("name = ?", *args.Name)
 	} else {
 		return nil, fmt.Errorf("Missing argument id or slug")
 	}
@@ -48,7 +48,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	return &ProjectResolver{DB: r.DB, Project: project}, nil
+	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
 func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
@@ -123,7 +123,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 			"repository": repository,
 		})
 	} else {
-		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
+		//return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
 	}
 
 	project.Name = repository
@@ -131,7 +131,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.Slug = slug.Slug(repository)
 
 	deletedProject := codeamp_models.Project{}
-	if err := r.DB.Unscoped().Where("repository = ?", repository).First(&deletedProject).Error; err != nil {
+	if err := r.db.Unscoped().Where("repository = ?", repository).First(&deletedProject).Error; err != nil {
 		project.Model.ID = deletedProject.Model.ID
 	}
 
@@ -165,13 +165,15 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.RsaPrivateKey = string(pem.EncodeToMemory(&priv_blk))
 	project.RsaPublicKey = string(ssh.MarshalAuthorizedKey(pub))
 
-	r.DB.Create(&project)
+	r.db.Create(&project)
 
-	return &ProjectResolver{DB: r.DB, Project: project}, nil
+	r.actions.ProjectCreated(&project)
+
+	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
 type ProjectResolver struct {
-	DB      *gorm.DB
+	db      *gorm.DB
 	Project codeamp_models.Project
 }
 
@@ -215,10 +217,10 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []codeamp_models.Feature
 	var results []*FeatureResolver
 
-	r.DB.Where("project_id = ?", r.Project.ID).Order("created desc").Find(&rows)
+	r.db.Where("project_id = ?", r.Project.ID).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
-		results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})
+		results = append(results, &FeatureResolver{db: r.db, Feature: feature})
 	}
 
 	return results, nil
@@ -228,10 +230,10 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 	var rows []codeamp_models.Release
 	var results []*ReleaseResolver
 
-	r.DB.Model(r.Project).Related(&rows)
+	r.db.Model(r.Project).Related(&rows)
 
 	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
+		results = append(results, &ReleaseResolver{db: r.db, Release: release})
 	}
 
 	return results, nil

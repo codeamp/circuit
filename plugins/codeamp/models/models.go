@@ -34,10 +34,10 @@ type Project struct {
 	Name          string `json:"name"`
 	Slug          string `json:"slug"`
 	Repository    string `json:"repository"`
-	Secret        string `json:"secret"`
+	Secret        string `json:"-"`
 	GitUrl        string `json:"GitUrl"`
 	GitProtocol   string `json:"GitProtocol"`
-	RsaPrivateKey string `json:"rsaPrivateKey"`
+	RsaPrivateKey string `json:"-"`
 	RsaPublicKey  string `json:"rsaPublicKey"`
 
 	Features []Feature

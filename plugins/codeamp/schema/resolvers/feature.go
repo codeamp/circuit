@@ -10,11 +10,11 @@ import (
 
 func (r *Resolver) Feature(ctx context.Context, args *struct{ ID graphql.ID }) *FeatureResolver {
 	feature := codeamp_models.Feature{}
-	return &FeatureResolver{DB: r.DB, Feature: feature}
+	return &FeatureResolver{db: r.db, Feature: feature}
 }
 
 type FeatureResolver struct {
-	DB      *gorm.DB
+	db      *gorm.DB
 	Feature codeamp_models.Feature
 }
 
@@ -25,9 +25,9 @@ func (r *FeatureResolver) ID() graphql.ID {
 func (r *FeatureResolver) Project(ctx context.Context) (*ProjectResolver, error) {
 	var project codeamp_models.Project
 
-	r.DB.Model(r.Feature).Related(&project)
+	r.db.Model(r.Feature).Related(&project)
 
-	return &ProjectResolver{DB: r.DB, Project: project}, nil
+	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
 func (r *FeatureResolver) Message() string {

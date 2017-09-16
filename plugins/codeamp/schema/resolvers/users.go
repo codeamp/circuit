@@ -15,10 +15,10 @@ func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 	var rows []codeamp_models.User
 	var results []*UserResolver
 
-	r.DB.Find(&rows)
+	r.db.Find(&rows)
 
 	for _, user := range rows {
-		results = append(results, &UserResolver{DB: r.DB, User: user})
+		results = append(results, &UserResolver{db: r.db, User: user})
 	}
 
 	return results, nil
