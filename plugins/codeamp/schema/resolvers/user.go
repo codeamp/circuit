@@ -27,9 +27,9 @@ func (r *Resolver) CreateUser(args *struct{ User *UserInput }) *UserResolver {
 		Password: passwordHash,
 	}
 
-	r.DB.Create(&user)
+	r.db.Create(&user)
 
-	return &UserResolver{DB: r.DB, User: user}
+	return &UserResolver{db: r.db, User: user}
 }
 
 func (r *Resolver) UserToken(args *struct {
@@ -38,7 +38,7 @@ func (r *Resolver) UserToken(args *struct {
 }) (*UserResolver, error) {
 	var user codeamp_models.User
 
-	if r.DB.Where("email = ?", args.Email).First(&user).RecordNotFound() {
+	if r.db.Where("email = ?", args.Email).First(&user).RecordNotFound() {
 		return nil, errors.New("Authentication failed")
 	}
 
@@ -46,7 +46,7 @@ func (r *Resolver) UserToken(args *struct {
 		return nil, errors.New("Authentication failed")
 	}
 
-	return &UserResolver{DB: r.DB, User: user}, nil
+	return &UserResolver{db: r.db, User: user}, nil
 }
 
 func (r *Resolver) User(ctx context.Context, args *struct{ ID *graphql.ID }) (*UserResolver, error) {
@@ -62,15 +62,15 @@ func (r *Resolver) User(ctx context.Context, args *struct{ ID *graphql.ID }) (*U
 		userId = string(*args.ID)
 	}
 
-	if err := r.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+	if err := r.db.Where("id = ?", userId).First(&user).Error; err != nil {
 		return nil, err
 	}
 
-	return &UserResolver{DB: r.DB, User: user}, nil
+	return &UserResolver{db: r.db, User: user}, nil
 }
 
 type UserResolver struct {
-	DB   *gorm.DB
+	db   *gorm.DB
 	User codeamp_models.User
 }
 
@@ -85,7 +85,7 @@ func (r *UserResolver) Email(ctx context.Context) (string, error) {
 func (r *UserResolver) Permissions() []string {
 	var permissions []string
 
-	r.DB.Model(r.User).Association("Permissions").Find(&r.User.Permissions)
+	r.db.Model(r.User).Association("Permissions").Find(&r.User.Permissions)
 
 	permissions = append(permissions, fmt.Sprintf("user:%s", r.User.Model.ID))
 
@@ -103,7 +103,7 @@ func (r *UserResolver) Token() (string, error) {
 		StandardClaims: jwt.StandardClaims{
 			Issuer:    viper.GetString("plugins.codeamp.jwt_issuer"),
 			IssuedAt:  time.Now().UTC().Unix(),
-			ExpiresAt: time.Now().Add(time.Minute * 60).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
 		},
 	}
 

@@ -15,9 +15,9 @@ func (r *Resolver) Projects(ctx context.Context) ([]*ProjectResolver, error) {
 	var rows []codeamp_models.Project
 	var results []*ProjectResolver
 
-	r.DB.Find(&rows)
+	r.db.Find(&rows)
 	for _, project := range rows {
-		results = append(results, &ProjectResolver{DB: r.DB, Project: project})
+		results = append(results, &ProjectResolver{db: r.db, Project: project})
 	}
 
 	return results, nil

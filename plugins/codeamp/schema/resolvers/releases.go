@@ -15,9 +15,9 @@ func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	var rows []codeamp_models.Release
 	var results []*ReleaseResolver
 
-	r.DB.Find(&rows)
+	r.db.Find(&rows)
 	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
+		results = append(results, &ReleaseResolver{db: r.db, Release: release})
 	}
 
 	return results, nil

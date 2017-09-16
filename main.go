@@ -5,7 +5,6 @@ import (
 	_ "github.com/codeamp/circuit/plugins/codeamp"
 	_ "github.com/codeamp/circuit/plugins/git_sync"
 	_ "github.com/codeamp/circuit/plugins/heartbeat"
-	_ "github.com/codeamp/circuit/plugins/websockets"
 )
 
 func main() {

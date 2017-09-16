@@ -18,9 +18,6 @@ plugins:
       sslmode: "disable"
       password: ""
     service_address: ":3011"
-  websockets:
-    workers: 1
-    service_address: ":3013"
   git_sync:
     workers: 1
     workdir: "/tmp/git_sync" 
