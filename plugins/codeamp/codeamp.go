@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	codeamp_actions "github.com/codeamp/circuit/plugins/codeamp/actions"
@@ -16,7 +15,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/googollee/go-socket.io"
+	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -167,13 +166,13 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 		log.Fatal(err)
 	}
 
-	split := strings.Split(viper.GetString("redis.server"), ":")
-	host, port := split[0], split[1]
+	// split := strings.Split(viper.GetString("redis.server"), ":")
+	// host, port := split[0], split[1]
 
-	opts := map[string]string{
-		"host": host,
-		"port": port,
-	}
+	// opts := map[string]string{
+	// 	"host": host,
+	// 	"port": port,
+	// }
 	//sio.SetAdaptor(redis.Redis(opts))
 
 	x.SocketIO = sio

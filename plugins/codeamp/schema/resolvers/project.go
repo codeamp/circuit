@@ -59,7 +59,7 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 		return nil, fmt.Errorf("Missing argument id")
 	}
 
-	if r.DB.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
+	if r.db.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
 		log.InfoWithFields("Project not found", log.Fields{
 			"id": args.Project.ID,
 		})
@@ -80,7 +80,7 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.GitUrl = args.Project.GitUrl
 
 	// Check if project already exists with same name
-	if r.DB.Unscoped().Where("id != ? and repository = ?", args.Project.ID, repository).First(&codeamp_models.Project{}).RecordNotFound() == false {
+	if r.db.Unscoped().Where("id != ? and repository = ?", args.Project.ID, repository).First(&codeamp_models.Project{}).RecordNotFound() == false {
 		return nil, fmt.Errorf("Project with repository name already exists.")
 	}
 
@@ -89,12 +89,12 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.Repository = repository
 	project.Name = repository
 	project.Slug = slug.Slug(repository)
-	r.DB.Save(project)
+	r.db.Save(project)
 
 	// Cascade delete all features and releases related to old git url
-	r.DB.Where("projectId = ?", project.ID).Delete(codeamp_models.Feature{})
-	r.DB.Where("projectId = ?", project.ID).Delete(codeamp_models.Release{})
-	return &ProjectResolver{DB: r.DB, Project: project}, nil
+	r.db.Where("projectId = ?", project.ID).Delete(codeamp_models.Feature{})
+	r.db.Where("projectId = ?", project.ID).Delete(codeamp_models.Release{})
+	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
 func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
@@ -118,7 +118,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	// Check if project already exists with same name
 	existingProject := codeamp_models.Project{}
 
-	if r.DB.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
+	if r.db.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
 		log.InfoWithFields("Project not found", log.Fields{
 			"repository": repository,
 		})
