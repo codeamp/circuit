@@ -25,6 +25,7 @@ type Query {
 type Mutation {
   createProject(project: ProjectInput): Project
   updateProject(project: ProjectInput): Project
+  createRelease(feature: ReleaseInput): Release
   userToken(email: String!, password: String!): User
 }
 
@@ -83,3 +84,6 @@ input ProjectInput {
   bookmarked: Boolean
 }
 
+input ReleaseInput {
+  featureId: String
+}
