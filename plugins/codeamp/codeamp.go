@@ -22,6 +22,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
 	"github.com/neelance/graphql-go/relay"
+	"github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
 
@@ -174,7 +175,7 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 		"host": host,
 		"port": port,
 	}
-	//sio.SetAdaptor(redis.Redis(opts))
+	sio.SetAdaptor(redis.Redis(opts))
 
 	x.SocketIO = sio
 	x.Actions = actions

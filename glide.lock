@@ -1,5 +1,5 @@
 hash: 17bdd4a8926e5a71b5b6956e1298fea733a198b5996f4e8cb2d75a7e513e3f37
-updated: 2017-09-15T20:55:49.599649867-07:00
+updated: 2017-09-26T11:36:16.671401-07:00
 imports:
 - name: github.com/bitly/go-simplejson
   version: da1a8928f709389522c8023062a3739f3b4af419
@@ -9,10 +9,6 @@ imports:
   version: 560385c28562a1fff1130a7de11dc8edc06100bf
 - name: github.com/codeamp/transistor
   version: d72ceb7297b76795fb7378778be6a3c5f60629c9
-- name: github.com/davecgh/go-spew
-  version: 346938d642f2ec3594ed81d874461961cd0faa76
-  subpackages:
-  - spew
 - name: github.com/dgrijalva/jwt-go
   version: d2709f9f1f31ebcda9651b03077758c1f3a0018c
 - name: github.com/extemporalgenome/slug
@@ -89,6 +85,8 @@ imports:
   - log
   - relay
   - trace
+- name: github.com/nu7hatch/gouuid
+  version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
 - name: github.com/opentracing/opentracing-go
   version: 8ebe5d4e236eed9fd88e593c288bfb804d630b8c
   subpackages:
@@ -102,6 +100,9 @@ imports:
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/satyakb/go-socket.io-redis
   version: 2306cd33e355142809fb7538a96d6c4b4ba1b8ae
+  subpackages:
+  - cmap_string_cmap
+  - cmap_string_socket
 - name: github.com/sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/spf13/afero
@@ -150,6 +151,10 @@ imports:
 - name: gopkg.in/yaml.v2
   version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
 testImports:
+- name: github.com/davecgh/go-spew
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  subpackages:
+  - spew
 - name: github.com/pmezard/go-difflib
   version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
