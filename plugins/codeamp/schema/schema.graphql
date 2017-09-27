@@ -17,6 +17,10 @@ type Query {
   projects(): [Project]!
   # Retrieve all features
   features(): [Feature]!
+
+  # Retrieve all services
+  services(): [Service]!
+
   # Retrieve all releases
   releases(): [Release]!
 }
@@ -25,7 +29,8 @@ type Query {
 type Mutation {
   createProject(project: ProjectInput): Project
   updateProject(project: ProjectInput): Project
-  createRelease(feature: ReleaseInput): Release
+  createRelease(release: ReleaseInput): Release
+  createService(service: ServiceInput): Service
   userToken(email: String!, password: String!): User
 }
 
@@ -50,6 +55,23 @@ interface Feature {
   created: Time!
 }
 
+interface ContainerPort {
+  protocol: String!
+  port: String!
+}
+
+interface Service { 
+  id: ID!
+  project: Project
+  command: String!
+  name: String!
+  serviceSpec: String!
+  count: String!
+  containerPorts: [ContainerPort]!
+  created: Time!
+  oneShot: Boolean!
+}
+
 # Release object
 interface Release {
   id: ID!
@@ -59,6 +81,7 @@ interface Release {
   tailFeature: Feature!
   state: String!        
   stateMessage: String!
+  created: Time!
 }
 
 # Project object
@@ -74,6 +97,7 @@ interface Project {
   rsaPublicKey: String!
   features: [Feature]!
   releases: [Release]!
+  services: [Service]!
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -85,5 +109,22 @@ input ProjectInput {
 }
 
 input ReleaseInput {
+  id: String
   featureId: String
+}
+
+input ServiceInput { 
+  id: String
+  projectId: String!
+  command: String!
+  name: String!
+  serviceSpec: String!
+  count: String!
+  containerPorts: [ContainerPortInput!]
+  oneShot: Boolean!
+}
+
+input ContainerPortInput {
+  port: String!
+  protocol: String!
 }
