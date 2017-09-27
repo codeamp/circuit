@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	codeamp_actions "github.com/codeamp/circuit/plugins/codeamp/actions"
@@ -16,7 +15,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/googollee/go-socket.io"
+	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -78,6 +77,8 @@ func (x *CodeAmp) Migrate() {
 		&codeamp_models.Project{},
 		&codeamp_models.Release{},
 		&codeamp_models.Feature{},
+		&codeamp_models.Service{},
+		&codeamp_models.ContainerPort{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")

@@ -226,6 +226,19 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	return results, nil
 }
 
+func (r *ProjectResolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
+	var rows []codeamp_models.Service
+	var results []*ServiceResolver
+
+	r.db.Where("project_id = ?", r.Project.ID).Find(&rows)
+
+	for _, service := range rows {
+		results = append(results, &ServiceResolver{db: r.db, Service: service})
+	}
+
+	return results, nil
+}
+
 func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	var rows []codeamp_models.Release
 	var results []*ReleaseResolver

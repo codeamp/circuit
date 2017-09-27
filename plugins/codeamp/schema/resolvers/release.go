@@ -2,8 +2,10 @@ package codeamp_schema_resolvers
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/codeamp/circuit/plugins/codeamp/models"
+	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 )
@@ -16,6 +18,19 @@ func (r *Resolver) Release(ctx context.Context, args *struct{ ID graphql.ID }) *
 type ReleaseResolver struct {
 	db      *gorm.DB
 	Release codeamp_models.Release
+}
+
+type ReleaseInput struct {
+	ID        *string
+	FeatureId *string
+}
+
+func (r *Resolver) CreateRelease(args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
+	fmt.Println("CreateRelease")
+	// var release codeamp_models.Release
+
+	spew.Dump(*args.Release)
+	return nil, nil
 }
 
 func (r *ReleaseResolver) ID() graphql.ID {
@@ -60,4 +75,8 @@ func (r *ReleaseResolver) State() string {
 
 func (r *ReleaseResolver) StateMessage() string {
 	return r.Release.StateMessage
+}
+
+func (r *ReleaseResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Release.Created}
 }

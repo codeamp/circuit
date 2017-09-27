@@ -3,8 +3,6 @@ package codeamp_models
 import (
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
-
 	"github.com/codeamp/circuit/plugins"
 	uuid "github.com/satori/go.uuid"
 )
@@ -42,6 +40,28 @@ type Project struct {
 
 	Features []Feature
 	Releases []Release
+	Service  []Service
+}
+
+type ContainerPort struct {
+	Model     `json:",inline"`
+	ServiceId uuid.UUID `bson:"serviceId" json:"serviceId" gorm:"type:uuid"`
+	Protocol  string    `json:"protocol"`
+	Port      string    `json:"port"`
+}
+
+type Service struct {
+	Model       `json:",inline"`
+	ProjectId   uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	Command     string    `json:"command"`
+	Name        string    `json:"name"`
+	ServiceSpec string    `json:"serviceSpec"`
+	OneShot     bool      `json:"oneShot"`
+	Count       string    `json:"count"`
+	Created     time.Time `json:"created"`
+
+	Project        Project
+	ContainerPorts []ContainerPort
 }
 
 type Feature struct {
@@ -60,11 +80,12 @@ type Feature struct {
 type Release struct {
 	Model         `json:",inline"`
 	ProjectId     uuid.UUID     `json:"projectId" gorm:"type:uuid"`
-	UserId        uuid.UUID     `json:"-" gorm:"type:uuid"`
-	HeadFeatureId uuid.UUID     `json:"-" gorm:"type:uuid"`
-	TailFeatureId bson.ObjectId `json:"-" gorm:"type:uuid"`
+	UserId        uuid.UUID     `json:"userId" gorm:"type:uuid"`
+	HeadFeatureId uuid.UUID     `json:"headFeatureId" gorm:"type:uuid"`
+	TailFeatureId uuid.UUID     `json:"tailFeatureId" gorm:"type:uuid"`
 	State         plugins.State `json:"state"`
 	StateMessage  string        `json:"stateMessage"`
+	Created       time.Time     `json:"created"`
 
 	User        User
 	HeadFeature Feature
