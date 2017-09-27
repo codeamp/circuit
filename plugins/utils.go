@@ -77,7 +77,7 @@ func GitFetch(project Project, git Git) (*git2go.Repository, error) {
 	var repo *git2go.Repository
 	var err error
 
-	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.git_sync.workdir"), project.Repository, git.Protocol)
+	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), project.Repository, git.Protocol)
 
 	if _, err = os.Stat(repoPath); err != nil {
 		if os.IsNotExist(err) {

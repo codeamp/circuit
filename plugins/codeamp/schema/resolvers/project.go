@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	log "github.com/codeamp/logger"
 
 	"github.com/codeamp/circuit/plugins"
-	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/transistor"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
@@ -31,7 +31,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	Slug *string
 	Name *string
 }) (*ProjectResolver, error) {
-	var project codeamp_models.Project
+	var project models.Project
 	var query *gorm.DB
 
 	if args.ID != nil {
@@ -53,7 +53,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 
 func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
 
-	var project codeamp_models.Project
+	var project models.Project
 
 	if args.Project.ID == nil {
 		return nil, fmt.Errorf("Missing argument id")
@@ -80,7 +80,7 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.GitUrl = args.Project.GitUrl
 
 	// Check if project already exists with same name
-	if r.db.Unscoped().Where("id != ? and repository = ?", args.Project.ID, repository).First(&codeamp_models.Project{}).RecordNotFound() == false {
+	if r.db.Unscoped().Where("id != ? and repository = ?", args.Project.ID, repository).First(&models.Project{}).RecordNotFound() == false {
 		return nil, fmt.Errorf("Project with repository name already exists.")
 	}
 
@@ -92,8 +92,8 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	r.db.Save(project)
 
 	// Cascade delete all features and releases related to old git url
-	r.db.Where("projectId = ?", project.ID).Delete(codeamp_models.Feature{})
-	r.db.Where("projectId = ?", project.ID).Delete(codeamp_models.Release{})
+	r.db.Where("projectId = ?", project.ID).Delete(models.Feature{})
+	r.db.Where("projectId = ?", project.ID).Delete(models.Release{})
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
@@ -106,7 +106,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 		protocol = "HTTPS"
 	}
 
-	project := codeamp_models.Project{
+	project := models.Project{
 		GitProtocol: protocol,
 		GitUrl:      args.Project.GitUrl,
 		Secret:      transistor.RandomString(30),
@@ -116,7 +116,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
 
 	// Check if project already exists with same name
-	existingProject := codeamp_models.Project{}
+	existingProject := models.Project{}
 
 	if r.db.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
 		log.InfoWithFields("Project not found", log.Fields{
@@ -130,7 +130,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.Repository = repository
 	project.Slug = slug.Slug(repository)
 
-	deletedProject := codeamp_models.Project{}
+	deletedProject := models.Project{}
 	if err := r.db.Unscoped().Where("repository = ?", repository).First(&deletedProject).Error; err != nil {
 		project.Model.ID = deletedProject.Model.ID
 	}
@@ -174,7 +174,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 
 type ProjectResolver struct {
 	db      *gorm.DB
-	Project codeamp_models.Project
+	Project models.Project
 }
 
 func (r *ProjectResolver) ID() graphql.ID {
@@ -214,7 +214,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
-	var rows []codeamp_models.Feature
+	var rows []models.Feature
 	var results []*FeatureResolver
 
 	r.db.Where("project_id = ?", r.Project.ID).Order("created desc").Find(&rows)
@@ -227,7 +227,7 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 }
 
 func (r *ProjectResolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
-	var rows []codeamp_models.Service
+	var rows []models.Service
 	var results []*ServiceResolver
 
 	r.db.Where("project_id = ?", r.Project.ID).Find(&rows)
@@ -240,7 +240,7 @@ func (r *ProjectResolver) Services(ctx context.Context) ([]*ServiceResolver, err
 }
 
 func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
-	var rows []codeamp_models.Release
+	var rows []models.Release
 	var results []*ReleaseResolver
 
 	r.db.Model(r.Project).Related(&rows)

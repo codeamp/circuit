@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -18,17 +18,17 @@ type ServiceInput struct {
 	ServiceSpec    string
 	OneShot        bool
 	Count          string
-	ContainerPorts *[]codeamp_models.ContainerPort
+	ContainerPorts *[]models.ContainerPort
 	ProjectId      string
 }
 
 type ServiceResolver struct {
 	db      *gorm.DB
-	Service codeamp_models.Service
+	Service models.Service
 }
 
 func (r *Resolver) Service(ctx context.Context, args *struct{ ID graphql.ID }) (*ServiceResolver, error) {
-	service := codeamp_models.Service{}
+	service := models.Service{}
 	if err := r.db.Where("id = ?", args.ID).First(&service).Error; err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 		return &ServiceResolver{}, err
 	}
 	spew.Dump(args.Service)
-	service := codeamp_models.Service{
+	service := models.Service{
 		Name:        args.Service.Name,
 		Command:     args.Service.Command,
 		ServiceSpec: args.Service.ServiceSpec,
@@ -57,7 +57,7 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 
 	if args.Service.ContainerPorts != nil {
 		for _, cp := range *args.Service.ContainerPorts {
-			containerPort := codeamp_models.ContainerPort{
+			containerPort := models.ContainerPort{
 				ServiceId: service.ID,
 				Port:      cp.Port,
 				Protocol:  cp.Protocol,
@@ -74,7 +74,7 @@ func (r *ServiceResolver) ID() graphql.ID {
 }
 
 func (r *ServiceResolver) Project(ctx context.Context) (*ProjectResolver, error) {
-	var project codeamp_models.Project
+	var project models.Project
 
 	r.db.Model(r.Service).Related(&project)
 
@@ -106,7 +106,7 @@ func (r *ServiceResolver) OneShot() bool {
 }
 
 func (r *ServiceResolver) ContainerPorts(ctx context.Context) ([]*ContainerPortResolver, error) {
-	var rows []codeamp_models.ContainerPort
+	var rows []models.ContainerPort
 	var results []*ContainerPortResolver
 
 	r.db.Where("service_id = ?", r.Service.ID).Order("created_at desc").Find(&rows)
@@ -119,7 +119,7 @@ func (r *ServiceResolver) ContainerPorts(ctx context.Context) ([]*ContainerPortR
 }
 
 type ContainerPortResolver struct {
-	ContainerPort codeamp_models.ContainerPort
+	ContainerPort models.ContainerPort
 }
 
 func (r *ContainerPortResolver) Port() string {

@@ -1,4 +1,4 @@
-package codeamp_models
+package models
 
 import (
 	"time"

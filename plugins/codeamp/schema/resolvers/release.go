@@ -1,23 +1,23 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
 	"fmt"
 
-	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 )
 
 func (r *Resolver) Release(ctx context.Context, args *struct{ ID graphql.ID }) *ReleaseResolver {
-	release := codeamp_models.Release{}
+	release := models.Release{}
 	return &ReleaseResolver{db: r.db, Release: release}
 }
 
 type ReleaseResolver struct {
 	db      *gorm.DB
-	Release codeamp_models.Release
+	Release models.Release
 }
 
 type ReleaseInput struct {
@@ -27,7 +27,7 @@ type ReleaseInput struct {
 
 func (r *Resolver) CreateRelease(args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
 	fmt.Println("CreateRelease")
-	// var release codeamp_models.Release
+	// var release models.Release
 
 	spew.Dump(*args.Release)
 	return nil, nil
@@ -38,7 +38,7 @@ func (r *ReleaseResolver) ID() graphql.ID {
 }
 
 func (r *ReleaseResolver) Project(ctx context.Context) (*ProjectResolver, error) {
-	var project codeamp_models.Project
+	var project models.Project
 
 	r.db.Model(r.Release).Related(&project)
 
@@ -46,7 +46,7 @@ func (r *ReleaseResolver) Project(ctx context.Context) (*ProjectResolver, error)
 }
 
 func (r *ReleaseResolver) User(ctx context.Context) (*UserResolver, error) {
-	var user codeamp_models.User
+	var user models.User
 
 	r.db.Model(r.User).Related(&user)
 
@@ -54,7 +54,7 @@ func (r *ReleaseResolver) User(ctx context.Context) (*UserResolver, error) {
 }
 
 func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
-	var feature codeamp_models.Feature
+	var feature models.Feature
 
 	r.db.Where("id = ?", r.Release.HeadFeatureId).First(&feature)
 
@@ -62,7 +62,7 @@ func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
 }
 
 func (r *ReleaseResolver) TailFeature() (*FeatureResolver, error) {
-	var feature codeamp_models.Feature
+	var feature models.Feature
 
 	r.db.Where("id = ?", r.Release.TailFeatureId).First(&feature)
 

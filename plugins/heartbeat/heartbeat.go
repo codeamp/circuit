@@ -1,10 +1,10 @@
 package heartbeat
 
 import (
-	"log"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/rk/go-cron"
 )

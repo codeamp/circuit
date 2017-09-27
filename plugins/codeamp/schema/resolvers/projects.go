@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -12,7 +12,7 @@ func (r *Resolver) Projects(ctx context.Context) ([]*ProjectResolver, error) {
 		return nil, err
 	}
 
-	var rows []codeamp_models.Project
+	var rows []models.Project
 	var results []*ProjectResolver
 
 	r.db.Find(&rows)

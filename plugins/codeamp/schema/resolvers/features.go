@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -12,7 +12,7 @@ func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 		return nil, err
 	}
 
-	var rows []codeamp_models.Feature
+	var rows []models.Feature
 	var results []*FeatureResolver
 
 	r.db.Order("created desc").Find(&rows)

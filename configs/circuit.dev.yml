@@ -18,8 +18,8 @@ plugins:
       sslmode: "disable"
       password: ""
     service_address: ":3011"
-  git_sync:
+  gitsync:
     workers: 1
-    workdir: "/tmp/git_sync" 
+    workdir: "/tmp/gitsync" 
   heartbeat:
     workers: 1

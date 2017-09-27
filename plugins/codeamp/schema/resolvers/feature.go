@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -9,13 +9,13 @@ import (
 )
 
 func (r *Resolver) Feature(ctx context.Context, args *struct{ ID graphql.ID }) *FeatureResolver {
-	feature := codeamp_models.Feature{}
+	feature := models.Feature{}
 	return &FeatureResolver{db: r.db, Feature: feature}
 }
 
 type FeatureResolver struct {
 	db      *gorm.DB
-	Feature codeamp_models.Feature
+	Feature models.Feature
 }
 
 func (r *FeatureResolver) ID() graphql.ID {
@@ -23,7 +23,7 @@ func (r *FeatureResolver) ID() graphql.ID {
 }
 
 func (r *FeatureResolver) Project(ctx context.Context) (*ProjectResolver, error) {
-	var project codeamp_models.Project
+	var project models.Project
 
 	r.db.Model(r.Feature).Related(&project)
 

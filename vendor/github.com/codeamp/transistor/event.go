@@ -7,6 +7,7 @@ import (
 	"time"
 
 	json "github.com/bww/go-json"
+	log "github.com/codeamp/logger"
 	"github.com/satori/go.uuid"
 )
 
@@ -92,5 +93,5 @@ func (e *Event) NewEvent(payload interface{}, err error) Event {
 
 func (e *Event) Dump() {
 	event, _ := json.MarshalRole("dummy", e)
-	fmt.Println(string(event))
+	log.Info(string(event))
 }

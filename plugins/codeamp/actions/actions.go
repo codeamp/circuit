@@ -1,10 +1,10 @@
-package codeamp_actions
+package actions
 
 import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
@@ -23,7 +23,7 @@ func NewActions(events chan transistor.Event, db *gorm.DB) *Actions {
 }
 
 func (x *Actions) HeartBeat(tick string) {
-	var projects []codeamp_models.Project
+	var projects []models.Project
 
 	x.db.Find(&projects)
 	for _, project := range projects {
@@ -33,9 +33,9 @@ func (x *Actions) HeartBeat(tick string) {
 	}
 }
 
-func (x *Actions) GitSync(project *codeamp_models.Project) {
-	var feature codeamp_models.Feature
-	var release codeamp_models.Release
+func (x *Actions) GitSync(project *models.Project) {
+	var feature models.Feature
+	var release models.Release
 	hash := ""
 
 	// Get latest release and deployed feature hash
@@ -68,8 +68,8 @@ func (x *Actions) GitSync(project *codeamp_models.Project) {
 }
 
 func (x *Actions) GitCommit(commit plugins.GitCommit) {
-	project := codeamp_models.Project{}
-	feature := codeamp_models.Feature{}
+	project := models.Project{}
+	feature := models.Feature{}
 
 	if x.db.Where("repository = ?", commit.Repository).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -79,7 +79,7 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 	}
 
 	if x.db.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
-		feature = codeamp_models.Feature{
+		feature = models.Feature{
 			ProjectId:  project.ID,
 			Message:    commit.Message,
 			User:       commit.User,
@@ -103,7 +103,7 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 	}
 }
 
-func (x *Actions) ProjectCreated(project *codeamp_models.Project) {
+func (x *Actions) ProjectCreated(project *models.Project) {
 	wsMsg := plugins.WebsocketMsg{
 		Event:   "projects",
 		Payload: project,

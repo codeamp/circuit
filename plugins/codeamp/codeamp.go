@@ -6,12 +6,13 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 
 	"github.com/codeamp/circuit/plugins"
-	codeamp_actions "github.com/codeamp/circuit/plugins/codeamp/actions"
-	codeamp_models "github.com/codeamp/circuit/plugins/codeamp/models"
-	codeamp_schema "github.com/codeamp/circuit/plugins/codeamp/schema"
-	codeamp_schema_resolvers "github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
+	"github.com/codeamp/circuit/plugins/codeamp/actions"
+	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/schema"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -35,7 +36,7 @@ type CodeAmp struct {
 	ServiceAddress string `mapstructure:"service_address"`
 	Events         chan transistor.Event
 	Schema         *graphql.Schema
-	Actions        *codeamp_actions.Actions
+	Actions        *actions.Actions
 	SocketIO       *socketio.Server
 }
 
@@ -72,23 +73,23 @@ func (x *CodeAmp) Migrate() {
 	db.Exec("CREATE EXTENSION \"uuid-ossp\"")
 
 	db.AutoMigrate(
-		&codeamp_models.User{},
-		&codeamp_models.UserPermission{},
-		&codeamp_models.Project{},
-		&codeamp_models.Release{},
-		&codeamp_models.Feature{},
-		&codeamp_models.Service{},
-		&codeamp_models.ContainerPort{},
+		&models.User{},
+		&models.UserPermission{},
+		&models.Project{},
+		&models.Release{},
+		&models.Feature{},
+		&models.Service{},
+		&models.ContainerPort{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")
-	user := codeamp_models.User{
+	user := models.User{
 		Email:    "admin@codeamp.com",
 		Password: hashedPassword,
 	}
 	db.Create(&user)
 
-	userPermission := codeamp_models.UserPermission{
+	userPermission := models.UserPermission{
 		UserId: user.Model.ID,
 		Value:  "admin",
 	}
@@ -150,15 +151,15 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	))
 	//defer x.DB.Close()
 
-	actions := codeamp_actions.NewActions(events, db)
-	resolver := codeamp_schema_resolvers.NewResolver(events, db, actions)
+	actions := actions.NewActions(events, db)
+	resolver := resolvers.NewResolver(events, db, actions)
 
-	s, err := codeamp_schema.Schema()
+	s, err := schema.Schema()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	schema, err := graphql.ParseSchema(string(s), resolver)
+	parsedSchema, err := graphql.ParseSchema(string(s), resolver)
 	if err != nil {
 		panic(err)
 	}
@@ -180,7 +181,7 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 
 	x.SocketIO = sio
 	x.Actions = actions
-	x.Schema = schema
+	x.Schema = parsedSchema
 
 	go x.Listen()
 

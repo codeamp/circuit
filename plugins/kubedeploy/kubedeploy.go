@@ -1,7 +1,7 @@
 package kubedeploy
 
 import (
-	"log"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 

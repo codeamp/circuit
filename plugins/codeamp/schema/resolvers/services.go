@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -12,7 +12,7 @@ func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
 		return nil, err
 	}
 
-	var rows []codeamp_models.Service
+	var rows []models.Service
 	var results []*ServiceResolver
 
 	r.db.Order("created desc").Find(&rows)

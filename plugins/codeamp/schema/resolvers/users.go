@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -12,7 +12,7 @@ func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 		return nil, err
 	}
 
-	var rows []codeamp_models.User
+	var rows []models.User
 	var results []*UserResolver
 
 	r.db.Find(&rows)

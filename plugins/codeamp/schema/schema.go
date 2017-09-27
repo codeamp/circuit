@@ -1,4 +1,4 @@
-package codeamp_schema
+package schema
 
 import (
 	"io/ioutil"

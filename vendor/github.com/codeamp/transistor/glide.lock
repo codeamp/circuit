@@ -1,5 +1,5 @@
 hash: 84c9327af09308ca8a87050a8baf1e0d76786ee39e8d9c95ad3026bdefc5cba9
-updated: 2017-09-01T12:06:30.678684161-07:00
+updated: 2017-09-27T11:14:29.721115-07:00
 imports:
 - name: github.com/bitly/go-simplejson
   version: da1a8928f709389522c8023062a3739f3b4af419
@@ -21,7 +21,7 @@ imports:
 - name: github.com/sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: golang.org/x/crypto
-  version: 81e90905daefcd6fd217b62423c0908922eadb30
+  version: b0c9c05bfe149df95eb1d25642162cca051e0466
   subpackages:
   - ssh/terminal
 - name: golang.org/x/sys

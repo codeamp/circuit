@@ -1,4 +1,4 @@
-package codeamp_schema_resolvers
+package resolvers
 
 import (
 	"context"
@@ -12,7 +12,7 @@ func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 		return nil, err
 	}
 
-	var rows []codeamp_models.Release
+	var rows []models.Release
 	var results []*ReleaseResolver
 
 	r.db.Find(&rows)
