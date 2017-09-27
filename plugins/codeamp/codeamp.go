@@ -21,6 +21,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
 	"github.com/neelance/graphql-go/relay"
+	"github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
 
@@ -168,14 +169,14 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 		log.Fatal(err)
 	}
 
-	// split := strings.Split(viper.GetString("redis.server"), ":")
-	// host, port := split[0], split[1]
+	split := strings.Split(viper.GetString("redis.server"), ":")
+	host, port := split[0], split[1]
 
-	// opts := map[string]string{
-	// 	"host": host,
-	// 	"port": port,
-	// }
-	//sio.SetAdaptor(redis.Redis(opts))
+	opts := map[string]string{
+		"host": host,
+		"port": port,
+	}
+	sio.SetAdaptor(redis.Redis(opts))
 
 	x.SocketIO = sio
 	x.Actions = actions
