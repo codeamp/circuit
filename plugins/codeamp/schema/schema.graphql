@@ -30,7 +30,11 @@ type Mutation {
   createProject(project: ProjectInput): Project
   updateProject(project: ProjectInput): Project
   createRelease(release: ReleaseInput): Release
+  
   createService(service: ServiceInput): Service
+  updateService(service: ServiceInput): Service
+  deleteService(service: ServiceInput): Service
+
   userToken(email: String!, password: String!): User
 }
 
