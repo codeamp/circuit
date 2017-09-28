@@ -111,9 +111,9 @@ func (x *Actions) ProjectCreated(project *models.Project) {
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
-func (x *Actions) ServiceCreated(service *codeamp_models.Service) {
+func (x *Actions) ServiceCreated(service *models.Service) {
 
-	project := codeamp_models.Project{}
+	project := models.Project{}
 	if x.db.Where("id = ?", service.ProjectId).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"service": service,
@@ -122,6 +122,38 @@ func (x *Actions) ServiceCreated(service *codeamp_models.Service) {
 
 	wsMsg := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/services/new", project.Slug),
+		Payload: service,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) ServiceUpdated(service *models.Service) {
+
+	project := models.Project{}
+	if x.db.Where("id = ?", service.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"service": service,
+		})
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/services/updated", project.Slug),
+		Payload: service,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) ServiceDeleted(service *models.Service) {
+
+	project := models.Project{}
+	if x.db.Where("id = ?", service.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"service": service,
+		})
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/services/deleted", project.Slug),
 		Payload: service,
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)

@@ -36,6 +36,77 @@ func (r *Resolver) Service(ctx context.Context, args *struct{ ID graphql.ID }) (
 	return &ServiceResolver{db: r.db, Service: service}, nil
 }
 
+func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
+	serviceId, err := uuid.FromString(*args.Service.ID)
+
+	if err != nil {
+		return &ServiceResolver{}, err
+	}
+
+	var service models.Service
+	r.db.First(&service, serviceId)
+	r.db.Delete(&service)
+
+	// delete all previous container ports
+	var containerPorts []models.ContainerPort
+	r.db.Where("service_id = ?", serviceId).Find(&containerPorts)
+
+	// delete all container ports
+	// replace with current
+
+	for _, cp := range containerPorts {
+		r.db.Delete(&cp)
+	}
+
+	r.actions.ServiceDeleted(&service)
+
+	return &ServiceResolver{db: r.db, Service: service}, nil
+}
+
+func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
+	serviceId, err := uuid.FromString(*args.Service.ID)
+
+	if err != nil {
+		return &ServiceResolver{}, err
+	}
+
+	var service models.Service
+	r.db.First(&service, serviceId)
+	service.Command = args.Service.Command
+	service.Name = args.Service.Name
+	service.OneShot = args.Service.OneShot
+	service.ServiceSpec = args.Service.ServiceSpec
+	service.Count = args.Service.Count
+
+	r.db.Save(&service)
+
+	// delete all previous container ports
+	var containerPorts []models.ContainerPort
+	r.db.Where("service_id = ?", serviceId).Find(&containerPorts)
+
+	// delete all container ports
+	// replace with current
+
+	for _, cp := range containerPorts {
+		r.db.Delete(&cp)
+	}
+
+	if args.Service.ContainerPorts != nil {
+		for _, cp := range *args.Service.ContainerPorts {
+			containerPort := models.ContainerPort{
+				ServiceId: service.ID,
+				Port:      cp.Port,
+				Protocol:  cp.Protocol,
+			}
+			r.db.Create(&containerPort)
+		}
+	}
+
+	r.actions.ServiceUpdated(&service)
+
+	return &ServiceResolver{db: r.db, Service: service}, nil
+}
+
 func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
 	projectId, err := uuid.FromString(args.Service.ProjectId)
 	if err != nil {
