@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	codeamp_actions "github.com/codeamp/circuit/plugins/codeamp/actions"

@@ -110,3 +110,19 @@ func (x *Actions) ProjectCreated(project *codeamp_models.Project) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
+
+func (x *Actions) ServiceCreated(service *codeamp_models.Service) {
+
+	project := codeamp_models.Project{}
+	if x.db.Where("id = ?", service.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"service": service,
+		})
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/services/new", project.Slug),
+		Payload: service,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
