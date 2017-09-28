@@ -66,6 +66,8 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 		}
 	}
 
+	r.actions.ServiceCreated(&service)
+
 	return &ServiceResolver{db: r.db, Service: service}, nil
 }
 
