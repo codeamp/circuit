@@ -2,6 +2,7 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -44,7 +45,8 @@ func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*Servic
 	}
 
 	var service models.Service
-	r.db.First(&service, serviceId)
+	spew.Dump(args.Service)
+	r.db.Where("id = ?", serviceId).Find(&service)
 	r.db.Delete(&service)
 
 	// delete all previous container ports
@@ -64,14 +66,17 @@ func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*Servic
 }
 
 func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
-	serviceId, err := uuid.FromString(*args.Service.ID)
+	serviceId := uuid.FromStringOrNil(*args.Service.ID)
 
-	if err != nil {
-		return &ServiceResolver{}, err
+	if serviceId == uuid.Nil {
+		return nil, fmt.Errorf("Missing argument id")
 	}
 
 	var service models.Service
-	r.db.First(&service, serviceId)
+	if r.db.Where("id = ?", serviceId).Find(&service).RecordNotFound() {
+		return nil, fmt.Errorf("Record not found with given argument id")
+	}
+
 	service.Command = args.Service.Command
 	service.Name = args.Service.Name
 	service.OneShot = args.Service.OneShot
