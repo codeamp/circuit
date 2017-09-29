@@ -21,6 +21,9 @@ type Query {
   # Retrieve all services
   services(): [Service]!
 
+  # Retrieve all service specs
+  serviceSpecs(): [ServiceSpec]!
+
   # Retrieve all releases
   releases(): [Release]!
 }
@@ -34,6 +37,8 @@ type Mutation {
   createService(service: ServiceInput): Service
   updateService(service: ServiceInput): Service
   deleteService(service: ServiceInput): Service
+
+  createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
 
   userToken(email: String!, password: String!): User
 }
@@ -74,6 +79,18 @@ interface Service {
   containerPorts: [ContainerPort]!
   created: Time!
   oneShot: Boolean!
+}
+
+# ServiceSpec object
+interface ServiceSpec {
+  id: ID!
+  name: String!
+  cpuRequest: String!
+  cpuLimit: String!
+  memoryRequest: String! 
+  memoryLimit: String!
+  created: Time!
+  terminationGracePeriod: String!
 }
 
 # Release object
@@ -131,4 +148,14 @@ input ServiceInput {
 input ContainerPortInput {
   port: String!
   protocol: String!
+}
+
+input ServiceSpecInput {
+  id: ID
+  name: String!
+  cpuRequest: String!
+  cpuLimit: String!
+  memoryRequest: String! 
+  memoryLimit: String!
+  terminationGracePeriod: String!
 }

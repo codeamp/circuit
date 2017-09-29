@@ -43,6 +43,17 @@ type Project struct {
 	Service  []Service
 }
 
+type ServiceSpec struct {
+	Model                  `json:",inline"`
+	Name                   string    `json:"name"`
+	CpuRequest             string    `json:"cpuRequest"`
+	CpuLimit               string    `json:"cpuLimit"`
+	MemoryRequest          string    `json:"memoryRequest"`
+	MemoryLimit            string    `json:"memoryLimit"`
+	TerminationGracePeriod string    `json:"terminationGracePeriod"`
+	Created                time.Time `json:"created"`
+}
+
 type ContainerPort struct {
 	Model     `json:",inline"`
 	ServiceId uuid.UUID `bson:"serviceId" json:"serviceId" gorm:"type:uuid"`
