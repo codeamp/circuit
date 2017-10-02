@@ -171,3 +171,11 @@ func (x *Actions) ServiceSpecDeleted(service *models.ServiceSpec) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
+
+func (x *Actions) ServiceSpecUpdated(service *models.ServiceSpec) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("serviceSpecs/updated"),
+		Payload: service,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}

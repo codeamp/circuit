@@ -39,7 +39,8 @@ type Mutation {
   deleteService(service: ServiceInput): Service
 
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
-  deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
+  updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
+  deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
 
   userToken(email: String!, password: String!): User
 }

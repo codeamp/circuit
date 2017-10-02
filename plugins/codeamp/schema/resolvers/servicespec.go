@@ -53,8 +53,36 @@ func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 	return &ServiceSpecResolver{db: r.db, ServiceSpec: serviceSpec}, nil
 }
 
+func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
+	serviceSpec := models.ServiceSpec{}
+
+	serviceSpecId, err := uuid.FromString(*args.ServiceSpec.ID)
+	if err != nil {
+		return nil, fmt.Errorf("UpdateServiceSpec: Missing argument id")
+	}
+
+	if r.db.Where("id=?", serviceSpecId).Find(&serviceSpec).RecordNotFound() {
+		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
+	}
+
+	spew.Dump(args.ServiceSpec)
+
+	serviceSpec.Name = *args.ServiceSpec.Name
+	serviceSpec.CpuLimit = *args.ServiceSpec.CpuLimit
+	serviceSpec.CpuRequest = *args.ServiceSpec.CpuRequest
+	serviceSpec.MemoryLimit = *args.ServiceSpec.MemoryLimit
+	serviceSpec.MemoryRequest = *args.ServiceSpec.MemoryRequest
+	serviceSpec.TerminationGracePeriod = *args.ServiceSpec.TerminationGracePeriod
+
+	r.db.Save(&serviceSpec)
+	r.actions.ServiceSpecUpdated(&serviceSpec)
+
+	return &ServiceSpecResolver{db: r.db, ServiceSpec: serviceSpec}, nil
+}
+
 func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := models.ServiceSpec{}
+
 	serviceSpecId, err := uuid.FromString(*args.ServiceSpec.ID)
 	if err != nil {
 		return nil, fmt.Errorf("Missing argument id")
