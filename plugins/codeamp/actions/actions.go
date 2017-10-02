@@ -112,7 +112,6 @@ func (x *Actions) ProjectCreated(project *models.Project) {
 }
 
 func (x *Actions) ServiceCreated(service *models.Service) {
-
 	project := models.Project{}
 	if x.db.Where("id = ?", service.ProjectId).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -128,7 +127,6 @@ func (x *Actions) ServiceCreated(service *models.Service) {
 }
 
 func (x *Actions) ServiceUpdated(service *models.Service) {
-
 	project := models.Project{}
 	if x.db.Where("id = ?", service.ProjectId).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -144,7 +142,6 @@ func (x *Actions) ServiceUpdated(service *models.Service) {
 }
 
 func (x *Actions) ServiceDeleted(service *models.Service) {
-
 	project := models.Project{}
 	if x.db.Where("id = ?", service.ProjectId).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -154,6 +151,22 @@ func (x *Actions) ServiceDeleted(service *models.Service) {
 
 	wsMsg := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/services/deleted", project.Slug),
+		Payload: service,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) ServiceSpecCreated(service *models.ServiceSpec) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("serviceSpecs/new"),
+		Payload: service,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) ServiceSpecDeleted(service *models.ServiceSpec) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("serviceSpecs/deleted"),
 		Payload: service,
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)

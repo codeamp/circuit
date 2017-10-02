@@ -39,6 +39,7 @@ type Mutation {
   deleteService(service: ServiceInput): Service
 
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
+  deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
 
   userToken(email: String!, password: String!): User
 }
@@ -151,11 +152,11 @@ input ContainerPortInput {
 }
 
 input ServiceSpecInput {
-  id: ID
-  name: String!
-  cpuRequest: String!
-  cpuLimit: String!
-  memoryRequest: String! 
-  memoryLimit: String!
-  terminationGracePeriod: String!
+  id: String
+  name: String
+  cpuRequest: String
+  cpuLimit: String
+  memoryRequest: String
+  memoryLimit: String
+  terminationGracePeriod: String
 }

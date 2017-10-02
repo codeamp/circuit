@@ -2,21 +2,23 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
+	uuid "github.com/satori/go.uuid"
 )
 
 type ServiceSpecInput struct {
 	ID                     *string
-	Name                   string
-	CpuRequest             string
-	CpuLimit               string
-	MemoryRequest          string
-	MemoryLimit            string
-	TerminationGracePeriod string
+	Name                   *string
+	CpuRequest             *string
+	CpuLimit               *string
+	MemoryRequest          *string
+	MemoryLimit            *string
+	TerminationGracePeriod *string
 }
 
 type ServiceSpecResolver struct {
@@ -34,25 +36,37 @@ func (r *Resolver) ServiceSpec(ctx context.Context, args *struct{ ID graphql.ID 
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	var err error
-
-	if err != nil {
-		return &ServiceSpecResolver{}, err
-	}
-
 	spew.Dump(args.ServiceSpec)
 	serviceSpec := models.ServiceSpec{
-		Name:                   args.ServiceSpec.Name,
-		CpuRequest:             args.ServiceSpec.CpuRequest,
-		CpuLimit:               args.ServiceSpec.CpuLimit,
-		MemoryRequest:          args.ServiceSpec.MemoryRequest,
-		MemoryLimit:            args.ServiceSpec.MemoryLimit,
-		TerminationGracePeriod: args.ServiceSpec.TerminationGracePeriod,
+		Name:                   *args.ServiceSpec.Name,
+		CpuRequest:             *args.ServiceSpec.CpuRequest,
+		CpuLimit:               *args.ServiceSpec.CpuLimit,
+		MemoryRequest:          *args.ServiceSpec.MemoryRequest,
+		MemoryLimit:            *args.ServiceSpec.MemoryLimit,
+		TerminationGracePeriod: *args.ServiceSpec.TerminationGracePeriod,
 	}
 
 	r.db.Create(&serviceSpec)
 
-	// r.actions.ServiceCreated(&serviceSpec)
+	r.actions.ServiceSpecCreated(&serviceSpec)
+
+	return &ServiceSpecResolver{db: r.db, ServiceSpec: serviceSpec}, nil
+}
+
+func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
+	serviceSpec := models.ServiceSpec{}
+	serviceSpecId, err := uuid.FromString(*args.ServiceSpec.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Missing argument id")
+	}
+
+	if r.db.Where("id=?", serviceSpecId).Find(&serviceSpec).RecordNotFound() {
+		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
+	}
+
+	r.db.Delete(serviceSpec)
+
+	r.actions.ServiceSpecDeleted(&serviceSpec)
 
 	return &ServiceSpecResolver{db: r.db, ServiceSpec: serviceSpec}, nil
 }
