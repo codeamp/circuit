@@ -76,7 +76,7 @@ interface Service {
   project: Project
   command: String!
   name: String!
-  serviceSpec: String!
+  serviceSpec: ServiceSpec!
   count: String!
   containerPorts: [ContainerPort]!
   created: Time!
@@ -141,7 +141,7 @@ input ServiceInput {
   projectId: String!
   command: String!
   name: String!
-  serviceSpec: String!
+  serviceSpecId: String!
   count: String!
   containerPorts: [ContainerPortInput!]
   oneShot: Boolean!

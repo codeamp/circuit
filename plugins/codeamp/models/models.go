@@ -62,16 +62,17 @@ type ContainerPort struct {
 }
 
 type Service struct {
-	Model       `json:",inline"`
-	ProjectId   uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	Command     string    `json:"command"`
-	Name        string    `json:"name"`
-	ServiceSpec string    `json:"serviceSpec"`
-	OneShot     bool      `json:"oneShot"`
-	Count       string    `json:"count"`
-	Created     time.Time `json:"created"`
+	Model         `json:",inline"`
+	ProjectId     uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	ServiceSpecId uuid.UUID `bson:"serviceSpecId" json:"serviceSpecId" gorm:"type:uuid"`
+	Command       string    `json:"command"`
+	Name          string    `json:"name"`
+	OneShot       bool      `json:"oneShot"`
+	Count         string    `json:"count"`
+	Created       time.Time `json:"created"`
 
 	Project        Project
+	ServiceSpec    ServiceSpec
 	ContainerPorts []ContainerPort
 }
 
