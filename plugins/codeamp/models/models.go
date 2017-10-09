@@ -27,6 +27,17 @@ type UserPermission struct {
 	Value  string    `json:"value"`
 }
 
+type EnvironmentVariable struct {
+	Model     `json:",inline"`
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	Type      string    `json:"type"`
+	Version   int32     `json:"version"`
+	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	UserId    uuid.UUID `bson:"userId" json:"userId" gorm:"type:uuid"`
+	Created   time.Time `json:"created"`
+}
+
 type Project struct {
 	Model         `json:",inline"`
 	Name          string `json:"name"`

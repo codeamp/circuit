@@ -26,6 +26,9 @@ type Query {
 
   # Retrieve all releases
   releases(): [Release]!
+
+  # Retrieve all environment variables
+  environmentVariables(): [EnvironmentVariable]!
 }
 
 # The mutation type, represents all updates we can make to our data
@@ -41,6 +44,9 @@ type Mutation {
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
   updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
   deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
+
+  createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
 
   userToken(email: String!, password: String!): User
 }
@@ -83,6 +89,19 @@ interface Service {
   oneShot: Boolean!
 }
 
+# EnvironmentVariable object
+interface EnvironmentVariable {
+  id: ID!
+  key: String!
+  value: String!
+  created: Time!
+  project: Project!
+  user: User!
+  type: String!
+  version: Int!
+  versions: [EnvironmentVariable]!
+}
+
 # ServiceSpec object
 interface ServiceSpec {
   id: ID!
@@ -121,6 +140,7 @@ interface Project {
   features: [Feature]!
   releases: [Release]!
   services: [Service]!
+  environmentVariables: [EnvironmentVariable]!
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -160,4 +180,12 @@ input ServiceSpecInput {
   memoryRequest: String
   memoryLimit: String
   terminationGracePeriod: String
+}
+
+input EnvironmentVariableInput {
+  id: String
+  key: String!
+  value: String!
+  type: String
+  projectId: String
 }

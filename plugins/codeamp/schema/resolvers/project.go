@@ -251,3 +251,16 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 
 	return results, nil
 }
+
+func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+	var rows []models.EnvironmentVariable
+	var results []*EnvironmentVariableResolver
+
+	r.db.Select("distinct on (key) key, version, id, value, created_at, type, user_id, project_id").Where("project_id = ?", r.Project.ID).Order("key, version desc").Find(&rows)
+
+	for _, envVar := range rows {
+		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
+	}
+
+	return results, nil
+}

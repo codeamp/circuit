@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -177,5 +178,57 @@ func (x *Actions) ServiceSpecUpdated(service *models.ServiceSpec) {
 		Event:   fmt.Sprintf("serviceSpecs/updated"),
 		Payload: service,
 	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) EnvironmentVariableCreated(envVar *models.EnvironmentVariable) {
+	project := models.Project{}
+	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"service": envVar,
+		})
+	}
+
+	spew.Dump(fmt.Sprintf("projects/%s/environmentVariables/created", project.Slug))
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/environmentVariables/created", project.Slug),
+		Payload: envVar,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) EnvironmentVariableDeleted(envVar *models.EnvironmentVariable) {
+	project := models.Project{}
+	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("envvar not found", log.Fields{
+			"service": envVar,
+		})
+	}
+
+	spew.Dump(fmt.Sprintf("projects/%s/environmentVariables/deleted", project.Slug))
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/environmentVariables/deleted", project.Slug),
+		Payload: envVar,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable) {
+	project := models.Project{}
+	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("envvar not found", log.Fields{
+			"envVar": envVar,
+		})
+	}
+
+	spew.Dump(fmt.Sprintf("projects/%s/environmentVariables/updated", project.Slug))
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/environmentVariables/updated", project.Slug),
+		Payload: envVar,
+	}
+
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
