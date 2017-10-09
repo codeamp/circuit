@@ -27,6 +27,17 @@ type UserPermission struct {
 	Value  string    `json:"value"`
 }
 
+type EnvironmentVariable struct {
+	Model     `json:",inline"`
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	Type      string    `json:"type"`
+	Version   int32     `json:"version"`
+	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	UserId    uuid.UUID `bson:"userId" json:"userId" gorm:"type:uuid"`
+	Created   time.Time `json:"created"`
+}
+
 type Project struct {
 	Model         `json:",inline"`
 	Name          string `json:"name"`
@@ -62,16 +73,17 @@ type ContainerPort struct {
 }
 
 type Service struct {
-	Model       `json:",inline"`
-	ProjectId   uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	Command     string    `json:"command"`
-	Name        string    `json:"name"`
-	ServiceSpec string    `json:"serviceSpec"`
-	OneShot     bool      `json:"oneShot"`
-	Count       string    `json:"count"`
-	Created     time.Time `json:"created"`
+	Model         `json:",inline"`
+	ProjectId     uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	ServiceSpecId uuid.UUID `bson:"serviceSpecId" json:"serviceSpecId" gorm:"type:uuid"`
+	Command       string    `json:"command"`
+	Name          string    `json:"name"`
+	OneShot       bool      `json:"oneShot"`
+	Count         string    `json:"count"`
+	Created       time.Time `json:"created"`
 
 	Project        Project
+	ServiceSpec    ServiceSpec
 	ContainerPorts []ContainerPort
 }
 

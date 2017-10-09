@@ -26,6 +26,9 @@ type Query {
 
   # Retrieve all releases
   releases(): [Release]!
+
+  # Retrieve all environment variables
+  environmentVariables(): [EnvironmentVariable]!
 }
 
 # The mutation type, represents all updates we can make to our data
@@ -39,6 +42,11 @@ type Mutation {
   deleteService(service: ServiceInput): Service
 
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
+  updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
+  deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
+
+  createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
 
   userToken(email: String!, password: String!): User
 }
@@ -74,11 +82,24 @@ interface Service {
   project: Project
   command: String!
   name: String!
-  serviceSpec: String!
+  serviceSpec: ServiceSpec!
   count: String!
   containerPorts: [ContainerPort]!
   created: Time!
   oneShot: Boolean!
+}
+
+# EnvironmentVariable object
+interface EnvironmentVariable {
+  id: ID!
+  key: String!
+  value: String!
+  created: Time!
+  project: Project!
+  user: User!
+  type: String!
+  version: Int!
+  versions: [EnvironmentVariable]!
 }
 
 # ServiceSpec object
@@ -119,6 +140,7 @@ interface Project {
   features: [Feature]!
   releases: [Release]!
   services: [Service]!
+  environmentVariables: [EnvironmentVariable]!
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -139,7 +161,7 @@ input ServiceInput {
   projectId: String!
   command: String!
   name: String!
-  serviceSpec: String!
+  serviceSpecId: String!
   count: String!
   containerPorts: [ContainerPortInput!]
   oneShot: Boolean!
@@ -151,11 +173,19 @@ input ContainerPortInput {
 }
 
 input ServiceSpecInput {
-  id: ID
-  name: String!
-  cpuRequest: String!
-  cpuLimit: String!
-  memoryRequest: String! 
-  memoryLimit: String!
-  terminationGracePeriod: String!
+  id: String
+  name: String
+  cpuRequest: String
+  cpuLimit: String
+  memoryRequest: String
+  memoryLimit: String
+  terminationGracePeriod: String
+}
+
+input EnvironmentVariableInput {
+  id: String
+  key: String!
+  value: String!
+  type: String
+  projectId: String
 }

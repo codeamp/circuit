@@ -16,7 +16,7 @@ type ServiceInput struct {
 	ID             *string
 	Name           string
 	Command        string
-	ServiceSpec    string
+	ServiceSpecId  string
 	OneShot        bool
 	Count          string
 	ContainerPorts *[]models.ContainerPort
@@ -67,8 +67,9 @@ func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*Servic
 
 func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
 	serviceId := uuid.FromStringOrNil(*args.Service.ID)
+	serviceSpecId := uuid.FromStringOrNil(args.Service.ServiceSpecId)
 
-	if serviceId == uuid.Nil {
+	if serviceId == uuid.Nil || serviceSpecId == uuid.Nil {
 		return nil, fmt.Errorf("Missing argument id")
 	}
 
@@ -80,7 +81,7 @@ func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*Servic
 	service.Command = args.Service.Command
 	service.Name = args.Service.Name
 	service.OneShot = args.Service.OneShot
-	service.ServiceSpec = args.Service.ServiceSpec
+	service.ServiceSpecId = serviceSpecId
 	service.Count = args.Service.Count
 
 	r.db.Save(&service)
@@ -117,15 +118,19 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 	if err != nil {
 		return &ServiceResolver{}, err
 	}
+	serviceSpecId, err := uuid.FromString(args.Service.ServiceSpecId)
+	if err != nil {
+		return &ServiceResolver{}, err
+	}
 	spew.Dump(args.Service)
 	service := models.Service{
-		Name:        args.Service.Name,
-		Command:     args.Service.Command,
-		ServiceSpec: args.Service.ServiceSpec,
-		OneShot:     args.Service.OneShot,
-		Count:       args.Service.Count,
-		ProjectId:   projectId,
-		Created:     time.Now(),
+		Name:          args.Service.Name,
+		Command:       args.Service.Command,
+		ServiceSpecId: serviceSpecId,
+		OneShot:       args.Service.OneShot,
+		Count:         args.Service.Count,
+		ProjectId:     projectId,
+		Created:       time.Now(),
 	}
 
 	r.db.Create(&service)
@@ -151,11 +156,15 @@ func (r *ServiceResolver) ID() graphql.ID {
 	return graphql.ID(r.Service.Model.ID.String())
 }
 
+func (r *ServiceResolver) ServiceSpec(ctx context.Context) (*ServiceSpecResolver, error) {
+	var serviceSpec models.ServiceSpec
+	r.db.Model(r.Service).Related(&serviceSpec)
+	return &ServiceSpecResolver{db: r.db, ServiceSpec: serviceSpec}, nil
+}
+
 func (r *ServiceResolver) Project(ctx context.Context) (*ProjectResolver, error) {
 	var project models.Project
-
 	r.db.Model(r.Service).Related(&project)
-
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
@@ -165,10 +174,6 @@ func (r *ServiceResolver) Name() string {
 
 func (r *ServiceResolver) Command() string {
 	return r.Service.Command
-}
-
-func (r *ServiceResolver) ServiceSpec() string {
-	return r.Service.ServiceSpec
 }
 
 func (r *ServiceResolver) Count() string {
