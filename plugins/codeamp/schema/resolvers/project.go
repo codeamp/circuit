@@ -256,7 +256,7 @@ func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*Environm
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Select("distinct on (key) key, version, id, value, created_at, type, user_id, project_id").Where("project_id = ?", r.Project.ID).Order("key, version desc").Find(&rows)
+	r.db.Select("key, version, id, value, created, type, user_id, project_id, deleted_at").Where("project_id = ?", r.Project.ID).Order("key, version, created desc").Find(&rows)
 
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
