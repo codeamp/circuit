@@ -256,7 +256,11 @@ func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*Environm
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Select("distinct on (key) key, version, id, value, created_at, type, user_id, project_id").Where("project_id = ?", r.Project.ID).Order("key, version desc").Find(&rows)
+	// r.db.Select("distinct on (key) key, version, id, value, created, type, user_id, project_id").Where("project_id = ?", r.Project.ID).Order("key, version, created desc").Find(&rows)
+
+	r.db.Raw(`select * from (
+		select distinct on (key) key, id, value, version, created, type, user_id, project_id from environment_variables where project_id = ? order by key, version desc) as foo
+		order by created desc;`, r.Project.ID).Scan(&rows) // (*sql.Rows, error)
 
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})

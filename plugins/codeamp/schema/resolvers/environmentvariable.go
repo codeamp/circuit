@@ -3,6 +3,7 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 
@@ -61,6 +62,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 			Version:   int32(0),
 			Type:      *args.EnvironmentVariable.Type,
 			UserId:    userId,
+			Created:   time.Now(),
 		}
 
 		r.db.Create(&envVar)
@@ -79,9 +81,6 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 	if r.db.Where("id = ?", args.EnvironmentVariable.ID).Find(&existingEnvVar).RecordNotFound() {
 		return nil, fmt.Errorf("UpdateEnvironmentVariable: key doesn't exist.")
 	} else {
-		spew.Dump("HELLO THERE UPDATE")
-		spew.Dump(existingEnvVar)
-		spew.Dump(args.EnvironmentVariable)
 		envVar := models.EnvironmentVariable{
 			Key:       args.EnvironmentVariable.Key,
 			Value:     args.EnvironmentVariable.Value,
@@ -89,12 +88,31 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 			Version:   existingEnvVar.Version + int32(1),
 			Type:      existingEnvVar.Type,
 			UserId:    existingEnvVar.UserId,
+			Created:   time.Now(),
 		}
 
 		r.db.Create(&envVar)
 		r.actions.EnvironmentVariableUpdated(&envVar)
 
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
+	}
+}
+
+func (r *Resolver) DeleteEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
+
+	var existingEnvVar models.EnvironmentVariable
+	if r.db.Where("id = ?", args.EnvironmentVariable.ID).Find(&existingEnvVar).RecordNotFound() {
+		return nil, fmt.Errorf("UpdateEnvironmentVariable: key doesn't exist.")
+	} else {
+		var rows []models.EnvironmentVariable
+
+		r.db.Where("project_id = ? and key = ?", existingEnvVar.ProjectId, existingEnvVar.Key).Find(&rows)
+		for _, envVar := range rows {
+			r.db.Delete(&envVar)
+		}
+		r.actions.EnvironmentVariableDeleted(&existingEnvVar)
+
+		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: existingEnvVar}, nil
 	}
 }
 
@@ -142,7 +160,7 @@ func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*Environm
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Where("project_id = ? and key = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key).Order("created desc").Find(&rows)
+	r.db.Where("project_id = ? and key = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key).Order("version desc").Find(&rows)
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
 	}

@@ -47,6 +47,7 @@ type Mutation {
 
   createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
   updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  deleteEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
 
   userToken(email: String!, password: String!): User
 }
