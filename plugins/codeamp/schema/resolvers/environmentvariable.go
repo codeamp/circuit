@@ -53,7 +53,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	}
 
 	var existingEnvVar models.EnvironmentVariable
-	if r.db.Where("key = ? and project_id = ?", args.EnvironmentVariable.Key, args.EnvironmentVariable.ProjectId).Find(&existingEnvVar).RecordNotFound() {
+	if r.db.Where("key = ? and project_id = ? and deleted_at is null", args.EnvironmentVariable.Key, args.EnvironmentVariable.ProjectId).Find(&existingEnvVar).RecordNotFound() {
 		spew.Dump(args.EnvironmentVariable)
 		envVar := models.EnvironmentVariable{
 			Key:       args.EnvironmentVariable.Key,
@@ -90,7 +90,7 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 			UserId:    existingEnvVar.UserId,
 			Created:   time.Now(),
 		}
-
+		r.db.Delete(&existingEnvVar)
 		r.db.Create(&envVar)
 		r.actions.EnvironmentVariableUpdated(&envVar)
 
@@ -153,14 +153,17 @@ func (r *EnvironmentVariableResolver) User() (*UserResolver, error) {
 }
 
 func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+	spew.Dump("VERsIONs!")
 	if _, err := utils.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
-
+	spew.Dump("MADE IT!")
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Where("project_id = ? and key = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key).Order("version desc").Find(&rows)
+	r.db.Unscoped().Where("project_id = ? and key = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key).Order("version desc").Find(&rows)
+
+	spew.Dump(rows)
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
 	}
