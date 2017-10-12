@@ -8,24 +8,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/transistor"
+	"github.com/extemporalgenome/slug"
+	"github.com/google/shlex"
+	"github.com/spf13/viper"
+	apis_batch_v1 "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api/v1"
-	apis_batch_v1 "k8s.io/client-go/pkg/apis/batch/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/pkg/util"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/codeamp/circuit/plugins"
-	"github.com/codeamp/transistor"
-	"github.com/extemporalgenome/slug"
-	"github.com/google/shlex"
-	"github.com/spf13/viper"
 )
+
+func int32Ptr(i int32) *int32 { return &i }
 
 type SimplePodSpec struct {
 	Name          string
@@ -359,14 +359,14 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
 				Path: secret.Key,
 				Key:  secret.Key,
-				Mode: util.Int32Ptr(256),
+				Mode: int32Ptr(256),
 			})
 		}
 	}
 	secretVolume := v1.SecretVolumeSource{
 		SecretName:  secretName,
 		Items:       volumeSecretItems,
-		DefaultMode: util.Int32Ptr(256),
+		DefaultMode: int32Ptr(256),
 	}
 
 	// Add the secrets
@@ -699,7 +699,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				Name: deploymentName,
 			},
 			Spec: v1beta1.DeploymentSpec{
-				ProgressDeadlineSeconds: util.Int32Ptr(300),
+				ProgressDeadlineSeconds: int32Ptr(300),
 				Replicas:                &replicas,
 				Strategy:                deployStrategy,
 				RevisionHistoryLimit:    &revisionHistoryLimit,

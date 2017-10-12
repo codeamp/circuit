@@ -39,7 +39,7 @@ type CodeAmp struct {
 	Schema         *graphql.Schema
 	Actions        *actions.Actions
 	SocketIO       *socketio.Server
-	db             *gorm.DB
+	Db             *gorm.DB
 }
 
 func NewCodeAmp() *CodeAmp {
@@ -140,7 +140,7 @@ func (x *CodeAmp) Listen() {
 	_, filename, _, _ := runtime.Caller(0)
 	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
 	http.Handle("/", fs)
-	http.Handle("/query", utils.CorsMiddleware(utils.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
+	http.Handle("/query", utils.CorsMiddleware(utils.AuthMiddleware(&relay.Handler{Schema: x.Schema}, x.Db)))
 
 	log.Info(fmt.Sprintf("running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
@@ -192,7 +192,7 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	x.SocketIO = sio
 	x.Actions = actions
 	x.Schema = parsedSchema
-	x.db = db
+	x.Db = db
 
 	go x.Listen()
 
@@ -259,7 +259,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		var extension models.Extension
 		extensionId := strings.Split(payload.Slug, "|")[1]
 
-		if x.db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
+		if x.Db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found from given slug", log.Fields{
 				"extension event": payload,
 			})
@@ -268,7 +268,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		extension.State = plugins.Complete
 		extension.Artifacts = payload.Artifacts
-		x.db.Save(&extension)
+		x.Db.Save(&extension)
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
@@ -281,7 +281,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		// get uuid from slug
 		releaseExtensionSplitSlug := strings.Split(payload.Slug, "|")
 
-		if x.db.Where("id = ?", releaseExtensionSplitSlug[1]).Find(&releaseExtension).RecordNotFound() {
+		if x.Db.Where("id = ?", releaseExtensionSplitSlug[1]).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found from given slug", log.Fields{
 				"release event": payload,
 			})
@@ -290,7 +290,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		releaseExtension.State = plugins.Complete
 		releaseExtension.Artifacts = payload.Artifacts
-		x.db.Save(&releaseExtension)
+		x.Db.Save(&releaseExtension)
 		x.Actions.ReleaseExtensionCompleted(&releaseExtension)
 	}
 

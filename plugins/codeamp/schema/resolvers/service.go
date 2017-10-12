@@ -45,7 +45,7 @@ func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*Servic
 	}
 
 	var service models.Service
-	spew.Dump(args.Service)
+
 	r.db.Where("id = ?", serviceId).Find(&service)
 	r.db.Delete(&service)
 

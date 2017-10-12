@@ -17,4 +17,14 @@ services:
     links:
       - "redis"
       - "postgres"
-
+  dex:
+    image: quay.io/coreos/dex:v2.7.1
+    volumes:
+      - ./configs/dex.dev.yaml:/etc/dex/dex.dev.yaml
+      - ./configs/okta-saml-ca.pem:/etc/dex/okta-saml-ca.pem
+    ports:
+      - "${DOCKER_COMPOSE_DEX_APP_PORT}:5555"
+      - "${DOCKER_COMPOSE_DEX_PORT}:5556"
+    links:
+      - postgres
+    command: serve /etc/dex/dex.dev.yaml 
