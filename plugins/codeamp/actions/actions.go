@@ -232,3 +232,44 @@ func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable)
 
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
+
+func (x *Actions) ReleaseCreated(r *models.Release) {
+	log.InfoWithFields("ReleaseCreated", log.Fields{
+		"release": r,
+	})
+
+	// x.DockerBuildRebuild(r)
+	// x.CreateDeploy(r)
+
+	project := models.Project{}
+	if x.db.Where("id = ?", r.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"release": r,
+		})
+	}
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/releases/created", project.Slug),
+		Payload: r,
+	}
+
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) DockerBuildRebuild(r *models.Release) {
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   "",
+		Payload: r,
+	}
+
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) CreateDeploy(r *models.Release) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   "",
+		Payload: r,
+	}
+
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}

@@ -35,6 +35,7 @@ type Query {
 type Mutation {
   createProject(project: ProjectInput): Project
   updateProject(project: ProjectInput): Project
+  
   createRelease(release: ReleaseInput): Release
   
   createService(service: ServiceInput): Service
@@ -139,6 +140,7 @@ interface Project {
   rsaPrivateKey: String!
   rsaPublicKey: String!
   features: [Feature]!
+  currentRelease: Release
   releases: [Release]!
   services: [Service]!
   environmentVariables: [EnvironmentVariable]!
@@ -154,7 +156,8 @@ input ProjectInput {
 
 input ReleaseInput {
   id: String
-  featureId: String
+  headFeatureId: String!
+  projectId: String!
 }
 
 input ServiceInput { 

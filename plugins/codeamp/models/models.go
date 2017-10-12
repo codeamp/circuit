@@ -54,6 +54,12 @@ type Project struct {
 	Service  []Service
 }
 
+type Workflow struct {
+	Model     `json:"inline"`
+	Name      string    `json:"name"`
+	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+}
+
 type ServiceSpec struct {
 	Model                  `json:",inline"`
 	Name                   string    `json:"name"`
