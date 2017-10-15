@@ -81,6 +81,7 @@ func (x *CodeAmp) Migrate() {
 		&models.Service{},
 		&models.ContainerPort{},
 		&models.ServiceSpec{},
+		&models.Extension{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")

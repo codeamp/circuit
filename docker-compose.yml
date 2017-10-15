@@ -8,3 +8,13 @@ services:
     image: postgres
     ports:
       - "${DOCKER_COMPOSE_POSTGRES_PORT}:5432"
+  circuit:
+    build: .
+    environment:
+      - WORKDIR=.
+    volumes:
+      - /go/src/github.com/codeamp/circuit
+    links:
+      - "redis"
+      - "postgres"
+

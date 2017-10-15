@@ -68,6 +68,7 @@ type Git struct {
 	Url           string `json:"gitUrl"`
 	Protocol      string `json:"protocol"`
 	Branch        string `json:"branch"`
+	Workdir       string `json:"workdir"`
 	HeadHash      string `json:"headHash,omitempty"`
 	RsaPrivateKey string `json:"rsaPrivateKey" role:"secret"`
 	RsaPublicKey  string `json:"rsaPublicKey" role:"secret"`

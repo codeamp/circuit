@@ -9,6 +9,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -51,7 +52,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		}
 		tailFeatureId = firstFeature.ID
 	} else {
-		tailFeatureId = currentRelease.HeadFeatureId
+		tailFeatureId = currentRelease.HeadFeatureID
 	}
 
 	userIdString, err := utils.CheckAuth(ctx, []string{})
@@ -63,9 +64,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	release := models.Release{
 		ProjectId:     projectId,
-		UserId:        userId,
-		HeadFeatureId: headFeatureId,
-		TailFeatureId: tailFeatureId,
+		UserID:        userId,
+		HeadFeatureID: headFeatureId,
+		TailFeatureID: tailFeatureId,
 		State:         plugins.Waiting,
 		StateMessage:  "Release created",
 		Created:       time.Now(),
@@ -73,7 +74,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	r.db.Create(&release)
 
-	r.actions.ReleaseCreated(&release)
+	spew.Dump(release)
+
 	return nil, nil
 }
 
@@ -100,7 +102,7 @@ func (r *ReleaseResolver) User(ctx context.Context) (*UserResolver, error) {
 func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
 	var feature models.Feature
 
-	r.db.Where("id = ?", r.Release.HeadFeatureId).First(&feature)
+	r.db.Where("id = ?", r.Release.HeadFeatureID).First(&feature)
 
 	return &FeatureResolver{db: r.db, Feature: feature}, nil
 }
@@ -108,7 +110,7 @@ func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
 func (r *ReleaseResolver) TailFeature() (*FeatureResolver, error) {
 	var feature models.Feature
 
-	r.db.Where("id = ?", r.Release.TailFeatureId).First(&feature)
+	r.db.Where("id = ?", r.Release.TailFeatureID).First(&feature)
 
 	return &FeatureResolver{db: r.db, Feature: feature}, nil
 }
