@@ -132,16 +132,16 @@ type Bookmark struct {
 	ProjectId uuid.UUID `json:"projectId" gorm:"type:uuid"`
 }
 
-type Extension struct {
+type ExtensionSpec struct {
 	Model     `json:",inline"`
-	Type      string
-	Name      string
-	Component string
-	FormSpec  string
-	Created   time.Time
+	Type      string    `json:"type"`
+	Name      string    `json:"name"`
+	Component string    `json:"component"`
+	FormSpec  string    `json:"formSpec"`
+	Created   time.Time `json:"created"`
 }
 type ProjectExtension struct {
 	Model       `json:",inline"`
-	ExtensionId uuid.UUID
-	State       string
+	ExtensionId uuid.UUID `json:"extensionId" gorm:"type:uuid"`
+	State       string    `json:"state"`
 }

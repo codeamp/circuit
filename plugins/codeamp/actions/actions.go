@@ -181,6 +181,30 @@ func (x *Actions) ServiceSpecUpdated(service *models.ServiceSpec) {
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
+func (x *Actions) ExtensionSpecCreated(extensionSpec *models.ExtensionSpec) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("extensionSpecs/new"),
+		Payload: extensionSpec,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) ExtensionSpecDeleted(extensionSpec *models.ExtensionSpec) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("extensionSpecs/deleted"),
+		Payload: extensionSpec,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) ExtensionSpecUpdated(extensionSpec *models.ExtensionSpec) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("extensionSpecs/updated"),
+		Payload: extensionSpec,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
 func (x *Actions) EnvironmentVariableCreated(envVar *models.EnvironmentVariable) {
 	project := models.Project{}
 	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {

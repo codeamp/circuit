@@ -31,7 +31,7 @@ type Query {
   environmentVariables(): [EnvironmentVariable]!
 
   # Retrieve all extensions
-  extensions(): [Extension]!
+  extensionSpecs(): [ExtensionSpec]!
 }
 
 # The mutation type, represents all updates we can make to our data
@@ -53,8 +53,9 @@ type Mutation {
   updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
   deleteEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
 
-  createExtension(extension: ExtensionInput): Extension
-  updateExtension(extension: ExtensionInput): Extension
+  createExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
+  updateExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
+  deleteExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
 
   userToken(email: String!, password: String!): User
 }
@@ -152,7 +153,7 @@ interface Project {
   environmentVariables: [EnvironmentVariable]!
 }
 
-interface Extension {
+interface ExtensionSpec {
   id: ID!
   name: String!
   component: String!
@@ -208,10 +209,10 @@ input EnvironmentVariableInput {
   projectId: String
 }
 
-input ExtensionInput {
+input ExtensionSpecInput {
   id: String
-  name: String!
-  component: String!
-  formSpec: String!
-  type: String!
+  name: String
+  component: String
+  formSpec: String
+  type: String
 }
