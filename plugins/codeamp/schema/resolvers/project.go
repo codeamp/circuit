@@ -213,6 +213,17 @@ func (r *ProjectResolver) RsaPublicKey() string {
 	return r.Project.RsaPublicKey
 }
 
+func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
+	currentRelease := models.Release{}
+
+	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
+		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
+			"project": r.Project,
+		})
+	}
+	return &ReleaseResolver{db: r.db, Release: currentRelease}, nil
+}
+
 func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 	var rows []models.Feature
 	var results []*FeatureResolver
@@ -243,7 +254,7 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 	var rows []models.Release
 	var results []*ReleaseResolver
 
-	r.db.Model(r.Project).Related(&rows)
+	r.db.Where("project_id = ?", r.Project.ID).Find(&rows).Order("created desc")
 
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{db: r.db, Release: release})

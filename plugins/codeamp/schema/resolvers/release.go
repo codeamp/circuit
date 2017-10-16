@@ -3,11 +3,16 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/utils"
+	log "github.com/codeamp/logger"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
+	uuid "github.com/satori/go.uuid"
 )
 
 func (r *Resolver) Release(ctx context.Context, args *struct{ ID graphql.ID }) *ReleaseResolver {
@@ -21,15 +26,56 @@ type ReleaseResolver struct {
 }
 
 type ReleaseInput struct {
-	ID        *string
-	FeatureId *string
+	ID            *string
+	ProjectId     string
+	HeadFeatureId string
 }
 
-func (r *Resolver) CreateRelease(args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
+func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
 	fmt.Println("CreateRelease")
-	// var release models.Release
 
-	spew.Dump(*args.Release)
+	var tailFeatureId uuid.UUID
+	var currentRelease models.Release
+
+	projectId := uuid.FromStringOrNil(args.Release.ProjectId)
+	headFeatureId := uuid.FromStringOrNil(args.Release.HeadFeatureId)
+
+	// the tail feature id is the current release's head feature id
+	if r.db.Where("state = ? and project_id = ?", plugins.Complete, args.Release.ProjectId).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
+		// get first ever feature in project if current release doesn't exist yet
+		var firstFeature models.Feature
+		if r.db.Where("project_id = ?", args.Release.ProjectId).Find(&firstFeature).Order("created asc").Limit(1).RecordNotFound() {
+			log.InfoWithFields("CreateRelease", log.Fields{
+				"release": r,
+			})
+			return nil, fmt.Errorf("No features found.")
+		}
+		tailFeatureId = firstFeature.ID
+	} else {
+		tailFeatureId = currentRelease.HeadFeatureID
+	}
+
+	userIdString, err := utils.CheckAuth(ctx, []string{})
+	if err != nil {
+		return &ReleaseResolver{}, err
+	}
+
+	userId := uuid.FromStringOrNil(userIdString)
+
+	release := models.Release{
+		ProjectId:     projectId,
+		UserID:        userId,
+		HeadFeatureID: headFeatureId,
+		TailFeatureID: tailFeatureId,
+		State:         plugins.Waiting,
+		StateMessage:  "Release created",
+		Created:       time.Now(),
+	}
+
+	r.db.Create(&release)
+
+	spew.Dump(release)
+
 	return nil, nil
 }
 
@@ -56,7 +102,7 @@ func (r *ReleaseResolver) User(ctx context.Context) (*UserResolver, error) {
 func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
 	var feature models.Feature
 
-	r.db.Where("id = ?", r.Release.HeadFeatureId).First(&feature)
+	r.db.Where("id = ?", r.Release.HeadFeatureID).First(&feature)
 
 	return &FeatureResolver{db: r.db, Feature: feature}, nil
 }
@@ -64,7 +110,7 @@ func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
 func (r *ReleaseResolver) TailFeature() (*FeatureResolver, error) {
 	var feature models.Feature
 
-	r.db.Where("id = ?", r.Release.TailFeatureId).First(&feature)
+	r.db.Where("id = ?", r.Release.TailFeatureID).First(&feature)
 
 	return &FeatureResolver{db: r.db, Feature: feature}, nil
 }

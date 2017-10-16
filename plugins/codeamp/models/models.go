@@ -54,6 +54,12 @@ type Project struct {
 	Service  []Service
 }
 
+type Workflow struct {
+	Model     `json:"inline"`
+	Name      string    `json:"name"`
+	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+}
+
 type ServiceSpec struct {
 	Model                  `json:",inline"`
 	Name                   string    `json:"name"`
@@ -101,22 +107,41 @@ type Feature struct {
 }
 
 type Release struct {
-	Model         `json:",inline"`
-	ProjectId     uuid.UUID     `json:"projectId" gorm:"type:uuid"`
-	UserId        uuid.UUID     `json:"userId" gorm:"type:uuid"`
-	HeadFeatureId uuid.UUID     `json:"headFeatureId" gorm:"type:uuid"`
-	TailFeatureId uuid.UUID     `json:"tailFeatureId" gorm:"type:uuid"`
-	State         plugins.State `json:"state"`
-	StateMessage  string        `json:"stateMessage"`
-	Created       time.Time     `json:"created"`
+	Model `json:",inline"`
 
-	User        User
-	HeadFeature Feature
-	TailFeature Feature
+	Project   Project
+	ProjectId uuid.UUID `json:"projectId" gorm:"type:uuid"`
+
+	User   User
+	UserID uuid.UUID `json:"userId" gorm:"type:uuid"`
+
+	HeadFeature   Feature
+	HeadFeatureID uuid.UUID `json:"headFeatureId" gorm:"type:uuid"`
+
+	TailFeature   Feature
+	TailFeatureID uuid.UUID `json:"tailFeatureId" gorm:"type:uuid"`
+
+	State        plugins.State `json:"state"`
+	StateMessage string        `json:"stateMessage"`
+	Created      time.Time     `json:"created"`
 }
 
 type Bookmark struct {
 	Model     `json:",inline"`
 	UserId    uuid.UUID `json:"userId" gorm:"type:uuid"`
 	ProjectId uuid.UUID `json:"projectId" gorm:"type:uuid"`
+}
+
+type ExtensionSpec struct {
+	Model     `json:",inline"`
+	Type      string    `json:"type"`
+	Name      string    `json:"name"`
+	Component string    `json:"component"`
+	FormSpec  string    `json:"formSpec"`
+	Created   time.Time `json:"created"`
+}
+type ProjectExtension struct {
+	Model       `json:",inline"`
+	ExtensionId uuid.UUID `json:"extensionId" gorm:"type:uuid"`
+	State       string    `json:"state"`
 }

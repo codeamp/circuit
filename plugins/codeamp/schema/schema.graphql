@@ -29,12 +29,16 @@ type Query {
 
   # Retrieve all environment variables
   environmentVariables(): [EnvironmentVariable]!
+
+  # Retrieve all extensions
+  extensionSpecs(): [ExtensionSpec]!
 }
 
 # The mutation type, represents all updates we can make to our data
 type Mutation {
   createProject(project: ProjectInput): Project
   updateProject(project: ProjectInput): Project
+  
   createRelease(release: ReleaseInput): Release
   
   createService(service: ServiceInput): Service
@@ -48,6 +52,10 @@ type Mutation {
   createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
   updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
   deleteEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+
+  createExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
+  updateExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
+  deleteExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
 
   userToken(email: String!, password: String!): User
 }
@@ -139,9 +147,18 @@ interface Project {
   rsaPrivateKey: String!
   rsaPublicKey: String!
   features: [Feature]!
+  currentRelease: Release
   releases: [Release]!
   services: [Service]!
   environmentVariables: [EnvironmentVariable]!
+}
+
+interface ExtensionSpec {
+  id: ID!
+  name: String!
+  component: String!
+  formSpec: String!
+  type: String!
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -154,7 +171,8 @@ input ProjectInput {
 
 input ReleaseInput {
   id: String
-  featureId: String
+  headFeatureId: String!
+  projectId: String!
 }
 
 input ServiceInput { 
@@ -189,4 +207,12 @@ input EnvironmentVariableInput {
   value: String!
   type: String
   projectId: String
+}
+
+input ExtensionSpecInput {
+  id: String
+  name: String
+  component: String
+  formSpec: String
+  type: String
 }
