@@ -140,8 +140,12 @@ type ExtensionSpec struct {
 	FormSpec  string    `json:"formSpec"`
 	Created   time.Time `json:"created"`
 }
-type ProjectExtension struct {
-	Model       `json:",inline"`
-	ExtensionId uuid.UUID `json:"extensionId" gorm:"type:uuid"`
-	State       string    `json:"state"`
+
+type Extension struct {
+	Model           `json:",inline"`
+	ProjectId       uuid.UUID     `json:"projectId" gorm:"type:uuid"`
+	ExtensionSpecId uuid.UUID     `json:"extensionSpecId" gorm:"type:uuid"`
+	State           plugins.State `json:"state"`
+	Artifacts       string        `json:"artifacts"`
+	Created         time.Time     `json:"created"`
 }

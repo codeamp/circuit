@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"time"
 
 	log "github.com/codeamp/logger"
 
@@ -169,6 +170,26 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 
 	r.actions.ProjectCreated(&project)
 
+	// create default extensions for project
+	var dockerBuilderExtensionSpec models.ExtensionSpec
+	if r.db.Where("name = 'DockerBuilder'").Find(&dockerBuilderExtensionSpec).RecordNotFound() {
+		log.InfoWithFields("Was not able to find DockerBuilder extension spec to insert as a default extension", log.Fields{
+			"project": project,
+		})
+
+		return &ProjectResolver{db: r.db, Project: project}, nil
+	}
+
+	dockerBuilderExtension := models.Extension{
+		ProjectId:       project.ID,
+		ExtensionSpecId: dockerBuilderExtensionSpec.ID,
+		State:           plugins.Waiting,
+		Artifacts:       "",
+		Created:         time.Now(),
+	}
+
+	r.db.Create(&dockerBuilderExtension)
+
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
@@ -271,6 +292,18 @@ func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*Environm
 
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
+	}
+
+	return results, nil
+}
+
+func (r *ProjectResolver) Extensions(ctx context.Context) ([]*ExtensionResolver, error) {
+	var rows []models.Extension
+	var results []*ExtensionResolver
+
+	r.db.Where("project_id = ?", r.Project.ID).Find(&rows)
+	for _, extension := range rows {
+		results = append(results, &ExtensionResolver{db: r.db, Extension: extension})
 	}
 
 	return results, nil
