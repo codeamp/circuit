@@ -60,6 +60,8 @@ type Mutation {
   updateExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
   deleteExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
 
+  createExtension(extension: ExtensionInput): Extension
+
   userToken(email: String!, password: String!): User
 }
 
@@ -174,6 +176,7 @@ interface Extension {
   state: String!
   artifacts: String!
   created: Time!
+  formSpecValues: String!
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -230,4 +233,11 @@ input ExtensionSpecInput {
   component: String
   formSpec: String
   type: String
+}
+
+input ExtensionInput {
+  id: String,
+  projectId: String!,
+  extensionSpecId: String!,
+  formSpecValues: String!,
 }

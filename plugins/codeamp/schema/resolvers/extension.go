@@ -2,15 +2,26 @@ package resolvers
 
 import (
 	"context"
+	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
+	uuid "github.com/satori/go.uuid"
 )
 
 type ExtensionResolver struct {
 	db        *gorm.DB
 	Extension models.Extension
+}
+
+type ExtensionInput struct {
+	ID              *string
+	ProjectId       string
+	ExtensionSpecId string
+	FormSpecValues  string
 }
 
 func (r *Resolver) Extension(ctx context.Context, args *struct{ ID graphql.ID }) (*ExtensionResolver, error) {
@@ -48,4 +59,47 @@ func (r *ExtensionResolver) Created() graphql.Time {
 
 func (r *ExtensionResolver) Artifacts() string {
 	return r.Extension.Artifacts
+}
+
+func (r *ExtensionResolver) FormSpecValues() string {
+	return r.Extension.FormSpecValues
+}
+
+func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
+	var extension models.Extension
+
+	// check if extension already exists with project
+	if r.db.Where("project_id = ? and extension_spec_id = ?", args.Extension.ProjectId, args.Extension.ExtensionSpecId).Find(&extension).RecordNotFound() {
+		// make sure extension form spec values are valid
+		// if they are valid, create extension object
+
+		extensionSpecId, err := uuid.FromString(args.Extension.ExtensionSpecId)
+		if err != nil {
+			log.InfoWithFields("couldn't parse ExtensionSpecId", log.Fields{
+				"extension": args.Extension,
+			})
+			return nil, err
+		}
+
+		projectId, err := uuid.FromString(args.Extension.ProjectId)
+		if err != nil {
+			log.InfoWithFields("couldn't parse ProjectId", log.Fields{
+				"extension": args.Extension,
+			})
+			return nil, err
+		}
+
+		extension = models.Extension{
+			ExtensionSpecId: extensionSpecId,
+			ProjectId:       projectId,
+			FormSpecValues:  args.Extension.FormSpecValues,
+			Artifacts:       "",
+			State:           plugins.Waiting,
+			Created:         time.Now(),
+		}
+
+		r.db.Create(&extension)
+		r.actions.ExtensionCreated(&extension)
+	}
+	return &ExtensionResolver{db: r.db, Extension: extension}, nil
 }

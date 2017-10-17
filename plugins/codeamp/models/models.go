@@ -147,5 +147,6 @@ type Extension struct {
 	ExtensionSpecId uuid.UUID     `json:"extensionSpecId" gorm:"type:uuid"`
 	State           plugins.State `json:"state"`
 	Artifacts       string        `json:"artifacts"`
+	FormSpecValues  string        `json:"formSpecValues"`
 	Created         time.Time     `json:"created"`
 }

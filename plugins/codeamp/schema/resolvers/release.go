@@ -9,7 +9,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -73,8 +72,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	r.db.Create(&release)
-
-	spew.Dump(release)
 
 	return nil, nil
 }

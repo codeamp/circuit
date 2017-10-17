@@ -256,3 +256,20 @@ func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable)
 
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
+
+func (x *Actions) ExtensionCreated(extension *models.Extension) {
+	project := models.Project{}
+
+	if x.db.Where("id = ?", extension.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/extensions/created", project.Slug),
+		Payload: extension,
+	}
+
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
