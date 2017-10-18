@@ -7,13 +7,10 @@ package display
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 	"unicode"
 
-	"golang.org/x/text/internal/testtext"
 	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 )
 
 // TODO: test that tables are properly dropped by the linker for various use
@@ -40,16 +37,14 @@ func TestValues(t *testing.T) {
 	// checkDefined checks that a value exists in a Namer.
 	checkDefined := func(x interface{}, namers []testcase) {
 		for _, n := range namers {
-			testtext.Run(t, fmt.Sprintf("%s.Name(%s)", n.kind, x), func(t *testing.T) {
-				if n.n.Name(x) == "" {
-					// As of version 28 there is no data for az-Arab in English,
-					// although there is useful data in other languages.
-					if x.(fmt.Stringer).String() == "az-Arab" {
-						return
-					}
-					t.Errorf("supported but no result")
+			if n.n.Name(x) == "" {
+				// As of version 28 there is no data for az-Arab in English,
+				// although there is useful data in other languages.
+				if x.(fmt.Stringer).String() == "az-Arab" {
+					continue
 				}
-			})
+				t.Errorf("%s.Name(%s): supported but no result", n.kind, x)
+			}
 		}
 	}
 	// checkUnsupported checks that a value does not exist in a Namer.
@@ -328,15 +323,9 @@ func TestTag(t *testing.T) {
 		tag  string
 		name string
 	}{
-		// sr is in Value.Languages(), but is not supported by agq.
-		{"agq", "sr", "|[language: sr]"},
+		{"agq", "sr", ""}, // sr is in Value.Languages(), but is not supported by agq.
 		{"nl", "nl", "Nederlands"},
-		// CLDR 30 dropped Vlaams as the word for nl-BE. It is still called
-		// Flemish in English, though. TODO: check if this is a CLDR bug.
-		// {"nl", "nl-BE", "Vlaams"},
-		{"nl", "nl-BE", "Nederlands (België)"},
-		{"nl", "vls", "West-Vlaams"},
-		{"en", "nl-BE", "Flemish"},
+		{"nl", "nl-BE", "Vlaams"},
 		{"en", "en", "English"},
 		{"en", "en-GB", "British English"},
 		{"en", "en-US", "American English"}, // American English in CLDR 24+
@@ -349,8 +338,8 @@ func TestTag(t *testing.T) {
 		{"en", firstLang3ace.String(), "Achinese"},
 		{"en", firstTagAr001.String(), "Modern Standard Arabic"},
 		{"en", lastTagZhHant.String(), "Traditional Chinese"},
-		{"en", "aaa", "|Unknown language (aaa)"},
-		{"en", "zzj", "|Unknown language (zzj)"},
+		{"en", "aaa", ""},
+		{"en", "zzj", ""},
 		// If full tag doesn't match, try without script or region.
 		{"en", "aa-Hans", "Afar (Simplified Han)"},
 		{"en", "af-Arab", "Afrikaans (Arabic)"},
@@ -368,43 +357,24 @@ func TestTag(t *testing.T) {
 		// also give results more in line with the expectations if users
 		// explicitly use "sh".
 		{"sr-Latn", "sr-ME", "srpski (Crna Gora)"},
-		{"sr-Latn", "sr-Latn-ME", "srpskohrvatski (Crna Gora)"},
+		{"sr-Latn", "sr-Latn-ME", "Srpskohrvatski (Crna Gora)"},
 		// Double script and region
 		{"nl", "en-Cyrl-BE", "Engels (Cyrillisch, België)"},
 		// Canonical equivalents.
 		{"ro", "ro-MD", "moldovenească"},
 		{"ro", "mo", "moldovenească"},
 	}
-	for _, tt := range tests {
-		t.Run(tt.dict+"/"+tt.tag, func(t *testing.T) {
-			name, fmtName := splitName(tt.name)
-			dict := language.MustParse(tt.dict)
-			tag := language.Raw.MustParse(tt.tag)
-			d := Tags(dict)
-			if n := d.Name(tag); n != name {
-				// There are inconsistencies w.r.t. capitalization in the tests
-				// due to CLDR's update procedure which treats modern and other
-				// languages differently.
-				// See http://unicode.org/cldr/trac/ticket/8051.
-				// TODO: use language capitalization to sanitize the strings.
-				t.Errorf("Name(%s) = %q; want %q", tag, n, name)
-			}
-
-			p := message.NewPrinter(dict)
-			if n := p.Sprint(Tag(tag)); n != fmtName {
-				t.Errorf("Tag(%s) = %q; want %q", tag, n, fmtName)
-			}
-		})
+	for i, tt := range tests {
+		d := Tags(language.MustParse(tt.dict))
+		if n := d.Name(language.Raw.MustParse(tt.tag)); n != tt.name {
+			// There are inconsistencies w.r.t. capitalization in the tests
+			// due to CLDR's update procedure which treats modern and other
+			// languages differently.
+			// See http://unicode.org/cldr/trac/ticket/8051.
+			// TODO: use language capitalization to sanitize the strings.
+			t.Errorf("%d:%s:%s: was %q; want %q", i, tt.dict, tt.tag, n, tt.name)
+		}
 	}
-}
-
-func splitName(names string) (name, formatName string) {
-	split := strings.Split(names, "|")
-	name, formatName = split[0], split[0]
-	if len(split) > 1 {
-		formatName = split[1]
-	}
-	return name, formatName
 }
 
 func TestLanguage(t *testing.T) {
@@ -413,16 +383,9 @@ func TestLanguage(t *testing.T) {
 		tag  string
 		name string
 	}{
-		// sr is in Value.Languages(), but is not supported by agq.
-		{"agq", "sr", "|[language: sr]"},
-		// CLDR 30 dropped Vlaams as the word for nl-BE. It is still called
-		// Flemish in English, though. TODO: this is probably incorrect.
-		// West-Vlaams (vls) is not Vlaams. West-Vlaams could be considered its
-		// own language, whereas Vlaams is generally Dutch. So expect to have
-		// to change these tests back.
+		{"agq", "sr", ""}, // sr is in Value.Languages(), but is not supported by agq.
 		{"nl", "nl", "Nederlands"},
-		{"nl", "vls", "West-Vlaams"},
-		{"nl", "nl-BE", "Nederlands"},
+		{"nl", "nl-BE", "Vlaams"},
 		{"en", "pt", "Portuguese"},
 		{"en", "pt-PT", "European Portuguese"},
 		{"en", "pt-BR", "Brazilian Portuguese"},
@@ -435,8 +398,8 @@ func TestLanguage(t *testing.T) {
 		{"en", firstLang3ace.String(), "Achinese"},
 		{"en", firstTagAr001.String(), "Modern Standard Arabic"},
 		{"en", lastTagZhHant.String(), "Traditional Chinese"},
-		{"en", "aaa", "|Unknown language (aaa)"},
-		{"en", "zzj", "|Unknown language (zzj)"},
+		{"en", "aaa", ""},
+		{"en", "zzj", ""},
 		// If full tag doesn't match, try without script or region.
 		{"en", "aa-Hans", "Afar"},
 		{"en", "af-Arab", "Afrikaans"},
@@ -444,7 +407,7 @@ func TestLanguage(t *testing.T) {
 		{"en", "aa-GB", "Afar"},
 		{"en", "af-NA", "Afrikaans"},
 		{"en", "zu-BR", "Zulu"},
-		{"agq", "zh-Hant", "|[language: zh-Hant]"},
+		{"agq", "zh-Hant", ""},
 		// Canonical equivalents.
 		{"ro", "ro-MD", "moldovenească"},
 		{"ro", "mo", "moldovenească"},
@@ -454,29 +417,16 @@ func TestLanguage(t *testing.T) {
 		{"en", "sr-ME", "Serbian"},
 		{"en", "sr-Latn-ME", "Serbo-Croatian"}, // See comments in TestTag.
 	}
-	for _, tt := range tests {
-		testtext.Run(t, tt.dict+"/"+tt.tag, func(t *testing.T) {
-			name, fmtName := splitName(tt.name)
-			dict := language.MustParse(tt.dict)
-			tag := language.Raw.MustParse(tt.tag)
-			p := message.NewPrinter(dict)
-			d := Languages(dict)
-			if n := d.Name(tag); n != name {
-				t.Errorf("Name(%v) = %q; want %q", tag, n, name)
+	for i, tt := range tests {
+		d := Languages(language.Raw.MustParse(tt.dict))
+		if n := d.Name(language.Raw.MustParse(tt.tag)); n != tt.name {
+			t.Errorf("%d:%s:%s: was %q; want %q", i, tt.dict, tt.tag, n, tt.name)
+		}
+		if len(tt.tag) <= 3 {
+			if n := d.Name(language.MustParseBase(tt.tag)); n != tt.name {
+				t.Errorf("%d:%s:base(%s): was %q; want %q", i, tt.dict, tt.tag, n, tt.name)
 			}
-			if n := p.Sprint(Language(tag)); n != fmtName {
-				t.Errorf("Language(%v) = %q; want %q", tag, n, fmtName)
-			}
-			if len(tt.tag) <= 3 {
-				base := language.MustParseBase(tt.tag)
-				if n := d.Name(base); n != name {
-					t.Errorf("Name(%v) = %q; want %q", base, n, name)
-				}
-				if n := p.Sprint(Language(base)); n != fmtName {
-					t.Errorf("Language(%v) = %q; want %q", base, n, fmtName)
-				}
-			}
-		})
+		}
 	}
 }
 
@@ -490,7 +440,7 @@ func TestScript(t *testing.T) {
 		{"en", "Arab", "Arabic"},
 		{"en", "Zzzz", "Unknown Script"},
 		{"zh-Hant", "Hang", "韓文字"},
-		{"zh-Hant-HK", "Hang", "韓文字"},
+		{"zh-Hant-HK", "Hang", "韓文字母"},
 		{"zh", "Arab", "阿拉伯文"},
 		{"zh-Hans-HK", "Arab", "阿拉伯文"}, // same as zh
 		{"zh-Hant", "Arab", "阿拉伯文"},
@@ -502,32 +452,21 @@ func TestScript(t *testing.T) {
 		// Don't introduce scripts with canonicalization.
 		{"en", "sh", "Unknown Script"}, // sh canonicalizes to sr-Latn
 	}
-	for _, tt := range tests {
-		t.Run(tt.dict+"/"+tt.scr, func(t *testing.T) {
-			name, fmtName := splitName(tt.name)
-			dict := language.MustParse(tt.dict)
-			p := message.NewPrinter(dict)
-			d := Scripts(dict)
-			var tag language.Tag
-			if unicode.IsUpper(rune(tt.scr[0])) {
-				x := language.MustParseScript(tt.scr)
-				if n := d.Name(x); n != name {
-					t.Errorf("Name(%v) = %q; want %q", x, n, name)
-				}
-				if n := p.Sprint(Script(x)); n != fmtName {
-					t.Errorf("Script(%v) = %q; want %q", x, n, fmtName)
-				}
-				tag, _ = language.Raw.Compose(x)
-			} else {
-				tag = language.Raw.MustParse(tt.scr)
+	for i, tt := range tests {
+		d := Scripts(language.MustParse(tt.dict))
+		var x interface{}
+		if unicode.IsUpper(rune(tt.scr[0])) {
+			x = language.MustParseScript(tt.scr)
+			tag, _ := language.Raw.Compose(x)
+			if n := d.Name(tag); n != tt.name {
+				t.Errorf("%d:%s:%s: was %q; want %q", i, tt.dict, tt.scr, n, tt.name)
 			}
-			if n := d.Name(tag); n != name {
-				t.Errorf("Name(%v) = %q; want %q", tag, n, name)
-			}
-			if n := p.Sprint(Script(tag)); n != fmtName {
-				t.Errorf("Script(%v) = %q; want %q", tag, n, fmtName)
-			}
-		})
+		} else {
+			x = language.Raw.MustParse(tt.scr)
+		}
+		if n := d.Name(x); n != tt.name {
+			t.Errorf("%d:%s:%s: was %q; want %q", i, tt.dict, tt.scr, n, tt.name)
+		}
 	}
 }
 
@@ -551,32 +490,23 @@ func TestRegion(t *testing.T) {
 		// Don't introduce regions with canonicalization.
 		{"en", "mo", "Unknown Region"},
 	}
-	for _, tt := range tests {
-		t.Run(tt.dict+"/"+tt.reg, func(t *testing.T) {
-			dict := language.MustParse(tt.dict)
-			p := message.NewPrinter(dict)
-			d := Regions(dict)
-			var tag language.Tag
-			if unicode.IsUpper(rune(tt.reg[0])) {
-				// Region
-				x := language.MustParseRegion(tt.reg)
-				if n := d.Name(x); n != tt.name {
-					t.Errorf("Name(%v) = %q; want %q", x, n, tt.name)
-				}
-				if n := p.Sprint(Region(x)); n != tt.name {
-					t.Errorf("Region(%v) = %q; want %q", x, n, tt.name)
-				}
-				tag, _ = language.Raw.Compose(x)
-			} else {
-				tag = language.Raw.MustParse(tt.reg)
-			}
+	for i, tt := range tests {
+		d := Regions(language.MustParse(tt.dict))
+		var x interface{}
+		if unicode.IsUpper(rune(tt.reg[0])) {
+			// Region
+			x = language.MustParseRegion(tt.reg)
+			tag, _ := language.Raw.Compose(x)
 			if n := d.Name(tag); n != tt.name {
-				t.Errorf("Name(%v) = %q; want %q", tag, n, tt.name)
+				t.Errorf("%d:%s:%s: was %q; want %q", i, tt.dict, tt.reg, n, tt.name)
 			}
-			if n := p.Sprint(Region(tag)); n != tt.name {
-				t.Errorf("Region(%v) = %q; want %q", tag, n, tt.name)
-			}
-		})
+		} else {
+			// Tag
+			x = language.Raw.MustParse(tt.reg)
+		}
+		if n := d.Name(x); n != tt.name {
+			t.Errorf("%d:%s:%s: was %q; want %q", i, tt.dict, tt.reg, n, tt.name)
+		}
 	}
 }
 
@@ -586,10 +516,7 @@ func TestSelf(t *testing.T) {
 		name string
 	}{
 		{"nl", "Nederlands"},
-		// CLDR 30 dropped Vlaams as the word for nl-BE. It is still called
-		// Flemish in English, though. TODO: check if this is a CLDR bug.
-		// {"nl-BE", "Vlaams"},
-		{"nl-BE", "Nederlands"},
+		{"nl-BE", "Vlaams"},
 		{"en-GB", "British English"},
 		{lastLang2zu.String(), "isiZulu"},
 		{firstLang2aa.String(), ""},  // not defined
@@ -625,7 +552,7 @@ func TestSelf(t *testing.T) {
 		// Chinese. We can hardwire this case in the table generator or package
 		// code, but we first check if CLDR can be updated.
 		// {"sr-ME", "Srpski"}, // Is Srpskohrvatski
-		{"sr-Latn-ME", "srpskohrvatski"},
+		{"sr-Latn-ME", "Srpskohrvatski"},
 		{"sr-Cyrl-ME", "српски"},
 		{"sr-NL", "српски"},
 		// Canonical equivalents.
@@ -652,7 +579,7 @@ func TestDictionaryLang(t *testing.T) {
 	}{
 		{English, "en", "English"},
 		{Portuguese, "af", "africâner"},
-		{EuropeanPortuguese, "af", "africanês"},
+		{EuropeanPortuguese, "af", "africânder"},
 		{English, "nl-BE", "Flemish"},
 	}
 	for i, test := range tests {
