@@ -32,7 +32,8 @@ type ExtensionSpecResolver struct {
 
 func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
 
-	var formSpecMap map[string]*string
+	formSpecMap := make(map[string]*string)
+
 	err := plugins.ConvertKVToMapStringString(args.ExtensionSpec.FormSpec, &formSpecMap)
 	if err != nil {
 		return &ExtensionSpecResolver{}, err
@@ -53,7 +54,7 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
 	var extensionSpec models.ExtensionSpec
-	var formSpecMap map[string]*string
+	formSpecMap := make(map[string]*string)
 
 	if r.db.Where("id = ?", args.ExtensionSpec.ID).First(&extensionSpec).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
@@ -119,8 +120,7 @@ func (r *ExtensionSpecResolver) Type() string {
 
 func (r *ExtensionSpecResolver) FormSpec(ctx context.Context) ([]*KeyValueResolver, error) {
 	var keyValues []plugins.KeyValue
-	val, _ := r.ExtensionSpec.FormSpec.Value()
-	err := plugins.ConvertMapStringStringToKV(val.(map[string]*string), &keyValues)
+	err := plugins.ConvertMapStringStringToKV(r.ExtensionSpec.FormSpec, &keyValues)
 	if err != nil {
 		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
 			"extensionSpec": r.ExtensionSpec,

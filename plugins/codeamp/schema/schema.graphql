@@ -173,6 +173,8 @@ interface Extension {
   id: ID!
   project: Project!
   extensionSpec: ExtensionSpec!
+  artifacts: [KeyValue]!
+  formSpecValues: [KeyValue]!
   state: String!
   created: Time!
 }
@@ -229,7 +231,7 @@ input ExtensionSpecInput {
   id: String
   name: String!
   component: String!
-  formSpec: String!
+  formSpec: [KeyValueInput!]!
   type: String!
 }
 
@@ -237,7 +239,7 @@ input ExtensionInput {
   id: String,
   projectId: String!,
   extensionSpecId: String!,
-  formSpecValues: String!
+  formSpecValues: [KeyValueInput!]!
 }
 
 interface KeyValue {
