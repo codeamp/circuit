@@ -19,6 +19,8 @@ func init() {
 	transistor.RegisterApi(WebsocketMsg{})
 	transistor.RegisterApi(HeartBeat{})
 	transistor.RegisterApi(Route53{})
+	transistor.RegisterApi(Extension{})
+	transistor.RegisterApi(ReleaseWorkflow{})
 }
 
 type State string
@@ -239,4 +241,29 @@ type WebsocketMsg struct {
 	Channel string      `json:"channel"`
 	Event   string      `json:"event"`
 	Payload interface{} `json:"data"`
+}
+
+type Extension struct {
+	Action       Action `json:"action"`
+	State        State  `json:"state"`
+	StateMessage string `json:"stateMessage"`
+
+	Slug       string            `json:"slug"`
+	FormValues interface{}       `json:"formValues"`
+	Artifacts  map[string]string `json:"artifacts"`
+}
+
+type ReleaseWorkflow struct {
+	Action Action `json:"action"`
+	Slug   string `json:"slug"`
+
+	Project   Project           `json:"project"`
+	Git       Git               `json:"git"`
+	Release   Release           `json:"release"`
+	Services  []Service         `json:"services"`
+	Secrets   []Secret          `json:"secrets"` // secrets = build args + artifacts
+	Artifacts map[string]string `json:"artifacts"`
+
+	State        State  `json:"state"`
+	StateMessage string `json:"stateMessage"`
 }

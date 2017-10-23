@@ -164,7 +164,7 @@ interface ExtensionSpec {
   id: ID!
   name: String!
   component: String!
-  formSpec: String!
+  formSpec: [KeyValue]!
   type: String!
 }
 
@@ -174,9 +174,7 @@ interface Extension {
   project: Project!
   extensionSpec: ExtensionSpec!
   state: String!
-  artifacts: String!
   created: Time!
-  formSpecValues: String!
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -211,12 +209,12 @@ input ContainerPortInput {
 
 input ServiceSpecInput {
   id: String
-  name: String
-  cpuRequest: String
-  cpuLimit: String
-  memoryRequest: String
-  memoryLimit: String
-  terminationGracePeriod: String
+  name: String!
+  cpuRequest: String!
+  cpuLimit: String!
+  memoryRequest: String!
+  memoryLimit: String!
+  terminationGracePeriod: String!
 }
 
 input EnvironmentVariableInput {
@@ -229,15 +227,25 @@ input EnvironmentVariableInput {
 
 input ExtensionSpecInput {
   id: String
-  name: String
-  component: String
-  formSpec: String
-  type: String
+  name: String!
+  component: String!
+  formSpec: String!
+  type: String!
 }
 
 input ExtensionInput {
   id: String,
   projectId: String!,
   extensionSpecId: String!,
-  formSpecValues: String!,
+  formSpecValues: String!
+}
+
+interface KeyValue {
+  key: String!
+  value: String!
+}
+
+input KeyValueInput {
+  key: String!
+  value: String!
 }

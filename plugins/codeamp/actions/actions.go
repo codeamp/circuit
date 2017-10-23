@@ -270,6 +270,34 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 		Event:   fmt.Sprintf("projects/%s/extensions/created", project.Slug),
 		Payload: extension,
 	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+
+	eventExtension := plugins.Extension{
+		Action:       plugins.Create,
+		Slug:         extension.Slug,
+		State:        plugins.Waiting,
+		StateMessage: "onCreate",
+		FormValues:   extension.FormSpecValues,
+		Artifacts:    map[string]string{},
+	}
+	x.events <- transistor.NewEvent(eventExtension, nil)
+}
+
+func (x *Actions) ExtensionInitCompleted(extension *models.Extension) {
+	spew.Dump("ExtensionInitCompleted", extension)
+	project := models.Project{}
+
+	if x.db.Where("id = ?", extension.ProjectId).Find(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"extension": extension,
+		})
+		return
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/extensions/initCompleted", project.Slug),
+		Payload: extension,
+	}
 
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }

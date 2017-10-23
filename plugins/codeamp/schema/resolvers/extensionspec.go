@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
@@ -13,10 +14,10 @@ import (
 
 type ExtensionSpecInput struct {
 	ID        *string
-	Name      *string
-	Component *string
-	FormSpec  *string
-	Type      *string
+	Name      string
+	Component string
+	FormSpec  []plugins.KeyValue
+	Type      string
 }
 
 func (r *Resolver) ExtensionSpec(ctx context.Context, args *struct{ ID graphql.ID }) *ExtensionSpecResolver {
@@ -30,11 +31,18 @@ type ExtensionSpecResolver struct {
 }
 
 func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
+
+	var formSpecMap map[string]*string
+	err := plugins.ConvertKVToMapStringString(args.ExtensionSpec.FormSpec, &formSpecMap)
+	if err != nil {
+		return &ExtensionSpecResolver{}, err
+	}
+
 	extensionSpec := models.ExtensionSpec{
-		Name:      *args.ExtensionSpec.Name,
-		Component: *args.ExtensionSpec.Component,
-		FormSpec:  *args.ExtensionSpec.FormSpec,
-		Type:      *args.ExtensionSpec.Type,
+		Name:      args.ExtensionSpec.Name,
+		Component: args.ExtensionSpec.Component,
+		FormSpec:  formSpecMap,
+		Type:      args.ExtensionSpec.Type,
 	}
 
 	r.db.Create(&extensionSpec)
@@ -45,6 +53,7 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
 	var extensionSpec models.ExtensionSpec
+	var formSpecMap map[string]*string
 
 	if r.db.Where("id = ?", args.ExtensionSpec.ID).First(&extensionSpec).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
@@ -53,10 +62,19 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		return &ExtensionSpecResolver{}, nil
 	}
 
-	extensionSpec.Name = *args.ExtensionSpec.Name
-	extensionSpec.Component = *args.ExtensionSpec.Component
-	extensionSpec.FormSpec = *args.ExtensionSpec.FormSpec
-	extensionSpec.Type = *args.ExtensionSpec.Type
+	err := plugins.ConvertKVToMapStringString(args.ExtensionSpec.FormSpec, &formSpecMap)
+	if err != nil {
+		log.InfoWithFields("not able to convert kv to map[string]string", log.Fields{
+			"extension": args.ExtensionSpec,
+		})
+		return &ExtensionSpecResolver{}, nil
+	}
+
+	extensionSpec.Name = args.ExtensionSpec.Name
+	extensionSpec.Component = args.ExtensionSpec.Component
+	extensionSpec.FormSpec = formSpecMap
+
+	extensionSpec.Type = args.ExtensionSpec.Type
 
 	r.db.Save(&extensionSpec)
 	r.actions.ExtensionSpecUpdated(&extensionSpec)
@@ -99,8 +117,22 @@ func (r *ExtensionSpecResolver) Type() string {
 	return r.ExtensionSpec.Type
 }
 
-func (r *ExtensionSpecResolver) FormSpec() string {
-	return r.ExtensionSpec.FormSpec
+func (r *ExtensionSpecResolver) FormSpec(ctx context.Context) ([]*KeyValueResolver, error) {
+	var keyValues []plugins.KeyValue
+	val, _ := r.ExtensionSpec.FormSpec.Value()
+	err := plugins.ConvertMapStringStringToKV(val.(map[string]*string), &keyValues)
+	if err != nil {
+		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
+			"extensionSpec": r.ExtensionSpec,
+		})
+	}
+
+	var results []*KeyValueResolver
+	for _, kv := range keyValues {
+		results = append(results, &KeyValueResolver{db: r.db, KeyValue: kv})
+	}
+
+	return results, nil
 }
 
 func (r *ExtensionSpecResolver) Created() graphql.Time {
