@@ -61,6 +61,7 @@ type Mutation {
   deleteExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
 
   createExtension(extension: ExtensionInput): Extension
+  updateExtension(extension: ExtensionInput): Extension
 
   userToken(email: String!, password: String!): User
 }

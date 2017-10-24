@@ -154,6 +154,34 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 	return &ExtensionResolver{db: r.db, Extension: extension}, nil
 }
 
+func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
+	var extension models.Extension
+	formSpecValuesMap := make(map[string]*string)
+
+	if r.db.Where("id = ?", args.Extension.ID).First(&extension).RecordNotFound() {
+		log.InfoWithFields("no extension found", log.Fields{
+			"extension": args.Extension,
+		})
+		return &ExtensionResolver{}, nil
+	}
+
+	err := plugins.ConvertKVToMapStringString(args.Extension.FormSpecValues, &formSpecValuesMap)
+	if err != nil {
+		log.InfoWithFields("not able to convert kv to map[string]string", log.Fields{
+			"extension": args.Extension,
+		})
+		return &ExtensionResolver{}, nil
+	}
+
+	extension.FormSpecValues = formSpecValuesMap
+	extension.State = plugins.Waiting
+
+	r.db.Save(&extension)
+	r.actions.ExtensionUpdated(&extension)
+
+	return &ExtensionResolver{db: r.db, Extension: extension}, nil
+}
+
 func FormSpecValuesIsValid(db *gorm.DB, extensionInput *ExtensionInput) (bool, error) {
 	// get extension spec
 	var extensionSpec models.ExtensionSpec
