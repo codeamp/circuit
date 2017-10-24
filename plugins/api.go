@@ -248,21 +248,21 @@ type Extension struct {
 	State        State  `json:"state"`
 	StateMessage string `json:"stateMessage"`
 
-	Slug       string            `json:"slug"`
-	FormValues interface{}       `json:"formValues"`
-	Artifacts  map[string]string `json:"artifacts"`
+	Slug       string             `json:"slug"`
+	FormValues map[string]*string `json:"formValues"`
+	Artifacts  map[string]*string `json:"artifacts"`
 }
 
 type ReleaseWorkflow struct {
 	Action Action `json:"action"`
 	Slug   string `json:"slug"`
 
-	Project   Project           `json:"project"`
-	Git       Git               `json:"git"`
-	Release   Release           `json:"release"`
-	Services  []Service         `json:"services"`
-	Secrets   []Secret          `json:"secrets"` // secrets = build args + artifacts
-	Artifacts map[string]string `json:"artifacts"`
+	Project   Project            `json:"project"`
+	Git       Git                `json:"git"`
+	Release   Release            `json:"release"`
+	Services  []Service          `json:"services"`
+	Secrets   []Secret           `json:"secrets"` // secrets = build args + artifacts
+	Artifacts map[string]*string `json:"artifacts"`
 
 	State        State  `json:"state"`
 	StateMessage string `json:"stateMessage"`

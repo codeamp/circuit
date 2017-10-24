@@ -55,8 +55,7 @@ func (r *ExtensionResolver) State() string {
 
 func (r *ExtensionResolver) Artifacts() []*KeyValueResolver {
 	var keyValues []plugins.KeyValue
-	val, _ := r.Extension.Artifacts.Value()
-	err := plugins.ConvertMapStringStringToKV(val.(map[string]*string), &keyValues)
+	err := plugins.ConvertMapStringStringToKV(r.Extension.Artifacts, &keyValues)
 	if err != nil {
 		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
 			"extensionSpec": r.ExtensionSpec,
@@ -74,29 +73,26 @@ func (r *ExtensionResolver) Created() graphql.Time {
 }
 
 func (r *ExtensionResolver) FormSpecValues(ctx context.Context) ([]*KeyValueResolver, error) {
-	/*
-		var keyValues []plugins.KeyValue
-		val, _ := r.Extension.FormSpecValues.Value()
-		err := plugins.ConvertMapStringStringToKV(val.(map[string]*string), &keyValues)
-		if err != nil {
-			log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-				"extensionSpec": r.Extension,
-			})
-		}
+	var keyValues []plugins.KeyValue
+	err := plugins.ConvertMapStringStringToKV(r.Extension.FormSpecValues, &keyValues)
+	if err != nil {
+		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
+			"extensionSpec": r.Extension,
+		})
+		return nil, err
+	}
 
-		var rows []*KeyValueResolver
-		for _, kv := range keyValues {
-			rows = append(rows, &KeyValueResolver{db: r.db, KeyValue: kv})
-		}
+	var rows []*KeyValueResolver
+	for _, kv := range keyValues {
+		rows = append(rows, &KeyValueResolver{db: r.db, KeyValue: kv})
+	}
 
-		return rows
-	*/
-	return []*KeyValueResolver{}, nil
+	return rows, nil
 }
 
 func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
 	var extension models.Extension
-	var formSpecValuesMap map[string]*string
+	formSpecValuesMap := make(map[string]*string)
 
 	// check if extension already exists with project
 	if r.db.Where("project_id = ? and extension_spec_id = ?", args.Extension.ProjectId, args.Extension.ExtensionSpecId).Find(&extension).RecordNotFound() {
@@ -119,6 +115,18 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			return nil, err
 		}
 
+		// validate from formSpec
+		valid, err := FormSpecValuesIsValid(r.db, args.Extension)
+		if err != nil {
+			return nil, err
+		}
+		if valid == false {
+			log.InfoWithFields("form spec values are invalid", log.Fields{
+				"extension": args.Extension,
+			})
+			return nil, nil
+		}
+
 		err = plugins.ConvertKVToMapStringString(args.Extension.FormSpecValues, &formSpecValuesMap)
 		if err != nil {
 			log.InfoWithFields("can't convert kv to map[string]*string", log.Fields{
@@ -138,10 +146,45 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 
 		r.db.Create(&extension)
 
-		extension.Slug = fmt.Sprintf("dockerbuild%s", extension.Model.ID.String())
+		extension.Slug = fmt.Sprintf("dockerbuild|%s", extension.Model.ID.String())
 		r.db.Save(&extension)
 
 		r.actions.ExtensionCreated(&extension)
 	}
 	return &ExtensionResolver{db: r.db, Extension: extension}, nil
+}
+
+func FormSpecValuesIsValid(db *gorm.DB, extensionInput *ExtensionInput) (bool, error) {
+	// get extension spec
+	var extensionSpec models.ExtensionSpec
+	if db.Where("id = ?", extensionInput.ExtensionSpecId).Find(&extensionSpec).RecordNotFound() {
+		log.InfoWithFields("extensionSpec not found", log.Fields{
+			"extensionInput": extensionInput,
+		})
+		return false, nil
+	}
+
+	// loop through extension spec
+
+	// convert extensionSpec's form spec values into KV array
+	var extensionSpecKVFormSpec []plugins.KeyValue
+	err := plugins.ConvertMapStringStringToKV(extensionSpec.FormSpec, &extensionSpecKVFormSpec)
+	if err != nil {
+		return false, err
+	}
+
+	// convert extensionInput's form spec values into map[string]string
+	extensionInputMap := make(map[string]*string)
+	err = plugins.ConvertKVToMapStringString(extensionInput.FormSpecValues, &extensionInputMap)
+	if err != nil {
+		return false, err
+	}
+
+	for _, kv := range extensionSpecKVFormSpec {
+		if extensionInputMap[kv.Key] == nil {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

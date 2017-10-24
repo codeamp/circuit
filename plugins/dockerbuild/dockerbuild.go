@@ -1,10 +1,11 @@
 package dockerbuild
 
 import (
+	"time"
+
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 )
 
 type Dockerbuild struct {
@@ -42,8 +43,6 @@ func (x *Dockerbuild) Subscribe() []string {
 }
 
 func (x *Dockerbuild) Process(e transistor.Event) error {
-	spew.Dump("DOCKER BUILD")
-	spew.Dump(e)
 	log.InfoWithFields("Processing dockerbuild event", log.Fields{
 		"event": e,
 	})
@@ -54,17 +53,25 @@ func (x *Dockerbuild) Process(e transistor.Event) error {
 	// fill artifacts
 
 	// return complete event
+	time.Sleep(5 * time.Second)
+
+	hostname := *extension.FormValues["hostname"]
+	credentials := *extension.FormValues["credentials"]
+	dockerdata := "dockerdata"
+
 	completeExtensionEvent := plugins.Extension{
 		Action:       plugins.Status,
 		Slug:         extension.Slug,
 		State:        plugins.Complete,
 		StateMessage: "Complete",
 		FormValues:   extension.FormValues,
-		Artifacts:    map[string]string{},
+		Artifacts: map[string]*string{
+			"hostname":    &hostname,
+			"credentials": &credentials,
+			"dockerdata":  &dockerdata,
+		},
 	}
 
-	spew.Dump("COMPLETE EXTENSION!")
-	spew.Dump(completeExtensionEvent)
 	x.events <- transistor.NewEvent(completeExtensionEvent, nil)
 
 	return nil

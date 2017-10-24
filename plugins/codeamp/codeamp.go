@@ -245,7 +245,6 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	}
 
 	if e.Name == "plugins.Extension:status" {
-		spew.Dump("CODEAMP EXTENSION!")
 		payload := e.Payload.(plugins.Extension)
 
 		if payload.State == plugins.Complete {
@@ -266,6 +265,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		}
 
 		extension.State = plugins.Complete
+		extension.Artifacts = payload.Artifacts
 		x.db.Save(extension)
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
