@@ -16,6 +16,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
@@ -38,6 +39,7 @@ type CodeAmp struct {
 	Schema         *graphql.Schema
 	Actions        *actions.Actions
 	SocketIO       *socketio.Server
+	db             *gorm.DB
 }
 
 func NewCodeAmp() *CodeAmp {
@@ -71,6 +73,7 @@ func (x *CodeAmp) Migrate() {
 	))
 
 	db.Exec("CREATE EXTENSION \"uuid-ossp\"")
+	db.Exec("CREATE EXTENSION IF NOT EXISTS hstore")
 
 	db.AutoMigrate(
 		&models.User{},
@@ -83,6 +86,7 @@ func (x *CodeAmp) Migrate() {
 		&models.ServiceSpec{},
 		&models.ExtensionSpec{},
 		&models.Extension{},
+		&models.ReleaseExtension{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")
@@ -185,6 +189,7 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	x.SocketIO = sio
 	x.Actions = actions
 	x.Schema = parsedSchema
+	x.db = db
 
 	go x.Listen()
 
@@ -206,6 +211,7 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.DockerDeploy:status",
 		"plugins.Route53",
 		"plugins.WebsocketMsg",
+		"plugins.Extension:status",
 	}
 }
 
@@ -236,6 +242,32 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		}
 
 		x.SocketIO.BroadcastTo(payload.Channel, payload.Event, payload.Payload, nil)
+	}
+
+	if e.Name == "plugins.Extension:status" {
+		payload := e.Payload.(plugins.Extension)
+
+		if payload.State == plugins.Complete {
+			spew.Dump(payload)
+		}
+
+		// query project from extension slug (2nd part)
+		var extension models.Extension
+		extensionId := strings.Split(payload.Slug, "|")[1]
+
+		spew.Dump(extensionId)
+
+		if x.db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
+			log.InfoWithFields("extension not found from given slug", log.Fields{
+				"extension event": payload,
+			})
+			return nil
+		}
+
+		extension.State = plugins.Complete
+		extension.Artifacts = payload.Artifacts
+		x.db.Save(extension)
+		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
 	return nil

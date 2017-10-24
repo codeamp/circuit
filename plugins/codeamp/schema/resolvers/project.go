@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"time"
 
 	log "github.com/codeamp/logger"
 
@@ -184,11 +183,16 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 		ProjectId:       project.ID,
 		ExtensionSpecId: dockerBuilderExtensionSpec.ID,
 		State:           plugins.Waiting,
-		Artifacts:       "",
-		Created:         time.Now(),
+		Artifacts:       map[string]*string{},
+		Slug:            "",
+		FormSpecValues:  map[string]*string{},
 	}
 
 	r.db.Create(&dockerBuilderExtension)
+	dockerBuilderExtension.Slug = fmt.Sprintf("dockerbuild-%s", dockerBuilderExtension.Model.ID.String())
+	r.db.Save(&dockerBuilderExtension)
+
+	r.actions.ExtensionCreated(&dockerBuilderExtension)
 
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }

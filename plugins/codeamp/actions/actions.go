@@ -259,6 +259,7 @@ func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable)
 
 func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	project := models.Project{}
+	extensionSpec := models.ExtensionSpec{}
 
 	if x.db.Where("id = ?", extension.ProjectId).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -266,9 +267,98 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 		})
 	}
 
+	if x.db.Where("id = ?", extension.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+		log.InfoWithFields("extensionSpec not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	payload := map[string]interface{}{
+		"extension":     extension,
+		"extensionSpec": extensionSpec,
+	}
+
 	wsMsg := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/extensions/created", project.Slug),
-		Payload: extension,
+		Payload: payload,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+
+	eventExtension := plugins.Extension{
+		Action:       plugins.Create,
+		Slug:         extension.Slug,
+		State:        plugins.Waiting,
+		StateMessage: "onCreate",
+		FormValues:   extension.FormSpecValues,
+		Artifacts:    map[string]*string{},
+	}
+	x.events <- transistor.NewEvent(eventExtension, nil)
+}
+
+func (x *Actions) ExtensionUpdated(extension *models.Extension) {
+	project := models.Project{}
+	extensionSpec := models.ExtensionSpec{}
+
+	if x.db.Where("id = ?", extension.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	if x.db.Where("id = ?", extension.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+		log.InfoWithFields("extensionSpec not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	payload := map[string]interface{}{
+		"extension":     extension,
+		"extensionSpec": extensionSpec,
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/extensions/updated", project.Slug),
+		Payload: payload,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+
+	eventExtension := plugins.Extension{
+		Action:       plugins.Update,
+		Slug:         extension.Slug,
+		State:        plugins.Waiting,
+		StateMessage: "onUpdate",
+		FormValues:   extension.FormSpecValues,
+		Artifacts:    map[string]*string{},
+	}
+	x.events <- transistor.NewEvent(eventExtension, nil)
+}
+
+func (x *Actions) ExtensionInitCompleted(extension *models.Extension) {
+	spew.Dump("ExtensionInitCompleted", extension)
+	project := models.Project{}
+	extensionSpec := models.ExtensionSpec{}
+
+	if x.db.Where("id = ?", extension.ProjectId).Find(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"extension": extension,
+		})
+		return
+	}
+
+	if x.db.Where("id = ?", extension.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+		log.InfoWithFields("extensionSpec not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	payload := map[string]interface{}{
+		"extension":     extension,
+		"extensionSpec": extensionSpec,
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/extensions/initCompleted", project.Slug),
+		Payload: payload,
 	}
 
 	x.events <- transistor.NewEvent(wsMsg, nil)

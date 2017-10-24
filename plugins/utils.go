@@ -11,6 +11,25 @@ import (
 	"github.com/spf13/viper"
 )
 
+type KeyValue struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+func ConvertKVToMapStringString(kv []KeyValue, formSpecMap *map[string]*string) error {
+	for _, keyValue := range kv {
+		(*formSpecMap)[keyValue.Key] = &keyValue.Value
+	}
+	return nil
+}
+
+func ConvertMapStringStringToKV(formSpecMap map[string]*string, kv *[]KeyValue) error {
+	for key, value := range formSpecMap {
+		*kv = append(*kv, KeyValue{Key: key, Value: *value})
+	}
+	return nil
+}
+
 func GitCommits(from string, project Project, git Git) ([]GitCommit, error) {
 	var err error
 	var commits []GitCommit

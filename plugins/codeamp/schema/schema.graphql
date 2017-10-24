@@ -61,6 +61,7 @@ type Mutation {
   deleteExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
 
   createExtension(extension: ExtensionInput): Extension
+  updateExtension(extension: ExtensionInput): Extension
 
   userToken(email: String!, password: String!): User
 }
@@ -164,7 +165,7 @@ interface ExtensionSpec {
   id: ID!
   name: String!
   component: String!
-  formSpec: String!
+  formSpec: [KeyValue]!
   type: String!
 }
 
@@ -173,10 +174,10 @@ interface Extension {
   id: ID!
   project: Project!
   extensionSpec: ExtensionSpec!
+  artifacts: [KeyValue]!
+  formSpecValues: [KeyValue]!
   state: String!
-  artifacts: String!
   created: Time!
-  formSpecValues: String!
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -211,12 +212,12 @@ input ContainerPortInput {
 
 input ServiceSpecInput {
   id: String
-  name: String
-  cpuRequest: String
-  cpuLimit: String
-  memoryRequest: String
-  memoryLimit: String
-  terminationGracePeriod: String
+  name: String!
+  cpuRequest: String!
+  cpuLimit: String!
+  memoryRequest: String!
+  memoryLimit: String!
+  terminationGracePeriod: String!
 }
 
 input EnvironmentVariableInput {
@@ -229,15 +230,25 @@ input EnvironmentVariableInput {
 
 input ExtensionSpecInput {
   id: String
-  name: String
-  component: String
-  formSpec: String
-  type: String
+  name: String!
+  component: String!
+  formSpec: [KeyValueInput!]!
+  type: String!
 }
 
 input ExtensionInput {
   id: String,
   projectId: String!,
   extensionSpecId: String!,
-  formSpecValues: String!,
+  formSpecValues: [KeyValueInput!]!
+}
+
+interface KeyValue {
+  key: String!
+  value: String!
+}
+
+input KeyValueInput {
+  key: String!
+  value: String!
 }

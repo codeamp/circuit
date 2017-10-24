@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -121,9 +122,11 @@ type Release struct {
 	TailFeature   Feature
 	TailFeatureID uuid.UUID `json:"tailFeatureId" gorm:"type:uuid"`
 
-	State        plugins.State `json:"state"`
-	StateMessage string        `json:"stateMessage"`
-	Created      time.Time     `json:"created"`
+	Secrets      []EnvironmentVariable `json:"secrets"`
+	Services     []Service             `json:"services"`
+	State        plugins.State         `json:"state"`
+	StateMessage string                `json:"stateMessage"`
+	Created      time.Time             `json:"created"`
 }
 
 type Bookmark struct {
@@ -134,19 +137,30 @@ type Bookmark struct {
 
 type ExtensionSpec struct {
 	Model     `json:",inline"`
-	Type      string    `json:"type"`
-	Name      string    `json:"name"`
-	Component string    `json:"component"`
-	FormSpec  string    `json:"formSpec"`
-	Created   time.Time `json:"created"`
+	Type      string          `json:"type"`
+	Name      string          `json:"name"`
+	Component string          `json:"component"`
+	FormSpec  postgres.Hstore `json:"formSpec"`
+	Created   time.Time       `json:"created"`
 }
 
 type Extension struct {
 	Model           `json:",inline"`
-	ProjectId       uuid.UUID     `json:"projectId" gorm:"type:uuid"`
-	ExtensionSpecId uuid.UUID     `json:"extensionSpecId" gorm:"type:uuid"`
-	State           plugins.State `json:"state"`
-	Artifacts       string        `json:"artifacts"`
-	FormSpecValues  string        `json:"formSpecValues"`
-	Created         time.Time     `json:"created"`
+	ProjectId       uuid.UUID       `json:"projectId" gorm:"type:uuid"`
+	ExtensionSpecId uuid.UUID       `json:"extensionSpecId" gorm:"type:uuid"`
+	Slug            string          `json:"slug"`
+	State           plugins.State   `json:"state"`
+	Artifacts       postgres.Hstore `json:"artifacts"`
+	FormSpecValues  postgres.Hstore `json:"formSpecValues"`
+}
+
+type ReleaseExtension struct {
+	Model             `json:",inline"`
+	FeatureHash       string          `json:"featureHash"`
+	ServicesSignature string          `json:"servicesSignature"` // services config snapshot
+	SecretsSignature  string          `json:"secretsSignature"`  // build args + artifacts
+	ExtensionId       uuid.UUID       `json:"extensionId" gorm:"type:uuid"`
+	State             plugins.State   `json:"state"`
+	StateMessage      string          `json:"stateMessage"`
+	Artifacts         postgres.Hstore `json:"artifacts"` // captured on workflow success/ fail
 }

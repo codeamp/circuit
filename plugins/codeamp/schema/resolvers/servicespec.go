@@ -13,12 +13,12 @@ import (
 
 type ServiceSpecInput struct {
 	ID                     *string
-	Name                   *string
-	CpuRequest             *string
-	CpuLimit               *string
-	MemoryRequest          *string
-	MemoryLimit            *string
-	TerminationGracePeriod *string
+	Name                   string
+	CpuRequest             string
+	CpuLimit               string
+	MemoryRequest          string
+	MemoryLimit            string
+	TerminationGracePeriod string
 }
 
 type ServiceSpecResolver struct {
@@ -38,12 +38,12 @@ func (r *Resolver) ServiceSpec(ctx context.Context, args *struct{ ID graphql.ID 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	spew.Dump(args.ServiceSpec)
 	serviceSpec := models.ServiceSpec{
-		Name:                   *args.ServiceSpec.Name,
-		CpuRequest:             *args.ServiceSpec.CpuRequest,
-		CpuLimit:               *args.ServiceSpec.CpuLimit,
-		MemoryRequest:          *args.ServiceSpec.MemoryRequest,
-		MemoryLimit:            *args.ServiceSpec.MemoryLimit,
-		TerminationGracePeriod: *args.ServiceSpec.TerminationGracePeriod,
+		Name:                   args.ServiceSpec.Name,
+		CpuRequest:             args.ServiceSpec.CpuRequest,
+		CpuLimit:               args.ServiceSpec.CpuLimit,
+		MemoryRequest:          args.ServiceSpec.MemoryRequest,
+		MemoryLimit:            args.ServiceSpec.MemoryLimit,
+		TerminationGracePeriod: args.ServiceSpec.TerminationGracePeriod,
 	}
 
 	r.db.Create(&serviceSpec)
@@ -67,12 +67,12 @@ func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 
 	spew.Dump(args.ServiceSpec)
 
-	serviceSpec.Name = *args.ServiceSpec.Name
-	serviceSpec.CpuLimit = *args.ServiceSpec.CpuLimit
-	serviceSpec.CpuRequest = *args.ServiceSpec.CpuRequest
-	serviceSpec.MemoryLimit = *args.ServiceSpec.MemoryLimit
-	serviceSpec.MemoryRequest = *args.ServiceSpec.MemoryRequest
-	serviceSpec.TerminationGracePeriod = *args.ServiceSpec.TerminationGracePeriod
+	serviceSpec.Name = args.ServiceSpec.Name
+	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
+	serviceSpec.CpuRequest = args.ServiceSpec.CpuRequest
+	serviceSpec.MemoryLimit = args.ServiceSpec.MemoryLimit
+	serviceSpec.MemoryRequest = args.ServiceSpec.MemoryRequest
+	serviceSpec.TerminationGracePeriod = args.ServiceSpec.TerminationGracePeriod
 
 	r.db.Save(&serviceSpec)
 	r.actions.ServiceSpecUpdated(&serviceSpec)
