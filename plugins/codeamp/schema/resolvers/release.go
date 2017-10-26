@@ -9,6 +9,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -72,6 +73,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	r.db.Create(&release)
+	spew.Dump("ReleaseCreated action", release)
+	r.actions.ReleaseCreated(&release)
 
 	return nil, nil
 }
@@ -102,6 +105,19 @@ func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
 	r.db.Where("id = ?", r.Release.HeadFeatureID).First(&feature)
 
 	return &FeatureResolver{db: r.db, Feature: feature}, nil
+}
+
+func (r *ReleaseResolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
+	var rows []models.ReleaseExtension
+	var results []*ReleaseExtensionResolver
+
+	r.db.Where("release_id = ?", r.Release.ID).Find(&rows)
+	for _, re := range rows {
+		results = append(results, &ReleaseExtensionResolver{ReleaseExtension: re})
+	}
+	spew.Dump(results)
+	return results, nil
+
 }
 
 func (r *ReleaseResolver) TailFeature() (*FeatureResolver, error) {

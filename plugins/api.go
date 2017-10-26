@@ -257,13 +257,20 @@ type ReleaseWorkflow struct {
 	Action Action `json:"action"`
 	Slug   string `json:"slug"`
 
-	Project   Project            `json:"project"`
-	Git       Git                `json:"git"`
-	Release   Release            `json:"release"`
-	Services  []Service          `json:"services"`
-	Secrets   []Secret           `json:"secrets"` // secrets = build args + artifacts
-	Artifacts map[string]*string `json:"artifacts"`
+	Project          Project            `json:"project"`
+	Git              Git                `json:"git"`
+	Release          Release            `json:"release"`
+	ReleaseExtension ReleaseExtension   `json:"releaseExtension"`
+	Services         []Service          `json:"services"`
+	Secrets          []Secret           `json:"secrets"` // secrets = build args + artifacts
+	Artifacts        map[string]*string `json:"artifacts"`
 
+	State        State  `json:"state"`
+	StateMessage string `json:"stateMessage"`
+}
+
+type ReleaseExtension struct {
+	Id           string `json:"id"`
 	State        State  `json:"state"`
 	StateMessage string `json:"stateMessage"`
 }

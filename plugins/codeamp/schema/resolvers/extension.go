@@ -58,7 +58,7 @@ func (r *ExtensionResolver) Artifacts() []*KeyValueResolver {
 	err := plugins.ConvertMapStringStringToKV(r.Extension.Artifacts, &keyValues)
 	if err != nil {
 		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-			"extensionSpec": r.ExtensionSpec,
+			"extensionSpec": r.Extension,
 		})
 	}
 	var rows []*KeyValueResolver

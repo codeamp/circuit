@@ -363,3 +363,158 @@ func (x *Actions) ExtensionInitCompleted(extension *models.Extension) {
 
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
+
+func (x *Actions) ReleaseExtensionCompleted(release *models.Release, extension *models.Extension) {
+	project := models.Project{}
+
+	extension.State = plugins.Complete
+	x.db.Save(&extension)
+
+	if x.db.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"release": release,
+		})
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event: fmt.Sprintf("projects/%s/releases/extensionComplete", project.Slug),
+		Payload: map[string]interface{}{
+			"extension": *extension,
+			"release":   *release,
+		},
+	}
+	spew.Dump("HEY RELEASELOG!")
+	spew.Dump(wsMsg)
+
+	x.events <- transistor.NewEvent(wsMsg, nil)
+
+}
+
+func (x *Actions) ReleaseExtensionLog(re *models.ReleaseExtension, logLine *string) {
+	project := models.Project{}
+	release := models.Release{}
+	extension := models.Extension{}
+
+	spew.Dump("ReleaseExtensionLog", re, logLine)
+
+	if x.db.Where("id = ?", re.ReleaseId).First(&project).RecordNotFound() {
+		log.InfoWithFields("release not found", log.Fields{
+			"releaseExtension": re,
+		})
+		return
+	}
+
+	if x.db.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("release not found", log.Fields{
+			"release": release,
+		})
+		return
+	}
+
+	if x.db.Where("id = ?", re.ExtensionId).First(&extension).RecordNotFound() {
+		log.InfoWithFields("extension not found", log.Fields{
+			"releaseExtension": re,
+		})
+		return
+	}
+
+	reLog := models.ReleaseExtensionLog{
+		Msg:                *logLine,
+		ReleaseExtensionId: re.Model.ID,
+	}
+
+	x.db.Save(&reLog)
+
+	wsMsg := plugins.WebsocketMsg{
+		Event: fmt.Sprintf("projects/%s/releases/%s/releaseExtensions/%s/log", project.Slug, release.Model.ID.String(), extension.Model.ID.String()),
+		Payload: map[string]interface{}{
+			"reLog": reLog,
+		},
+	}
+	spew.Dump("HEY RELEASELOG!")
+	spew.Dump(wsMsg)
+
+	x.events <- transistor.NewEvent(wsMsg, nil)
+
+}
+
+func (x *Actions) ReleaseCreated(release *models.Release) {
+	spew.Dump("release created action!")
+	project := models.Project{}
+
+	if x.db.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"release": release,
+		})
+	}
+
+	payload := map[string]interface{}{
+		"release": release,
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/releases/created", project.Slug),
+		Payload: payload,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+
+	// loop through extensions and send ReleaseWorkflow events
+	projectExtensions := []models.Extension{}
+	if x.db.Where("project_id = ?", release.ProjectId).Find(&projectExtensions).RecordNotFound() {
+		log.InfoWithFields("no extensions to be found", log.Fields{
+			"release": release,
+			"project": project,
+		})
+	}
+
+	services := []models.Service{}
+	if x.db.Where("project_id = ?", release.ProjectId).Find(&services).RecordNotFound() {
+		log.InfoWithFields("no services found for this project", log.Fields{
+			"release": release,
+		})
+	}
+
+	for _, extension := range projectExtensions {
+
+		// create ReleaseExtension
+		releaseExtension := models.ReleaseExtension{
+			ReleaseId:         release.Model.ID,
+			FeatureHash:       "",
+			ServicesSignature: "",
+			SecretsSignature:  "",
+			ExtensionId:       extension.Model.ID,
+			State:             plugins.Waiting,
+			StateMessage:      "initialized",
+		}
+
+		x.db.Save(&releaseExtension)
+
+		releaseWorkflow := plugins.ReleaseWorkflow{
+			Action:       plugins.Create,
+			Slug:         extension.Slug,
+			State:        plugins.Waiting,
+			StateMessage: "create release workflow",
+			Artifacts:    extension.Artifacts,
+			Release: plugins.Release{
+				Id:          release.Model.ID.String(),
+				HeadFeature: plugins.Feature{},
+				TailFeature: plugins.Feature{},
+				User:        "",
+			},
+			ReleaseExtension: plugins.ReleaseExtension{
+				Id:           releaseExtension.Model.ID.String(),
+				State:        releaseExtension.State,
+				StateMessage: releaseExtension.StateMessage,
+			},
+			Project: plugins.Project{
+				Action:         plugins.Update,
+				Slug:           project.Slug,
+				Repository:     project.GitUrl,
+				NotifyChannels: []string{}, // not sure what channels can be notified with this
+			},
+		}
+
+		spew.Dump("RELEASE WORKFLOW", releaseWorkflow)
+		x.events <- transistor.NewEvent(releaseWorkflow, nil)
+	}
+}

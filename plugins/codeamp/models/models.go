@@ -127,6 +127,7 @@ type Release struct {
 	State        plugins.State         `json:"state"`
 	StateMessage string                `json:"stateMessage"`
 	Created      time.Time             `json:"created"`
+	Finished     time.Time
 }
 
 type Bookmark struct {
@@ -156,6 +157,7 @@ type Extension struct {
 
 type ReleaseExtension struct {
 	Model             `json:",inline"`
+	ReleaseId         uuid.UUID       `json:"releaseId" gorm:"type:uuid"`
 	FeatureHash       string          `json:"featureHash"`
 	ServicesSignature string          `json:"servicesSignature"` // services config snapshot
 	SecretsSignature  string          `json:"secretsSignature"`  // build args + artifacts
@@ -163,4 +165,11 @@ type ReleaseExtension struct {
 	State             plugins.State   `json:"state"`
 	StateMessage      string          `json:"stateMessage"`
 	Artifacts         postgres.Hstore `json:"artifacts"` // captured on workflow success/ fail
+	Finished          time.Time
+}
+
+type ReleaseExtensionLog struct {
+	Model              `json:",inline"`
+	Msg                string
+	ReleaseExtensionId uuid.UUID `json:"releaseExtensionLog" gorm:"type:uuid"`
 }

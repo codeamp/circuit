@@ -6,6 +6,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 )
 
 type Dockerbuild struct {
@@ -40,6 +41,7 @@ func (x *Dockerbuild) Subscribe() []string {
 	return []string{
 		"plugins.Extension:create",
 		"plugins.Extension:update",
+		"plugins.ReleaseWorkflow:create",
 	}
 }
 
@@ -48,6 +50,45 @@ func (x *Dockerbuild) Process(e transistor.Event) error {
 	log.InfoWithFields("Processing dockerbuild event", log.Fields{
 		"event": e,
 	})
+
+	if e.Name == "plugins.ReleaseWorkflow:create" {
+
+		rw := e.Payload.(plugins.ReleaseWorkflow)
+		logLine := "dockerbuild log line"
+
+		spew.Dump("DOCKERBUILD RELEASEWORKFLOW", rw)
+		for i := 0; i < 5; i++ {
+			time.Sleep(3 * time.Second)
+			if i == 4 {
+				logLine = "process complete"
+			}
+			releaseWorkflowRes := plugins.ReleaseWorkflow{
+				Action: plugins.Status,
+				Slug:   rw.Slug,
+				Artifacts: map[string]*string{
+					"log": &logLine,
+				},
+				Release: rw.Release,
+				Project: rw.Project,
+			}
+
+			x.events <- transistor.NewEvent(releaseWorkflowRes, nil)
+		}
+
+		releaseWorkflowRes := plugins.ReleaseWorkflow{
+			Action: plugins.Complete,
+			Slug:   rw.Slug,
+			Artifacts: map[string]*string{
+				"log": &logLine,
+			},
+			Release: rw.Release,
+			Project: rw.Project,
+		}
+
+		x.events <- transistor.NewEvent(releaseWorkflowRes, nil)
+
+	}
+
 	extension := e.Payload.(plugins.Extension)
 
 	if extension.Action == plugins.Update {

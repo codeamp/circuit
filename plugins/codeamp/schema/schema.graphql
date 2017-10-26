@@ -35,6 +35,9 @@ type Query {
 
   # Retrieve all extensions
   extensions(): [Extension]!
+
+  # Retrieve all release extensions
+  releaseExtensions(): [ReleaseExtension]!
 }
 
 # The mutation type, represents all updates we can make to our data
@@ -137,6 +140,7 @@ interface Release {
   headFeature: Feature!
   tailFeature: Feature!
   state: String!        
+  releaseExtensions: [ReleaseExtension]!
   stateMessage: String!
   created: Time!
 }
@@ -178,6 +182,26 @@ interface Extension {
   formSpecValues: [KeyValue]!
   state: String!
   created: Time!
+}
+
+# ReleaseExtension object
+interface ReleaseExtension {
+    id: ID!
+    release: Release!
+    extension: Extension!
+    servicesSignature: String!
+    secretsSignature: String!
+    state: String!
+    stateMessage: String!
+    artifacts: [KeyValue!]!
+    logs: [ReleaseExtensionLog]!
+    finished: Time
+}
+
+interface ReleaseExtensionLog {
+    id: ID!
+    msg: String!
+    releaseExtension: ReleaseExtension!
 }
 
 # ProjectInput object and all fields needed for creating new Project
