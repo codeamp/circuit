@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -241,11 +242,12 @@ func (r *ProjectResolver) RsaPublicKey() string {
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 	currentRelease := models.Release{}
 
-	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
+	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
 			"project": r.Project,
 		})
 	}
+	spew.Dump("currentRelease", currentRelease)
 	return &ReleaseResolver{db: r.db, Release: currentRelease}, nil
 }
 
@@ -279,7 +281,7 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 	var rows []models.Release
 	var results []*ReleaseResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Find(&rows).Order("created desc")
+	r.db.Where("project_id = ?", r.Project.ID).Order("created_at desc").Find(&rows)
 
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{db: r.db, Release: release})

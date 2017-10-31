@@ -2,12 +2,12 @@ package actions
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -213,8 +213,6 @@ func (x *Actions) EnvironmentVariableCreated(envVar *models.EnvironmentVariable)
 		})
 	}
 
-	spew.Dump(fmt.Sprintf("projects/%s/environmentVariables/created", project.Slug))
-
 	wsMsg := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/environmentVariables/created", project.Slug),
 		Payload: envVar,
@@ -229,8 +227,6 @@ func (x *Actions) EnvironmentVariableDeleted(envVar *models.EnvironmentVariable)
 			"service": envVar,
 		})
 	}
-
-	spew.Dump(fmt.Sprintf("projects/%s/environmentVariables/deleted", project.Slug))
 
 	wsMsg := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/environmentVariables/deleted", project.Slug),
@@ -247,8 +243,6 @@ func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable)
 		})
 	}
 
-	spew.Dump(fmt.Sprintf("projects/%s/environmentVariables/updated", project.Slug))
-
 	wsMsg := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/environmentVariables/updated", project.Slug),
 		Payload: envVar,
@@ -258,6 +252,7 @@ func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable)
 }
 
 func (x *Actions) ExtensionCreated(extension *models.Extension) {
+
 	project := models.Project{}
 	extensionSpec := models.ExtensionSpec{}
 
@@ -292,6 +287,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 		FormValues:   extension.FormSpecValues,
 		Artifacts:    map[string]*string{},
 	}
+
 	x.events <- transistor.NewEvent(eventExtension, nil)
 }
 
@@ -334,7 +330,6 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 }
 
 func (x *Actions) ExtensionInitCompleted(extension *models.Extension) {
-	spew.Dump("ExtensionInitCompleted", extension)
 	project := models.Project{}
 	extensionSpec := models.ExtensionSpec{}
 
@@ -364,82 +359,87 @@ func (x *Actions) ExtensionInitCompleted(extension *models.Extension) {
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
-func (x *Actions) ReleaseExtensionCompleted(release *models.Release, extension *models.Extension) {
+func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 	project := models.Project{}
+	release := models.Release{}
 
-	extension.State = plugins.Complete
-	x.db.Save(&extension)
+	fellowReleaseExtensions := []models.ReleaseExtension{}
+
+	re.State = plugins.Complete
+	re.StateMessage = "Finished"
+	x.db.Save(&re)
+
+	if x.db.Where("id = ?", re.ReleaseId).First(&release).RecordNotFound() {
+		log.InfoWithFields("release not found", log.Fields{
+			"releaseExtension": re,
+		})
+		return
+	}
+
+	if x.db.Where("release_id = ?", re.ReleaseId).Find(&fellowReleaseExtensions).RecordNotFound() {
+		log.InfoWithFields("fellow release extensions not found", log.Fields{
+			"releaseExtension": re,
+		})
+		return
+	}
 
 	if x.db.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"release": release,
 		})
-	}
-
-	wsMsg := plugins.WebsocketMsg{
-		Event: fmt.Sprintf("projects/%s/releases/extensionComplete", project.Slug),
-		Payload: map[string]interface{}{
-			"extension": *extension,
-			"release":   *release,
-		},
-	}
-	spew.Dump("HEY RELEASELOG!")
-	spew.Dump(wsMsg)
-
-	x.events <- transistor.NewEvent(wsMsg, nil)
-
-}
-
-func (x *Actions) ReleaseExtensionLog(re *models.ReleaseExtension, logLine *string) {
-	project := models.Project{}
-	release := models.Release{}
-	extension := models.Extension{}
-
-	spew.Dump("ReleaseExtensionLog", re, logLine)
-
-	if x.db.Where("id = ?", re.ReleaseId).First(&project).RecordNotFound() {
-		log.InfoWithFields("release not found", log.Fields{
-			"releaseExtension": re,
-		})
 		return
 	}
 
+	wsMsg := plugins.WebsocketMsg{
+		Event: fmt.Sprintf("projects/%s/releases/releaseExtensionComplete", project.Slug),
+		Payload: map[string]interface{}{
+			"releaseExtension": re,
+		},
+	}
+
+	x.events <- transistor.NewEvent(wsMsg, nil)
+
+	// loop through and check if all release extensions are completed
+	done := true
+	for _, re := range fellowReleaseExtensions {
+		if re.State != plugins.Complete {
+			done = false
+		}
+	}
+
+	if done {
+		x.ReleaseExtensionsCompleted(&release)
+	}
+}
+
+func (x *Actions) ReleaseExtensionsCompleted(release *models.Release) {
+
+	project := models.Project{}
+
+	release.StateMessage = "Finished"
+	release.State = plugins.Complete
+
+	x.db.Save(&release)
+
 	if x.db.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
-		log.InfoWithFields("release not found", log.Fields{
+		log.InfoWithFields("project not found", log.Fields{
 			"release": release,
 		})
 		return
 	}
 
-	if x.db.Where("id = ?", re.ExtensionId).First(&extension).RecordNotFound() {
-		log.InfoWithFields("extension not found", log.Fields{
-			"releaseExtension": re,
-		})
-		return
-	}
-
-	reLog := models.ReleaseExtensionLog{
-		Msg:                *logLine,
-		ReleaseExtensionId: re.Model.ID,
-	}
-
-	x.db.Save(&reLog)
-
+	// send notif to client
 	wsMsg := plugins.WebsocketMsg{
-		Event: fmt.Sprintf("projects/%s/releases/%s/releaseExtensions/%s/log", project.Slug, release.Model.ID.String(), extension.Model.ID.String()),
+		Event: fmt.Sprintf("projects/%s/releases/releaseExtensionsCompleted", project.Slug),
 		Payload: map[string]interface{}{
-			"reLog": reLog,
+			"release": release,
 		},
 	}
-	spew.Dump("HEY RELEASELOG!")
-	spew.Dump(wsMsg)
 
 	x.events <- transistor.NewEvent(wsMsg, nil)
-
 }
 
 func (x *Actions) ReleaseCreated(release *models.Release) {
-	spew.Dump("release created action!")
 	project := models.Project{}
 
 	if x.db.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
@@ -474,7 +474,12 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		})
 	}
 
+	extensionEvents := []plugins.Extension{}
+	releaseExtensionEvents := []plugins.ReleaseExtension{}
+
 	for _, extension := range projectExtensions {
+
+		extensionSplitSlug := strings.Split(extension.Slug, "|")
 
 		// create ReleaseExtension
 		releaseExtension := models.ReleaseExtension{
@@ -489,32 +494,39 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 		x.db.Save(&releaseExtension)
 
-		releaseWorkflow := plugins.ReleaseWorkflow{
-			Action:       plugins.Create,
-			Slug:         extension.Slug,
-			State:        plugins.Waiting,
-			StateMessage: "create release workflow",
-			Artifacts:    extension.Artifacts,
-			Release: plugins.Release{
-				Id:          release.Model.ID.String(),
-				HeadFeature: plugins.Feature{},
-				TailFeature: plugins.Feature{},
-				User:        "",
-			},
-			ReleaseExtension: plugins.ReleaseExtension{
-				Id:           releaseExtension.Model.ID.String(),
-				State:        releaseExtension.State,
-				StateMessage: releaseExtension.StateMessage,
-			},
-			Project: plugins.Project{
-				Action:         plugins.Update,
-				Slug:           project.Slug,
-				Repository:     project.GitUrl,
-				NotifyChannels: []string{}, // not sure what channels can be notified with this
-			},
-		}
+		releaseExtension.Slug = fmt.Sprintf("%s|%s", extensionSplitSlug[0], releaseExtension.Model.ID.String())
 
-		spew.Dump("RELEASE WORKFLOW", releaseWorkflow)
-		x.events <- transistor.NewEvent(releaseWorkflow, nil)
+		extensionEvents = append(extensionEvents, plugins.Extension{
+			Slug:       extension.Slug,
+			FormValues: extension.FormSpecValues,
+			Artifacts:  extension.Artifacts,
+		})
+		releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
+			Id:           releaseExtension.Model.ID.String(),
+			Slug:         releaseExtension.Slug,
+			State:        releaseExtension.State,
+			StateMessage: releaseExtension.StateMessage,
+		})
 	}
+
+	releaseEvent := plugins.Release{
+		Action:            plugins.Create,
+		State:             plugins.Waiting,
+		StateMessage:      "create release event",
+		Id:                release.Model.ID.String(),
+		HeadFeature:       plugins.Feature{},
+		TailFeature:       plugins.Feature{},
+		User:              "",
+		ReleaseExtensions: releaseExtensionEvents,
+		Extensions:        extensionEvents,
+		Project: plugins.Project{
+			Action:         plugins.Update,
+			Slug:           project.Slug,
+			Repository:     project.GitUrl,
+			NotifyChannels: []string{}, // not sure what channels can be notified with this
+		},
+	}
+
+	x.events <- transistor.NewEvent(releaseEvent, nil)
+
 }

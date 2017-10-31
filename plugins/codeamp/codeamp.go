@@ -16,7 +16,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
@@ -86,8 +85,8 @@ func (x *CodeAmp) Migrate() {
 		&models.ServiceSpec{},
 		&models.ExtensionSpec{},
 		&models.Extension{},
+		&models.EnvironmentVariable{},
 		&models.ReleaseExtension{},
-		&models.ReleaseExtensionLog{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")
@@ -206,15 +205,13 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.GitPing",
 		"plugins.GitCommit",
 		"plugins.GitStatus",
-		"plugins.DockerBuild:status",
 		"plugins.HeartBeat",
-		"plugins.LoadBalancer:status",
-		"plugins.DockerDeploy:status",
 		"plugins.Route53",
 		"plugins.WebsocketMsg",
 		"plugins.Extension:status",
-		"plugins.ReleaseWorkflow:status",
-		"plugins.ReleaseWorkflow:complete",
+		"plugins.Extension:complete",
+		"plugins.Release:status",
+		"plugins.Release:complete",
 	}
 }
 
@@ -247,18 +244,15 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		x.SocketIO.BroadcastTo(payload.Channel, payload.Event, payload.Payload, nil)
 	}
 
-	if e.Name == "plugins.Extension:status" {
+	if e.Name == "plugins.Extension:complete" {
 		payload := e.Payload.(plugins.Extension)
 
 		if payload.State == plugins.Complete {
-			spew.Dump(payload)
 		}
 
 		// query project from extension slug (2nd part)
 		var extension models.Extension
 		extensionId := strings.Split(payload.Slug, "|")[1]
-
-		spew.Dump(extensionId)
 
 		if x.db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found from given slug", log.Fields{
@@ -273,49 +267,21 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
-	if e.Name == "plugins.ReleaseWorkflow:status" {
-		payload := e.Payload.(plugins.ReleaseWorkflow)
-		var releaseExtension models.ReleaseExtension
+	if e.Name == "plugins.Release:complete" {
+		payload := e.Payload.(plugins.Release)
+		releaseExtension := models.ReleaseExtension{}
 
-		spew.Dump("CODEAMP RW HANDLE")
-		spew.Dump(payload)
+		// get uuid from slug
+		releaseExtensionSplitSlug := strings.Split(payload.Slug, "|")
 
-		if x.db.Where("id = ?", payload.ReleaseExtension.Id).Find(&releaseExtension).RecordNotFound() {
+		if x.db.Where("id = ?", releaseExtensionSplitSlug[1]).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found from given slug", log.Fields{
 				"release event": payload,
 			})
 			return nil
 		}
 
-		spew.Dump(releaseExtension)
-
-		x.Actions.ReleaseExtensionLog(&releaseExtension, payload.Artifacts["log"])
-	}
-
-	if e.Name == "plugins.ReleaseWorkflow:complete" {
-		payload := e.Payload.(plugins.ReleaseWorkflow)
-		var extension models.Extension
-		var release models.Release
-		spew.Dump("CODEAMP RW HANDLE")
-		spew.Dump(payload)
-
-		extensionId := strings.Split(payload.Slug, "|")[1]
-
-		if x.db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
-			log.InfoWithFields("extension not found from given slug", log.Fields{
-				"release event": payload,
-			})
-			return nil
-		}
-
-		if x.db.Where("id = ?", payload.Release.Id).Find(&release).RecordNotFound() {
-			log.InfoWithFields("extension not found from given slug", log.Fields{
-				"release event": payload,
-			})
-			return nil
-		}
-
-		x.Actions.ReleaseExtensionCompleted(&release, &extension)
+		x.Actions.ReleaseExtensionCompleted(&releaseExtension)
 	}
 
 	return nil

@@ -3,10 +3,12 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -99,6 +101,8 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 		// make sure extension form spec values are valid
 		// if they are valid, create extension object
 
+		var extensionSpec models.ExtensionSpec
+
 		extensionSpecId, err := uuid.FromString(args.Extension.ExtensionSpecId)
 		if err != nil {
 			log.InfoWithFields("couldn't parse ExtensionSpecId", log.Fields{
@@ -135,6 +139,16 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			return nil, err
 		}
 
+		if r.db.Where("id = ?", extensionSpecId).Find(&extensionSpec).RecordNotFound() {
+			log.InfoWithFields("can't find corresponding extensionSpec", log.Fields{
+				"extension": args.Extension,
+			})
+			return nil, err
+		}
+
+		spew.Dump("CREATE EXTENSION")
+		spew.Dump(formSpecValuesMap)
+
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,
@@ -146,7 +160,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 
 		r.db.Create(&extension)
 
-		extension.Slug = fmt.Sprintf("dockerbuild|%s", extension.Model.ID.String())
+		extension.Slug = fmt.Sprintf("%s|%s", strings.ToLower(extensionSpec.Name), extension.Model.ID.String())
 		r.db.Save(&extension)
 
 		r.actions.ExtensionCreated(&extension)

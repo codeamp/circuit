@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 )
@@ -22,8 +21,6 @@ func (r *Resolver) ReleaseExtension(ctx context.Context, args *struct{ ID graphq
 	if err := r.db.Where("id = ?", args.ID).First(&releaseExtension).Error; err != nil {
 		return nil, err
 	}
-
-	spew.Dump(r)
 
 	return &ReleaseExtensionResolver{db: r.db, ReleaseExtension: releaseExtension}, nil
 }
@@ -57,13 +54,13 @@ func (r *ReleaseExtensionResolver) SecretsSignature() string {
 
 func (r *ReleaseExtensionResolver) Extension(ctx context.Context) (*ExtensionResolver, error) {
 	extension := models.Extension{}
-	spew.Dump(r.ReleaseExtension.ExtensionId)
 	if r.db.Where("id = ?", r.ReleaseExtension.ExtensionId).Find(&extension).RecordNotFound() {
 		log.InfoWithFields("extension", log.Fields{
 			"release extension": r.ReleaseExtension,
 		})
 		return &ExtensionResolver{db: r.db, Extension: extension}, fmt.Errorf("Couldn't find extension")
 	}
+
 	return &ExtensionResolver{db: r.db, Extension: extension}, nil
 }
 
@@ -89,20 +86,6 @@ func (r *ReleaseExtensionResolver) Artifacts() []*KeyValueResolver {
 		rows = append(rows, &KeyValueResolver{db: r.db, KeyValue: kv})
 	}
 	return rows
-}
-
-func (r *ReleaseExtensionResolver) Logs(ctx context.Context) ([]*ReleaseExtensionLogResolver, error) {
-	rows := []models.ReleaseExtensionLog{}
-	results := []*ReleaseExtensionLogResolver{}
-
-	r.db.Where("release_extension_id = ?", r.ReleaseExtension.Model.ID).Order("created desc").Find(&rows)
-
-	for _, rel := range rows {
-		results = append(results, &ReleaseExtensionLogResolver{db: r.db, ReleaseExtensionLog: rel})
-	}
-
-	return results, nil
-
 }
 
 func (r *ReleaseExtensionResolver) Finished() *graphql.Time {

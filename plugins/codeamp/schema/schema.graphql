@@ -194,14 +194,7 @@ interface ReleaseExtension {
     state: String!
     stateMessage: String!
     artifacts: [KeyValue!]!
-    logs: [ReleaseExtensionLog]!
     finished: Time
-}
-
-interface ReleaseExtensionLog {
-    id: ID!
-    msg: String!
-    releaseExtension: ReleaseExtension!
 }
 
 # ProjectInput object and all fields needed for creating new Project

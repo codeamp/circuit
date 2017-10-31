@@ -1,12 +1,15 @@
 package gitsync
 
 import (
-	"encoding/json"
+	"bytes"
+	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -22,6 +25,14 @@ func init() {
 	transistor.RegisterPlugin("gitsync", func() transistor.Plugin {
 		return &GitSync{}
 	})
+}
+
+func (x *GitSync) Description() string {
+	return "Sync Git repositories and create new features"
+}
+
+func (x *GitSync) SampleConfig() string {
+	return ` `
 }
 
 func (x *GitSync) Start(e chan transistor.Event) error {
@@ -42,118 +53,120 @@ func (x *GitSync) Subscribe() []string {
 	}
 }
 
+func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
+	cmd := exec.Command("git", args...)
+
+	log.InfoWithFields("executing command", log.Fields{
+		"path": cmd.Path,
+		"args": strings.Join(cmd.Args, " "),
+	})
+
+	cmd.Env = env
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if ee, ok := err.(*exec.Error); ok {
+			if ee.Err == exec.ErrNotFound {
+				return nil, errors.New("Git executable not found in $PATH")
+			}
+		}
+
+		return nil, errors.New(string(bytes.TrimSpace(out)))
+	}
+
+	return out, nil
+}
+
+func (x *GitSync) toGitCommit(entry string) (plugins.GitCommit, error) {
+	items := strings.Split(entry, "#@#")
+	commiterDate, err := time.Parse("2006-01-02T15:04:05-07:00", items[4])
+
+	if err != nil {
+		return plugins.GitCommit{}, err
+	}
+
+	return plugins.GitCommit{
+		Hash:       items[0],
+		ParentHash: items[1],
+		Message:    items[2],
+		User:       items[3],
+		Created:    commiterDate,
+	}, nil
+}
+
 func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.GitCommit, error) {
 	var err error
+	var output []byte
 
 	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.gitsync.workdir"), project.Repository)
-	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=\"ssh -i %s -F /dev/null\"", idRsaPath)
+	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
 	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), project.Repository, git.Branch)
 
-	err = ioutil.WriteFile(idRsaPath, []byte(git.RsaPrivateKey), 0600)
+	// Git Env
+	env := os.Environ()
+	env = append(env, idRsa)
+
+	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
 	if err != nil {
-		log.Debug(err)
 		return nil, err
 	}
 
-	gitClone := exec.Command("")
+	if _, err := os.Stat(idRsaPath); os.IsNotExist(err) {
+		log.InfoWithFields("creating repository id_rsa", log.Fields{
+			"path": idRsaPath,
+		})
 
-	if _, err = os.Stat(repoPath); err != nil {
-		if os.IsNotExist(err) {
-			gitClone = exec.Command("git", "clone", "-b", git.Branch, "--single-branch", git.Url, repoPath)
+		err := ioutil.WriteFile(idRsaPath, []byte(git.RsaPrivateKey), 0600)
+		if err != nil {
+			log.Debug(err)
+			return nil, err
 		}
-	} else {
-		gitClone = exec.Command("git", "-C", repoPath, "pull", "origin", git.Branch)
 	}
 
-	gitCloneOut, err := gitClone.StdoutPipe()
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		log.InfoWithFields("cloning repository", log.Fields{
+			"path": repoPath,
+		})
+
+		output, err := x.git(env, "clone", git.Url, repoPath)
+		if err != nil {
+			log.Debug(err)
+			return nil, err
+		}
+		log.Info(string(output))
+	}
+
+	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
 		log.Debug(err)
 		return nil, err
 	}
+	log.Info(string(output))
 
-	gitCloneErr, err := gitClone.StderrPipe()
+	output, err = x.git(env, "-C", repoPath, "checkout", git.Branch)
 	if err != nil {
 		log.Debug(err)
 		return nil, err
 	}
+	log.Info(string(output))
 
-	gitCheckout := exec.Command("git", "-C", repoPath, "checkout", git.Branch)
-
-	gitCheckoutOut, err := gitCheckout.StdoutPipe()
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-
-	gitCheckoutErr, err := gitCheckout.StderrPipe()
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-
-	go func() {
-		io.Copy(os.Stdout, gitCloneOut)
-	}()
-
-	go func() {
-		io.Copy(os.Stderr, gitCloneErr)
-	}()
-
-	go func() {
-		io.Copy(os.Stdout, gitCheckoutOut)
-	}()
-
-	go func() {
-		io.Copy(os.Stderr, gitCheckoutErr)
-	}()
-
-	gitClone.Env = []string{idRsa}
-
-	err = gitClone.Start()
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-
-	err = gitClone.Wait()
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-
-	err = gitCheckout.Start()
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-
-	err = gitCheckout.Wait()
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-
-	gitLog, err := exec.Command("git", "log", "--date=iso-strict", "-n", "50", `--pretty=format:{
-		"hash": "%H",
-		"parentHash": "%P",
-		"message": "%s",
-		"user": "%cN",
-		"created": "%cd"
-	},`).Output()
+	output, err = x.git(env, "-C", repoPath, "log", "--first-parent", "--date=iso-strict", "-n", "50", "--pretty=format:%H#@#%P#@#%s#@#%cN#@#%cd", git.Branch)
 
 	if err != nil {
 		log.Debug(err)
 		return nil, err
 	}
-
-	gitLogJson := string(gitLog)
-	gitLogJson = fmt.Sprintf("[%s]", gitLogJson[:len(gitLogJson)-1])
 
 	var commits []plugins.GitCommit
-	err = json.Unmarshal([]byte(gitLogJson), &commits)
-	if err != nil {
-		log.Debug(err)
-		return nil, err
+
+	for _, line := range strings.Split(strings.TrimSuffix(string(output), "\n"), "\n") {
+		commit, err := x.toGitCommit(line)
+		if err != nil {
+			log.Debug(err)
+			return nil, err
+		}
+
+		commits = append(commits, commit)
 	}
 
 	return commits, nil
@@ -174,7 +187,6 @@ func (x *GitSync) Process(e transistor.Event) error {
 
 	commits, err := x.commits(gitSyncEvent.Project, gitSyncEvent.Git)
 	if err != nil {
-		log.Debug(err)
 		gitSyncEvent.State = plugins.Failed
 		gitSyncEvent.StateMessage = fmt.Sprintf("%v (Action: %v)", err.Error(), gitSyncEvent.State)
 		event := e.NewEvent(gitSyncEvent, err)
@@ -188,7 +200,7 @@ func (x *GitSync) Process(e transistor.Event) error {
 		c.Ref = fmt.Sprintf("refs/heads/%s", gitSyncEvent.Git.Branch)
 
 		if c.Hash == gitSyncEvent.From {
-			return nil
+			break
 		}
 
 		x.events <- e.NewEvent(c, nil)

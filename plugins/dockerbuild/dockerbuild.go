@@ -1,6 +1,7 @@
 package dockerbuild
 
 import (
+	"strings"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -41,7 +42,7 @@ func (x *Dockerbuild) Subscribe() []string {
 	return []string{
 		"plugins.Extension:create",
 		"plugins.Extension:update",
-		"plugins.ReleaseWorkflow:create",
+		"plugins.Release:create",
 	}
 }
 
@@ -51,55 +52,51 @@ func (x *Dockerbuild) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	if e.Name == "plugins.ReleaseWorkflow:create" {
+	if e.Name == "plugins.Release:create" {
 
-		rw := e.Payload.(plugins.ReleaseWorkflow)
-		logLine := "dockerbuild log line"
+		releaseEvent := e.Payload.(plugins.Release)
 
-		spew.Dump("DOCKERBUILD RELEASEWORKFLOW", rw)
-		for i := 0; i < 5; i++ {
-			time.Sleep(3 * time.Second)
-			if i == 4 {
-				logLine = "process complete"
+		valid := false
+		dbRe := plugins.ReleaseExtension{}
+		// confirm this extension should be processed
+		// by checking array of extensions and finding 'dockerbuilder' slug
+
+		for _, re := range releaseEvent.ReleaseExtensions {
+			slug := strings.Split(re.Slug, "|")
+			if slug[0] == "dockerbuilder" {
+				valid = true
+				dbRe = re
+				break
 			}
-			releaseWorkflowRes := plugins.ReleaseWorkflow{
-				Action: plugins.Status,
-				Slug:   rw.Slug,
-				Artifacts: map[string]*string{
-					"log": &logLine,
-				},
-				Release: rw.Release,
-				Project: rw.Project,
-			}
-
-			x.events <- transistor.NewEvent(releaseWorkflowRes, nil)
 		}
 
-		releaseWorkflowRes := plugins.ReleaseWorkflow{
-			Action: plugins.Complete,
-			Slug:   rw.Slug,
-			Artifacts: map[string]*string{
+		if valid {
+			logLine := "dockerbuild log line"
+
+			time.Sleep(5 * time.Second)
+
+			releaseRes := releaseEvent
+			releaseRes.Action = plugins.Complete
+			releaseRes.Artifacts = map[string]*string{
 				"log": &logLine,
-			},
-			Release: rw.Release,
-			Project: rw.Project,
+			}
+			releaseRes.Slug = dbRe.Slug
+
+			x.events <- transistor.NewEvent(releaseRes, nil)
 		}
-
-		x.events <- transistor.NewEvent(releaseWorkflowRes, nil)
-
 	}
 
-	extension := e.Payload.(plugins.Extension)
+	var extension plugins.Extension
 
-	if extension.Action == plugins.Update {
+	if e.Name == "plugins.Extension:update" {
+
+		extension = e.Payload.(plugins.Extension)
 		// create docker
 		// fill artifacts
 
 		// return complete event
 		time.Sleep(5 * time.Second)
 
-		hostname := *extension.FormValues["hostname"]
-		credentials := *extension.FormValues["credentials"]
 		dockerdata := "dockerdata2"
 
 		completeExtensionEvent := plugins.Extension{
@@ -109,40 +106,37 @@ func (x *Dockerbuild) Process(e transistor.Event) error {
 			StateMessage: "Complete",
 			FormValues:   extension.FormValues,
 			Artifacts: map[string]*string{
-				"hostname":    &hostname,
-				"credentials": &credentials,
-				"dockerdata":  &dockerdata,
+				"dockerdata": &dockerdata,
 			},
 		}
 
+		spew.Dump("Dockerbuild Release done -> sending out event", completeExtensionEvent)
 		x.events <- transistor.NewEvent(completeExtensionEvent, nil)
 	}
 
-	if extension.Action == plugins.Create {
-		// create docker
-		// fill artifacts
+	if e.Name == "plugins.Extension:create" {
+		extension = e.Payload.(plugins.Extension)
+		// check if extension is actually docker
+		extensionSlugSlice := strings.Split(extension.Slug, "|")
 
-		// return complete event
-		time.Sleep(5 * time.Second)
+		if extensionSlugSlice[0] == "dockerbuilder" {
+			// create docker
+			// fill artifacts
 
-		hostname := *extension.FormValues["hostname"]
-		credentials := *extension.FormValues["credentials"]
-		dockerdata := "dockerdata"
+			// return complete event
+			time.Sleep(5 * time.Second)
 
-		completeExtensionEvent := plugins.Extension{
-			Action:       plugins.Status,
-			Slug:         extension.Slug,
-			State:        plugins.Complete,
-			StateMessage: "Complete",
-			FormValues:   extension.FormValues,
-			Artifacts: map[string]*string{
-				"hostname":    &hostname,
-				"credentials": &credentials,
-				"dockerdata":  &dockerdata,
-			},
+			dockerdata := "dockerdata"
+
+			extensionRes := extension
+			extensionRes.Action = plugins.Complete
+			extensionRes.StateMessage = "Completed initialization"
+			extensionRes.FormValues = extension.FormValues
+			extensionRes.Artifacts = map[string]*string{
+				"dockerdata": &dockerdata,
+			}
+			x.events <- transistor.NewEvent(extensionRes, nil)
 		}
-
-		x.events <- transistor.NewEvent(completeExtensionEvent, nil)
 	}
 
 	return nil

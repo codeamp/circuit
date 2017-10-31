@@ -15,7 +15,7 @@ func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	var rows []models.Release
 	var results []*ReleaseResolver
 
-	r.db.Find(&rows)
+	r.db.Order("created_at desc").Find(&rows)
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{db: r.db, Release: release})
 	}

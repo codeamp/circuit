@@ -37,6 +37,7 @@ func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID gra
 }
 
 func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
+	spew.Dump("CreateEnvironmentVariable", args.EnvironmentVariable)
 	projectId, err := uuid.FromString(*args.EnvironmentVariable.ProjectId)
 	if err != nil {
 		return &EnvironmentVariableResolver{}, err
@@ -79,7 +80,7 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 
 	var existingEnvVar models.EnvironmentVariable
 	if r.db.Where("id = ?", args.EnvironmentVariable.ID).Find(&existingEnvVar).RecordNotFound() {
-		return nil, fmt.Errorf("UpdateEnvironmentVariable: key doesn't exist.")
+		return nil, fmt.Errorf("UpdateEnvironmentVariable: env var doesn't exist.")
 	} else {
 		envVar := models.EnvironmentVariable{
 			Key:       args.EnvironmentVariable.Key,

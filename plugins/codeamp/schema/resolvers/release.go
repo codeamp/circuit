@@ -113,9 +113,8 @@ func (r *ReleaseResolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExte
 
 	r.db.Where("release_id = ?", r.Release.ID).Find(&rows)
 	for _, re := range rows {
-		results = append(results, &ReleaseExtensionResolver{ReleaseExtension: re})
+		results = append(results, &ReleaseExtensionResolver{db: r.db, ReleaseExtension: re})
 	}
-	spew.Dump(results)
 	return results, nil
 
 }
