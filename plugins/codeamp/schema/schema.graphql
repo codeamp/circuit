@@ -171,6 +171,8 @@ interface ExtensionSpec {
   component: String!
   formSpec: [KeyValue]!
   type: String!
+  key: String!
+  envVars: [KeyValue]!
 }
 
 # Extension object
@@ -192,6 +194,7 @@ interface ReleaseExtension {
     servicesSignature: String!
     secretsSignature: String!
     state: String!
+    type: String!
     stateMessage: String!
     artifacts: [KeyValue!]!
     finished: Time

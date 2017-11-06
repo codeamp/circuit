@@ -139,6 +139,8 @@ type Bookmark struct {
 type ExtensionSpec struct {
 	Model     `json:",inline"`
 	Type      string          `json:"type"`
+	Key       string          `json:"key"`
+	EnvVars   postgres.Hstore `json:"envVars"`
 	Name      string          `json:"name"`
 	Component string          `json:"component"`
 	FormSpec  postgres.Hstore `json:"formSpec"`
@@ -157,15 +159,16 @@ type Extension struct {
 
 type ReleaseExtension struct {
 	Model             `json:",inline"`
-	ReleaseId         uuid.UUID       `json:"releaseId" gorm:"type:uuid"`
-	Slug              string          `json:"slug"`
-	FeatureHash       string          `json:"featureHash"`
-	ServicesSignature string          `json:"servicesSignature"` // services config snapshot
-	SecretsSignature  string          `json:"secretsSignature"`  // build args + artifacts
-	ExtensionId       uuid.UUID       `json:"extensionId" gorm:"type:uuid"`
-	State             plugins.State   `json:"state"`
-	StateMessage      string          `json:"stateMessage"`
-	Artifacts         postgres.Hstore `json:"artifacts"` // captured on workflow success/ fail
+	ReleaseId         uuid.UUID             `json:"releaseId" gorm:"type:uuid"`
+	Slug              string                `json:"slug"`
+	FeatureHash       string                `json:"featureHash"`
+	ServicesSignature string                `json:"servicesSignature"` // services config snapshot
+	SecretsSignature  string                `json:"secretsSignature"`  // build args + artifacts
+	ExtensionId       uuid.UUID             `json:"extensionId" gorm:"type:uuid"`
+	State             plugins.State         `json:"state"`
+	StateMessage      string                `json:"stateMessage"`
+	Type              plugins.ExtensionType `json:"type"`
+	Artifacts         postgres.Hstore       `json:"artifacts"` // captured on workflow success/ fail
 	Finished          time.Time
 }
 

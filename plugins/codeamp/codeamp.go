@@ -16,6 +16,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
@@ -210,6 +211,8 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.WebsocketMsg",
 		"plugins.Extension:status",
 		"plugins.Extension:complete",
+		"plugins.ReleaseExtension:create",
+		"plugins.ReleaseExtension:complete",
 		"plugins.Release:status",
 		"plugins.Release:complete",
 	}
@@ -263,13 +266,15 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		extension.State = plugins.Complete
 		extension.Artifacts = payload.Artifacts
-		x.db.Save(extension)
+		x.db.Save(&extension)
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
-	if e.Name == "plugins.Release:complete" {
-		payload := e.Payload.(plugins.Release)
+	if e.Name == "plugins.ReleaseExtension:complete" {
+		payload := e.Payload.(plugins.ReleaseExtension)
 		releaseExtension := models.ReleaseExtension{}
+
+		spew.Dump("RE COMPLETE", payload)
 
 		// get uuid from slug
 		releaseExtensionSplitSlug := strings.Split(payload.Slug, "|")
@@ -281,6 +286,9 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			return nil
 		}
 
+		releaseExtension.State = plugins.Complete
+		releaseExtension.Artifacts = payload.Artifacts
+		x.db.Save(&releaseExtension)
 		x.Actions.ReleaseExtensionCompleted(&releaseExtension)
 	}
 

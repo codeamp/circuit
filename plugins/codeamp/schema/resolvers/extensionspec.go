@@ -118,6 +118,27 @@ func (r *ExtensionSpecResolver) Type() string {
 	return r.ExtensionSpec.Type
 }
 
+func (r *ExtensionSpecResolver) Key() string {
+	return r.ExtensionSpec.Key
+}
+
+func (r *ExtensionSpecResolver) EnvVars(ctx context.Context) ([]*KeyValueResolver, error) {
+	var keyValues []plugins.KeyValue
+	err := plugins.ConvertMapStringStringToKV(r.ExtensionSpec.EnvVars, &keyValues)
+	if err != nil {
+		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
+			"extensionSpec": r.ExtensionSpec,
+		})
+	}
+
+	var results []*KeyValueResolver
+	for _, kv := range keyValues {
+		results = append(results, &KeyValueResolver{db: r.db, KeyValue: kv})
+	}
+
+	return results, nil
+}
+
 func (r *ExtensionSpecResolver) FormSpec(ctx context.Context) ([]*KeyValueResolver, error) {
 	var keyValues []plugins.KeyValue
 	err := plugins.ConvertMapStringStringToKV(r.ExtensionSpec.FormSpec, &keyValues)

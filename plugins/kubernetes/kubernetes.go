@@ -42,6 +42,7 @@ func (x *Kubernetes) Subscribe() []string {
 	return []string{
 		"plugins.Release:complete",
 		"plugins.Extension:create",
+		"plugins.ReleaseExtension:create",
 	}
 }
 
@@ -51,40 +52,20 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 	})
 
 	switch e.Name {
-	case "plugins.Release:complete":
-		releaseEvent := e.Payload.(plugins.Release)
-		valid := false
-		kubeRe := plugins.ReleaseExtension{}
+	case "plugins.ReleaseExtension:create":
+		reEvent := e.Payload.(plugins.ReleaseExtension)
 
-		// confirm this extension should be processed
-		// by checking array of extensions and finding 'kubernetes' slug
+		if reEvent.Key == "kubernetes" {
+			// doDeploy if it is
 
-		for _, re := range releaseEvent.ReleaseExtensions {
-			slug := strings.Split(re.Slug, "|")
-			if slug[0] == "kubernetes" {
-				valid = true
-				kubeRe = re
-				break
-			}
-		}
+			time.Sleep(5 * time.Second)
 
-		if valid {
-			extensionSlugSlice := strings.Split(releaseEvent.Slug, "|")
-			switch extensionSlugSlice[0] {
-			case "dockerbuilder":
-				// check if Release.Extension.ExtensionSpec.Name == "DockerBuilder"
-				// doDeploy if it is
+			reRes := reEvent
+			reRes.Action = plugins.Complete
+			reRes.StateMessage = "Finished deployment"
+			reRes.Slug = reRes.Slug
 
-				time.Sleep(5 * time.Second)
-
-				releaseRes := releaseEvent
-				releaseRes.Action = plugins.Complete
-				releaseRes.StateMessage = "Finished deployment"
-				releaseRes.Slug = kubeRe.Slug
-
-				x.events <- transistor.NewEvent(releaseRes, nil)
-			default:
-			}
+			x.events <- transistor.NewEvent(reRes, nil)
 		}
 
 	case "plugins.Extension:create":

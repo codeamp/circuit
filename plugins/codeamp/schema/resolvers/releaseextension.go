@@ -68,6 +68,10 @@ func (r *ReleaseExtensionResolver) State() string {
 	return string(r.ReleaseExtension.State)
 }
 
+func (r *ReleaseExtensionResolver) Type() string {
+	return string(r.ReleaseExtension.Type)
+}
+
 func (r *ReleaseExtensionResolver) StateMessage() string {
 	return r.ReleaseExtension.StateMessage
 }

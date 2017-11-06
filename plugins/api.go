@@ -20,6 +20,7 @@ func init() {
 	transistor.RegisterApi(Extension{})
 	transistor.RegisterApi(Release{})
 	transistor.RegisterApi(Project{})
+	transistor.RegisterApi(ReleaseExtension{})
 }
 
 type State string
@@ -46,6 +47,15 @@ const (
 	Internal          = "internal"
 	External          = "external"
 	Office            = "office"
+)
+
+type ExtensionType string
+
+const (
+	Deployment   ExtensionType = "deployment"
+	Workflow                   = "workflow"
+	Notification               = "notification"
+	Once                       = "once"
 )
 
 type Action string
@@ -259,10 +269,16 @@ type Release struct {
 }
 
 type ReleaseExtension struct {
-	Id           string `json:"id"`
-	Slug         string `json:"slug"`
-	State        State  `json:"state"`
-	StateMessage string `json:"stateMessage"`
+	Action Action `json:"action"`
+	Slug   string `json:"slug"`
+
+	Release      Release            `json:"release"`
+	Extension    Extension          `json:"extension"`
+	Artifacts    map[string]*string `json:"artifacts"`
+	Key          string             `json:"key"`
+	Id           string             `json:"id"`
+	State        State              `json:"state"`
+	StateMessage string             `json:"stateMessage"`
 }
 
 type Project struct {
