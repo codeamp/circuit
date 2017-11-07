@@ -27,6 +27,9 @@ type Query {
   # Retrieve all releases
   releases(): [Release]!
 
+  # Retrieve all environments
+  environments(): [Environment]!
+
   # Retrieve all environment variables
   environmentVariables(): [EnvironmentVariable]!
 
@@ -54,6 +57,10 @@ type Mutation {
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
   updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
   deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
+
+  createEnvironment(environment: EnvironmentInput): Environment
+  updateEnvironment(environment: EnvironmentInput): Environment
+  deleteEnvironment(environment: EnvironmentInput): Environment
 
   createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
   updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
@@ -105,6 +112,12 @@ interface Service {
   containerPorts: [ContainerPort]!
   created: Time!
   oneShot: Boolean!
+}
+
+# Environment object
+interface Environment {
+    id: ID!
+    name: String!
 }
 
 # EnvironmentVariable object
@@ -172,7 +185,7 @@ interface ExtensionSpec {
   formSpec: [KeyValue]!
   type: String!
   key: String!
-  envVars: [KeyValue]!
+  environmentVariables: [EnvironmentVariable]!
 }
 
 # Extension object
@@ -240,6 +253,11 @@ input ServiceSpecInput {
   terminationGracePeriod: String!
 }
 
+input EnvironmentInput {
+    id: String
+    name: String!
+}
+
 input EnvironmentVariableInput {
   id: String
   key: String!
@@ -253,6 +271,7 @@ input ExtensionSpecInput {
   name: String!
   component: String!
   formSpec: [KeyValueInput!]!
+  environmentVariables: [String!]!
   type: String!
 }
 

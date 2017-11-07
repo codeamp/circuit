@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -61,7 +62,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 			Value:     args.EnvironmentVariable.Value,
 			ProjectId: projectId,
 			Version:   int32(0),
-			Type:      *args.EnvironmentVariable.Type,
+			Type:      plugins.EnvVarType(*args.EnvironmentVariable.Type),
 			UserId:    userId,
 			Created:   time.Now(),
 		}
@@ -140,7 +141,7 @@ func (r *EnvironmentVariableResolver) Version() int32 {
 }
 
 func (r *EnvironmentVariableResolver) Type() string {
-	return r.EnvironmentVariable.Type
+	return string(r.EnvironmentVariable.Type)
 }
 
 func (r *EnvironmentVariableResolver) Created() graphql.Time {

@@ -205,6 +205,14 @@ func (x *Actions) ExtensionSpecUpdated(extensionSpec *models.ExtensionSpec) {
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
+func (x *Actions) EnvironmentCreated(env *models.Environment) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("environments/created"),
+		Payload: env,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
 func (x *Actions) EnvironmentVariableCreated(envVar *models.EnvironmentVariable) {
 	project := models.Project{}
 	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
@@ -401,8 +409,8 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 
 	// loop through and check if all release extensions are completed
 	done := true
-	for _, re := range fellowReleaseExtensions {
-		if re.State != plugins.Complete {
+	for _, fre := range fellowReleaseExtensions {
+		if fre.Type == re.Type && fre.State != plugins.Complete {
 			done = false
 		}
 	}
@@ -452,6 +460,11 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			"release": release,
 		})
 		return
+	}
+
+	// if there are no deployment workflows, then release is complete
+	if len(depExtensions) == 0 {
+		x.ReleaseCompleted(release)
 	}
 
 	project := models.Project{}
@@ -504,6 +517,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				SecretsSignature:  "",
 				ExtensionId:       extension.Model.ID,
 				State:             plugins.Waiting,
+				Type:              plugins.Deployment,
 				StateMessage:      "initialized",
 			}
 
@@ -540,7 +554,32 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 }
 
 func (x *Actions) DeploymentExtensionsCompleted(release *models.Release) {
+	x.ReleaseCompleted(release)
+}
+
+func (x *Actions) ReleaseCompleted(release *models.Release) {
+	project := models.Project{}
+	if x.db.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"release": release,
+		})
+	}
+
 	// mark release as complete
+	(*release).State = plugins.Complete
+	(*release).StateMessage = "Release completed"
+
+	x.db.Save(release)
+
+	payload := map[string]interface{}{
+		"release": release,
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/releases/completed", project.Slug),
+		Payload: payload,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
 func (x *Actions) ReleaseCreated(release *models.Release) {
@@ -612,6 +651,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 				SecretsSignature:  "",
 				ExtensionId:       extension.Model.ID,
 				State:             plugins.Waiting,
+				Type:              plugins.Workflow,
 				StateMessage:      "initialized",
 			}
 
@@ -636,7 +676,6 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 				Extension:    extensionEvent,
 				StateMessage: releaseExtension.StateMessage,
 			})
-
 		}
 	}
 

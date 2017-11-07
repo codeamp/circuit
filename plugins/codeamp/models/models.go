@@ -28,15 +28,27 @@ type UserPermission struct {
 	Value  string    `json:"value"`
 }
 
+type Environment struct {
+	Model `json:",inline"`
+	Name  string `json:"name"`
+}
+
 type EnvironmentVariable struct {
-	Model     `json:",inline"`
-	Key       string    `json:"key"`
-	Value     string    `json:"value"`
-	Type      string    `json:"type"`
-	Version   int32     `json:"version"`
-	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	UserId    uuid.UUID `bson:"userId" json:"userId" gorm:"type:uuid"`
-	Created   time.Time `json:"created"`
+	Model         `json:",inline"`
+	Key           string             `json:"key"`
+	Value         string             `json:"value"`
+	Type          plugins.EnvVarType `json:"type"`
+	Version       int32              `json:"version"`
+	ProjectId     uuid.UUID          `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	UserId        uuid.UUID          `bson:"userId" json:"userId" gorm:"type:uuid"`
+	Created       time.Time          `json:"created"`
+	EnvironmentId uuid.UUID          `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+}
+
+type ExtensionSpecEnvironmentVariable struct {
+	Model                 `json:"inline"`
+	ExtensionSpecId       uuid.UUID `bson:"extensionSpecId" json:"extensionSpecId" gorm:"type:uuid"`
+	EnvironmentVariableId uuid.UUID `bson:"environmentVariableId" json:"environmentVariableId" gorm:"type:uuid"`
 }
 
 type Project struct {

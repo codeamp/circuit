@@ -58,6 +58,14 @@ const (
 	Once                       = "once"
 )
 
+type EnvVarType string
+
+const (
+	ProjectScope   EnvVarType = "project"
+	ExtensionScope            = "extension"
+	GlobalScope               = "global"
+)
+
 type Action string
 
 const (
