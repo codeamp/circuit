@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -20,6 +19,7 @@ type ExtensionSpecInput struct {
 	FormSpec             []plugins.KeyValue
 	EnvironmentVariables []map[string]interface{}
 	Type                 string
+	Key                  string
 }
 
 func (r *Resolver) ExtensionSpec(ctx context.Context, args *struct{ ID graphql.ID }) *ExtensionSpecResolver {
@@ -46,13 +46,19 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		Component: args.ExtensionSpec.Component,
 		FormSpec:  formSpecMap,
 		Type:      args.ExtensionSpec.Type,
+		Key:       args.ExtensionSpec.Key,
 	}
 
 	r.db.Create(&extensionSpec)
 
-	// create env vars
+	// create extension spec env vars
 	for _, envVar := range args.ExtensionSpec.EnvironmentVariables {
-		spew.Dump("HELLLLLLO", envVar)
+		envVarId := uuid.FromStringOrNil(envVar["envVar"].(string))
+		extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
+			ExtensionSpecId:       extensionSpec.Model.ID,
+			EnvironmentVariableId: envVarId,
+		}
+		r.db.Save(&extensionSpecEnvVar)
 	}
 
 	r.actions.ExtensionSpecCreated(&extensionSpec)
@@ -82,14 +88,22 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 	extensionSpec.Name = args.ExtensionSpec.Name
 	extensionSpec.Component = args.ExtensionSpec.Component
 	extensionSpec.FormSpec = formSpecMap
-
+	extensionSpec.Key = args.ExtensionSpec.Key
 	extensionSpec.Type = args.ExtensionSpec.Type
 
 	r.db.Save(&extensionSpec)
 
-	// create env vars
+	// delete all old extension spec env vars
+	r.db.Where("extension_spec_id = ?", extensionSpec.Model.ID.String()).Delete(&models.ExtensionSpecEnvironmentVariable{})
+
+	// create extension spec env vars
 	for _, envVar := range args.ExtensionSpec.EnvironmentVariables {
-		spew.Dump("HELLLLLLOOOO", envVar)
+		envVarId := uuid.FromStringOrNil(envVar["envVar"].(string))
+		extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
+			ExtensionSpecId:       extensionSpec.Model.ID,
+			EnvironmentVariableId: envVarId,
+		}
+		r.db.Save(&extensionSpecEnvVar)
 	}
 
 	r.actions.ExtensionSpecUpdated(&extensionSpec)
@@ -99,6 +113,7 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 func (r *Resolver) DeleteExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
 	extensionSpec := models.ExtensionSpec{}
+	extensions := []models.Extension{}
 
 	extensionSpecId, err := uuid.FromString(*args.ExtensionSpec.ID)
 	if err != nil {
@@ -109,8 +124,26 @@ func (r *Resolver) DeleteExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		return nil, fmt.Errorf("ExtensionSpec not found with given argument id")
 	}
 
-	r.db.Delete(extensionSpec)
+	// delete all extensions using extension spec
+	if r.db.Where("extension_spec_id = ?", extensionSpecId).Find(&extensions).RecordNotFound() {
+		log.InfoWithFields("no extensions using this extension spec", log.Fields{
+			"extension spec": extensionSpec,
+		})
+	}
 
+	// delete all release extensions using each extension
+	for _, extension := range extensions {
+		res := []models.ReleaseExtension{}
+		if r.db.Where("extension_id = ?", extension.Model.ID.String()).Find(&res).RecordNotFound() {
+			log.InfoWithFields("no release extensions using this extension id", log.Fields{
+				"extension": extension,
+			})
+		}
+
+		r.db.Delete(&res)
+		r.db.Delete(&extension)
+	}
+	r.db.Delete(&extensionSpec)
 	r.actions.ExtensionSpecDeleted(&extensionSpec)
 
 	return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
@@ -145,7 +178,7 @@ func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*En
 		log.InfoWithFields("no extension spec env vars found", log.Fields{
 			"extensionspec": r.ExtensionSpec,
 		})
-		return []*EnvironmentVariableResolver{}, fmt.Errorf("no env vars found")
+		return []*EnvironmentVariableResolver{}, nil
 	}
 
 	for _, extensionSpecEnvVar := range extensionSpecEnvVarRows {
@@ -154,7 +187,7 @@ func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*En
 			log.InfoWithFields("no env vars found", log.Fields{
 				"extensionspec": r.ExtensionSpec,
 			})
-			return []*EnvironmentVariableResolver{}, fmt.Errorf("no env vars found")
+			return []*EnvironmentVariableResolver{}, nil
 		}
 
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})

@@ -58,12 +58,12 @@ const (
 	Once                       = "once"
 )
 
-type EnvVarType string
+type EnvVarScope string
 
 const (
-	ProjectScope   EnvVarType = "project"
-	ExtensionScope            = "extension"
-	GlobalScope               = "global"
+	ProjectScope   EnvVarScope = "project"
+	ExtensionScope             = "extension"
+	GlobalScope                = "global"
 )
 
 type Action string

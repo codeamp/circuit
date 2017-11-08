@@ -35,14 +35,15 @@ type Environment struct {
 
 type EnvironmentVariable struct {
 	Model         `json:",inline"`
-	Key           string             `json:"key"`
-	Value         string             `json:"value"`
-	Type          plugins.EnvVarType `json:"type"`
-	Version       int32              `json:"version"`
-	ProjectId     uuid.UUID          `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	UserId        uuid.UUID          `bson:"userId" json:"userId" gorm:"type:uuid"`
-	Created       time.Time          `json:"created"`
-	EnvironmentId uuid.UUID          `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	Key           string              `json:"key"`
+	Value         string              `json:"value"`
+	Type          plugins.Type        `json:"type"`
+	Version       int32               `json:"version"`
+	ProjectId     uuid.UUID           `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	UserId        uuid.UUID           `bson:"userId" json:"userId" gorm:"type:uuid"`
+	Created       time.Time           `json:"created"`
+	Scope         plugins.EnvVarScope `json:"scope"`
+	EnvironmentId uuid.UUID           `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type ExtensionSpecEnvironmentVariable struct {

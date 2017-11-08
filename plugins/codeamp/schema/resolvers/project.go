@@ -170,31 +170,6 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 
 	r.actions.ProjectCreated(&project)
 
-	// create default extensions for project
-	var dockerBuilderExtensionSpec models.ExtensionSpec
-	if r.db.Where("name = 'DockerBuilder'").Find(&dockerBuilderExtensionSpec).RecordNotFound() {
-		log.InfoWithFields("Was not able to find DockerBuilder extension spec to insert as a default extension", log.Fields{
-			"project": project,
-		})
-
-		return &ProjectResolver{db: r.db, Project: project}, nil
-	}
-
-	dockerBuilderExtension := models.Extension{
-		ProjectId:       project.ID,
-		ExtensionSpecId: dockerBuilderExtensionSpec.ID,
-		State:           plugins.Waiting,
-		Artifacts:       map[string]*string{},
-		Slug:            "",
-		FormSpecValues:  map[string]*string{},
-	}
-
-	r.db.Create(&dockerBuilderExtension)
-	dockerBuilderExtension.Slug = fmt.Sprintf("dockerbuild-%s", dockerBuilderExtension.Model.ID.String())
-	r.db.Save(&dockerBuilderExtension)
-
-	r.actions.ExtensionCreated(&dockerBuilderExtension)
-
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 

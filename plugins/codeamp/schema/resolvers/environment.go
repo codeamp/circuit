@@ -50,7 +50,15 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 }
 
 func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
-	return &EnvironmentResolver{}, nil
+	var existingEnv models.Environment
+	if r.db.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
+		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
+	} else {
+		existingEnv.Name = args.Environment.Name
+		r.db.Save(&existingEnv)
+		r.actions.EnvironmentUpdated(&existingEnv)
+		return &EnvironmentResolver{db: r.db, Environment: existingEnv}, nil
+	}
 }
 
 func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
@@ -63,4 +71,8 @@ func (r *EnvironmentResolver) ID() graphql.ID {
 
 func (r *EnvironmentResolver) Name(ctx context.Context) string {
 	return r.Environment.Name
+}
+
+func (r *EnvironmentResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Environment.Model.CreatedAt}
 }

@@ -72,6 +72,7 @@ type Mutation {
 
   createExtension(extension: ExtensionInput): Extension
   updateExtension(extension: ExtensionInput): Extension
+  deleteExtension(extension: ExtensionInput): Extension
 
   userToken(email: String!, password: String!): User
 }
@@ -118,6 +119,7 @@ interface Service {
 interface Environment {
     id: ID!
     name: String!
+    created: Time!
 }
 
 # EnvironmentVariable object
@@ -126,11 +128,13 @@ interface EnvironmentVariable {
   key: String!
   value: String!
   created: Time!
+  scope: String!
   project: Project!
   user: User!
   type: String!
   version: Int!
   versions: [EnvironmentVariable]!
+  environment: Environment
 }
 
 # ServiceSpec object
@@ -262,13 +266,16 @@ input EnvironmentVariableInput {
   id: String
   key: String!
   value: String!
-  type: String
+  type: String!
+  scope: String!
   projectId: String
+  environmentId: String
 }
 
 input ExtensionSpecInput {
   id: String
   name: String!
+  key: String!
   component: String!
   formSpec: [KeyValueInput!]!
   environmentVariables: [String!]!

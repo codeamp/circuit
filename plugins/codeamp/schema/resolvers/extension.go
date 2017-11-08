@@ -3,7 +3,6 @@ package resolvers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -147,7 +146,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 		}
 
 		spew.Dump("CREATE EXTENSION")
-		spew.Dump(formSpecValuesMap)
+		spew.Dump(extensionSpec)
 
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
@@ -160,7 +159,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 
 		r.db.Create(&extension)
 
-		extension.Slug = fmt.Sprintf("%s|%s", strings.ToLower(extensionSpec.Name), extension.Model.ID.String())
+		extension.Slug = fmt.Sprintf("%s|%s", extensionSpec.Key, extension.Model.ID.String())
 		r.db.Save(&extension)
 
 		r.actions.ExtensionCreated(&extension)
@@ -193,6 +192,34 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*
 	r.db.Save(&extension)
 	r.actions.ExtensionUpdated(&extension)
 
+	return &ExtensionResolver{db: r.db, Extension: extension}, nil
+}
+
+func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
+	var extension models.Extension
+	var res []models.ReleaseExtension
+
+	if r.db.Where("id = ?", args.Extension.ID).First(&extension).RecordNotFound() {
+		log.InfoWithFields("no extension found", log.Fields{
+			"extension": args.Extension,
+		})
+		return &ExtensionResolver{}, nil
+	}
+
+	// delete all release extension objects with extension id
+	if r.db.Where("extension_id = ?", args.Extension.ID).Find(&res).RecordNotFound() {
+		log.InfoWithFields("no release extensions found", log.Fields{
+			"extension": extension,
+		})
+		return &ExtensionResolver{}, nil
+	}
+
+	for _, re := range res {
+		r.db.Delete(&re)
+	}
+
+	r.db.Delete(&extension)
+	r.actions.ExtensionDeleted(&extension)
 	return &ExtensionResolver{db: r.db, Extension: extension}, nil
 }
 

@@ -207,9 +207,50 @@ func (x *Actions) ExtensionSpecUpdated(extensionSpec *models.ExtensionSpec) {
 
 func (x *Actions) EnvironmentCreated(env *models.Environment) {
 	wsMsg := plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("environments/created"),
+		Event:   fmt.Sprintf("environments/new"),
 		Payload: env,
 	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) EnvironmentUpdated(env *models.Environment) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("environments/updated"),
+		Payload: env,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) EnvironmentDeleted(env *models.Environment) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("environments/deleted"),
+		Payload: env,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) AdminEnvironmentVariableCreated(envVar *models.EnvironmentVariable) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("environmentVariables/created"),
+		Payload: envVar,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) AdminEnvironmentVariableDeleted(envVar *models.EnvironmentVariable) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("environmentVariables/deleted"),
+		Payload: envVar,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
+func (x *Actions) AdminEnvironmentVariableUpdated(envVar *models.EnvironmentVariable) {
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("environmentVariables/updated"),
+		Payload: envVar,
+	}
+
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
@@ -337,6 +378,34 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 	x.events <- transistor.NewEvent(eventExtension, nil)
 }
 
+func (x *Actions) ExtensionDeleted(extension *models.Extension) {
+	project := models.Project{}
+	extensionSpec := models.ExtensionSpec{}
+
+	if x.db.Where("id = ?", extension.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	if x.db.Where("id = ?", extension.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+		log.InfoWithFields("extensionSpec not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	payload := map[string]interface{}{
+		"extension":     extension,
+		"extensionSpec": extensionSpec,
+	}
+
+	wsMsg := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/extensions/deleted", project.Slug),
+		Payload: payload,
+	}
+	x.events <- transistor.NewEvent(wsMsg, nil)
+}
+
 func (x *Actions) ExtensionInitCompleted(extension *models.Extension) {
 	project := models.Project{}
 	extensionSpec := models.ExtensionSpec{}
@@ -455,6 +524,8 @@ func (x *Actions) ReleaseExtensionsCompleted(release *models.Release) {
 func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	// find all related deployment extensions
 	depExtensions := []models.Extension{}
+	found := false
+
 	if x.db.Where("project_id = ?", release.ProjectId).Find(&depExtensions).RecordNotFound() {
 		log.InfoWithFields("deployment extensions not found", log.Fields{
 			"release": release,
@@ -462,8 +533,22 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		return
 	}
 
+	for _, de := range depExtensions {
+		var extensionSpec models.ExtensionSpec
+		if x.db.Where("id = ?", de.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+			log.InfoWithFields("extension spec not found", log.Fields{
+				"extension spec": de,
+			})
+		}
+		if plugins.ExtensionType(extensionSpec.Type) == plugins.Deployment {
+			found = true
+		}
+	}
+
 	// if there are no deployment workflows, then release is complete
-	if len(depExtensions) == 0 {
+	spew.Dump("DEP EXTENSIONS", depExtensions)
+	if !found {
+		spew.Dump("HELLO NOTHING!")
 		x.ReleaseCompleted(release)
 	}
 
