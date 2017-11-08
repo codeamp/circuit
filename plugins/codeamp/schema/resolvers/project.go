@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -222,7 +221,6 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 			"project": r.Project,
 		})
 	}
-	spew.Dump("currentRelease", currentRelease)
 	return &ReleaseResolver{db: r.db, Release: currentRelease}, nil
 }
 

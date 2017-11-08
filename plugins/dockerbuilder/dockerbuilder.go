@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 )
 
 type Dockerbuilder struct {
@@ -65,8 +64,6 @@ func (x *Dockerbuilder) Process(e transistor.Event) error {
 			reRes.Artifacts = map[string]*string{
 				"log": &logLine,
 			}
-
-			spew.Dump("COMPLETED RE!", reRes)
 
 			x.events <- transistor.NewEvent(reRes, nil)
 		}

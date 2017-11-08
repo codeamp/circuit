@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 )
@@ -30,11 +29,9 @@ func (r *Resolver) Environment(ctx context.Context, args *struct{ ID graphql.ID 
 }
 
 func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
-	spew.Dump("CreateEnvironment", args.Environment)
 
 	var existingEnv models.Environment
 	if r.db.Where("name = ?", args.Environment.Name).Find(&existingEnv).RecordNotFound() {
-		spew.Dump(args.Environment)
 		env := models.Environment{
 			Name: args.Environment.Name,
 		}

@@ -7,7 +7,6 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/davecgh/go-spew/spew"
 	git2go "github.com/libgit2/git2go"
 	"github.com/spf13/viper"
 )
@@ -21,7 +20,6 @@ func ConvertKVToMapStringString(kv []KeyValue, formSpecMap *map[string]*string) 
 
 	formMap := *formSpecMap
 
-	spew.Dump("CONVERT KV TO MAPSTRINGSTRING", kv)
 	for _, keyValue := range kv {
 		tmpKv := keyValue
 		formMap[tmpKv.Key] = &tmpKv.Value

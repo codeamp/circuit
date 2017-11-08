@@ -10,7 +10,6 @@ import (
 	log "github.com/codeamp/logger"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -41,7 +40,6 @@ func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID gra
 }
 
 func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
-	spew.Dump("CreateEnvironmentVariable", args.EnvironmentVariable)
 
 	var projectId uuid.UUID
 	var environmentId uuid.UUID
@@ -63,7 +61,6 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 
 	var existingEnvVar models.EnvironmentVariable
 	if r.db.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ?", args.EnvironmentVariable.Key, args.EnvironmentVariable.ProjectId, environmentId).Find(&existingEnvVar).RecordNotFound() {
-		spew.Dump(args.EnvironmentVariable)
 		envVar := models.EnvironmentVariable{
 			Key:           args.EnvironmentVariable.Key,
 			Value:         args.EnvironmentVariable.Value,
@@ -220,17 +217,14 @@ func (r *EnvironmentVariableResolver) User() (*UserResolver, error) {
 }
 
 func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
-	spew.Dump("VERsIONs!")
 	if _, err := utils.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
-	spew.Dump("MADE IT!")
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
 	r.db.Unscoped().Where("project_id = ? and key = ? and environment_id = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key, r.EnvironmentVariable.EnvironmentId).Order("version desc").Find(&rows)
 
-	spew.Dump(rows)
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
 	}
