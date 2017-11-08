@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -546,9 +545,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 
 	// if there are no deployment workflows, then release is complete
-	spew.Dump("DEP EXTENSIONS", depExtensions)
 	if !found {
-		spew.Dump("HELLO NOTHING!")
 		x.ReleaseCompleted(release)
 	}
 
@@ -633,7 +630,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 	// send out release extension event for each re
 	for _, re := range releaseExtensionEvents {
-		spew.Dump("sending out dep re event", re)
 		x.events <- transistor.NewEvent(re, nil)
 	}
 }
@@ -766,7 +762,6 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 	// send out release extension event for each re
 	for _, re := range releaseExtensionEvents {
-		spew.Dump("sending out re event", re)
 		x.events <- transistor.NewEvent(re, nil)
 	}
 }
