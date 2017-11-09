@@ -6,7 +6,7 @@ Deployment pipeline from the future!
 TODO:
 =====
 
-1. Install default extensions depending on project type []
+1. Install default extensions depending on project type [ ]
 2. Create a full separation of environments where project features, releases, extensions and settings will be different depending on the environment context the user is in. []
 3. Implement CI and any other standard extensions that will be almost certainly be required for project deployments. []
 4. Implement Access Control to restrict views based on permissioning, either with an external API (e.g. Dex, Okta) or in-house. []
