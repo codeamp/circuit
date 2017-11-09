@@ -169,31 +169,6 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 
 	r.actions.ProjectCreated(&project)
 
-	// create default extensions for project
-	var dockerBuilderExtensionSpec models.ExtensionSpec
-	if r.db.Where("name = 'DockerBuilder'").Find(&dockerBuilderExtensionSpec).RecordNotFound() {
-		log.InfoWithFields("Was not able to find DockerBuilder extension spec to insert as a default extension", log.Fields{
-			"project": project,
-		})
-
-		return &ProjectResolver{db: r.db, Project: project}, nil
-	}
-
-	dockerBuilderExtension := models.Extension{
-		ProjectId:       project.ID,
-		ExtensionSpecId: dockerBuilderExtensionSpec.ID,
-		State:           plugins.Waiting,
-		Artifacts:       map[string]*string{},
-		Slug:            "",
-		FormSpecValues:  map[string]*string{},
-	}
-
-	r.db.Create(&dockerBuilderExtension)
-	dockerBuilderExtension.Slug = fmt.Sprintf("dockerbuild-%s", dockerBuilderExtension.Model.ID.String())
-	r.db.Save(&dockerBuilderExtension)
-
-	r.actions.ExtensionCreated(&dockerBuilderExtension)
-
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
@@ -241,7 +216,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 	currentRelease := models.Release{}
 
-	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
+	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
 			"project": r.Project,
 		})
@@ -279,7 +254,7 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 	var rows []models.Release
 	var results []*ReleaseResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Find(&rows).Order("created desc")
+	r.db.Where("project_id = ?", r.Project.ID).Order("created_at desc").Find(&rows)
 
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{db: r.db, Release: release})

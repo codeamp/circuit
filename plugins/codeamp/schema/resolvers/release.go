@@ -72,6 +72,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	r.db.Create(&release)
+	r.actions.ReleaseCreated(&release)
 
 	return nil, nil
 }
@@ -102,6 +103,18 @@ func (r *ReleaseResolver) HeadFeature() (*FeatureResolver, error) {
 	r.db.Where("id = ?", r.Release.HeadFeatureID).First(&feature)
 
 	return &FeatureResolver{db: r.db, Feature: feature}, nil
+}
+
+func (r *ReleaseResolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
+	var rows []models.ReleaseExtension
+	var results []*ReleaseExtensionResolver
+
+	r.db.Where("release_id = ?", r.Release.ID).Find(&rows)
+	for _, re := range rows {
+		results = append(results, &ReleaseExtensionResolver{db: r.db, ReleaseExtension: re})
+	}
+	return results, nil
+
 }
 
 func (r *ReleaseResolver) TailFeature() (*FeatureResolver, error) {

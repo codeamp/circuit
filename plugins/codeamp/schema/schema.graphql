@@ -27,6 +27,9 @@ type Query {
   # Retrieve all releases
   releases(): [Release]!
 
+  # Retrieve all environments
+  environments(): [Environment]!
+
   # Retrieve all environment variables
   environmentVariables(): [EnvironmentVariable]!
 
@@ -35,6 +38,9 @@ type Query {
 
   # Retrieve all extensions
   extensions(): [Extension]!
+
+  # Retrieve all release extensions
+  releaseExtensions(): [ReleaseExtension]!
 }
 
 # The mutation type, represents all updates we can make to our data
@@ -52,6 +58,10 @@ type Mutation {
   updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
   deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
 
+  createEnvironment(environment: EnvironmentInput): Environment
+  updateEnvironment(environment: EnvironmentInput): Environment
+  deleteEnvironment(environment: EnvironmentInput): Environment
+
   createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
   updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
   deleteEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
@@ -62,6 +72,7 @@ type Mutation {
 
   createExtension(extension: ExtensionInput): Extension
   updateExtension(extension: ExtensionInput): Extension
+  deleteExtension(extension: ExtensionInput): Extension
 
   userToken(email: String!, password: String!): User
 }
@@ -104,17 +115,26 @@ interface Service {
   oneShot: Boolean!
 }
 
+# Environment object
+interface Environment {
+    id: ID!
+    name: String!
+    created: Time!
+}
+
 # EnvironmentVariable object
 interface EnvironmentVariable {
   id: ID!
   key: String!
   value: String!
   created: Time!
+  scope: String!
   project: Project!
   user: User!
   type: String!
   version: Int!
   versions: [EnvironmentVariable]!
+  environment: Environment
 }
 
 # ServiceSpec object
@@ -137,6 +157,7 @@ interface Release {
   headFeature: Feature!
   tailFeature: Feature!
   state: String!        
+  releaseExtensions: [ReleaseExtension]!
   stateMessage: String!
   created: Time!
 }
@@ -167,6 +188,8 @@ interface ExtensionSpec {
   component: String!
   formSpec: [KeyValue]!
   type: String!
+  key: String!
+  environmentVariables: [EnvironmentVariable]!
 }
 
 # Extension object
@@ -178,6 +201,20 @@ interface Extension {
   formSpecValues: [KeyValue]!
   state: String!
   created: Time!
+}
+
+# ReleaseExtension object
+interface ReleaseExtension {
+    id: ID!
+    release: Release!
+    extension: Extension!
+    servicesSignature: String!
+    secretsSignature: String!
+    state: String!
+    type: String!
+    stateMessage: String!
+    artifacts: [KeyValue!]!
+    finished: Time
 }
 
 # ProjectInput object and all fields needed for creating new Project
@@ -220,19 +257,28 @@ input ServiceSpecInput {
   terminationGracePeriod: String!
 }
 
+input EnvironmentInput {
+    id: String
+    name: String!
+}
+
 input EnvironmentVariableInput {
   id: String
   key: String!
   value: String!
-  type: String
+  type: String!
+  scope: String!
   projectId: String
+  environmentId: String
 }
 
 input ExtensionSpecInput {
   id: String
   name: String!
+  key: String!
   component: String!
   formSpec: [KeyValueInput!]!
+  environmentVariables: [String!]!
   type: String!
 }
 

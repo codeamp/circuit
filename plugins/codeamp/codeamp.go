@@ -86,7 +86,10 @@ func (x *CodeAmp) Migrate() {
 		&models.ServiceSpec{},
 		&models.ExtensionSpec{},
 		&models.Extension{},
+		&models.EnvironmentVariable{},
+		&models.ExtensionSpecEnvironmentVariable{},
 		&models.ReleaseExtension{},
+		&models.Environment{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")
@@ -205,13 +208,15 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.GitPing",
 		"plugins.GitCommit",
 		"plugins.GitStatus",
-		"plugins.DockerBuild:status",
 		"plugins.HeartBeat",
-		"plugins.LoadBalancer:status",
-		"plugins.DockerDeploy:status",
 		"plugins.Route53",
 		"plugins.WebsocketMsg",
 		"plugins.Extension:status",
+		"plugins.Extension:complete",
+		"plugins.ReleaseExtension:create",
+		"plugins.ReleaseExtension:complete",
+		"plugins.Release:status",
+		"plugins.Release:complete",
 	}
 }
 
@@ -244,18 +249,15 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		x.SocketIO.BroadcastTo(payload.Channel, payload.Event, payload.Payload, nil)
 	}
 
-	if e.Name == "plugins.Extension:status" {
+	if e.Name == "plugins.Extension:complete" {
 		payload := e.Payload.(plugins.Extension)
 
 		if payload.State == plugins.Complete {
-			spew.Dump(payload)
 		}
 
 		// query project from extension slug (2nd part)
 		var extension models.Extension
 		extensionId := strings.Split(payload.Slug, "|")[1]
-
-		spew.Dump(extensionId)
 
 		if x.db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found from given slug", log.Fields{
@@ -266,8 +268,30 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		extension.State = plugins.Complete
 		extension.Artifacts = payload.Artifacts
-		x.db.Save(extension)
+		x.db.Save(&extension)
 		x.Actions.ExtensionInitCompleted(&extension)
+	}
+
+	if e.Name == "plugins.ReleaseExtension:complete" {
+		payload := e.Payload.(plugins.ReleaseExtension)
+		releaseExtension := models.ReleaseExtension{}
+
+		spew.Dump("RE COMPLETE", payload)
+
+		// get uuid from slug
+		releaseExtensionSplitSlug := strings.Split(payload.Slug, "|")
+
+		if x.db.Where("id = ?", releaseExtensionSplitSlug[1]).Find(&releaseExtension).RecordNotFound() {
+			log.InfoWithFields("release extension not found from given slug", log.Fields{
+				"release event": payload,
+			})
+			return nil
+		}
+
+		releaseExtension.State = plugins.Complete
+		releaseExtension.Artifacts = payload.Artifacts
+		x.db.Save(&releaseExtension)
+		x.Actions.ReleaseExtensionCompleted(&releaseExtension)
 	}
 
 	return nil

@@ -1,9 +1,12 @@
 package kubernetes
 
 import (
+	"strings"
+	"time"
+
+	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 )
 
 type Kubernetes struct {
@@ -37,35 +40,58 @@ func (x *Kubernetes) Stop() {
 
 func (x *Kubernetes) Subscribe() []string {
 	return []string{
-		"plugins.DockerDeploy:create",
-		"plugins.DockerDeploy:delete",
-		"plugins.DockerDeploy:update",
-		"plugins.LoadBalancer:create",
-		"plugins.LoadBalancer.update",
-		"plugins.LoadBalancer.destroy",
+		"plugins.Release:complete",
+		"plugins.Extension:create",
+		"plugins.ReleaseExtension:create",
 	}
 }
 
 func (x *Kubernetes) Process(e transistor.Event) error {
-	log.Info("Processing kubernetes event")
-	spew.Dump(e.Name, e.ID)
+	log.InfoWithFields("Processing kubernetes event", log.Fields{
+		"event": e,
+	})
 
 	switch e.Name {
-	case "plugins.DockerDeploy:create":
-		x.doDeploy(e)
-	case "plugins.DockerDeploy:update":
-		x.doDeploy(e)
-	case "plugins.DockerDeploy:destroy":
-		x.doDeploy(e)
-	case "plugins.LoadBalancer:create":
-		x.doLoadBalancer(e)
-	case "plugins.LoadBalancer:update":
-		x.doLoadBalancer(e)
-	case "plugins.LoadBalancer:destroy":
-		x.doDeleteLoadBalancer(e)
+	case "plugins.ReleaseExtension:create":
+		reEvent := e.Payload.(plugins.ReleaseExtension)
+
+		if reEvent.Key == "kubernetes" {
+			// doDeploy if it is
+
+			time.Sleep(5 * time.Second)
+
+			reRes := reEvent
+			reRes.Action = plugins.Complete
+			reRes.StateMessage = "Finished deployment"
+			reRes.Slug = reRes.Slug
+
+			x.events <- transistor.NewEvent(reRes, nil)
+		}
+
+	case "plugins.Extension:create":
+		// check if extension slug is kubernetes
+		extensionEvent := e.Payload.(plugins.Extension)
+		extensionSlugSlice := strings.Split(extensionEvent.Slug, "|")
+		switch extensionSlugSlice[0] {
+		case "kubernetes":
+			// create deployment
+			// fill artifacts
+			sampleKubeString := "checkrhq-dev.net"
+			sampleKubeConfig := "/etc/secrets"
+
+			extensionRes := extensionEvent
+			extensionRes.Action = plugins.Complete
+			extensionRes.StateMessage = "Finished initialization"
+			extensionRes.Artifacts = map[string]*string{
+				"cluster":     &sampleKubeString,
+				"config path": &sampleKubeConfig,
+			}
+
+			x.events <- transistor.NewEvent(extensionRes, nil)
+		default:
+		}
 	}
 
 	log.Info("Processed kubernetes event")
-	spew.Dump(e.Name, e.ID)
 	return nil
 }

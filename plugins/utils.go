@@ -17,9 +17,16 @@ type KeyValue struct {
 }
 
 func ConvertKVToMapStringString(kv []KeyValue, formSpecMap *map[string]*string) error {
+
+	formMap := *formSpecMap
+
 	for _, keyValue := range kv {
-		(*formSpecMap)[keyValue.Key] = &keyValue.Value
+		tmpKv := keyValue
+		formMap[tmpKv.Key] = &tmpKv.Value
 	}
+
+	formSpecMap = &formMap
+
 	return nil
 }
 

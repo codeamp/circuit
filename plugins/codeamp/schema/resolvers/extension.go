@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -58,7 +59,7 @@ func (r *ExtensionResolver) Artifacts() []*KeyValueResolver {
 	err := plugins.ConvertMapStringStringToKV(r.Extension.Artifacts, &keyValues)
 	if err != nil {
 		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-			"extensionSpec": r.ExtensionSpec,
+			"extensionSpec": r.Extension,
 		})
 	}
 	var rows []*KeyValueResolver
@@ -99,6 +100,8 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 		// make sure extension form spec values are valid
 		// if they are valid, create extension object
 
+		var extensionSpec models.ExtensionSpec
+
 		extensionSpecId, err := uuid.FromString(args.Extension.ExtensionSpecId)
 		if err != nil {
 			log.InfoWithFields("couldn't parse ExtensionSpecId", log.Fields{
@@ -135,6 +138,16 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			return nil, err
 		}
 
+		if r.db.Where("id = ?", extensionSpecId).Find(&extensionSpec).RecordNotFound() {
+			log.InfoWithFields("can't find corresponding extensionSpec", log.Fields{
+				"extension": args.Extension,
+			})
+			return nil, err
+		}
+
+		spew.Dump("CREATE EXTENSION")
+		spew.Dump(extensionSpec)
+
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,
@@ -146,7 +159,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 
 		r.db.Create(&extension)
 
-		extension.Slug = fmt.Sprintf("dockerbuild|%s", extension.Model.ID.String())
+		extension.Slug = fmt.Sprintf("%s|%s", extensionSpec.Key, extension.Model.ID.String())
 		r.db.Save(&extension)
 
 		r.actions.ExtensionCreated(&extension)
@@ -179,6 +192,34 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*
 	r.db.Save(&extension)
 	r.actions.ExtensionUpdated(&extension)
 
+	return &ExtensionResolver{db: r.db, Extension: extension}, nil
+}
+
+func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
+	var extension models.Extension
+	var res []models.ReleaseExtension
+
+	if r.db.Where("id = ?", args.Extension.ID).First(&extension).RecordNotFound() {
+		log.InfoWithFields("no extension found", log.Fields{
+			"extension": args.Extension,
+		})
+		return &ExtensionResolver{}, nil
+	}
+
+	// delete all release extension objects with extension id
+	if r.db.Where("extension_id = ?", args.Extension.ID).Find(&res).RecordNotFound() {
+		log.InfoWithFields("no release extensions found", log.Fields{
+			"extension": extension,
+		})
+		return &ExtensionResolver{}, nil
+	}
+
+	for _, re := range res {
+		r.db.Delete(&re)
+	}
+
+	r.db.Delete(&extension)
+	r.actions.ExtensionDeleted(&extension)
 	return &ExtensionResolver{db: r.db, Extension: extension}, nil
 }
 
