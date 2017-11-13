@@ -23,13 +23,17 @@ The fantastic ORM library for Golang, aims to be developer friendly.
 
 ## Getting Started
 
-* GORM Guides [jinzhu.github.com/gorm](https://jinzhu.github.io/gorm)
+* GORM Guides [jinzhu.github.com/gorm](http://jinzhu.github.io/gorm)
 
 ## Upgrading To V1.0
 
-* [CHANGELOG](https://jinzhu.github.io/gorm/changelog.html)
+* [CHANGELOG](http://jinzhu.github.io/gorm/changelog.html)
 
-# Author
+## Supporting the project
+
+[![http://patreon.com/jinzhu](http://patreon_public_assets.s3.amazonaws.com/sized/becomeAPatronBanner.png)](http://patreon.com/jinzhu)
+
+## Author
 
 **jinzhu**
 
@@ -37,7 +41,7 @@ The fantastic ORM library for Golang, aims to be developer friendly.
 * <wosmvp@gmail.com>
 * <http://twitter.com/zhangjinzhu>
 
-# Contributors
+## Contributors
 
 https://github.com/jinzhu/gorm/graphs/contributors
 

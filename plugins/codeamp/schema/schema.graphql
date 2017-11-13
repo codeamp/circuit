@@ -73,15 +73,12 @@ type Mutation {
   createExtension(extension: ExtensionInput): Extension
   updateExtension(extension: ExtensionInput): Extension
   deleteExtension(extension: ExtensionInput): Extension
-
-  userToken(email: String!, password: String!): User
 }
 
 # User object
 interface User {
   id: ID!
   email: String!
-  token: String!
   permissions: [String!]!
 }
 

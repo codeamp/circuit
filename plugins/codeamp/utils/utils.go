@@ -3,19 +3,23 @@ package utils
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
+	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/transistor"
-	jwt "github.com/dgrijalva/jwt-go"
+	oidc "github.com/coreos/go-oidc"
+	"github.com/jinzhu/gorm"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type JWTClaims struct {
-	UserId      string   `json:"userId"`
-	Permissions []string `json:"permissions"`
-	TokenError  string   `json:"tokenError"`
-	jwt.StandardClaims
+type Claims struct {
+	UserId     string   `json:"userId"`
+	Email      string   `json:"email"`
+	Verified   bool     `json:"email_verified"`
+	Groups     []string `json:"groups"`
+	TokenError string   `json:"tokenError"`
 }
 
 func HashPassword(password string) (string, error) {
@@ -28,43 +32,68 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func AuthMiddleware(next http.Handler) http.Handler {
+func AuthMiddleware(next http.Handler, db *gorm.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		jwtClaims := JWTClaims{}
+		claims := Claims{}
 		authString := r.Header.Get("Authorization")
+		ctx := context.Context(context.Background())
 
 		if len(authString) < 8 {
-			jwtClaims.TokenError = "invalid access token"
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", jwtClaims)))
+			claims.TokenError = "invalid access token"
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
 
-		tokenString := authString[7:len(authString)]
-		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(viper.GetString("plugins.codeamp.jwt_secret")), nil
-		})
+		bearerToken := authString[7:len(authString)]
+
+		// Initialize a provider by specifying dex's issuer URL.
+		provider, err := oidc.NewProvider(ctx, viper.GetString("plugins.codeamp.oidc_uri"))
 		if err != nil {
-			jwtClaims.TokenError = err.Error()
-			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", jwtClaims)))
+			claims.TokenError = err.Error()
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
 
-		if token.Valid {
-			if claims, ok := token.Claims.(*JWTClaims); ok {
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", *claims)))
-				return
-			} else {
-				jwtClaims.TokenError = "an unexpected error has occurred"
-				w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
+		// Create an ID token parser, but only trust ID tokens issued to "example-app"
+		idTokenVerifier := provider.Verifier(&oidc.Config{ClientID: "example-app"})
 
-			}
-		} else {
-			jwtClaims.TokenError = "invalid access token"
+		idToken, err := idTokenVerifier.Verify(ctx, bearerToken)
+		if err != nil {
+			claims.TokenError = fmt.Sprintf("could not verify bearer token: %v", err.Error())
 			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
+			return
 		}
 
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", jwtClaims)))
+		if err := idToken.Claims(&claims); err != nil {
+			claims.TokenError = fmt.Sprintf("failed to parse claims: %v", err.Error())
+			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
+			return
+		}
+
+		if !claims.Verified {
+			claims.TokenError = fmt.Sprintf("email (%q) in returned claims was not verified", claims.Email)
+			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
+			return
+		}
+
+		user := models.User{}
+		if db.Where("email = ?", claims.Email).Find(&user).RecordNotFound() {
+			user.Email = claims.Email
+			db.Create(&user)
+
+			userPermission := models.UserPermission{
+				UserId: user.Model.ID,
+				Value:  "admin",
+			}
+			db.Create(&userPermission)
+		}
+
+		claims.UserId = user.ID.String()
+
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 	})
 }
 
@@ -83,22 +112,23 @@ func CorsMiddleware(next http.Handler) http.Handler {
 }
 
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
-	jwtClaims := ctx.Value("jwt").(JWTClaims)
+	claims := ctx.Value("jwt").(Claims)
 
-	if jwtClaims.UserId == "" {
-		return "", errors.New(jwtClaims.TokenError)
+	if claims.UserId == "" {
+		return "", errors.New(claims.TokenError)
 	}
 
 	if len(scopes) == 0 {
-		return jwtClaims.UserId, nil
+		return claims.UserId, nil
 	} else {
+		return claims.UserId, nil
 		for _, scope := range scopes {
-			if transistor.SliceContains(scope, jwtClaims.Permissions) {
-				return jwtClaims.UserId, nil
+			if transistor.SliceContains(scope, claims.Groups) {
+				return claims.UserId, nil
 			}
 		}
 		return "", errors.New("you dont have permission to access this resource")
 	}
 
-	return jwtClaims.UserId, nil
+	return claims.UserId, nil
 }
