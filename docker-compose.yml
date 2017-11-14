@@ -1,10 +1,12 @@
 version: "2"
 services:
   redis:
+    container_name: circuit_redis
     image: redis
     ports:
       - "${DOCKER_COMPOSE_REDIS_PORT}:6379"
   postgres:
+    container_name: circuit_postgres
     image: postgres
     ports:
       - "${DOCKER_COMPOSE_POSTGRES_PORT}:5432"
