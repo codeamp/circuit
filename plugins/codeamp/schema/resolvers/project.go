@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 
 	log "github.com/codeamp/logger"
@@ -220,6 +221,8 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
 			"project": r.Project,
 		})
+
+		return &ReleaseResolver{db: r.db, Release: currentRelease}, errors.New("CurrentRelease not found")
 	}
 	return &ReleaseResolver{db: r.db, Release: currentRelease}, nil
 }

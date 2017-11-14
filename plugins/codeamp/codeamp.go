@@ -192,6 +192,10 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	x.SocketIO = sio
 	x.Actions = actions
 	x.Schema = parsedSchema
+
+	// DEBUG
+	db.LogMode(true)
+
 	x.Db = db
 
 	go x.Listen()
