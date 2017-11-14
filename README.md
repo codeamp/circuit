@@ -15,9 +15,9 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 ## Testing
 
 ### Resolvers
-
-1. `cd plugins/codeamp/schema/resolvers/`
-2. `go test -v`
+1. Create a db called `codeamp_test`
+2. `cd plugins/codeamp/schema/resolvers/`
+3. `go test -v`
 
 **Current Tests**
 - [X] Project 
