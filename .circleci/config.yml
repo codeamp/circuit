@@ -26,8 +26,9 @@ jobs:
           name: Install Docker Compose
           command: |
             set -x
-            sudo curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
+            curl -L https://github.com/docker/compose/releases/download/1.8.0/docker-compose-`uname -s`-`uname -m` \ >~/docker-compose
+            chmod +x ~/docker-compose
+            sudo mv ~/docker-compose /usr/local/bin/docker-compose
       - run: docker-compose up -d redis postgres
       - run: docker ps
       - run: docker exec -it circuit_postgres_1 /bin/bash && createdb codeamp_test -U postgres
