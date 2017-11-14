@@ -29,8 +29,11 @@ jobs:
             wget -L https://github.com/docker/compose/releases/download/1.17.1/docker-compose-Linux-x86_64 >~/docker-compose
             chmod +x ~/docker-compose
             sudo mv ~/docker-compose /usr/local/bin/docker-compose
-      - run: docker-compose up -d redis postgres
-      - run: docker ps
-      - run: docker exec -it circuit_postgres /bin/bash && createdb codeamp_test -U postgres
-      - run: go get -v -t -d ./...
-      - run: go test -v ./...
+      - run:
+          command: |
+            set -x
+            docker-compose up -d redis postgres
+            docker ps
+            docker exec -it circuit_postgres /bin/bash && createdb codeamp_test -U postgres
+            go get -v -t -d ./...
+            go test -v ./...
