@@ -11,8 +11,8 @@ storage:
   type: postgres
   config:
     host: postgres
-    database: codeamp
-    user: postgres
+    database: dex
+    user: dex
     password: 
     ssl:
       mode: disable
