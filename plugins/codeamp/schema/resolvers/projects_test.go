@@ -127,10 +127,39 @@ func (suite *TestProjects) TestFailedCreateProjectAlreadyExists() {
 }
 
 func (suite *TestProjects) TestSuccessUpdateProject() {
-	// todo
+	stamp := strings.ToLower("TestSuccessUpdateProject")
+
+	p := models.Project{
+		Name:          fmt.Sprintf("test%s", stamp),
+		Slug:          fmt.Sprintf("testslug%s", stamp),
+		Repository:    fmt.Sprintf("testrepo%s", stamp),
+		Secret:        "",
+		GitUrl:        fmt.Sprintf("https://github.com/test/testrepo%s.git", stamp),
+		GitProtocol:   "HTTPS",
+		RsaPrivateKey: "",
+		RsaPublicKey:  "",
+	}
+	suite.db.Save(&p)
+	pId := p.Model.ID.String()
+
+	projectInput := struct {
+		Project *resolvers.ProjectInput
+	}{
+		Project: &resolvers.ProjectInput{
+			ID:          &pId,
+			GitProtocol: "private",
+			GitUrl:      fmt.Sprintf("ssh://git@github.com:test/testrepo2%s.git", stamp),
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	projectResolver, _ := resolver.UpdateProject(&projectInput)
+
+	assert.Equal(suite.T(), "SSH", projectResolver.GitProtocol())
+	assert.Equal(suite.T(), fmt.Sprintf("ssh://git@github.com:test/testrepo2%s.git", stamp), projectResolver.GitUrl())
 }
 
-func (suite *TestProjects) TestFailedUpdateProjectAlreadyExists() {
+func (suite *TestProjects) TestFailedUpdateProjectDoesntExist() {
 	// todo
 }
 

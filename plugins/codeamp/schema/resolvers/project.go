@@ -92,8 +92,8 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	r.db.Save(project)
 
 	// Cascade delete all features and releases related to old git url
-	r.db.Where("projectId = ?", project.ID).Delete(models.Feature{})
-	r.db.Where("projectId = ?", project.ID).Delete(models.Release{})
+	r.db.Where("project_id = ?", project.ID).Delete(models.Feature{})
+	r.db.Where("project_id = ?", project.ID).Delete(models.Release{})
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
