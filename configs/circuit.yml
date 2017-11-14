@@ -29,8 +29,8 @@ plugins:
     workers: 1
     registry_host: "docker.io"
     registry_org: "checkr"
-    registry_username: "drshrey"
-    registry_password: "Idaman2016!"
+    registry_username: ""
+    registry_password: ""
     registry_user_email: "shreyas.jaganmohan@gmail.com"
     docker_host: "unix:///var/run/docker.sock"
     workdir: "/tmp/docker_build"  
