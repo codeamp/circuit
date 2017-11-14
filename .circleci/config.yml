@@ -19,14 +19,15 @@ jobs:
     working_directory: /go/src/github.com/codeamp/circuit
     steps:
       - checkout
+      - setup_remote_docker
 
       # specify any bash command here prefixed with `run: `
       - run:
           name: Install Docker Compose
           command: |
             set -x
-            curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-            chmod +x /usr/local/bin/docker-compose
+            sudo curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
       - run: docker-compose up -d redis postgres
       - run: docker ps
       - run: docker exec -it circuit_postgres_1 /bin/bash && createdb codeamp_test -U postgres
