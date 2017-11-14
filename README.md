@@ -1,10 +1,17 @@
-# CodeAmp Circuit
+# Circuit
 
-Deployment pipeline from the future!
+This is the API layer of the overall Codeamp project. It is built with Golang, GraphQL, GORM and Socket-IO.
 
 
-TODO:
-=====
+## Installation
+
+1. `git clone https://github.com/codeamp/circuit.git`
+2. `cp configs/circuit.yml configs/circuit.dev.yml`
+3. `docker-compose up redis postgres circuit`
+4. `go run main.go migrate --config configs/circuit.dev.yml`
+5. `go run main.go start --config configs/circuit.dev.yml`
+
+## TODO
 
 - [ ] Install default extensions depending on project type
 - [ ] Create a full separation of environments where project features, releases, extensions and settings will be different depending on the environment context the user is in.
