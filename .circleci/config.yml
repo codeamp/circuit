@@ -2,12 +2,16 @@
 #
 # Check https://circleci.com/docs/2.0/language-go/ for more details
 version: 2
+
+database:
+  override:
+    - createdb test
+
 jobs:
   build:
     docker:
       # specify the version
       - image: circleci/golang:1.8
-      - image: circleci/postgres:9.4
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
       # documented at https://circleci.com/docs/2.0/circleci-images/
@@ -21,7 +25,14 @@ jobs:
       - checkout
 
       # specify any bash command here prefixed with `run: `
-      - run: echo "CREATE DATABASE codeamp_test;" | psql -U postgres
-      - run: cp configs/circuit.yml configs/circuit.dev.yml && go run main.go migrate --config configs/circuit.dev.yml
+      - run:
+          name: Install Docker Compose
+          command: |
+            set -x
+            curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+      - run: docker-compose up -d redis postgres
+      - run: docker ps
+      - run: docker exec -it circuit_postgres_1 /bin/bash && createdb codeamp_test -U postgres
       - run: go get -v -t -d ./...
       - run: go test -v ./...
