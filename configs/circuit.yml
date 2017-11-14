@@ -3,7 +3,7 @@ environment: "development"
 redis:
   username:
   password:
-  server: "redis"
+  server: "0.0.0.0:16379"
   database: "0"
   pool: "30"
   process: "1"
