@@ -11,6 +11,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -131,8 +132,8 @@ func (suite *TestProjects) TestSuccessUpdateProject() {
 
 	p := models.Project{
 		Name:          fmt.Sprintf("test%s", stamp),
-		Slug:          fmt.Sprintf("testslug%s", stamp),
-		Repository:    fmt.Sprintf("testrepo%s", stamp),
+		Slug:          fmt.Sprintf("test-testrepo%s", stamp),
+		Repository:    fmt.Sprintf("test/testrepo%s", stamp),
 		Secret:        "",
 		GitUrl:        fmt.Sprintf("https://github.com/test/testrepo%s.git", stamp),
 		GitProtocol:   "HTTPS",
@@ -160,7 +161,104 @@ func (suite *TestProjects) TestSuccessUpdateProject() {
 }
 
 func (suite *TestProjects) TestFailedUpdateProjectDoesntExist() {
-	// todo
+	stamp := strings.ToLower("TestFailedUpdateProjectDoesntExist")
+	fakeId := uuid.NewV1().String()
+	projectInput := struct {
+		Project *resolvers.ProjectInput
+	}{
+		Project: &resolvers.ProjectInput{
+			ID:          &fakeId,
+			GitProtocol: "private",
+			GitUrl:      fmt.Sprintf("ssh://git@github.com:test/testrepo%s.git", stamp),
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	_, err := resolver.UpdateProject(&projectInput)
+
+	assert.Equal(suite.T(), "Project not found.", err.Error())
+}
+
+func (suite *TestProjects) TestFailedUpdateProjectMissingArgumentId() {
+	stamp := strings.ToLower("TestFailedUpdateProjectMissingArgumentId")
+	projectInput := struct {
+		Project *resolvers.ProjectInput
+	}{
+		Project: &resolvers.ProjectInput{
+			GitProtocol: "private",
+			GitUrl:      fmt.Sprintf("ssh://git@github.com:test/testrepo%s.git", stamp),
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	_, err := resolver.UpdateProject(&projectInput)
+
+	assert.Equal(suite.T(), "Missing argument id", err.Error())
+}
+
+func (suite *TestProjects) TestFailedUpdateProjectInvalidArgumentId() {
+	stamp := strings.ToLower("TestFailedUpdateProjectMissingArgumentId")
+	fakeId := "invalidfakeid"
+
+	projectInput := struct {
+		Project *resolvers.ProjectInput
+	}{
+		Project: &resolvers.ProjectInput{
+			ID:          &fakeId,
+			GitProtocol: "private",
+			GitUrl:      fmt.Sprintf("ssh://git@github.com:test/testrepo%s.git", stamp),
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	_, err := resolver.UpdateProject(&projectInput)
+
+	assert.Equal(suite.T(), "Invalid argument id", err.Error())
+}
+
+func (suite *TestProjects) TestFailedUpdateProjectWithExistingRepoName() {
+	stamp := strings.ToLower("TestFailedUpdateProjectWithExistingRepoName")
+
+	p := models.Project{
+		Name:          fmt.Sprintf("test/testrepo%s", stamp),
+		Slug:          fmt.Sprintf("test-testrepo%s", stamp),
+		Repository:    fmt.Sprintf("test/testrepo%s", stamp),
+		Secret:        "",
+		GitUrl:        fmt.Sprintf("https://github.com/test/testrepo%s.git", stamp),
+		GitProtocol:   "HTTPS",
+		RsaPrivateKey: "",
+		RsaPublicKey:  "",
+	}
+	suite.db.Save(&p)
+
+	p2 := models.Project{
+		Name:          fmt.Sprintf("test/testrepo2%s", stamp),
+		Slug:          fmt.Sprintf("test-testrepo2%s", stamp),
+		Repository:    fmt.Sprintf("test/testrepo2%s", stamp),
+		Secret:        "",
+		GitUrl:        fmt.Sprintf("https://github.com/test/testrepo2%s.git", stamp),
+		GitProtocol:   "HTTPS",
+		RsaPrivateKey: "",
+		RsaPublicKey:  "",
+	}
+	suite.db.Save(&p2)
+
+	p2Id := p2.Model.ID.String()
+
+	projectInput := struct {
+		Project *resolvers.ProjectInput
+	}{
+		Project: &resolvers.ProjectInput{
+			ID:          &p2Id,
+			GitProtocol: "private",
+			GitUrl:      fmt.Sprintf("https://github.com/test/testrepo%s.git", stamp),
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	_, err := resolver.UpdateProject(&projectInput)
+
+	assert.Equal(suite.T(), "Project with repository name already exists.", err.Error())
 }
 
 func TestProjectResolvers(t *testing.T) {

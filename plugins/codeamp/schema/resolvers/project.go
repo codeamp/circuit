@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -59,6 +60,15 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 		return nil, fmt.Errorf("Missing argument id")
 	}
 
+	projectId, err := uuid.FromString(*args.Project.ID)
+	if err != nil {
+		log.InfoWithFields("Could not convert argument id", log.Fields{
+			"id":  args.Project.ID,
+			"err": err,
+		})
+		return nil, fmt.Errorf("Invalid argument id")
+	}
+
 	if r.db.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
 		log.InfoWithFields("Project not found", log.Fields{
 			"id": args.Project.ID,
@@ -80,7 +90,7 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.GitUrl = args.Project.GitUrl
 
 	// Check if project already exists with same name
-	if r.db.Unscoped().Where("id != ? and repository = ?", args.Project.ID, repository).First(&models.Project{}).RecordNotFound() == false {
+	if r.db.Unscoped().Where("id != ? and repository = ?", projectId, repository).First(&models.Project{}).RecordNotFound() == false {
 		return nil, fmt.Errorf("Project with repository name already exists.")
 	}
 
@@ -89,7 +99,7 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.Repository = repository
 	project.Name = repository
 	project.Slug = slug.Slug(repository)
-	r.db.Save(project)
+	r.db.Save(&project)
 
 	// Cascade delete all features and releases related to old git url
 	r.db.Where("project_id = ?", project.ID).Delete(models.Feature{})
