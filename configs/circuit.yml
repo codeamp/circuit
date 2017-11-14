@@ -12,7 +12,7 @@ plugins:
     workers: 1
     postgres:
       host: "postgres"
-      port: ""
+      port: "15432"
       user: "postgres"
       dbname: "codeamp"
       sslmode: "disable"
