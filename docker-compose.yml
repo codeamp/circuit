@@ -10,13 +10,19 @@ services:
     image: postgres
     ports:
       - "${DOCKER_COMPOSE_POSTGRES_PORT}:5432"
-  circuit:
-    build: .
     volumes:
-      - /go/src/github.com/codeamp/circuit
+      - ./bootstrap/postgres:/docker-entrypoint-initdb.d
+  circuit:
+    command: reflex -c reflex.conf
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/go/src/github.com/codeamp/circuit
+      - /var/run/docker.sock:/var/run/docker.sock
     links:
-      - "redis"
-      - "postgres"
+      - redis
+      - postgres
   dex:
     image: quay.io/coreos/dex:v2.7.1
     volumes:

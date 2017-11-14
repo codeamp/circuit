@@ -1,18 +1,18 @@
 ---
-environment: "development"
 redis:
   username:
   password:
-  server: "0.0.0.0:16379"
+  server: "0.0.0.0:6379"
   database: "0"
   pool: "30"
   process: "1"
 plugins:
   codeamp:
     workers: 1
+    oidc_uri: http://localhost:5556/dex
     postgres:
       host: "0.0.0.0"
-      port: "15432"
+      port: "5432"
       user: "postgres"
       dbname: "codeamp"
       sslmode: "disable"
@@ -31,9 +31,6 @@ plugins:
     registry_org: "checkr"
     registry_username: ""
     registry_password: ""
-    registry_user_email: "shreyas.jaganmohan@gmail.com"
+    registry_user_email: ""
     docker_host: "unix:///var/run/docker.sock"
     workdir: "/tmp/docker_build"  
-
-
-

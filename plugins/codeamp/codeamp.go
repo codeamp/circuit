@@ -47,23 +47,7 @@ func NewCodeAmp() *CodeAmp {
 }
 
 func (x *CodeAmp) Migrate() {
-	var err error
-
-	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s sslmode=%s password=%s",
-		viper.GetString("plugins.codeamp.postgres.host"),
-		viper.GetString("plugins.codeamp.postgres.port"),
-		viper.GetString("plugins.codeamp.postgres.user"),
-		viper.GetString("plugins.codeamp.postgres.sslmode"),
-		viper.GetString("plugins.codeamp.postgres.password"),
-	))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	db.Exec(fmt.Sprintf("CREATE DATABASE %s", viper.GetString("plugins.codeamp.postgres.dbname")))
-	db.Close()
-
-	db, err = gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		viper.GetString("plugins.codeamp.postgres.host"),
 		viper.GetString("plugins.codeamp.postgres.port"),
 		viper.GetString("plugins.codeamp.postgres.user"),
@@ -71,9 +55,11 @@ func (x *CodeAmp) Migrate() {
 		viper.GetString("plugins.codeamp.postgres.sslmode"),
 		viper.GetString("plugins.codeamp.postgres.password"),
 	))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	db.Exec("CREATE EXTENSION \"uuid-ossp\"")
-	db.Exec("CREATE EXTENSION IF NOT EXISTS hstore")
+	db.LogMode(true)
 
 	db.AutoMigrate(
 		&models.User{},

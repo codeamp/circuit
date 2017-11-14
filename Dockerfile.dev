@@ -1,0 +1,12 @@
+FROM golang:alpine
+
+ENV APP_PATH /go/src/github.com/codeamp/circuit
+
+RUN apk -U add alpine-sdk git gcc
+RUN go get github.com/cespare/reflex
+
+RUN mkdir -p $APP_PATH
+WORKDIR $APP_PATH
+
+COPY . $APP_PATH
+RUN go build -i -o /go/bin/codeamp-circuit .
