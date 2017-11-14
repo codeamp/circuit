@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 
 	log "github.com/codeamp/logger"
@@ -120,11 +119,11 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	existingProject := models.Project{}
 
 	if r.db.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
-		log.InfoWithFields("Project not found", log.Fields{
+		log.InfoWithFields("[+] Project not found", log.Fields{
 			"repository": repository,
 		})
 	} else {
-		//return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
+		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
 	}
 
 	project.Name = repository
@@ -167,15 +166,23 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.RsaPublicKey = string(ssh.MarshalAuthorizedKey(pub))
 
 	r.db.Create(&project)
-
-	r.actions.ProjectCreated(&project)
-
+	// consult with saso about this:
+	// reasoning is so this function can complete even if
+	// there's something wrong with the transistor
+	go r.actions.ProjectCreated(&project)
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
 type ProjectResolver struct {
 	db      *gorm.DB
 	Project models.Project
+}
+
+func NewProjectResolver(project models.Project, db *gorm.DB) *ProjectResolver {
+	return &ProjectResolver{
+		db:      db,
+		Project: project,
+	}
 }
 
 func (r *ProjectResolver) ID() graphql.ID {
@@ -215,14 +222,13 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
-	currentRelease := models.Release{}
+	var currentRelease models.Release
 
 	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
 			"project": r.Project,
 		})
-
-		return &ReleaseResolver{db: r.db, Release: currentRelease}, errors.New("CurrentRelease not found")
+		return &ReleaseResolver{db: r.db, Release: currentRelease}, fmt.Errorf("Current release does not exist.")
 	}
 	return &ReleaseResolver{db: r.db, Release: currentRelease}, nil
 }
