@@ -11,6 +11,27 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 4. `go run main.go migrate --config configs/circuit.dev.yml`
 5. `go run main.go start --config configs/circuit.dev.yml`
 
+
+## Testing
+
+### Resolvers
+
+- `cd plugins/codeamp/schema/resolvers/`
+- `go test -v`
+
+*** Current Tests ***
+- [ ] Project 
+- [ ] Feature
+- [ ] Environment
+- [ ] Environment Variable
+- [ ] Extension
+- [ ] Extension Spec
+- [ ] Release Extension
+- [ ] Release
+- [ ] Service Spec
+- [ ] User
+- [ ] Service
+
 ## TODO
 
 - [ ] Install default extensions depending on project type
