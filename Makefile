@@ -12,4 +12,3 @@ destroy:
 	docker-compose rm -f
 
 .PHONY: up build destroy # let's go to reserve rules names
-
