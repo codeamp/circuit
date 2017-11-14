@@ -6,10 +6,10 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 
 	log "github.com/codeamp/logger"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -60,6 +60,15 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 		return nil, fmt.Errorf("Missing argument id")
 	}
 
+	projectId, err := uuid.FromString(*args.Project.ID)
+	if err != nil {
+		log.InfoWithFields("Could not convert argument id", log.Fields{
+			"id":  args.Project.ID,
+			"err": err,
+		})
+		return nil, fmt.Errorf("Invalid argument id")
+	}
+
 	if r.db.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
 		log.InfoWithFields("Project not found", log.Fields{
 			"id": args.Project.ID,
@@ -81,7 +90,7 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.GitUrl = args.Project.GitUrl
 
 	// Check if project already exists with same name
-	if r.db.Unscoped().Where("id != ? and repository = ?", args.Project.ID, repository).First(&models.Project{}).RecordNotFound() == false {
+	if r.db.Unscoped().Where("id != ? and repository = ?", projectId, repository).First(&models.Project{}).RecordNotFound() == false {
 		return nil, fmt.Errorf("Project with repository name already exists.")
 	}
 
@@ -90,11 +99,11 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.Repository = repository
 	project.Name = repository
 	project.Slug = slug.Slug(repository)
-	r.db.Save(project)
+	r.db.Save(&project)
 
 	// Cascade delete all features and releases related to old git url
-	r.db.Where("projectId = ?", project.ID).Delete(models.Feature{})
-	r.db.Where("projectId = ?", project.ID).Delete(models.Release{})
+	r.db.Where("project_id = ?", project.ID).Delete(models.Feature{})
+	r.db.Where("project_id = ?", project.ID).Delete(models.Release{})
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
@@ -120,11 +129,11 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	existingProject := models.Project{}
 
 	if r.db.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
-		log.InfoWithFields("Project not found", log.Fields{
+		log.InfoWithFields("[+] Project not found", log.Fields{
 			"repository": repository,
 		})
 	} else {
-		//return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
+		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
 	}
 
 	project.Name = repository
@@ -167,15 +176,23 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.RsaPublicKey = string(ssh.MarshalAuthorizedKey(pub))
 
 	r.db.Create(&project)
-
-	r.actions.ProjectCreated(&project)
-
+	// consult with saso about this:
+	// reasoning is so this function can complete even if
+	// there's something wrong with the transistor
+	go r.actions.ProjectCreated(&project)
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
 type ProjectResolver struct {
 	db      *gorm.DB
 	Project models.Project
+}
+
+func NewProjectResolver(project models.Project, db *gorm.DB) *ProjectResolver {
+	return &ProjectResolver{
+		db:      db,
+		Project: project,
+	}
 }
 
 func (r *ProjectResolver) ID() graphql.ID {
@@ -215,14 +232,13 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
-	currentRelease := models.Release{}
+	var currentRelease models.Release
 
 	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
 			"project": r.Project,
 		})
-
-		return &ReleaseResolver{db: r.db, Release: currentRelease}, errors.New("CurrentRelease not found")
+		return &ReleaseResolver{db: r.db, Release: currentRelease}, fmt.Errorf("Current release does not exist.")
 	}
 	return &ReleaseResolver{db: r.db, Release: currentRelease}, nil
 }
