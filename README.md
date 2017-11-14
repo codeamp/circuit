@@ -20,8 +20,8 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 - `go test -v`
 
 **Current Tests**
-- [ ] Project 
-- [ ] Feature
+- [X] Project 
+- [X] Feature
 - [ ] Environment
 - [ ] Environment Variable
 - [ ] Extension
