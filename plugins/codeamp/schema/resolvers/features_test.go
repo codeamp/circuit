@@ -9,7 +9,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	"github.com/stretchr/testify/assert"
@@ -45,13 +44,11 @@ func (suite *TestFeatures) SetupSuite() {
 }
 
 func (suite *TestFeatures) TearDownSuite() {
-	spew.Dump("dropping test db")
 	suite.db.Exec("delete from projects;")
 	suite.db.Exec("delete from features;")
 }
 
 func (suite *TestFeatures) TestSuccessfulFeature() {
-	spew.Dump("TestSuccessfulGetFeature")
 
 	testProject := models.Project{
 		Name:          fmt.Sprintf("testname %s", time.Now().String()),

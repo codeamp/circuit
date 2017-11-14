@@ -10,7 +10,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -76,7 +75,6 @@ func (suite *TestProjects) SetupSuite() {
 }
 
 func (suite *TestProjects) TearDownSuite() {
-	spew.Dump("dropping test db")
 	suite.db.Exec("delete from projects;")
 	suite.db.Exec("delete from features;")
 	suite.db.Exec("delete from releases;")
@@ -129,9 +127,11 @@ func (suite *TestProjects) TestFailedCreateProjectAlreadyExists() {
 }
 
 func (suite *TestProjects) TestSuccessUpdateProject() {
+	// todo
 }
 
 func (suite *TestProjects) TestFailedUpdateProjectAlreadyExists() {
+	// todo
 }
 
 func TestProjectResolvers(t *testing.T) {
