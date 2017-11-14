@@ -21,7 +21,7 @@ jobs:
       - checkout
 
       # specify any bash command here prefixed with `run: `
-      - run: createdb codeamp_test
+      - run: echo "CREATE DATABASE codeamp_test;" | psql -U postgres
       - run: cp configs/circuit.yml configs/circuit.dev.yml && go run main.go migrate --config configs/circuit.dev.yml
       - run: go get -v -t -d ./...
       - run: go test -v ./...
