@@ -212,7 +212,7 @@ func (suite *TestProjects) TestFailedUpdateProjectInvalidArgumentId() {
 			GitUrl:      fmt.Sprintf("ssh://git@github.com:test/testrepo%s.git", stamp),
 		},
 	}
-
+  
 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	_, err := resolver.UpdateProject(&projectInput)
 
