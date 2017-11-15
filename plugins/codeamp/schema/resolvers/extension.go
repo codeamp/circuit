@@ -2,12 +2,12 @@ package resolvers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -16,6 +16,13 @@ import (
 type ExtensionResolver struct {
 	db        *gorm.DB
 	Extension models.Extension
+}
+
+func NewExtensionResolver(extension models.Extension, db *gorm.DB) *ExtensionResolver {
+	return &ExtensionResolver{
+		db:        db,
+		Extension: extension,
+	}
 }
 
 type ExtensionInput struct {
@@ -95,39 +102,34 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 	var extension models.Extension
 	formSpecValuesMap := make(map[string]*string)
 
+	extensionSpecId, err := uuid.FromString(args.Extension.ExtensionSpecId)
+	if err != nil {
+		log.InfoWithFields("couldn't parse ExtensionSpecId", log.Fields{
+			"extension": args.Extension,
+		})
+		return nil, errors.New("Could not parse ExtensionSpecId. Invalid Format.")
+	}
+
+	projectId, err := uuid.FromString(args.Extension.ProjectId)
+	if err != nil {
+		log.InfoWithFields("couldn't parse ProjectId", log.Fields{
+			"extension": args.Extension,
+		})
+		return nil, errors.New("Could not parse ProjectId. Invalid format.")
+	}
+
 	// check if extension already exists with project
-	if r.db.Where("project_id = ? and extension_spec_id = ?", args.Extension.ProjectId, args.Extension.ExtensionSpecId).Find(&extension).RecordNotFound() {
+	if r.db.Where("project_id = ? and extension_spec_id = ?", projectId, extensionSpecId).Find(&extension).RecordNotFound() {
 		// make sure extension form spec values are valid
 		// if they are valid, create extension object
 
 		var extensionSpec models.ExtensionSpec
 
-		extensionSpecId, err := uuid.FromString(args.Extension.ExtensionSpecId)
-		if err != nil {
-			log.InfoWithFields("couldn't parse ExtensionSpecId", log.Fields{
+		if r.db.Where("id = ?", extensionSpecId).Find(&extensionSpec).RecordNotFound() {
+			log.InfoWithFields("can't find corresponding extensionSpec", log.Fields{
 				"extension": args.Extension,
 			})
-			return nil, err
-		}
-
-		projectId, err := uuid.FromString(args.Extension.ProjectId)
-		if err != nil {
-			log.InfoWithFields("couldn't parse ProjectId", log.Fields{
-				"extension": args.Extension,
-			})
-			return nil, err
-		}
-
-		// validate from formSpec
-		valid, err := FormSpecValuesIsValid(r.db, args.Extension)
-		if err != nil {
-			return nil, err
-		}
-		if valid == false {
-			log.InfoWithFields("form spec values are invalid", log.Fields{
-				"extension": args.Extension,
-			})
-			return nil, nil
+			return nil, errors.New("Can't find corresponding extensionSpec.")
 		}
 
 		err = plugins.ConvertKVToMapStringString(args.Extension.FormSpecValues, &formSpecValuesMap)
@@ -135,18 +137,17 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			log.InfoWithFields("can't convert kv to map[string]*string", log.Fields{
 				"extension": args.Extension,
 			})
-			return nil, err
+			return nil, errors.New("Can't convert kv to map[string]*string")
 		}
 
-		if r.db.Where("id = ?", extensionSpecId).Find(&extensionSpec).RecordNotFound() {
-			log.InfoWithFields("can't find corresponding extensionSpec", log.Fields{
-				"extension": args.Extension,
+		// validate from formSpec
+		err := FormSpecValuesIsValid(r.db, args.Extension)
+		if err != nil {
+			log.InfoWithFields("FormSpecValuesIsValid failed", log.Fields{
+				"err": err,
 			})
 			return nil, err
 		}
-
-		spew.Dump("CREATE EXTENSION")
-		spew.Dump(extensionSpec)
 
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
@@ -162,9 +163,10 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 		extension.Slug = fmt.Sprintf("%s|%s", extensionSpec.Key, extension.Model.ID.String())
 		r.db.Save(&extension)
 
-		r.actions.ExtensionCreated(&extension)
+		go r.actions.ExtensionCreated(&extension)
+		return &ExtensionResolver{db: r.db, Extension: extension}, nil
 	}
-	return &ExtensionResolver{db: r.db, Extension: extension}, nil
+	return nil, errors.New("This extension is already installed in this project.")
 }
 
 func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
@@ -223,14 +225,16 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 	return &ExtensionResolver{db: r.db, Extension: extension}, nil
 }
 
-func FormSpecValuesIsValid(db *gorm.DB, extensionInput *ExtensionInput) (bool, error) {
+func FormSpecValuesIsValid(db *gorm.DB, extensionInput *ExtensionInput) error {
 	// get extension spec
 	var extensionSpec models.ExtensionSpec
+	var missingKeys []string
+
 	if db.Where("id = ?", extensionInput.ExtensionSpecId).Find(&extensionSpec).RecordNotFound() {
 		log.InfoWithFields("extensionSpec not found", log.Fields{
 			"extensionInput": extensionInput,
 		})
-		return false, nil
+		return errors.New("ExtensionSpec not found")
 	}
 
 	// loop through extension spec
@@ -239,21 +243,25 @@ func FormSpecValuesIsValid(db *gorm.DB, extensionInput *ExtensionInput) (bool, e
 	var extensionSpecKVFormSpec []plugins.KeyValue
 	err := plugins.ConvertMapStringStringToKV(extensionSpec.FormSpec, &extensionSpecKVFormSpec)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// convert extensionInput's form spec values into map[string]string
 	extensionInputMap := make(map[string]*string)
 	err = plugins.ConvertKVToMapStringString(extensionInput.FormSpecValues, &extensionInputMap)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	for _, kv := range extensionSpecKVFormSpec {
 		if extensionInputMap[kv.Key] == nil {
-			return false, nil
+			missingKeys = append(missingKeys, kv.Key)
 		}
 	}
 
-	return true, nil
+	if len(missingKeys) > 0 {
+		return fmt.Errorf("Required keys not found within extension input: %v", missingKeys)
+	}
+
+	return nil
 }
