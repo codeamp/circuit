@@ -131,7 +131,7 @@ interface EnvironmentVariable {
   type: String!
   version: Int!
   versions: [EnvironmentVariable]!
-  environment: Environment
+  environment: Environment!
 }
 
 # ServiceSpec object
@@ -266,7 +266,7 @@ input EnvironmentVariableInput {
   type: String!
   scope: String!
   projectId: String
-  environmentId: String
+  environmentId: String!
 }
 
 input ExtensionSpecInput {

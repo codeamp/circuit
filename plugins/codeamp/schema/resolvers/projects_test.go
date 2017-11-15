@@ -98,7 +98,7 @@ func (suite *TestProjects) TestSuccessfulCreateProject() {
 		},
 	}
 
-	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	projectResolver, _ := resolver.CreateProject(&projectInput)
 
 	assert.Equal(suite.T(), fmt.Sprintf("test/testrepo%s", stamp), projectResolver.Repository())
@@ -212,7 +212,7 @@ func (suite *TestProjects) TestFailedUpdateProjectInvalidArgumentId() {
 			GitUrl:      fmt.Sprintf("ssh://git@github.com:test/testrepo%s.git", stamp),
 		},
 	}
-  
+
 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	_, err := resolver.UpdateProject(&projectInput)
 
