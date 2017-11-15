@@ -18,8 +18,9 @@ import (
 
 type TestProjects struct {
 	suite.Suite
-	db *gorm.DB
-	t  *transistor.Transistor
+	db      *gorm.DB
+	t       *transistor.Transistor
+	actions *actions.Actions
 }
 
 func (suite *TestProjects) SetupSuite() {
@@ -61,7 +62,7 @@ func (suite *TestProjects) SetupSuite() {
 					"host":     "0.0.0.0",
 					"port":     "15432",
 					"user":     "postgres",
-					"dbname":   "codeamp",
+					"dbname":   "codeamp_test",
 					"sslmode":  "disable",
 					"password": "",
 				},
@@ -71,8 +72,10 @@ func (suite *TestProjects) SetupSuite() {
 		Queueing:       false,
 	})
 
+	actions := actions.NewActions(t.TestEvents, db)
 	suite.db = db
 	suite.t = t
+	suite.actions = actions
 }
 
 func (suite *TestProjects) TearDownSuite() {
@@ -115,7 +118,7 @@ func (suite *TestProjects) TestFailedCreateProjectAlreadyExists() {
 		},
 	}
 
-	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	projectResolver, _ := resolver.CreateProject(&projectInput)
 
 	assert.Equal(suite.T(), fmt.Sprintf("test/testrepo%s", stamp), projectResolver.Repository())
@@ -153,7 +156,7 @@ func (suite *TestProjects) TestSuccessUpdateProject() {
 		},
 	}
 
-	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	projectResolver, _ := resolver.UpdateProject(&projectInput)
 
 	assert.Equal(suite.T(), "SSH", projectResolver.GitProtocol())
@@ -173,7 +176,7 @@ func (suite *TestProjects) TestFailedUpdateProjectDoesntExist() {
 		},
 	}
 
-	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	_, err := resolver.UpdateProject(&projectInput)
 
 	assert.Equal(suite.T(), "Project not found.", err.Error())
@@ -190,7 +193,7 @@ func (suite *TestProjects) TestFailedUpdateProjectMissingArgumentId() {
 		},
 	}
 
-	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	_, err := resolver.UpdateProject(&projectInput)
 
 	assert.Equal(suite.T(), "Missing argument id", err.Error())
@@ -210,7 +213,7 @@ func (suite *TestProjects) TestFailedUpdateProjectInvalidArgumentId() {
 		},
 	}
 
-	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	_, err := resolver.UpdateProject(&projectInput)
 
 	assert.Equal(suite.T(), "Invalid argument id", err.Error())
@@ -255,7 +258,7 @@ func (suite *TestProjects) TestFailedUpdateProjectWithExistingRepoName() {
 		},
 	}
 
-	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, &actions.Actions{})
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	_, err := resolver.UpdateProject(&projectInput)
 
 	assert.Equal(suite.T(), "Project with repository name already exists.", err.Error())
