@@ -22,7 +22,7 @@ type EnvironmentVariableInput struct {
 	Type          string
 	Scope         string
 	ProjectId     *string
-	EnvironmentId *string
+	EnvironmentId string
 }
 
 type EnvironmentVariableResolver struct {
@@ -41,13 +41,13 @@ func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID gra
 
 func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
 
-	var projectId uuid.UUID
+	projectId := uuid.UUID{}
 	var environmentId uuid.UUID
 
 	if args.EnvironmentVariable.ProjectId != nil {
 		projectId = uuid.FromStringOrNil(*args.EnvironmentVariable.ProjectId)
 	}
-	environmentId = uuid.FromStringOrNil(*args.EnvironmentVariable.EnvironmentId)
+	environmentId = uuid.FromStringOrNil(args.EnvironmentVariable.EnvironmentId)
 
 	userIdString, err := utils.CheckAuth(ctx, []string{})
 	if err != nil {
@@ -60,7 +60,8 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	}
 
 	var existingEnvVar models.EnvironmentVariable
-	if r.db.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ?", args.EnvironmentVariable.Key, args.EnvironmentVariable.ProjectId, environmentId).Find(&existingEnvVar).RecordNotFound() {
+
+	if r.db.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ?", args.EnvironmentVariable.Key, projectId, environmentId).Find(&existingEnvVar).RecordNotFound() {
 		envVar := models.EnvironmentVariable{
 			Key:           args.EnvironmentVariable.Key,
 			Value:         args.EnvironmentVariable.Value,
@@ -76,9 +77,9 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 		r.db.Create(&envVar)
 
 		if envVar.Scope != plugins.ProjectScope {
-			r.actions.AdminEnvironmentVariableUpdated(&envVar)
+			go r.actions.AdminEnvironmentVariableUpdated(&envVar)
 		} else {
-			r.actions.EnvironmentVariableCreated(&envVar)
+			go r.actions.EnvironmentVariableCreated(&envVar)
 		}
 
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
@@ -90,10 +91,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
 
 	var existingEnvVar models.EnvironmentVariable
-	var environmentId uuid.UUID
-	if args.EnvironmentVariable.EnvironmentId != nil {
-		environmentId = uuid.FromStringOrNil(*args.EnvironmentVariable.EnvironmentId)
-	}
+	environmentId := uuid.FromStringOrNil(args.EnvironmentVariable.EnvironmentId)
 
 	if r.db.Where("id = ?", args.EnvironmentVariable.ID).Find(&existingEnvVar).RecordNotFound() {
 		return nil, fmt.Errorf("UpdateEnvironmentVariable: env var doesn't exist.")
@@ -124,9 +122,9 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 				extensionSpecEnvVar.EnvironmentVariableId = envVar.Model.ID
 				r.db.Save(&extensionSpecEnvVar)
 			}
-			r.actions.AdminEnvironmentVariableUpdated(&envVar)
+			go r.actions.AdminEnvironmentVariableUpdated(&envVar)
 		} else {
-			r.actions.EnvironmentVariableUpdated(&envVar)
+			go r.actions.EnvironmentVariableUpdated(&envVar)
 		}
 
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
@@ -160,10 +158,9 @@ func (r *Resolver) DeleteEnvironmentVariable(ctx context.Context, args *struct{ 
 		}
 
 		if existingEnvVar.Scope != plugins.ProjectScope {
-			r.actions.AdminEnvironmentVariableDeleted(&existingEnvVar)
+			go r.actions.AdminEnvironmentVariableDeleted(&existingEnvVar)
 		} else {
-
-			r.actions.EnvironmentVariableDeleted(&existingEnvVar)
+			go r.actions.EnvironmentVariableDeleted(&existingEnvVar)
 		}
 
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: existingEnvVar}, nil
