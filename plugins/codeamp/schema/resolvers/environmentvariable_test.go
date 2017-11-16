@@ -123,7 +123,6 @@ func (suite *TestEnvironmentVariables) TearDownSuite() {
 
 func (suite *TestEnvironmentVariables) TestSuccessfulCreateEnvironmentVariable() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestSuccessfulCreateEnvironmentVariable")
 
 	envVarInput := struct {
@@ -194,7 +193,6 @@ func (suite *TestEnvironmentVariables) TestFailedCreateEnvironmentVariableAlread
 
 func (suite *TestEnvironmentVariables) TestSuccessfulUpdateEnvironmentVariable() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestSuccessfulUpdateEnvironmentVariable")
 
 	e2 := models.Environment{
@@ -244,7 +242,6 @@ func (suite *TestEnvironmentVariables) TestSuccessfulUpdateEnvironmentVariable()
 
 func (suite *TestEnvironmentVariables) TestFailedUpdateEnvironmentVariableDoesntExist() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedUpdateEnvironmentVariableDoesntExist")
 
 	fakeEnvVarId := uuid.NewV1().String()
@@ -272,7 +269,6 @@ func (suite *TestEnvironmentVariables) TestFailedUpdateEnvironmentVariableDoesnt
 
 func (suite *TestEnvironmentVariables) TestSuccessfulDeleteEnvironmentVariable() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestSuccessfulDeleteEnvironmentVariable")
 
 	envVar := models.EnvironmentVariable{

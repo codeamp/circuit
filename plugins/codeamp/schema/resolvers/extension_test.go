@@ -112,7 +112,6 @@ func (suite *TestExtensions) TearDownSuite() {
 
 func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestSuccessfulCreateExtension")
 	timestamp := time.Now()
 
@@ -245,7 +244,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 
 func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedCreateExtensionInvalidFormSpecValues")
 	timestamp := time.Now()
 
@@ -305,7 +303,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 
 func (suite *TestExtensions) TestFailedCreateExtensionExtensionSpecDoesntExist() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedCreateExtensionExtensionSpecDoesntExist")
 
 	p := models.Project{

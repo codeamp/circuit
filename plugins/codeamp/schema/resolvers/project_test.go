@@ -107,8 +107,8 @@ func (suite *TestProjects) TearDownSuite() {
 
 func (suite *TestProjects) TestSuccessfulCreateProject() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestSuccessfulCreateProject")
+
 	projectInput := struct {
 		Project *resolvers.ProjectInput
 	}{
@@ -131,8 +131,8 @@ func (suite *TestProjects) TestSuccessfulCreateProject() {
 
 func (suite *TestProjects) TestFailedCreateProjectAlreadyExists() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedCreateProjectAlreadyExists")
+
 	projectInput := struct {
 		Project *resolvers.ProjectInput
 	}{
@@ -158,7 +158,6 @@ func (suite *TestProjects) TestFailedCreateProjectAlreadyExists() {
 
 func (suite *TestProjects) TestSuccessUpdateProject() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestSuccessUpdateProject")
 
 	p := models.Project{
@@ -195,8 +194,8 @@ func (suite *TestProjects) TestSuccessUpdateProject() {
 
 func (suite *TestProjects) TestFailedUpdateProjectDoesntExist() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedUpdateProjectDoesntExist")
+
 	fakeId := uuid.NewV1().String()
 	projectInput := struct {
 		Project *resolvers.ProjectInput
@@ -218,8 +217,8 @@ func (suite *TestProjects) TestFailedUpdateProjectDoesntExist() {
 
 func (suite *TestProjects) TestFailedUpdateProjectMissingArgumentId() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedUpdateProjectMissingArgumentId")
+
 	projectInput := struct {
 		Project *resolvers.ProjectInput
 	}{
@@ -239,8 +238,8 @@ func (suite *TestProjects) TestFailedUpdateProjectMissingArgumentId() {
 
 func (suite *TestProjects) TestFailedUpdateProjectInvalidArgumentId() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedUpdateProjectMissingArgumentId")
+
 	fakeId := "invalidfakeid"
 
 	projectInput := struct {
@@ -263,7 +262,6 @@ func (suite *TestProjects) TestFailedUpdateProjectInvalidArgumentId() {
 
 func (suite *TestProjects) TestFailedUpdateProjectWithExistingRepoName() {
 	suite.SetupDBAndContext()
-
 	stamp := strings.ToLower("TestFailedUpdateProjectWithExistingRepoName")
 
 	p := models.Project{
