@@ -153,7 +153,6 @@ type ExtensionSpec struct {
 	Model     `json:",inline"`
 	Type      string          `json:"type"`
 	Key       string          `json:"key"`
-	EnvVars   postgres.Hstore `json:"envVars"`
 	Name      string          `json:"name"`
 	Component string          `json:"component"`
 	FormSpec  postgres.Hstore `json:"formSpec"`

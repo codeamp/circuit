@@ -202,16 +202,16 @@ interface Extension {
 
 # ReleaseExtension object
 interface ReleaseExtension {
-    id: ID!
-    release: Release!
-    extension: Extension!
-    servicesSignature: String!
-    secretsSignature: String!
-    state: String!
-    type: String!
-    stateMessage: String!
-    artifacts: [KeyValue!]!
-    finished: Time
+  id: ID!
+  release: Release!
+  extension: Extension!
+  servicesSignature: String!
+  secretsSignature: String!
+  state: String!
+  type: String!
+  stateMessage: String!
+  artifacts: [KeyValue!]!
+  finished: Time
 }
 
 # ProjectInput object and all fields needed for creating new Project

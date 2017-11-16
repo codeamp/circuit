@@ -33,7 +33,6 @@ type ExtensionSpecResolver struct {
 }
 
 func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
-
 	formSpecMap := make(map[string]*string)
 
 	err := plugins.ConvertKVToMapStringString(args.ExtensionSpec.FormSpec, &formSpecMap)

@@ -100,7 +100,6 @@ func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 	es := models.ExtensionSpec{
 		Type:      plugins.Workflow,
 		Key:       fmt.Sprintf("testkey%s", stamp),
-		EnvVars:   map[string]*string{},
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
 		FormSpec:  map[string]*string{},
@@ -191,7 +190,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 	es := models.ExtensionSpec{
 		Type:      plugins.Workflow,
 		Key:       fmt.Sprintf("testkey%s", stamp),
-		EnvVars:   map[string]*string{},
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
 		FormSpec:  map[string]*string{},
@@ -229,7 +227,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 	es := models.ExtensionSpec{
 		Type:      plugins.Workflow,
 		Key:       fmt.Sprintf("testkey%s", stamp),
-		EnvVars:   map[string]*string{},
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
 		FormSpec: map[string]*string{
