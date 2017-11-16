@@ -25,7 +25,7 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 - [ ] Environment
 - [X] Environment Variable
 - [X] Extension
-- [ ] Extension Spec
+- [X] Extension Spec
 - [ ] Release Extension
 - [ ] Release
 - [ ] Service Spec
