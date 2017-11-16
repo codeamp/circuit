@@ -18,13 +18,6 @@ type FeatureResolver struct {
 	Feature models.Feature
 }
 
-func NewFeatureResolver(feature models.Feature, db *gorm.DB) *FeatureResolver {
-	return &FeatureResolver{
-		Feature: feature,
-		db:      db,
-	}
-}
-
 func (r *FeatureResolver) ID() graphql.ID {
 	return graphql.ID(r.Feature.Model.ID.String())
 }

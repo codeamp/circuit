@@ -33,7 +33,6 @@ type ExtensionSpecResolver struct {
 }
 
 func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
-
 	formSpecMap := make(map[string]*string)
 
 	err := plugins.ConvertKVToMapStringString(args.ExtensionSpec.FormSpec, &formSpecMap)
@@ -41,11 +40,17 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		return &ExtensionSpecResolver{}, err
 	}
 
+	// Check if valid plugins.ExtensionSpecType
+	envVarType := plugins.StrToExtensionType[args.ExtensionSpec.Type]
+	if envVarType == "" {
+		return &ExtensionSpecResolver{}, fmt.Errorf("Invalid extension type: %s", args.ExtensionSpec.Type)
+	}
+
 	extensionSpec := models.ExtensionSpec{
 		Name:      args.ExtensionSpec.Name,
 		Component: args.ExtensionSpec.Component,
 		FormSpec:  formSpecMap,
-		Type:      args.ExtensionSpec.Type,
+		Type:      plugins.ExtensionType(args.ExtensionSpec.Type),
 		Key:       args.ExtensionSpec.Key,
 	}
 
@@ -53,12 +58,24 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 	// create extension spec env vars
 	for _, envVar := range args.ExtensionSpec.EnvironmentVariables {
-		envVarId := uuid.FromStringOrNil(envVar["envVar"].(string))
-		extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
-			ExtensionSpecId:       extensionSpec.Model.ID,
-			EnvironmentVariableId: envVarId,
+		if envVarStringId, ok := envVar["envVar"]; ok {
+			envVarId := uuid.FromStringOrNil(envVarStringId.(string))
+
+			// check if env var exists
+			var dbEnvVar models.EnvironmentVariable
+			if r.db.Where("id = ?", envVarId).Find(&dbEnvVar).RecordNotFound() {
+				return &ExtensionSpecResolver{}, fmt.Errorf("Specified env vars don't exist.")
+			}
+
+			extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
+				ExtensionSpecId:       extensionSpec.Model.ID,
+				EnvironmentVariableId: envVarId,
+			}
+			r.db.Save(&extensionSpecEnvVar)
+		} else {
+			return &ExtensionSpecResolver{}, fmt.Errorf("Invalid env. vars format")
 		}
-		r.db.Save(&extensionSpecEnvVar)
+
 	}
 
 	r.actions.ExtensionSpecCreated(&extensionSpec)
@@ -89,7 +106,7 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 	extensionSpec.Component = args.ExtensionSpec.Component
 	extensionSpec.FormSpec = formSpecMap
 	extensionSpec.Key = args.ExtensionSpec.Key
-	extensionSpec.Type = args.ExtensionSpec.Type
+	extensionSpec.Type = plugins.ExtensionType(args.ExtensionSpec.Type)
 
 	r.db.Save(&extensionSpec)
 
@@ -162,7 +179,7 @@ func (r *ExtensionSpecResolver) Component() string {
 }
 
 func (r *ExtensionSpecResolver) Type() string {
-	return r.ExtensionSpec.Type
+	return string(r.ExtensionSpec.Type)
 }
 
 func (r *ExtensionSpecResolver) Key() string {

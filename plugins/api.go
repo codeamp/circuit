@@ -58,6 +58,14 @@ const (
 	Once                       = "once"
 )
 
+// Used for conversion during input validation in e.g. ExtensionSpec
+var StrToExtensionType = map[string]ExtensionType{
+	"deployment":   Deployment,
+	"workflow":     Workflow,
+	"notification": Notification,
+	"once":         Once,
+}
+
 type EnvVarScope string
 
 const (

@@ -151,13 +151,12 @@ type Bookmark struct {
 
 type ExtensionSpec struct {
 	Model     `json:",inline"`
-	Type      string          `json:"type"`
-	Key       string          `json:"key"`
-	EnvVars   postgres.Hstore `json:"envVars"`
-	Name      string          `json:"name"`
-	Component string          `json:"component"`
-	FormSpec  postgres.Hstore `json:"formSpec"`
-	Created   time.Time       `json:"created"`
+	Type      plugins.ExtensionType `json:"type"`
+	Key       string                `json:"key"`
+	Name      string                `json:"name"`
+	Component string                `json:"component"`
+	FormSpec  postgres.Hstore       `json:"formSpec"`
+	Created   time.Time             `json:"created"`
 }
 
 type Extension struct {

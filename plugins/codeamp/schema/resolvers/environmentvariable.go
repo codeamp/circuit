@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/jinzhu/gorm"
@@ -43,9 +44,15 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 
 	projectId := uuid.UUID{}
 	var environmentId uuid.UUID
+	var envVarScope plugins.EnvVarScope
+
+	spew.Dump(args.EnvironmentVariable.ProjectId)
 
 	if args.EnvironmentVariable.ProjectId != nil {
 		projectId = uuid.FromStringOrNil(*args.EnvironmentVariable.ProjectId)
+		envVarScope = plugins.EnvVarScope(args.EnvironmentVariable.Scope)
+	} else {
+		envVarScope = plugins.GlobalScope
 	}
 	environmentId = uuid.FromStringOrNil(args.EnvironmentVariable.EnvironmentId)
 
@@ -68,7 +75,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 			ProjectId:     projectId,
 			Version:       int32(0),
 			Type:          plugins.Type(args.EnvironmentVariable.Type),
-			Scope:         plugins.EnvVarScope(args.EnvironmentVariable.Scope),
+			Scope:         envVarScope,
 			UserId:        userId,
 			Created:       time.Now(),
 			EnvironmentId: environmentId,
@@ -76,11 +83,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 
 		r.db.Create(&envVar)
 
-		if envVar.Scope != plugins.ProjectScope {
-			go r.actions.AdminEnvironmentVariableUpdated(&envVar)
-		} else {
-			go r.actions.EnvironmentVariableCreated(&envVar)
-		}
+		r.actions.EnvironmentVariableCreated(&envVar)
 
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
 	} else {
@@ -122,10 +125,9 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 				extensionSpecEnvVar.EnvironmentVariableId = envVar.Model.ID
 				r.db.Save(&extensionSpecEnvVar)
 			}
-			go r.actions.AdminEnvironmentVariableUpdated(&envVar)
-		} else {
-			go r.actions.EnvironmentVariableUpdated(&envVar)
 		}
+
+		r.actions.EnvironmentVariableUpdated(&envVar)
 
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
 	}
@@ -156,13 +158,7 @@ func (r *Resolver) DeleteEnvironmentVariable(ctx context.Context, args *struct{ 
 				r.db.Delete(&extensionSpecEnvVar)
 			}
 		}
-
-		if existingEnvVar.Scope != plugins.ProjectScope {
-			go r.actions.AdminEnvironmentVariableDeleted(&existingEnvVar)
-		} else {
-			go r.actions.EnvironmentVariableDeleted(&existingEnvVar)
-		}
-
+		r.actions.EnvironmentVariableDeleted(&existingEnvVar)
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: existingEnvVar}, nil
 	}
 }
