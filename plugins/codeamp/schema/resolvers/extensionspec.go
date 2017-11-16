@@ -40,10 +40,11 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		return &ExtensionSpecResolver{}, err
 	}
 
-	// if args.ExtensionSpec.Type != plugins.ExtensionType {
-	// 	spew.Dump("wrong!")
-	// 	return fmt.Errorf("Invalid extension type: %s", args.ExtensionSpec.Type)
-	// }
+	// Check if valid plugins.ExtensionSpecType
+	envVarType := plugins.StrToExtensionType[args.ExtensionSpec.Type]
+	if envVarType == "" {
+		return &ExtensionSpecResolver{}, fmt.Errorf("Invalid extension type: %s", args.ExtensionSpec.Type)
+	}
 
 	extensionSpec := models.ExtensionSpec{
 		Name:      args.ExtensionSpec.Name,
@@ -57,12 +58,24 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 	// create extension spec env vars
 	for _, envVar := range args.ExtensionSpec.EnvironmentVariables {
-		envVarId := uuid.FromStringOrNil(envVar["envVar"].(string))
-		extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
-			ExtensionSpecId:       extensionSpec.Model.ID,
-			EnvironmentVariableId: envVarId,
+		if envVarStringId, ok := envVar["envVar"]; ok {
+			envVarId := uuid.FromStringOrNil(envVarStringId.(string))
+
+			// check if env var exists
+			var dbEnvVar models.EnvironmentVariable
+			if r.db.Where("id = ?", envVarId).Find(&dbEnvVar).RecordNotFound() {
+				return &ExtensionSpecResolver{}, fmt.Errorf("Specified env vars don't exist.")
+			}
+
+			extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
+				ExtensionSpecId:       extensionSpec.Model.ID,
+				EnvironmentVariableId: envVarId,
+			}
+			r.db.Save(&extensionSpecEnvVar)
+		} else {
+			return &ExtensionSpecResolver{}, fmt.Errorf("Invalid env. vars format")
 		}
-		r.db.Save(&extensionSpecEnvVar)
+
 	}
 
 	r.actions.ExtensionSpecCreated(&extensionSpec)

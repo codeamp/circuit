@@ -168,95 +168,101 @@ func (suite *TestExtensionSpecs) TestSuccessfulCreateExtensionSpec() {
 	suite.TearDownSuite()
 }
 
-// func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecInvalidType() {
-// 	stamp := strings.ToLower("TestFailedCreateExtensionSpecInvalidType")
+func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecInvalidType() {
+	suite.SetupDBAndContext()
+	stamp := strings.ToLower("TestFailedCreateExtensionSpecInvalidType")
 
-// 	extensionSpecInput := struct {
-// 		ExtensionSpec *resolvers.ExtensionSpecInput
-// 	}{
-// 		ExtensionSpec: &resolvers.ExtensionSpecInput{
-// 			Name:      fmt.Sprintf("esname%s", stamp),
-// 			Component: fmt.Sprintf("escomponent%s", stamp),
-// 			FormSpec: []plugins.KeyValue{
-// 				plugins.KeyValue{
-// 					Key:   "key",
-// 					Value: "required|string",
-// 				},
-// 			},
-// 			EnvironmentVariables: []map[string]interface{}{
-// 				map[string]interface{}{
-// 					"envVar": suite.envVar.Model.ID.String(),
-// 				},
-// 			},
-// 			Type: "invalidtype",
-// 			Key:  fmt.Sprintf("key%s", stamp),
-// 		},
-// 	}
-// 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
-// 	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
+	extensionSpecInput := struct {
+		ExtensionSpec *resolvers.ExtensionSpecInput
+	}{
+		ExtensionSpec: &resolvers.ExtensionSpecInput{
+			Name:      fmt.Sprintf("esname%s", stamp),
+			Component: fmt.Sprintf("escomponent%s", stamp),
+			FormSpec: []plugins.KeyValue{
+				plugins.KeyValue{
+					Key:   "key",
+					Value: "required|string",
+				},
+			},
+			EnvironmentVariables: []map[string]interface{}{
+				map[string]interface{}{
+					"envVar": suite.envVar.Model.ID.String(),
+				},
+			},
+			Type: "invalidtype",
+			Key:  fmt.Sprintf("key%s", stamp),
+		},
+	}
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
 
-// 	assert.Equal(suite.T(), "Invalid extension type: invalidtype", err.Error())
-// }
+	assert.Equal(suite.T(), "Invalid extension type: invalidtype", err.Error())
+	suite.TearDownSuite()
+}
 
-// func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecInvalidEnvVarsFormat() {
-// 	stamp := strings.ToLower("TestFailedCreateExtensionSpecInvalidEnvVarsFormat")
+func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecInvalidEnvVarsFormat() {
+	suite.SetupDBAndContext()
+	stamp := strings.ToLower("TestFailedCreateExtensionSpecInvalidEnvVarsFormat")
 
-// 	extensionSpecInput := struct {
-// 		ExtensionSpec *resolvers.ExtensionSpecInput
-// 	}{
-// 		ExtensionSpec: &resolvers.ExtensionSpecInput{
-// 			Name:      fmt.Sprintf("esname%s", stamp),
-// 			Component: fmt.Sprintf("escomponent%s", stamp),
-// 			FormSpec: []plugins.KeyValue{
-// 				plugins.KeyValue{
-// 					Key:   "key",
-// 					Value: "required|string",
-// 				},
-// 			},
-// 			EnvironmentVariables: []map[string]interface{}{
-// 				map[string]interface{}{
-// 					"invalidKey": suite.envVar.Model.ID.String(),
-// 				},
-// 			},
-// 			Type: "workflow",
-// 			Key:  fmt.Sprintf("key%s", stamp),
-// 		},
-// 	}
-// 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
-// 	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
+	extensionSpecInput := struct {
+		ExtensionSpec *resolvers.ExtensionSpecInput
+	}{
+		ExtensionSpec: &resolvers.ExtensionSpecInput{
+			Name:      fmt.Sprintf("esname%s", stamp),
+			Component: fmt.Sprintf("escomponent%s", stamp),
+			FormSpec: []plugins.KeyValue{
+				plugins.KeyValue{
+					Key:   "key",
+					Value: "required|string",
+				},
+			},
+			EnvironmentVariables: []map[string]interface{}{
+				map[string]interface{}{
+					"invalidKey": suite.envVar.Model.ID.String(),
+				},
+			},
+			Type: "workflow",
+			Key:  fmt.Sprintf("key%s", stamp),
+		},
+	}
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
 
-// 	assert.Equal(suite.T(), "Invalid env. vars format", err.Error())
-// }
+	assert.Equal(suite.T(), "Invalid env. vars format", err.Error())
+	suite.TearDownSuite()
+}
 
-// func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecEnvVarsDontExist() {
-// 	stamp := strings.ToLower("TestFailedCreateExtensionSpecEnvVarsDontExist")
+func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecEnvVarsDontExist() {
+	suite.SetupDBAndContext()
+	stamp := strings.ToLower("TestFailedCreateExtensionSpecEnvVarsDontExist")
 
-// 	extensionSpecInput := struct {
-// 		ExtensionSpec *resolvers.ExtensionSpecInput
-// 	}{
-// 		ExtensionSpec: &resolvers.ExtensionSpecInput{
-// 			Name:      fmt.Sprintf("esname%s", stamp),
-// 			Component: fmt.Sprintf("escomponent%s", stamp),
-// 			FormSpec: []plugins.KeyValue{
-// 				plugins.KeyValue{
-// 					Key:   "key",
-// 					Value: "required|string",
-// 				},
-// 			},
-// 			EnvironmentVariables: []map[string]interface{}{
-// 				map[string]interface{}{
-// 					"envVar": "notrealenvvar",
-// 				},
-// 			},
-// 			Type: "workflow",
-// 			Key:  fmt.Sprintf("key%s", stamp),
-// 		},
-// 	}
-// 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
-// 	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
+	extensionSpecInput := struct {
+		ExtensionSpec *resolvers.ExtensionSpecInput
+	}{
+		ExtensionSpec: &resolvers.ExtensionSpecInput{
+			Name:      fmt.Sprintf("esname%s", stamp),
+			Component: fmt.Sprintf("escomponent%s", stamp),
+			FormSpec: []plugins.KeyValue{
+				plugins.KeyValue{
+					Key:   "key",
+					Value: "required|string",
+				},
+			},
+			EnvironmentVariables: []map[string]interface{}{
+				map[string]interface{}{
+					"envVar": "notrealenvvar",
+				},
+			},
+			Type: "workflow",
+			Key:  fmt.Sprintf("key%s", stamp),
+		},
+	}
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
 
-// 	assert.Equal(suite.T(), "Specified env vars don't exist.", err.Error())
-// }
+	assert.Equal(suite.T(), "Specified env vars don't exist.", err.Error())
+	suite.TearDownSuite()
+}
 
 func (suite *TestExtensionSpecs) TestSuccessfulUpdateExtensionSpec() {
 	suite.SetupDBAndContext()
