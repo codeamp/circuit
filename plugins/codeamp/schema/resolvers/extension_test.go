@@ -12,6 +12,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
+	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
@@ -24,6 +25,8 @@ type TestExtensions struct {
 	db      *gorm.DB
 	t       *transistor.Transistor
 	actions *actions.Actions
+	user    models.User
+	context context.Context
 }
 
 func (suite *TestExtensions) SetupSuite() {
@@ -40,16 +43,6 @@ func (suite *TestExtensions) SetupSuite() {
 	db.Exec(fmt.Sprintf("CREATE DATABASE %s", "codeamp_test"))
 	db.Exec("CREATE EXTENSION \"uuid-ossp\"")
 	db.Exec("CREATE EXTENSION IF NOT EXISTS hstore")
-
-	db.AutoMigrate(
-		&models.Project{},
-		&models.Feature{},
-		&models.Release{},
-		&models.Service{},
-		&models.EnvironmentVariable{},
-		&models.Extension{},
-		&models.ExtensionSpec{},
-	)
 
 	transistor.RegisterPlugin("codeamp", func() transistor.Plugin { return codeamp.NewCodeAmp() })
 	t, _ := transistor.NewTestTransistor(transistor.Config{
@@ -83,6 +76,29 @@ func (suite *TestExtensions) SetupSuite() {
 	suite.actions = actions
 }
 
+func (suite *TestExtensions) SetupDBAndContext() {
+	suite.db.AutoMigrate(
+		&models.Project{},
+		&models.Feature{},
+		&models.Release{},
+		&models.Service{},
+		&models.EnvironmentVariable{},
+		&models.Extension{},
+		&models.ExtensionSpec{},
+		&models.User{},
+	)
+
+	user := models.User{
+		Email:       "foo@boo.com",
+		Password:    "secret",
+		Permissions: []models.UserPermission{},
+	}
+	suite.db.Save(&user)
+
+	suite.context = context.WithValue(suite.context, "jwt", utils.Claims{UserId: user.Model.ID.String()})
+	suite.user = user
+}
+
 func (suite *TestExtensions) TearDownSuite() {
 	suite.db.Exec("delete from projects;")
 	suite.db.Exec("delete from features;")
@@ -90,10 +106,13 @@ func (suite *TestExtensions) TearDownSuite() {
 	suite.db.Exec("delete from services;")
 	suite.db.Exec("delete from environment_variables;")
 	suite.db.Exec("delete from extensions;")
+	suite.db.Exec("delete from users;")
 	suite.db.Exec("delete from extension_specs;")
 }
 
 func (suite *TestExtensions) TestSuccessfulCreateExtension() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestSuccessfulCreateExtension")
 	timestamp := time.Now()
 
@@ -144,9 +163,12 @@ func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 	assert.Equal(suite.T(), fmt.Sprintf("test%s", stamp), projectResolver.Name())
 	assert.Equal(suite.T(), fmt.Sprintf("test%s", stamp), extensionSpecResolver.Name())
 	assert.Equal(suite.T(), "key1", formSpecValues[0].Key())
+
+	suite.TearDownSuite()
 }
 
 func (suite *TestExtensions) TestFailedCreateExtensionInvalidExtensionSpecId() {
+	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestFailedCreateExtensionInvalidExtensionSpecId")
 
 	p := models.Project{
@@ -180,9 +202,11 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidExtensionSpecId() {
 	_, err := resolver.CreateExtension(context.TODO(), &extInput)
 
 	assert.Equal(suite.T(), "Could not parse ExtensionSpecId. Invalid Format.", err.Error())
+	suite.TearDownSuite()
 }
 
 func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
+	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestFailedCreateExtensionInvalidProjectId")
 
 	timestamp := time.Now()
@@ -216,9 +240,12 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 	_, err := resolver.CreateExtension(context.TODO(), &extInput)
 
 	assert.Equal(suite.T(), "Could not parse ProjectId. Invalid format.", err.Error())
+	suite.TearDownSuite()
 }
 
 func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestFailedCreateExtensionInvalidFormSpecValues")
 	timestamp := time.Now()
 
@@ -273,9 +300,12 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 	_, err := resolver.CreateExtension(context.TODO(), &extInput)
 
 	assert.Equal(suite.T(), "Required keys not found within extension input: [key3]", err.Error())
+	suite.TearDownSuite()
 }
 
 func (suite *TestExtensions) TestFailedCreateExtensionExtensionSpecDoesntExist() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestFailedCreateExtensionExtensionSpecDoesntExist")
 
 	p := models.Project{
@@ -311,6 +341,7 @@ func (suite *TestExtensions) TestFailedCreateExtensionExtensionSpecDoesntExist()
 	_, err := resolver.CreateExtension(context.TODO(), &extInput)
 
 	assert.Equal(suite.T(), "Can't find corresponding extensionSpec.", err.Error())
+	suite.TearDownSuite()
 }
 
 func TestExtensionResolvers(t *testing.T) {

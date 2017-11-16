@@ -46,19 +46,6 @@ func (suite *TestEnvironmentVariables) SetupSuite() {
 	db.Exec("CREATE EXTENSION \"uuid-ossp\"")
 	db.Exec("CREATE EXTENSION IF NOT EXISTS hstore")
 
-	db.AutoMigrate(
-		&models.Project{},
-		&models.Feature{},
-		&models.Release{},
-		&models.Service{},
-		&models.EnvironmentVariable{},
-		&models.ExtensionSpecEnvironmentVariable{},
-		&models.Extension{},
-		&models.ExtensionSpec{},
-		&models.Environment{},
-		&models.User{},
-	)
-
 	transistor.RegisterPlugin("codeamp", func() transistor.Plugin { return codeamp.NewCodeAmp() })
 	t, _ := transistor.NewTestTransistor(transistor.Config{
 		Server:    "http://127.0.0.1:16379",
@@ -84,23 +71,39 @@ func (suite *TestEnvironmentVariables) SetupSuite() {
 		Queueing:       false,
 	})
 
-	actions := actions.NewActions(t.TestEvents, db)
+	suite.actions = actions.NewActions(t.TestEvents, db)
+	suite.db = db
+	suite.t = t
+}
+
+func (suite *TestEnvironmentVariables) SetupDBAndContext() {
+
+	suite.db.AutoMigrate(
+		&models.Project{},
+		&models.Feature{},
+		&models.Release{},
+		&models.Service{},
+		&models.EnvironmentVariable{},
+		&models.ExtensionSpecEnvironmentVariable{},
+		&models.Extension{},
+		&models.ExtensionSpec{},
+		&models.Environment{},
+		&models.User{},
+	)
 
 	env := models.Environment{
 		Name: "Production",
 	}
-	db.Save(&env)
+	suite.db.Save(&env)
 	user := models.User{
 		Email:       "foo@boo.com",
 		Password:    "secret",
 		Permissions: []models.UserPermission{},
 	}
-	db.Save(&user)
+	suite.db.Save(&user)
 
-	suite.db = db
-	suite.t = t
-	suite.actions = actions
 	suite.context = context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: user.Model.ID.String()})
+
 	suite.user = user
 	suite.env = env
 }
@@ -119,6 +122,8 @@ func (suite *TestEnvironmentVariables) TearDownSuite() {
 }
 
 func (suite *TestEnvironmentVariables) TestSuccessfulCreateEnvironmentVariable() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestSuccessfulCreateEnvironmentVariable")
 
 	envVarInput := struct {
@@ -141,11 +146,17 @@ func (suite *TestEnvironmentVariables) TestSuccessfulCreateEnvironmentVariable()
 	assert.Equal(suite.T(), fmt.Sprintf("key%s", stamp), envVarResolver.Key())
 	assert.Equal(suite.T(), fmt.Sprintf("value%s", stamp), envVarResolver.Value())
 	assert.Equal(suite.T(), string(plugins.Env), envVarResolver.Type())
-	assert.Equal(suite.T(), string(plugins.ExtensionScope), envVarResolver.Scope())
+
+	// since no projectId, will auto-save to Global Scope even if ExtensionScope requested
+	assert.Equal(suite.T(), string(plugins.GlobalScope), envVarResolver.Scope())
 	assert.Equal(suite.T(), "Production", envResolver.Name(context.TODO()))
+
+	suite.TearDownSuite()
 }
 
 func (suite *TestEnvironmentVariables) TestFailedCreateEnvironmentVariableAlreadyExistsInSameEnvironment() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestFailedCreateEnvironmentVariableAlreadyExists")
 
 	envVar := models.EnvironmentVariable{
@@ -177,9 +188,13 @@ func (suite *TestEnvironmentVariables) TestFailedCreateEnvironmentVariableAlread
 	_, err := resolver.CreateEnvironmentVariable(suite.context, &envVarInput)
 
 	assert.Equal(suite.T(), "CreateEnvironmentVariable: key already exists", err.Error())
+
+	suite.TearDownSuite()
 }
 
 func (suite *TestEnvironmentVariables) TestSuccessfulUpdateEnvironmentVariable() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestSuccessfulUpdateEnvironmentVariable")
 
 	e2 := models.Environment{
@@ -223,9 +238,13 @@ func (suite *TestEnvironmentVariables) TestSuccessfulUpdateEnvironmentVariable()
 	assert.Equal(suite.T(), int32(1), envVarResolver.Version())
 	assert.Equal(suite.T(), fmt.Sprintf("Production2%s", stamp), envResolver.Name(suite.context))
 	assert.Equal(suite.T(), plugins.GlobalScope, envVarResolver.Scope())
+
+	suite.TearDownSuite()
 }
 
 func (suite *TestEnvironmentVariables) TestFailedUpdateEnvironmentVariableDoesntExist() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestFailedUpdateEnvironmentVariableDoesntExist")
 
 	fakeEnvVarId := uuid.NewV1().String()
@@ -247,9 +266,13 @@ func (suite *TestEnvironmentVariables) TestFailedUpdateEnvironmentVariableDoesnt
 	_, err := resolver.UpdateEnvironmentVariable(suite.context, &envVarInput)
 
 	assert.Equal(suite.T(), "UpdateEnvironmentVariable: env var doesn't exist.", err.Error())
+
+	suite.TearDownSuite()
 }
 
 func (suite *TestEnvironmentVariables) TestSuccessfulDeleteEnvironmentVariable() {
+	suite.SetupDBAndContext()
+
 	stamp := strings.ToLower("TestSuccessfulDeleteEnvironmentVariable")
 
 	envVar := models.EnvironmentVariable{
@@ -290,6 +313,8 @@ func (suite *TestEnvironmentVariables) TestSuccessfulDeleteEnvironmentVariable()
 	_, err := resolver.EnvironmentVariable(suite.context, &envId)
 
 	assert.Equal(suite.T(), "record not found", err.Error())
+
+	suite.TearDownSuite()
 }
 
 func TestEnvironmentVariableResolvers(t *testing.T) {

@@ -46,19 +46,6 @@ func (suite *TestExtensionSpecs) SetupSuite() {
 	db.Exec("CREATE EXTENSION \"uuid-ossp\"")
 	db.Exec("CREATE EXTENSION IF NOT EXISTS hstore")
 
-	db.AutoMigrate(
-		&models.Project{},
-		&models.Feature{},
-		&models.Release{},
-		&models.Service{},
-		&models.EnvironmentVariable{},
-		&models.ExtensionSpecEnvironmentVariable{},
-		&models.Extension{},
-		&models.ExtensionSpec{},
-		&models.Environment{},
-		&models.User{},
-	)
-
 	transistor.RegisterPlugin("codeamp", func() transistor.Plugin { return codeamp.NewCodeAmp() })
 	t, _ := transistor.NewTestTransistor(transistor.Config{
 		Server:    "http://127.0.0.1:16379",
@@ -86,16 +73,36 @@ func (suite *TestExtensionSpecs) SetupSuite() {
 
 	actions := actions.NewActions(t.TestEvents, db)
 
+	suite.db = db
+	suite.t = t
+	suite.actions = actions
+
+}
+
+func (suite *TestExtensionSpecs) SetupDBAndContext() {
+	suite.db.AutoMigrate(
+		&models.Project{},
+		&models.Feature{},
+		&models.Release{},
+		&models.Service{},
+		&models.EnvironmentVariable{},
+		&models.ExtensionSpecEnvironmentVariable{},
+		&models.Extension{},
+		&models.ExtensionSpec{},
+		&models.Environment{},
+		&models.User{},
+	)
+
 	env := models.Environment{
 		Name: "Production",
 	}
-	db.Save(&env)
+	suite.db.Save(&env)
 	user := models.User{
 		Email:       "foo@boo.com",
 		Password:    "secret",
 		Permissions: []models.UserPermission{},
 	}
-	db.Save(&user)
+	suite.db.Save(&user)
 
 	envVar := models.EnvironmentVariable{
 		Key:           "key",
@@ -108,30 +115,28 @@ func (suite *TestExtensionSpecs) SetupSuite() {
 		Created:       time.Now(),
 		EnvironmentId: env.Model.ID,
 	}
-	db.Save(&envVar)
+	suite.db.Save(&envVar)
 
-	suite.db = db
-	suite.t = t
-	suite.actions = actions
 	suite.context = context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: user.Model.ID.String()})
 	suite.user = user
 	suite.envVar = envVar
 }
 
-/*
-type ExtensionSpec struct {
-	Model     `json:",inline"`
-	Type      string          `json:"type"`
-	Key       string          `json:"key"`
-	EnvVars   postgres.Hstore `json:"envVars"`
-	Name      string          `json:"name"`
-	Component string          `json:"component"`
-	FormSpec  postgres.Hstore `json:"formSpec"`
-	Created   time.Time       `json:"created"`
+func (suite *TestExtensionSpecs) TearDownSuite() {
+	suite.db.Exec("delete from projects;")
+	suite.db.Exec("delete from features;")
+	suite.db.Exec("delete from releases;")
+	suite.db.Exec("delete from services;")
+	suite.db.Exec("delete from environment_variables;")
+	suite.db.Exec("delete from extension_spec_environment_variables;")
+	suite.db.Exec("delete from extensions;")
+	suite.db.Exec("delete from extension_specs;")
+	suite.db.Exec("delete from environments;")
+	suite.db.Exec("delete from users;")
 }
-*/
 
 func (suite *TestExtensionSpecs) TestSuccessfulCreateExtensionSpec() {
+	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulCreateExtensionSpec")
 
 	extensionSpecInput := struct {
@@ -151,8 +156,8 @@ func (suite *TestExtensionSpecs) TestSuccessfulCreateExtensionSpec() {
 					"envVar": suite.envVar.Model.ID.String(),
 				},
 			},
-			Type: "",
-			Key:  "",
+			Type: "workflow",
+			Key:  fmt.Sprintf("key%s", stamp),
 		},
 	}
 
@@ -160,9 +165,101 @@ func (suite *TestExtensionSpecs) TestSuccessfulCreateExtensionSpec() {
 	esResolver, _ := resolver.CreateExtensionSpec(&extensionSpecInput)
 
 	assert.Equal(suite.T(), fmt.Sprintf("esname%s", stamp), esResolver.Name())
+	suite.TearDownSuite()
 }
 
+// func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecInvalidType() {
+// 	stamp := strings.ToLower("TestFailedCreateExtensionSpecInvalidType")
+
+// 	extensionSpecInput := struct {
+// 		ExtensionSpec *resolvers.ExtensionSpecInput
+// 	}{
+// 		ExtensionSpec: &resolvers.ExtensionSpecInput{
+// 			Name:      fmt.Sprintf("esname%s", stamp),
+// 			Component: fmt.Sprintf("escomponent%s", stamp),
+// 			FormSpec: []plugins.KeyValue{
+// 				plugins.KeyValue{
+// 					Key:   "key",
+// 					Value: "required|string",
+// 				},
+// 			},
+// 			EnvironmentVariables: []map[string]interface{}{
+// 				map[string]interface{}{
+// 					"envVar": suite.envVar.Model.ID.String(),
+// 				},
+// 			},
+// 			Type: "invalidtype",
+// 			Key:  fmt.Sprintf("key%s", stamp),
+// 		},
+// 	}
+// 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+// 	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
+
+// 	assert.Equal(suite.T(), "Invalid extension type: invalidtype", err.Error())
+// }
+
+// func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecInvalidEnvVarsFormat() {
+// 	stamp := strings.ToLower("TestFailedCreateExtensionSpecInvalidEnvVarsFormat")
+
+// 	extensionSpecInput := struct {
+// 		ExtensionSpec *resolvers.ExtensionSpecInput
+// 	}{
+// 		ExtensionSpec: &resolvers.ExtensionSpecInput{
+// 			Name:      fmt.Sprintf("esname%s", stamp),
+// 			Component: fmt.Sprintf("escomponent%s", stamp),
+// 			FormSpec: []plugins.KeyValue{
+// 				plugins.KeyValue{
+// 					Key:   "key",
+// 					Value: "required|string",
+// 				},
+// 			},
+// 			EnvironmentVariables: []map[string]interface{}{
+// 				map[string]interface{}{
+// 					"invalidKey": suite.envVar.Model.ID.String(),
+// 				},
+// 			},
+// 			Type: "workflow",
+// 			Key:  fmt.Sprintf("key%s", stamp),
+// 		},
+// 	}
+// 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+// 	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
+
+// 	assert.Equal(suite.T(), "Invalid env. vars format", err.Error())
+// }
+
+// func (suite *TestExtensionSpecs) TestFailedCreateExtensionSpecEnvVarsDontExist() {
+// 	stamp := strings.ToLower("TestFailedCreateExtensionSpecEnvVarsDontExist")
+
+// 	extensionSpecInput := struct {
+// 		ExtensionSpec *resolvers.ExtensionSpecInput
+// 	}{
+// 		ExtensionSpec: &resolvers.ExtensionSpecInput{
+// 			Name:      fmt.Sprintf("esname%s", stamp),
+// 			Component: fmt.Sprintf("escomponent%s", stamp),
+// 			FormSpec: []plugins.KeyValue{
+// 				plugins.KeyValue{
+// 					Key:   "key",
+// 					Value: "required|string",
+// 				},
+// 			},
+// 			EnvironmentVariables: []map[string]interface{}{
+// 				map[string]interface{}{
+// 					"envVar": "notrealenvvar",
+// 				},
+// 			},
+// 			Type: "workflow",
+// 			Key:  fmt.Sprintf("key%s", stamp),
+// 		},
+// 	}
+// 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+// 	_, err := resolver.CreateExtensionSpec(&extensionSpecInput)
+
+// 	assert.Equal(suite.T(), "Specified env vars don't exist.", err.Error())
+// }
+
 func (suite *TestExtensionSpecs) TestSuccessfulUpdateExtensionSpec() {
+	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulUpdateExtensionSpec")
 
 	valString := "val"
@@ -213,9 +310,12 @@ func (suite *TestExtensionSpecs) TestSuccessfulUpdateExtensionSpec() {
 	assert.Equal(suite.T(), fmt.Sprintf("component2%s", stamp), esResolver.Component())
 	assert.Equal(suite.T(), 1, len(envVarResolvers))
 	assert.Equal(suite.T(), graphql.ID(suite.envVar.Model.ID.String()), envVarResolvers[0].ID())
+
+	suite.TearDownSuite()
 }
 
 func (suite *TestExtensionSpecs) TestSuccessfulDeleteExtensionSpec() {
+	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulDeleteExtensionSpec")
 
 	valString := "val"
@@ -265,19 +365,7 @@ func (suite *TestExtensionSpecs) TestSuccessfulDeleteExtensionSpec() {
 	suite.db.Where("id = ?", esString).Find(&emptyEs)
 
 	assert.Equal(suite.T(), models.ExtensionSpec{}, emptyEs)
-}
-
-func (suite *TestExtensionSpecs) TearDownSuite() {
-	suite.db.Exec("delete from projects;")
-	suite.db.Exec("delete from features;")
-	suite.db.Exec("delete from releases;")
-	suite.db.Exec("delete from services;")
-	suite.db.Exec("delete from environment_variables;")
-	suite.db.Exec("delete from extension_spec_environment_variables;")
-	suite.db.Exec("delete from extensions;")
-	suite.db.Exec("delete from extension_specs;")
-	suite.db.Exec("delete from environments;")
-	suite.db.Exec("delete from users;")
+	suite.TearDownSuite()
 }
 
 func TestExtensionSpecResolvers(t *testing.T) {
