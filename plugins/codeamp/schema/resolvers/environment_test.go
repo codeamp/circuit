@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"testing"
 
 	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -99,23 +100,123 @@ func (suite *TestEnvironment) TearDownSuite() {
 func (suite *TestEnvironment) TestSuccessfulCreateEnvironment() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulCreateEnvironment")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
+
+	var envResolver *resolvers.EnvironmentResolver
+	envInput := struct {
+		Environment *resolvers.EnvironmentInput
+	}{
+		Environment: &resolvers.EnvironmentInput{
+			Name: fmt.Sprintf("testfoo%s", stamp),
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+	envResolver, _ = resolver.CreateEnvironment(suite.context, &envInput)
+	assert.Equal(suite.T(), fmt.Sprintf("testfoo%s", stamp), envResolver.Name(suite.context))
+
+	envInput2 := struct {
+		Environment *resolvers.EnvironmentInput
+	}{
+		Environment: &resolvers.EnvironmentInput{
+			Name: fmt.Sprintf("testfoo2%s", stamp),
+		},
+	}
+	envResolver, _ = resolver.CreateEnvironment(suite.context, &envInput2)
+	assert.Equal(suite.T(), fmt.Sprintf("testfoo2%s", stamp), envResolver.Name(suite.context))
+
+	envInput3 := struct {
+		Environment *resolvers.EnvironmentInput
+	}{
+		Environment: &resolvers.EnvironmentInput{
+			Name: fmt.Sprintf("testfoo3%s", stamp),
+		},
+	}
+	envResolver, _ = resolver.CreateEnvironment(suite.context, &envInput3)
+	assert.Equal(suite.T(), fmt.Sprintf("testfoo3%s", stamp), envResolver.Name(suite.context))
+
+	// because created_at desc in Environments() method
+	envInputs := []struct{ Environment *resolvers.EnvironmentInput }{
+		envInput3, envInput2, envInput,
+	}
+
+	// get from Environments
+	envResolvers, _ := resolver.Environments(suite.context)
+	assert.Equal(suite.T(), 3, len(envResolvers))
+	for idx, envResolver := range envResolvers {
+		assert.Equal(suite.T(), envInputs[idx].Environment.Name, envResolver.Name(suite.context))
+	}
+
 	suite.TearDownSuite()
 }
 
 func (suite *TestEnvironment) TestSuccessfulUpdateEnvironment() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulUpdateEnvironment")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
+
+	env := models.Environment{
+		Name: fmt.Sprintf("testfoo%s", stamp),
+	}
+	suite.db.Save(&env)
+	envId := env.Model.ID.String()
+
+	var envResolver *resolvers.EnvironmentResolver
+	envInput := struct {
+		Environment *resolvers.EnvironmentInput
+	}{
+		Environment: &resolvers.EnvironmentInput{
+			ID:   &envId,
+			Name: fmt.Sprintf("testfoo2%s", stamp),
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+	envResolver, _ = resolver.UpdateEnvironment(suite.context, &envInput)
+
+	assert.Equal(suite.T(), fmt.Sprintf("testfoo2%s", stamp), envResolver.Name(suite.context))
+
+	envResolvers, _ := resolver.Environments(suite.context)
+
+	assert.Equal(suite.T(), 1, len(envResolvers))
+	assert.Equal(suite.T(), fmt.Sprintf("testfoo2%s", stamp), envResolvers[0].Name(suite.context))
+
 	suite.TearDownSuite()
 }
 
 func (suite *TestEnvironment) TestSuccessfulDeleteEnvironment() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulDeleteEnvironment")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
+
+	env := models.Environment{
+		Name: fmt.Sprintf("testfoo%s", stamp),
+	}
+	suite.db.Save(&env)
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+	envResolvers, _ := resolver.Environments(suite.context)
+	assert.Equal(suite.T(), 1, len(envResolvers))
+	assert.Equal(suite.T(), env.Name, envResolvers[0].Name(suite.context))
+
+	envId := env.Model.ID.String()
+	var envResolver *resolvers.EnvironmentResolver
+
+	envInput := struct {
+		Environment *resolvers.EnvironmentInput
+	}{
+		Environment: &resolvers.EnvironmentInput{
+			ID:   &envId,
+			Name: fmt.Sprintf("testfoo2%s", stamp),
+		},
+	}
+
+	envResolver, _ = resolver.DeleteEnvironment(suite.context, &envInput)
+	assert.Equal(suite.T(), envId, string(envResolver.ID()))
+
+	envResolvers, _ = resolver.Environments(suite.context)
+	assert.Equal(suite.T(), 0, len(envResolvers))
+
 	suite.TearDownSuite()
+}
+
+func TestEnvironmentResolvers(t *testing.T) {
+	suite.Run(t, new(TestEnvironment))
 }
