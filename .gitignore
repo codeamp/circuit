@@ -31,3 +31,5 @@ server/secrets/*
 
 # Vim swap files
 *.sw*
+
+.vscode

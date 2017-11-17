@@ -196,7 +196,9 @@ func (t *Transistor) flusher() {
 
 							workers.EnqueueWithOptions(plugin.Name, "Event", e, options)
 						} else {
-							plugin.Plugin.Process(e)
+							go func() {
+								plugin.Plugin.Process(e)
+							}()
 						}
 					}
 				}
