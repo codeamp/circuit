@@ -100,7 +100,10 @@ func (suite *TestUser) TestSuccessfulCreateUser() {
 		},
 	}
 	userResolver := resolver.CreateUser(&userInput)
-	context1 := context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: string(userResolver.ID())})
+	context1 := context.WithValue(context.TODO(), "jwt", utils.Claims{
+		UserId: string(userResolver.ID()),
+		Groups: []string{"admin"},
+	})
 
 	email, _ := userResolver.Email(context1)
 	assert.Equal(suite.T(), fmt.Sprintf("foo%s@boo.com", stamp), email)
@@ -114,9 +117,12 @@ func (suite *TestUser) TestSuccessfulCreateUser() {
 		},
 	}
 	userResolver2 := resolver.CreateUser(&userInput2)
-	context2 := context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: string(userResolver2.ID())})
+	context2 := context.WithValue(context.TODO(), "jwt", utils.Claims{
+		UserId: string(userResolver2.ID()),
+		Groups: []string{"admin"},
+	})
 
-	email2, _ := userResolver.Email(context2)
+	email2, _ := userResolver2.Email(context2)
 	assert.Equal(suite.T(), fmt.Sprintf("foo2%s@boo.com", stamp), email2)
 
 	userInput3 := struct {
@@ -128,9 +134,12 @@ func (suite *TestUser) TestSuccessfulCreateUser() {
 		},
 	}
 	userResolver3 := resolver.CreateUser(&userInput3)
-	context3 := context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: string(userResolver3.ID())})
+	context3 := context.WithValue(context.TODO(), "jwt", utils.Claims{
+		UserId: string(userResolver3.ID()),
+		Groups: []string{"admin"},
+	})
 
-	email3, _ := userResolver.Email(context3)
+	email3, _ := userResolver3.Email(context3)
 	assert.Equal(suite.T(), fmt.Sprintf("foo3%s@boo.com", stamp), email3)
 
 	createUserResolvers := []*resolvers.UserResolver{
@@ -141,6 +150,7 @@ func (suite *TestUser) TestSuccessfulCreateUser() {
 	}
 
 	userResolvers, _ := resolver.Users(context1)
+
 	assert.Equal(suite.T(), 3, len(userResolvers))
 	for idx, userResolver := range userResolvers {
 		expectedEmail, _ := createUserResolvers[idx].Email(contexts[idx])

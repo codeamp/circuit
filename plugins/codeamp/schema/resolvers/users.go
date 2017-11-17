@@ -15,7 +15,7 @@ func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 	var rows []models.User
 	var results []*UserResolver
 
-	r.db.Where("created_at desc").Find(&rows)
+	r.db.Order("created_at desc").Find(&rows)
 
 	for _, user := range rows {
 		results = append(results, &UserResolver{db: r.db, User: user})
