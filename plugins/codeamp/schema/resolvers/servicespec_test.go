@@ -94,7 +94,7 @@ func (suite *TestServiceSpec) SetupDBAndContext() {
 func (suite *TestServiceSpec) TearDownSuite() {
 	suite.db.Exec("delete from users;")
 	suite.db.Exec("delete from user_permissions;")
-	suite.db.Exec("delete from ServiceSpecs;")
+	suite.db.Exec("delete from service_specs;")
 }
 
 func (suite *TestServiceSpec) TestSuccessfulCreateServiceSpec() {
