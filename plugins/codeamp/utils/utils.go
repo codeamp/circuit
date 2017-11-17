@@ -121,7 +121,6 @@ func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 	if len(scopes) == 0 {
 		return claims.UserId, nil
 	} else {
-		return claims.UserId, nil
 		for _, scope := range scopes {
 			if transistor.SliceContains(scope, claims.Groups) {
 				return claims.UserId, nil

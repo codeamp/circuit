@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -36,7 +35,6 @@ func (r *Resolver) ServiceSpec(ctx context.Context, args *struct{ ID graphql.ID 
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	spew.Dump(args.ServiceSpec)
 	serviceSpec := models.ServiceSpec{
 		Name:                   args.ServiceSpec.Name,
 		CpuRequest:             args.ServiceSpec.CpuRequest,
@@ -64,8 +62,6 @@ func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 	if r.db.Where("id=?", serviceSpecId).Find(&serviceSpec).RecordNotFound() {
 		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
 	}
-
-	spew.Dump(args.ServiceSpec)
 
 	serviceSpec.Name = args.ServiceSpec.Name
 	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit

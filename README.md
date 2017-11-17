@@ -22,15 +22,15 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 **Current Tests**
 - [X] Project 
 - [X] Feature
-- [ ] Environment
+- [X] Environment
 - [X] Environment Variable
 - [X] Extension
-- [ ] Extension Spec
-- [ ] Release Extension
-- [ ] Release
-- [ ] Service Spec
-- [ ] User
-- [ ] Service
+- [X] Extension Spec
+- [X] Release Extension
+- [X] Release
+- [X] Service Spec
+- [X] User
+- [X] Service
 
 ## TODO
 
@@ -43,4 +43,4 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 - [ ] Implement relevant views and metrics for the environments manager.
 - [ ] Map branches to specific environments (either on a project or global basis)
 - [ ] Documentation on creating an Extension and guided walkthrough
-- [ ] Writing backend unit and integration tests
+- [X] Writing backend unit and integration tests

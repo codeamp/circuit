@@ -122,7 +122,6 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 	if err != nil {
 		return &ServiceResolver{}, err
 	}
-	spew.Dump(args.Service)
 	service := models.Service{
 		Name:          args.Service.Name,
 		Command:       args.Service.Command,
@@ -134,7 +133,6 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 	}
 
 	r.db.Create(&service)
-	spew.Dump(*args.Service.ContainerPorts)
 
 	if args.Service.ContainerPorts != nil {
 		for _, cp := range *args.Service.ContainerPorts {
