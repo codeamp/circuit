@@ -203,6 +203,7 @@ func (t *Transistor) flusher() {
 					}
 				}
 			}
+
 			if t.TestEvents != nil {
 				t.TestEvents <- e
 			} else if !ev_handled {
