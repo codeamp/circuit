@@ -17,6 +17,10 @@ storage:
     ssl:
       mode: disable
 
+frontend:
+  dir: /go/src/github.com/codeamp/circuit/bootstrap/dex/web
+  theme: coreos
+
 # Configuration for the HTTP endpoints.
 web:
   http: 0.0.0.0:5556
@@ -64,16 +68,6 @@ connectors:
   - type: mockCallback
     id: mock
     name: Example
-  - type: saml
-    id: okta
-    name: Okta
-    config:
-      ssoURL: https://checkr.okta.com/app/checkr_codeampdemo_1/exk4b6x8koNhNscmL1t7/sso/saml
-      ca: /etc/dex/okta-saml-ca.pem
-      redirectURI: http://localhost:5556/dex/callback
-      usernameAttr: name
-      emailAttr: email
-      groupsAttr: groups
 
 # Let dex keep a list of passwords which can be used to login to dex.
 enablePasswordDB: false

@@ -1,10 +1,12 @@
-version: "2"
+version: "3"
 services:
   redis:
     container_name: circuit_redis
     image: redis
     ports:
       - "${DOCKER_COMPOSE_REDIS_PORT}:6379"
+    networks:
+      - codeamp
   postgres:
     container_name: circuit_postgres
     image: postgres
@@ -12,27 +14,27 @@ services:
       - "${DOCKER_COMPOSE_POSTGRES_PORT}:5432"
     volumes:
       - ./bootstrap/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - codeamp
   circuit:
-    command: reflex -c reflex.conf
+    image: codeamp:v001
+    command: sh -c "/usr/local/bin/dex serve /etc/dex/dex.dev.yaml & reflex -c reflex.conf"
     build:
       context: .
       dockerfile: Dockerfile.dev
     ports:
       - "${DOCKER_COMPOSE_CIRCUIT_PORT}:3011"
+      - "${DOCKER_COMPOSE_DEX_APP_PORT}:5555"
+      - "${DOCKER_COMPOSE_DEX_PORT}:5556"
     volumes:
       - .:/go/src/github.com/codeamp/circuit
       - /var/run/docker.sock:/var/run/docker.sock
-    links:
-      - redis
-      - postgres
-  dex:
-    image: quay.io/coreos/dex:v2.7.1
-    volumes:
       - ./configs/dex.dev.yaml:/etc/dex/dex.dev.yaml
-      - ./configs/okta-saml-ca.pem:/etc/dex/okta-saml-ca.pem
-    ports:
-      - "${DOCKER_COMPOSE_DEX_APP_PORT}:5555"
-      - "${DOCKER_COMPOSE_DEX_PORT}:5556"
-    links:
+    depends_on:
       - postgres
-    command: serve /etc/dex/dex.dev.yaml 
+      - redis
+    networks:
+      - codeamp
+networks:
+  codeamp:
+    driver: bridge
