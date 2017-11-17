@@ -9,9 +9,9 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -22,8 +22,6 @@ type TestUser struct {
 	db      *gorm.DB
 	t       *transistor.Transistor
 	actions *actions.Actions
-	user    models.User
-	context context.Context
 }
 
 func (suite *TestUser) SetupSuite() {
@@ -78,45 +76,79 @@ func (suite *TestUser) SetupDBAndContext() {
 		&models.User{},
 		&models.UserPermission{},
 	)
-
-	user := models.User{
-		Email:       "foo@boo.com",
-		Password:    "secret",
-		Permissions: []models.UserPermission{},
-	}
-	suite.db.Save(&user)
-
-	suite.context = context.WithValue(suite.context, "jwt", utils.Claims{UserId: user.Model.ID.String()})
-	suite.user = user
 }
 
 func (suite *TestUser) TearDownSuite() {
 	suite.db.Exec("delete from users;")
 	suite.db.Exec("delete from user_permissions;")
-	suite.db.Exec("delete from USers;")
 }
 
 func (suite *TestUser) TestSuccessfulCreateUser() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulCreateUser")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
-	suite.TearDownSuite()
-}
 
-func (suite *TestUser) TestSuccessfulUpdateUser() {
-	suite.SetupDBAndContext()
-	stamp := strings.ToLower("TestSuccessfulUpdateUser")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
-	suite.TearDownSuite()
-}
+	// context = context.WithValue(suite.context, "jwt", utils.Claims{UserId: user.Model.ID.String()})
 
-func (suite *TestUser) TestSuccessfulDeleteUser() {
-	suite.SetupDBAndContext()
-	stamp := strings.ToLower("TestSuccessfulDeleteUser")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+
+	userInput := struct {
+		User *resolvers.UserInput
+	}{
+		User: &resolvers.UserInput{
+			Email:    fmt.Sprintf("foo%s@boo.com", stamp),
+			Password: "secret",
+		},
+	}
+	userResolver := resolver.CreateUser(&userInput)
+	context1 := context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: string(userResolver.ID())})
+
+	email, _ := userResolver.Email(context1)
+	assert.Equal(suite.T(), fmt.Sprintf("foo%s@boo.com", stamp), email)
+
+	userInput2 := struct {
+		User *resolvers.UserInput
+	}{
+		User: &resolvers.UserInput{
+			Email:    fmt.Sprintf("foo2%s@boo.com", stamp),
+			Password: "secret",
+		},
+	}
+	userResolver2 := resolver.CreateUser(&userInput2)
+	context2 := context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: string(userResolver2.ID())})
+
+	email2, _ := userResolver.Email(context2)
+	assert.Equal(suite.T(), fmt.Sprintf("foo2%s@boo.com", stamp), email2)
+
+	userInput3 := struct {
+		User *resolvers.UserInput
+	}{
+		User: &resolvers.UserInput{
+			Email:    fmt.Sprintf("foo3%s@boo.com", stamp),
+			Password: "secret",
+		},
+	}
+	userResolver3 := resolver.CreateUser(&userInput3)
+	context3 := context.WithValue(context.TODO(), "jwt", utils.Claims{UserId: string(userResolver3.ID())})
+
+	email3, _ := userResolver.Email(context3)
+	assert.Equal(suite.T(), fmt.Sprintf("foo3%s@boo.com", stamp), email3)
+
+	createUserResolvers := []*resolvers.UserResolver{
+		userResolver3, userResolver2, userResolver,
+	}
+	contexts := []context.Context{
+		context3, context2, context1,
+	}
+
+	userResolvers, _ := resolver.Users(context1)
+	assert.Equal(suite.T(), 3, len(userResolvers))
+	for idx, userResolver := range userResolvers {
+		expectedEmail, _ := createUserResolvers[idx].Email(contexts[idx])
+		actualEmail, _ := userResolver.Email(contexts[idx])
+
+		assert.Equal(suite.T(), expectedEmail, actualEmail)
+	}
+
 	suite.TearDownSuite()
 }
 
