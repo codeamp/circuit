@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"testing"
 
 	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
@@ -118,4 +119,7 @@ func (suite *TestRelease) TestSuccessfulDeleteRelease() {
 	spew.Dump(stamp)
 	assert.Equal(suite.T(), true, true)
 	suite.TearDownSuite()
+}
+func TestReleaseResolvers(t *testing.T) {
+	suite.Run(t, new(TestRelease))
 }

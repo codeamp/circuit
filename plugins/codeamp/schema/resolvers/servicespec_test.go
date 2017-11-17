@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"testing"
 
 	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
@@ -118,4 +119,8 @@ func (suite *TestServiceSpec) TestSuccessfulDeleteServiceSpec() {
 	spew.Dump(stamp)
 	assert.Equal(suite.T(), true, true)
 	suite.TearDownSuite()
+}
+
+func TestServiceSpecResolvers(t *testing.T) {
+	suite.Run(t, new(TestServiceSpec))
 }
