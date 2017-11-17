@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -78,6 +80,11 @@ func (suite *TestReleaseExtension) SetupDBAndContext() {
 		&models.User{},
 		&models.UserPermission{},
 		&models.ReleaseExtension{},
+		&models.Release{},
+		&models.Feature{},
+		&models.Extension{},
+		&models.ExtensionSpec{},
+		&models.Project{},
 	)
 
 	user := models.User{
@@ -93,31 +100,129 @@ func (suite *TestReleaseExtension) SetupDBAndContext() {
 
 func (suite *TestReleaseExtension) TearDownSuite() {
 	suite.db.Exec("delete from users;")
+	suite.db.Exec("delete from projects;")
 	suite.db.Exec("delete from user_permissions;")
-	suite.db.Exec("delete from ReleaseExtensions;")
+	suite.db.Exec("delete from release_extensions;")
+	suite.db.Exec("delete from extension_specs;")
+	suite.db.Exec("delete from features;")
+	suite.db.Exec("delete from extensions;")
+	suite.db.Exec("delete from releases;")
 }
 
-func (suite *TestReleaseExtension) TestSuccessfulCreateReleaseExtension() {
+func (suite *TestReleaseExtension) TestReleaseExtensions() {
 	suite.SetupDBAndContext()
-	stamp := strings.ToLower("TestSuccessfulCreateReleaseExtension")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
-	suite.TearDownSuite()
-}
+	stamp := strings.ToLower("TestReleaseExtensions")
 
-func (suite *TestReleaseExtension) TestSuccessfulUpdateReleaseExtension() {
-	suite.SetupDBAndContext()
-	stamp := strings.ToLower("TestSuccessfulUpdateReleaseExtension")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
-	suite.TearDownSuite()
-}
+	project := models.Project{
+		Name:          fmt.Sprintf("testname %s", time.Now().String()),
+		Slug:          fmt.Sprintf("testslug %s", time.Now().String()),
+		Repository:    "testrepository",
+		Secret:        "testsecret",
+		GitUrl:        "testgiturl",
+		GitProtocol:   "testgitprotocol",
+		RsaPrivateKey: "testrsaprivatekey",
+		RsaPublicKey:  "testrsapublickey",
+	}
+	suite.db.Save(&project)
 
-func (suite *TestReleaseExtension) TestSuccessfulDeleteReleaseExtension() {
-	suite.SetupDBAndContext()
-	stamp := strings.ToLower("TestSuccessfulDeleteReleaseExtension")
-	spew.Dump(stamp)
-	assert.Equal(suite.T(), true, true)
+	headFeature := models.Feature{
+		Message:    "test",
+		User:       "testuser",
+		Hash:       "testhash1",
+		ParentHash: "testparenthash",
+		Ref:        "testref",
+		Created:    time.Now(),
+		ProjectId:  project.Model.ID,
+	}
+	suite.db.Save(&headFeature)
+
+	tailFeature := models.Feature{
+		Message:    "test",
+		User:       "testuser",
+		Hash:       "testhash2",
+		ParentHash: "testparenthash",
+		Ref:        "testref",
+		Created:    time.Now(),
+		ProjectId:  project.Model.ID,
+	}
+	suite.db.Save(&tailFeature)
+
+	release := models.Release{
+		ProjectId:     project.Model.ID,
+		UserID:        suite.user.Model.ID,
+		HeadFeatureID: headFeature.Model.ID,
+		TailFeatureID: tailFeature.Model.ID,
+		StateMessage:  "statemessage",
+	}
+	suite.db.Save(&release)
+
+	extensionSpec := models.ExtensionSpec{
+		Type: plugins.Workflow,
+		Key:  fmt.Sprintf("releaseextension%s", stamp),
+	}
+	suite.db.Save(&extensionSpec)
+
+	extension := models.Extension{
+		ProjectId:       project.Model.ID,
+		ExtensionSpecId: extensionSpec.Model.ID,
+		Slug:            "foo",
+		State:           plugins.Waiting,
+		Artifacts:       map[string]*string{},
+		FormSpecValues:  map[string]*string{},
+	}
+	suite.db.Save(&extension)
+
+	re := models.ReleaseExtension{
+		ReleaseId:         release.Model.ID,
+		Slug:              extensionSpec.Key,
+		FeatureHash:       fmt.Sprintf("featurehash%s", stamp),
+		ServicesSignature: fmt.Sprintf("servicessignature%s", stamp),
+		SecretsSignature:  fmt.Sprintf("secretssignature%s", stamp),
+		ExtensionId:       extension.Model.ID,
+		State:             plugins.Waiting,
+		StateMessage:      "testmessage",
+		Type:              plugins.Workflow,
+		Artifacts:         map[string]*string{},
+		Finished:          time.Now(),
+	}
+
+	suite.db.Save(&re)
+
+	re2 := models.ReleaseExtension{
+		ReleaseId:         release.Model.ID,
+		Slug:              extensionSpec.Key,
+		FeatureHash:       fmt.Sprintf("featurehash2%s", stamp),
+		ServicesSignature: fmt.Sprintf("servicessignature2%s", stamp),
+		SecretsSignature:  fmt.Sprintf("secretssignature2%s", stamp),
+		ExtensionId:       extension.Model.ID,
+		State:             plugins.Waiting,
+		StateMessage:      "testmessage",
+		Type:              plugins.Workflow,
+		Artifacts:         map[string]*string{},
+		Finished:          time.Now(),
+	}
+
+	suite.db.Save(&re2)
+
+	res := []models.ReleaseExtension{
+		re2, re,
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+
+	reResolvers, _ := resolver.ReleaseExtensions(suite.context)
+	assert.Equal(suite.T(), 2, len(reResolvers))
+
+	for idx, reResolver := range reResolvers {
+		assert.Equal(suite.T(), res[idx].FeatureHash, reResolver.FeatureHash())
+		assert.Equal(suite.T(), res[idx].ServicesSignature, reResolver.ServicesSignature())
+		assert.Equal(suite.T(), res[idx].SecretsSignature, reResolver.SecretsSignature())
+
+		extensionResolver, _ := reResolver.Extension(suite.context)
+		assert.Equal(suite.T(), res[idx].ExtensionId.String(), string(extensionResolver.ID()))
+		assert.Equal(suite.T(), string(res[idx].State), reResolver.State())
+	}
+
 	suite.TearDownSuite()
 }
 
