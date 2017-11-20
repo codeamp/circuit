@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -22,11 +23,6 @@ var viperConfig = []byte(`
 plugins:
   dockerbuilder:
     workers: 1
-    registry_host: "read-registry.checkrhq.net"
-    registry_org: "checkr"
-    registry_username: ""
-    registry_password: ""
-    registry_user_email: ""
     workdir: "/tmp/dockerbuilder"   
 `)
 
@@ -53,49 +49,64 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	log.SetLogLevel(logrus.DebugLevel)
 
-	dockerBuildEvent := plugins.DockerBuild{
+	formValues := make(map[string]string)
+	formValues["USER"] = "test"
+	formValues["PASSWORD"] = "test"
+	formValues["EMAIL"] = "test@checkr.com"
+	formValues["HOST"] = "localhost:5000"
+	formValues["ORG"] = "testorg"
+
+	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
+
+	dockerBuildEvent := plugins.ReleaseExtension{
 		Action: plugins.Create,
 		State:  plugins.Waiting,
-		Project: plugins.Project{
-			Slug:       "codeamp-circuit",
-			Repository: "codeamp/circuit",
+		Release: plugins.Release{
+			Project: plugins.Project{
+				Repository: "checkr/deploy-test",
+			},
+
+			Git: plugins.Git{
+				Url:           "https://github.com/checkr/deploy-test.git",
+				Protocol:      "HTTPS",
+				Branch:        "master",
+				RsaPrivateKey: "",
+				RsaPublicKey:  "",
+				Workdir:       "/tmp/something",
+			},
+
+			HeadFeature: plugins.Feature{
+				Hash:       deploytestHash,
+				ParentHash: deploytestHash,
+				User:       "",
+				Message:    "Test",
+			},
+			Environment: "testing",
 		},
-		Git: plugins.Git{
-			Url:           "https://github.com/codeamp/circuit.git",
-			Protocol:      "HTTPS",
-			Branch:        "master",
-			RsaPrivateKey: "",
-			RsaPublicKey:  "",
-			Workdir:       viper.GetString("plugins.dockerbuilder.workdir"),
+		Extension: plugins.Extension{
+			Action:     plugins.Create,
+			Slug:       "dockerbuilder",
+			FormValues: formValues,
 		},
-		Feature: plugins.Feature{
-			Hash:       "b82f00530a7186d5b03ead5bd3d3600053b71ee7",
-			ParentHash: "b5021f702069ac6160fe5f0e9395351a36462c59",
-			User:       "Saso Matejina",
-			Message:    "Test",
-		},
-		Registry: plugins.DockerRegistry{
-			Host:     viper.GetString("plugins.dockerbuilder.registry_host"),
-			Org:      viper.GetString("plugins.dockerbuilder.registry_org"),
-			Username: viper.GetString("plugins.dockerbuilder.registry_username"),
-			Password: viper.GetString("plugins.dockerbuilder.registry_password"),
-			Email:    viper.GetString("plugins.dockerbuilder.registry_user_email"),
-		},
-		BuildArgs: []plugins.Arg{},
+		Artifacts: make(map[string]string),
 	}
 
 	suite.transistor.Events <- transistor.NewEvent(dockerBuildEvent, nil)
 
-	e = suite.transistor.GetTestEvent("plugins.DockerBuild:status", 60)
-	payload := e.Payload.(plugins.DockerBuild)
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 60)
+	payload := e.Payload.(plugins.ReleaseExtension)
+	spew.Dump(payload.StateMessage)
 	assert.Equal(suite.T(), string(plugins.Status), string(payload.Action))
 	assert.Equal(suite.T(), string(plugins.Fetching), string(payload.State))
 
-	e = suite.transistor.GetTestEvent("plugins.DockerBuild:status", 600)
-	payload = e.Payload.(plugins.DockerBuild)
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 600)
+	payload = e.Payload.(plugins.ReleaseExtension)
+	spew.Dump(payload.StateMessage)
 	assert.Equal(suite.T(), string(plugins.Status), string(payload.Action))
 	assert.Equal(suite.T(), string(plugins.Complete), string(payload.State))
 
+	assert.NotEmpty(suite.T(), payload.Artifacts)
+	assert.Contains(suite.T(), payload.Artifacts["IMAGE"], deploytestHash)
 }
 
 func TestDockerBuilder(t *testing.T) {

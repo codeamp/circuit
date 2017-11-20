@@ -2,6 +2,8 @@ package plugins
 
 import (
 	"regexp"
+
+	"github.com/extemporalgenome/slug"
 )
 
 type KeyValue struct {
@@ -65,6 +67,10 @@ func MapStringStringToHstore(mapStringString map[string]string) map[string]*stri
 	}
 
 	return hstore
+}
+
+func GetSlug(name string) string {
+	return slug.Slug(name)
 }
 
 // Used for conversion during input validation in e.g. ExtensionSpec

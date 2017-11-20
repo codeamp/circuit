@@ -6,7 +6,7 @@ import (
 	_ "github.com/codeamp/circuit/plugins/dockerbuilder"
 	_ "github.com/codeamp/circuit/plugins/gitsync"
 	_ "github.com/codeamp/circuit/plugins/heartbeat"
-	_ "github.com/codeamp/circuit/plugins/kubernetes"
+	_ "github.com/codeamp/circuit/plugins/kubernetes/deployments"
 )
 
 func main() {
