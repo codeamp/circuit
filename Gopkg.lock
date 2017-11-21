@@ -53,13 +53,13 @@
   branch = "master"
   name = "github.com/codeamp/transistor"
   packages = ["."]
-  revision = "b60d477fdf473e9fe69c477031e89c5e8096cc0d"
+  revision = "0996b4e47fef61f82707d81eb4f620cdeb1afed3"
 
 [[projects]]
   branch = "master"
   name = "github.com/containerd/continuity"
   packages = ["pathdriver"]
-  revision = "1bed1ecb1dc42d8f4d2ac8c23e5cac64749e82c9"
+  revision = "0cf103d319cc2d7efe085224094f466d1f8b9640"
 
 [[projects]]
   branch = "v2"
@@ -466,7 +466,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "328643532ee3c60c099171d4ce2cad0ca0354ca9"
+  revision = "82aafbf43bf885069dc71b7e7c2f9d7a614d47da"
 
 [[projects]]
   branch = "master"

@@ -40,7 +40,7 @@ func name(payload interface{}) string {
 	if f.IsValid() {
 		action := f.String()
 		if action != "" {
-			return fmt.Sprintf("%v:%v", name, action)
+			name = fmt.Sprintf("%v:%v", name, action)
 		}
 	}
 
@@ -48,7 +48,7 @@ func name(payload interface{}) string {
 	if f.IsValid() {
 		slug := f.String()
 		if slug != "" {
-			return fmt.Sprintf("%v:%v", name, slug)
+			name = fmt.Sprintf("%v:%v", name, slug)
 		}
 	}
 

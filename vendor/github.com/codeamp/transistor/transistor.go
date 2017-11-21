@@ -3,6 +3,7 @@ package transistor
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sync"
 	"time"
 
@@ -308,10 +309,24 @@ func (t *Transistor) GetTestEvent(name string, timeout time.Duration) Event {
 	}()
 
 	for e := range t.TestEvents {
-		if e.Name == name {
+		matched, err := regexp.MatchString(name, e.Name)
+		if err != nil {
+			log.InfoWithFields("GetTestEvent regex match encountered an error", log.Fields{
+				"regex":  name,
+				"string": e.Name,
+				"error":  err,
+			})
+		}
+
+		if matched {
 			timer.Stop()
 			return e
 		}
+
+		log.DebugWithFields("GetTestEvent regex not matched", log.Fields{
+			"regex":  name,
+			"string": e.Name,
+		})
 	}
 
 	return Event{}
