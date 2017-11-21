@@ -68,40 +68,31 @@ func (x *Actions) GitSync(project *models.Project) {
 }
 
 func (x *Actions) GitCommit(commit plugins.GitCommit) {
-	projects := []models.Project{}
+	project := models.Project{}
 	feature := models.Feature{}
 
-	if x.db.Where("repository = ?", commit.Repository).Find(&projects).RecordNotFound() {
-		log.InfoWithFields("projects not found", log.Fields{
-			"repository": commit.Repository,
-		})
-		return
-	}
-
-	for _, project := range projects {
-		if x.db.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
-			feature = models.Feature{
-				ProjectId:  project.ID,
-				Message:    commit.Message,
-				User:       commit.User,
-				Hash:       commit.Hash,
-				ParentHash: commit.ParentHash,
-				Ref:        commit.Ref,
-				Created:    commit.Created,
-			}
-			x.db.Save(&feature)
-
-			wsMsg := plugins.WebsocketMsg{
-				Event:   fmt.Sprintf("projects/%s/features", project.Slug),
-				Payload: feature,
-			}
-			x.events <- transistor.NewEvent(wsMsg, nil)
-		} else {
-			log.InfoWithFields("feature already exists", log.Fields{
-				"repository": commit.Repository,
-				"hash":       commit.Hash,
-			})
+	if x.db.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
+		feature = models.Feature{
+			ProjectId:  project.ID,
+			Message:    commit.Message,
+			User:       commit.User,
+			Hash:       commit.Hash,
+			ParentHash: commit.ParentHash,
+			Ref:        commit.Ref,
+			Created:    commit.Created,
 		}
+		x.db.Save(&feature)
+
+		wsMsg := plugins.WebsocketMsg{
+			Event:   fmt.Sprintf("projects/%s/features", project.Slug),
+			Payload: feature,
+		}
+		x.events <- transistor.NewEvent(wsMsg, nil)
+	} else {
+		log.InfoWithFields("feature already exists", log.Fields{
+			"repository": commit.Repository,
+			"hash":       commit.Hash,
+		})
 	}
 }
 
