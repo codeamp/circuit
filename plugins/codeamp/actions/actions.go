@@ -71,6 +71,13 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 	project := models.Project{}
 	feature := models.Feature{}
 
+	if x.db.Where("repository = ?", commit.Repository).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"repository": commit.Repository,
+		})
+		return
+	}
+
 	if x.db.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
 		feature = models.Feature{
 			ProjectId:  project.ID,
