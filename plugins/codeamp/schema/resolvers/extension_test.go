@@ -33,7 +33,7 @@ func (suite *TestExtensions) SetupSuite() {
 
 	db, _ := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		"0.0.0.0",
-		"15432",
+		"4500",
 		"postgres",
 		"codeamp_test",
 		"disable",
@@ -57,7 +57,7 @@ func (suite *TestExtensions) SetupSuite() {
 				"workers": 1,
 				"postgres": map[string]interface{}{
 					"host":     "0.0.0.0",
-					"port":     "15432",
+					"port":     "5432",
 					"user":     "postgres",
 					"dbname":   "codeamp_test",
 					"sslmode":  "disable",
@@ -86,6 +86,7 @@ func (suite *TestExtensions) SetupDBAndContext() {
 		&models.Extension{},
 		&models.ExtensionSpec{},
 		&models.User{},
+		&models.Environment{},
 	)
 
 	user := models.User{
@@ -137,6 +138,11 @@ func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 	}
 	suite.db.Save(&p)
 
+	env := models.Environment{
+		Name: fmt.Sprintf("env%s", stamp),
+	}
+	suite.db.Save(&env)
+
 	extInput := struct {
 		Extension *resolvers.ExtensionInput
 	}{
@@ -149,16 +155,19 @@ func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 					Value: "key2",
 				},
 			},
+			EnvironmentId: env.Model.ID.String(),
 		},
 	}
 
 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
 	extResolver, _ := resolver.CreateExtension(context.TODO(), &extInput)
 
+	envResolver, _ := extResolver.Environment(context.TODO())
 	projectResolver, _ := extResolver.Project(context.TODO())
 	extensionSpecResolver, _ := extResolver.ExtensionSpec(context.TODO())
 	formSpecValues, _ := extResolver.FormSpecValues(context.TODO())
 
+	assert.Equal(suite.T(), fmt.Sprintf("env%s", stamp), envResolver.Name(context.TODO()))
 	assert.Equal(suite.T(), fmt.Sprintf("test%s", stamp), projectResolver.Name())
 	assert.Equal(suite.T(), fmt.Sprintf("test%s", stamp), extensionSpecResolver.Name())
 	assert.Equal(suite.T(), "key1", formSpecValues[0].Key())
@@ -220,6 +229,11 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 	}
 	suite.db.Save(&es)
 
+	env := models.Environment{
+		Name: fmt.Sprintf("env%s", stamp),
+	}
+	suite.db.Save(&env)
+
 	extInput := struct {
 		Extension *resolvers.ExtensionInput
 	}{
@@ -232,6 +246,7 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 					Value: "key2",
 				},
 			},
+			EnvironmentId: env.Model.ID.String(),
 		},
 	}
 
@@ -272,7 +287,12 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 		RsaPrivateKey: "",
 		RsaPublicKey:  "",
 	}
+
 	suite.db.Save(&p)
+	env := models.Environment{
+		Name: fmt.Sprintf("env%s", stamp),
+	}
+	suite.db.Save(&env)
 
 	// missing key3
 	extInput := struct {
@@ -291,6 +311,7 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 					Value: "val2",
 				},
 			},
+			EnvironmentId: env.Model.ID.String(),
 		},
 	}
 
@@ -317,6 +338,11 @@ func (suite *TestExtensions) TestFailedCreateExtensionExtensionSpecDoesntExist()
 	}
 	suite.db.Save(&p)
 
+	env := models.Environment{
+		Name: fmt.Sprintf("env%s", stamp),
+	}
+	suite.db.Save(&env)
+
 	fakeExtensionSpecId := uuid.NewV1().String()
 
 	extInput := struct {
@@ -331,6 +357,7 @@ func (suite *TestExtensions) TestFailedCreateExtensionExtensionSpecDoesntExist()
 					Value: "key2",
 				},
 			},
+			EnvironmentId: env.Model.ID.String(),
 		},
 	}
 
@@ -338,6 +365,61 @@ func (suite *TestExtensions) TestFailedCreateExtensionExtensionSpecDoesntExist()
 	_, err := resolver.CreateExtension(context.TODO(), &extInput)
 
 	assert.Equal(suite.T(), "Can't find corresponding extensionSpec.", err.Error())
+	suite.TearDownSuite()
+}
+
+func (suite *TestExtensions) TestFailedCreateExtensionInvalidEnvironmentId() {
+	suite.SetupDBAndContext()
+	stamp := strings.ToLower("TestFailedCreateExtensionExtensionSpecDoesntExist")
+	timestamp := time.Now()
+
+	p := models.Project{
+		Name:          fmt.Sprintf("test%s", stamp),
+		Slug:          fmt.Sprintf("test-testrepo%s", stamp),
+		Repository:    fmt.Sprintf("test/testrepo%s", stamp),
+		Secret:        "",
+		GitUrl:        fmt.Sprintf("https://github.com/test/testrepo%s.git", stamp),
+		GitProtocol:   "HTTPS",
+		RsaPrivateKey: "",
+		RsaPublicKey:  "",
+	}
+	suite.db.Save(&p)
+
+	requiredStringParam := "required|string"
+
+	es := models.ExtensionSpec{
+		Type:      plugins.Workflow,
+		Key:       fmt.Sprintf("testkey%s", stamp),
+		Name:      fmt.Sprintf("test%s", stamp),
+		Component: fmt.Sprintf("testcomponent%s", stamp),
+		FormSpec: map[string]*string{
+			"key1": &requiredStringParam,
+			"key3": &requiredStringParam,
+		},
+		Created: timestamp,
+	}
+	suite.db.Save(&es)
+
+	extInput := struct {
+		Extension *resolvers.ExtensionInput
+	}{
+		Extension: &resolvers.ExtensionInput{
+			ProjectId:       p.Model.ID.String(),
+			ExtensionSpecId: es.Model.ID.String(),
+			FormSpecValues: []plugins.KeyValue{
+				plugins.KeyValue{
+					Key:   "key1",
+					Value: "key2",
+				},
+			},
+			EnvironmentId: "invalidenvironmentid",
+		},
+	}
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+	_, err := resolver.CreateExtension(context.TODO(), &extInput)
+
+	assert.Equal(suite.T(), "Could not parse EnvironmentId. Invalid format.", err.Error())
 	suite.TearDownSuite()
 }
 

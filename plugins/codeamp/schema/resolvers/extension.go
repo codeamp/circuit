@@ -30,6 +30,7 @@ type ExtensionInput struct {
 	ProjectId       string
 	ExtensionSpecId string
 	FormSpecValues  []plugins.KeyValue
+	EnvironmentId   string
 }
 
 func (r *Resolver) Extension(ctx context.Context, args *struct{ ID graphql.ID }) (*ExtensionResolver, error) {
@@ -118,6 +119,14 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 		return nil, errors.New("Could not parse ProjectId. Invalid format.")
 	}
 
+	environmentId, err := uuid.FromString(args.Extension.EnvironmentId)
+	if err != nil {
+		log.InfoWithFields("couldn't parse EnvironmentId", log.Fields{
+			"extension": args.Extension,
+		})
+		return nil, errors.New("Could not parse EnvironmentId. Invalid format.")
+	}
+
 	// check if extension already exists with project
 	if r.db.Where("project_id = ? and extension_spec_id = ?", projectId, extensionSpecId).Find(&extension).RecordNotFound() {
 		// make sure extension form spec values are valid
@@ -152,6 +161,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,
+			EnvironmentId:   environmentId,
 			FormSpecValues:  formSpecValuesMap,
 			Artifacts:       map[string]*string{},
 			State:           plugins.Waiting,
@@ -223,6 +233,17 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 	r.db.Delete(&extension)
 	r.actions.ExtensionDeleted(&extension)
 	return &ExtensionResolver{db: r.db, Extension: extension}, nil
+}
+
+func (r *ExtensionResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
+	var environment models.Environment
+	if r.db.Where("id = ?", r.Extension.EnvironmentId).First(&environment).RecordNotFound() {
+		log.InfoWithFields("environment not found", log.Fields{
+			"service": r.Extension,
+		})
+		return nil, fmt.Errorf("Environment not found.")
+	}
+	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
 
 func FormSpecValuesIsValid(db *gorm.DB, extensionInput *ExtensionInput) error {
