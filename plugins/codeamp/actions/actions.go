@@ -71,13 +71,6 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 	project := models.Project{}
 	feature := models.Feature{}
 
-	if x.db.Where("repository = ?", commit.Repository).First(&project).RecordNotFound() {
-		log.InfoWithFields("project not found", log.Fields{
-			"repository": commit.Repository,
-		})
-		return
-	}
-
 	if x.db.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
 		feature = models.Feature{
 			ProjectId:  project.ID,
@@ -228,72 +221,74 @@ func (x *Actions) EnvironmentDeleted(env *models.Environment) {
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
-func (x *Actions) AdminEnvironmentVariableCreated(envVar *models.EnvironmentVariable) {
+func (x *Actions) EnvironmentVariableCreated(envVar *models.EnvironmentVariable) {
+	/*
+		sends a websocket message to notify the env var has been created
+		input: env var
+		emits: plugins.WebSocketMsg
+	*/
+
 	wsMsg := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("environmentVariables/created"),
 		Payload: envVar,
 	}
-	x.events <- transistor.NewEvent(wsMsg, nil)
-}
+	if envVar.Scope == plugins.ProjectScope {
+		project := models.Project{}
+		if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
+			log.InfoWithFields("project not found", log.Fields{
+				"service": envVar,
+			})
+		}
 
-func (x *Actions) AdminEnvironmentVariableDeleted(envVar *models.EnvironmentVariable) {
-	wsMsg := plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("environmentVariables/deleted"),
-		Payload: envVar,
-	}
-	x.events <- transistor.NewEvent(wsMsg, nil)
-}
-
-func (x *Actions) AdminEnvironmentVariableUpdated(envVar *models.EnvironmentVariable) {
-	wsMsg := plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("environmentVariables/updated"),
-		Payload: envVar,
+		wsMsg = plugins.WebsocketMsg{
+			Event:   fmt.Sprintf("projects/%s/environmentVariables/created", project.Slug),
+			Payload: envVar,
+		}
 	}
 
-	x.events <- transistor.NewEvent(wsMsg, nil)
-}
-
-func (x *Actions) EnvironmentVariableCreated(envVar *models.EnvironmentVariable) {
-	project := models.Project{}
-	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
-		log.InfoWithFields("project not found", log.Fields{
-			"service": envVar,
-		})
-	}
-
-	wsMsg := plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("projects/%s/environmentVariables/created", project.Slug),
-		Payload: envVar,
-	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
 func (x *Actions) EnvironmentVariableDeleted(envVar *models.EnvironmentVariable) {
-	project := models.Project{}
-	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
-		log.InfoWithFields("envvar not found", log.Fields{
-			"service": envVar,
-		})
-	}
-
 	wsMsg := plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("projects/%s/environmentVariables/deleted", project.Slug),
+		Event:   fmt.Sprintf("environmentVariables/deleted"),
 		Payload: envVar,
 	}
+	if envVar.Scope == plugins.ProjectScope {
+
+		project := models.Project{}
+		if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
+			log.InfoWithFields("envvar not found", log.Fields{
+				"service": envVar,
+			})
+		}
+
+		wsMsg = plugins.WebsocketMsg{
+			Event:   fmt.Sprintf("projects/%s/environmentVariables/deleted", project.Slug),
+			Payload: envVar,
+		}
+	}
+
 	x.events <- transistor.NewEvent(wsMsg, nil)
 }
 
 func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable) {
-	project := models.Project{}
-	if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
-		log.InfoWithFields("envvar not found", log.Fields{
-			"envVar": envVar,
-		})
-	}
-
 	wsMsg := plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("projects/%s/environmentVariables/updated", project.Slug),
+		Event:   fmt.Sprintf("environmentVariables/updated"),
 		Payload: envVar,
+	}
+	if envVar.Scope == plugins.ProjectScope {
+		project := models.Project{}
+		if x.db.Where("id = ?", envVar.ProjectId).First(&project).RecordNotFound() {
+			log.InfoWithFields("envvar not found", log.Fields{
+				"envVar": envVar,
+			})
+		}
+
+		wsMsg = plugins.WebsocketMsg{
+			Event:   fmt.Sprintf("projects/%s/environmentVariables/updated", project.Slug),
+			Payload: envVar,
+		}
 	}
 
 	x.events <- transistor.NewEvent(wsMsg, nil)
@@ -605,7 +600,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
-			releaseExtension.Slug = fmt.Sprintf("%s|%s", extensionSpec.Key, releaseExtension.Model.ID.String())
+			releaseExtension.Slug = fmt.Sprintf("%s:%s", extensionSpec.Key, releaseExtension.Model.ID.String())
 
 			extensionEvent := plugins.Extension{
 				Slug:       extension.Slug,

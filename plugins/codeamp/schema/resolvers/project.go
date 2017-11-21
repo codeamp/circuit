@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
@@ -21,19 +22,26 @@ import (
 )
 
 type ProjectInput struct {
-	ID          *string
-	GitProtocol string
-	GitUrl      string
-	Bookmarked  *bool
+	ID            *string
+	GitProtocol   string
+	GitUrl        string
+	Bookmarked    *bool
+	EnvironmentId string
 }
 
 func (r *Resolver) Project(ctx context.Context, args *struct {
-	ID   *graphql.ID
-	Slug *string
-	Name *string
+	ID            *graphql.ID
+	Slug          *string
+	Name          *string
+	EnvironmentId *string
 }) (*ProjectResolver, error) {
 	var project models.Project
+	var environment models.Environment
+
+	var envQuery *gorm.DB
 	var query *gorm.DB
+
+	spew.Dump("GETTING PROJECT ", args)
 
 	if args.ID != nil {
 		query = r.db.Where("id = ?", *args.ID)
@@ -41,6 +49,8 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 		query = r.db.Where("slug = ?", *args.Slug)
 	} else if args.Name != nil {
 		query = r.db.Where("name = ?", *args.Name)
+	} else if args.EnvironmentId != nil {
+		envQuery = r.db.Where("environment_id = ?", *args.EnvironmentId)
 	} else {
 		return nil, fmt.Errorf("Missing argument id or slug")
 	}
@@ -49,7 +59,11 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	return &ProjectResolver{db: r.db, Project: project}, nil
+	if err := envQuery.First(&environment).Error; err != nil {
+		return nil, err
+	}
+
+	return &ProjectResolver{db: r.db, Project: project, Environment: environment}, nil
 }
 
 func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
@@ -116,24 +130,25 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 		protocol = "HTTPS"
 	}
 
-	project := models.Project{
-		GitProtocol: protocol,
-		GitUrl:      args.Project.GitUrl,
-		Secret:      transistor.RandomString(30),
-	}
-
-	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
-	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
+	var project models.Project
 
 	// Check if project already exists with same name
 	existingProject := models.Project{}
 
+	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
+	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
 	if r.db.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
 		log.InfoWithFields("[+] Project not found", log.Fields{
 			"repository": repository,
 		})
 	} else {
 		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
+	}
+
+	project = models.Project{
+		GitProtocol: protocol,
+		GitUrl:      args.Project.GitUrl,
+		Secret:      transistor.RandomString(30),
 	}
 
 	project.Name = repository
@@ -176,6 +191,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.RsaPublicKey = string(ssh.MarshalAuthorizedKey(pub))
 
 	r.db.Create(&project)
+
 	// consult with saso about this:
 	// reasoning is so this function can complete even if
 	// there's something wrong with the transistor
@@ -184,15 +200,9 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 }
 
 type ProjectResolver struct {
-	db      *gorm.DB
-	Project models.Project
-}
-
-func NewProjectResolver(project models.Project, db *gorm.DB) *ProjectResolver {
-	return &ProjectResolver{
-		db:      db,
-		Project: project,
-	}
+	db          *gorm.DB
+	Project     models.Project
+	Environment models.Environment
 }
 
 func (r *ProjectResolver) ID() graphql.ID {
@@ -234,7 +244,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 	var currentRelease models.Release
 
-	if r.db.Where("state = ? and project_id = ?", plugins.Complete, r.Project.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
+	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, r.Project.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
 			"project": r.Project,
 		})
@@ -260,7 +270,7 @@ func (r *ProjectResolver) Services(ctx context.Context) ([]*ServiceResolver, err
 	var rows []models.Service
 	var results []*ServiceResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Find(&rows)
+	r.db.Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.Model.ID).Find(&rows)
 
 	for _, service := range rows {
 		results = append(results, &ServiceResolver{db: r.db, Service: service})
@@ -273,7 +283,7 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 	var rows []models.Release
 	var results []*ReleaseResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Order("created_at desc").Find(&rows)
+	r.db.Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
 
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{db: r.db, Release: release})
@@ -286,7 +296,7 @@ func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*Environm
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Select("key, version, id, value, created, type, user_id, project_id, deleted_at").Where("project_id = ?", r.Project.ID).Order("key, version, created desc").Find(&rows)
+	r.db.Select("key, version, id, value, created, type, user_id, project_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.ID).Order("key, version, created desc").Find(&rows)
 
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
@@ -299,7 +309,7 @@ func (r *ProjectResolver) Extensions(ctx context.Context) ([]*ExtensionResolver,
 	var rows []models.Extension
 	var results []*ExtensionResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Find(&rows)
+	r.db.Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.Model.ID).Find(&rows)
 	for _, extension := range rows {
 		results = append(results, &ExtensionResolver{db: r.db, Extension: extension})
 	}

@@ -27,13 +27,14 @@ type TestService struct {
 	context     context.Context
 	serviceSpec models.ServiceSpec
 	project     models.Project
+	env         models.Environment
 }
 
 func (suite *TestService) SetupSuite() {
 
 	db, _ := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		"0.0.0.0",
-		"15432",
+		"4500",
 		"postgres",
 		"codeamp_test",
 		"disable",
@@ -77,11 +78,15 @@ func (suite *TestService) SetupSuite() {
 }
 
 func (suite *TestService) SetupDBAndContext() {
+	stamp := strings.ToLower("SetupDBAndContext")
+
 	suite.db.AutoMigrate(
 		&models.User{},
 		&models.UserPermission{},
 		&models.Service{},
 		&models.Project{},
+		&models.ContainerPort{},
+		&models.Environment{},
 		&models.ServiceSpec{},
 	)
 
@@ -115,10 +120,16 @@ func (suite *TestService) SetupDBAndContext() {
 	}
 	suite.db.Save(&project)
 
+	env := models.Environment{
+		Name: fmt.Sprintf("env%s", stamp),
+	}
+	suite.db.Save(&env)
+
 	suite.context = context.WithValue(suite.context, "jwt", utils.Claims{UserId: user.Model.ID.String()})
 	suite.user = user
 	suite.serviceSpec = serviceSpec
 	suite.project = project
+	suite.env = env
 }
 
 func (suite *TestService) TearDownSuite() {
@@ -145,6 +156,7 @@ func (suite *TestService) TestSuccessfulCreateService() {
 			OneShot:       true,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
+			EnvironmentId: suite.env.Model.ID.String(),
 		},
 	}
 
@@ -160,6 +172,7 @@ func (suite *TestService) TestSuccessfulCreateService() {
 			OneShot:       true,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
+			EnvironmentId: suite.env.Model.ID.String(),
 		},
 	}
 
@@ -175,6 +188,7 @@ func (suite *TestService) TestSuccessfulCreateService() {
 			OneShot:       true,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
+			EnvironmentId: suite.env.Model.ID.String(),
 		},
 	}
 
@@ -252,6 +266,7 @@ func (suite *TestService) TestSuccessfulDeleteService() {
 		OneShot:       true,
 		Count:         "1",
 		ProjectId:     suite.project.Model.ID,
+		EnvironmentId: suite.env.Model.ID,
 	}
 	suite.db.Save(&service)
 	serviceId := service.Model.ID.String()
@@ -271,6 +286,7 @@ func (suite *TestService) TestSuccessfulDeleteService() {
 			OneShot:       true,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
+			EnvironmentId: suite.env.Model.ID.String(),
 		},
 	}
 

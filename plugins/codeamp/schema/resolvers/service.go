@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	log "github.com/codeamp/logger"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -21,6 +22,7 @@ type ServiceInput struct {
 	Count          string
 	ContainerPorts *[]models.ContainerPort
 	ProjectId      string
+	EnvironmentId  string
 }
 
 type ServiceResolver struct {
@@ -118,6 +120,12 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 	if err != nil {
 		return &ServiceResolver{}, err
 	}
+
+	environmentId, err := uuid.FromString(args.Service.EnvironmentId)
+	if err != nil {
+		return &ServiceResolver{}, err
+	}
+
 	serviceSpecId, err := uuid.FromString(args.Service.ServiceSpecId)
 	if err != nil {
 		return &ServiceResolver{}, err
@@ -130,6 +138,7 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 		Count:         args.Service.Count,
 		ProjectId:     projectId,
 		Created:       time.Now(),
+		EnvironmentId: environmentId,
 	}
 
 	r.db.Create(&service)
@@ -197,6 +206,17 @@ func (r *ServiceResolver) ContainerPorts(ctx context.Context) ([]*ContainerPortR
 	}
 	spew.Dump(results)
 	return results, nil
+}
+
+func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
+	var environment models.Environment
+	if r.db.Where("id = ?", r.Service.EnvironmentId).First(&environment).RecordNotFound() {
+		log.InfoWithFields("environment not found", log.Fields{
+			"service": r.Service,
+		})
+		return nil, fmt.Errorf("Environment not found.")
+	}
+	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
 
 type ContainerPortResolver struct {

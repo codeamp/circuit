@@ -62,10 +62,6 @@ type Project struct {
 	GitProtocol   string `json:"GitProtocol"`
 	RsaPrivateKey string `json:"-"`
 	RsaPublicKey  string `json:"rsaPublicKey"`
-
-	Features []Feature
-	Releases []Release
-	Service  []Service
 }
 
 type Workflow struct {
@@ -101,10 +97,7 @@ type Service struct {
 	OneShot       bool      `json:"oneShot"`
 	Count         string    `json:"count"`
 	Created       time.Time `json:"created"`
-
-	Project        Project
-	ServiceSpec    ServiceSpec
-	ContainerPorts []ContainerPort
+	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type Feature struct {
@@ -116,8 +109,6 @@ type Feature struct {
 	ParentHash string    `json:"parentHash"`
 	Ref        string    `json:"ref"`
 	Created    time.Time `json:"created"`
-
-	Project Project
 }
 
 type Release struct {
@@ -135,12 +126,13 @@ type Release struct {
 	TailFeature   Feature
 	TailFeatureID uuid.UUID `json:"tailFeatureId" gorm:"type:uuid"`
 
-	Secrets      []EnvironmentVariable `json:"secrets"`
-	Services     []Service             `json:"services"`
-	State        plugins.State         `json:"state"`
-	StateMessage string                `json:"stateMessage"`
-	Created      time.Time             `json:"created"`
-	Finished     time.Time
+	Secrets       []EnvironmentVariable `json:"secrets"`
+	Services      []Service             `json:"services"`
+	State         plugins.State         `json:"state"`
+	StateMessage  string                `json:"stateMessage"`
+	Created       time.Time             `json:"created"`
+	Finished      time.Time
+	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type Bookmark struct {
@@ -167,6 +159,7 @@ type Extension struct {
 	State           plugins.State   `json:"state"`
 	Artifacts       postgres.Hstore `json:"artifacts"`
 	FormSpecValues  postgres.Hstore `json:"formSpecValues"`
+	EnvironmentId   uuid.UUID       `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type ReleaseExtension struct {

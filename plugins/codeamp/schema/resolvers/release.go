@@ -28,6 +28,7 @@ type ReleaseInput struct {
 	ID            *string
 	ProjectId     string
 	HeadFeatureId string
+	EnvironmentId string
 }
 
 func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
@@ -36,8 +37,27 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	var tailFeatureId uuid.UUID
 	var currentRelease models.Release
 
-	projectId := uuid.FromStringOrNil(args.Release.ProjectId)
-	headFeatureId := uuid.FromStringOrNil(args.Release.HeadFeatureId)
+	projectId, err := uuid.FromString(args.Release.ProjectId)
+	if err != nil {
+		log.InfoWithFields("Couldn't parse projectId", log.Fields{
+			"args": args,
+		})
+		return nil, fmt.Errorf("Couldn't parse projectId")
+	}
+	headFeatureId, err := uuid.FromString(args.Release.HeadFeatureId)
+	if err != nil {
+		log.InfoWithFields("Couldn't parse headFeatureId", log.Fields{
+			"args": args,
+		})
+		return nil, fmt.Errorf("Couldn't parse headFeatureId")
+	}
+	environmentId, err := uuid.FromString(args.Release.EnvironmentId)
+	if err != nil {
+		log.InfoWithFields("Couldn't parse environmentId", log.Fields{
+			"args": args,
+		})
+		return nil, fmt.Errorf("Couldn't parse environmentId")
+	}
 
 	// the tail feature id is the current release's head feature id
 	if r.db.Where("state = ? and project_id = ?", plugins.Complete, args.Release.ProjectId).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
@@ -63,6 +83,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	release := models.Release{
 		ProjectId:     projectId,
+		EnvironmentId: environmentId,
 		UserID:        userId,
 		HeadFeatureID: headFeatureId,
 		TailFeatureID: tailFeatureId,
@@ -74,7 +95,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	r.db.Create(&release)
 	r.actions.ReleaseCreated(&release)
 
-	return nil, nil
+	return &ReleaseResolver{db: r.db, Release: release}, nil
 }
 
 func (r *ReleaseResolver) ID() graphql.ID {
@@ -135,4 +156,15 @@ func (r *ReleaseResolver) StateMessage() string {
 
 func (r *ReleaseResolver) Created() graphql.Time {
 	return graphql.Time{Time: r.Release.Created}
+}
+
+func (r *ReleaseResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
+	var environment models.Environment
+	if r.db.Where("id = ?", r.Release.EnvironmentId).First(&environment).RecordNotFound() {
+		log.InfoWithFields("environment not found", log.Fields{
+			"service": r.Release,
+		})
+		return nil, fmt.Errorf("Environment not found.")
+	}
+	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
