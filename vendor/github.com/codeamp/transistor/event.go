@@ -34,16 +34,25 @@ func name(payload interface{}) string {
 		return reflect.TypeOf(payload).String()
 	}
 
+	name := reflect.TypeOf(payload).String()
+
 	f := s.FieldByName("Action")
 	if f.IsValid() {
-		model := reflect.TypeOf(payload).String()
 		action := f.String()
 		if action != "" {
-			return fmt.Sprintf("%v:%v", model, action)
+			return fmt.Sprintf("%v:%v", name, action)
 		}
 	}
 
-	return reflect.TypeOf(payload).String()
+	f = s.FieldByName("Slug")
+	if f.IsValid() {
+		slug := f.String()
+		if slug != "" {
+			return fmt.Sprintf("%v:%v", name, slug)
+		}
+	}
+
+	return name
 }
 
 func NewEvent(payload interface{}, err error) Event {

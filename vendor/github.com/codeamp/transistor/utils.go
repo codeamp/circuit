@@ -5,7 +5,10 @@ import (
 	"errors"
 	"math/rand"
 	"reflect"
+	"regexp"
 	"time"
+
+	log "github.com/codeamp/logger"
 )
 
 func RandomString(strlen int) string {
@@ -20,10 +23,25 @@ func RandomString(strlen int) string {
 
 func SliceContains(name string, list []string) bool {
 	for _, b := range list {
-		if b == name {
+		matched, err := regexp.MatchString(b, name)
+		if err != nil {
+			log.InfoWithFields("SliceContains method encountered an error", log.Fields{
+				"regex":  b,
+				"string": name,
+				"error":  err,
+			})
+		}
+
+		if matched {
 			return true
 		}
+
+		log.DebugWithFields("SliceContains regex not matched", log.Fields{
+			"regex":  b,
+			"string": name,
+		})
 	}
+
 	return false
 }
 
