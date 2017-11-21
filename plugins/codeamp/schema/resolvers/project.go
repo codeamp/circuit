@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
@@ -37,11 +36,15 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 }) (*ProjectResolver, error) {
 	var project models.Project
 	var environment models.Environment
-
-	var envQuery *gorm.DB
 	var query *gorm.DB
 
-	spew.Dump("GETTING PROJECT ", args)
+	// get environment
+	if r.db.Where("id = ?", *args.EnvironmentId).Find(&environment).RecordNotFound() {
+		log.InfoWithFields("Environment doesn't exist.", log.Fields{
+			"args": args,
+		})
+		return nil, fmt.Errorf("Environment doesn't exist.")
+	}
 
 	if args.ID != nil {
 		query = r.db.Where("id = ?", *args.ID)
@@ -49,17 +52,11 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 		query = r.db.Where("slug = ?", *args.Slug)
 	} else if args.Name != nil {
 		query = r.db.Where("name = ?", *args.Name)
-	} else if args.EnvironmentId != nil {
-		envQuery = r.db.Where("environment_id = ?", *args.EnvironmentId)
 	} else {
 		return nil, fmt.Errorf("Missing argument id or slug")
 	}
 
 	if err := query.First(&project).Error; err != nil {
-		return nil, err
-	}
-
-	if err := envQuery.First(&environment).Error; err != nil {
 		return nil, err
 	}
 
