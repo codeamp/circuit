@@ -128,7 +128,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 	}
 
 	// check if extension already exists with project
-	if r.db.Where("project_id = ? and extension_spec_id = ?", projectId, extensionSpecId).Find(&extension).RecordNotFound() {
+	if r.db.Where("project_id = ? and extension_spec_id = ? and environment_id = ?", projectId, extensionSpecId, environmentId).Find(&extension).RecordNotFound() {
 		// make sure extension form spec values are valid
 		// if they are valid, create extension object
 
@@ -170,7 +170,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 
 		r.db.Create(&extension)
 
-		extension.Slug = fmt.Sprintf("%s|%s", extensionSpec.Key, extension.Model.ID.String())
+		extension.Slug = fmt.Sprintf("%s:%s", extensionSpec.Key, extension.Model.ID.String())
 		r.db.Save(&extension)
 
 		go r.actions.ExtensionCreated(&extension)

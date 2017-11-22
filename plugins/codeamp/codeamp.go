@@ -247,7 +247,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		// query project from extension slug (2nd part)
 		var extension models.Extension
-		extensionId := strings.Split(payload.Slug, "|")[1]
+		extensionId := strings.Split(payload.Slug, ":")[1]
 
 		if x.Db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found from given slug", log.Fields{
@@ -269,7 +269,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		spew.Dump("RE COMPLETE", payload)
 
 		// get uuid from slug
-		releaseExtensionSplitSlug := strings.Split(payload.Slug, "|")
+		releaseExtensionSplitSlug := strings.Split(payload.Slug, ":")
 
 		if x.Db.Where("id = ?", releaseExtensionSplitSlug[1]).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found from given slug", log.Fields{

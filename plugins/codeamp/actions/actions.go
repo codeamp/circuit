@@ -71,6 +71,13 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 	project := models.Project{}
 	feature := models.Feature{}
 
+	if x.db.Where("repository = ?", commit.Repository).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"repository": commit.Repository,
+		})
+		return
+	}
+
 	if x.db.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
 		feature = models.Feature{
 			ProjectId:  project.ID,
@@ -679,7 +686,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 	// loop through extensions and send ReleaseWorkflow events
 	projectExtensions := []models.Extension{}
-	if x.db.Where("project_id = ?", release.ProjectId).Find(&projectExtensions).RecordNotFound() {
+	if x.db.Where("project_id = ? and environment_id = ?", release.ProjectId, release.EnvironmentId).Find(&projectExtensions).RecordNotFound() {
 		log.InfoWithFields("no extensions to be found", log.Fields{
 			"release": release,
 			"project": project,
@@ -687,7 +694,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 	}
 
 	services := []models.Service{}
-	if x.db.Where("project_id = ?", release.ProjectId).Find(&services).RecordNotFound() {
+	if x.db.Where("project_id = ? and environment_id = ?", release.ProjectId, release.EnvironmentId).Find(&services).RecordNotFound() {
 		log.InfoWithFields("no services found for this project", log.Fields{
 			"release": release,
 		})
@@ -733,7 +740,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
-			releaseExtension.Slug = fmt.Sprintf("%s|%s", extensionSpec.Key, releaseExtension.Model.ID.String())
+			releaseExtension.Slug = fmt.Sprintf("%s:%s", extensionSpec.Key, releaseExtension.Model.ID.String())
 
 			extensionEvent := plugins.Extension{
 				Slug:       extension.Slug,

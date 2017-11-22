@@ -60,7 +60,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	// the tail feature id is the current release's head feature id
-	if r.db.Where("state = ? and project_id = ?", plugins.Complete, args.Release.ProjectId).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
+	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, args.Release.ProjectId, environmentId).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
 		// get first ever feature in project if current release doesn't exist yet
 		var firstFeature models.Feature
 		if r.db.Where("project_id = ?", args.Release.ProjectId).Find(&firstFeature).Order("created asc").Limit(1).RecordNotFound() {
