@@ -3,7 +3,6 @@ package resolvers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
@@ -83,7 +82,6 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 			Type:          plugins.Type(args.EnvironmentVariable.Type),
 			Scope:         envVarScope,
 			UserId:        userId,
-			Created:       time.Now(),
 			EnvironmentId: environmentId,
 		}
 
@@ -114,7 +112,6 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 			Scope:         plugins.EnvVarScope(args.EnvironmentVariable.Scope),
 			UserId:        existingEnvVar.UserId,
 			EnvironmentId: environmentId,
-			Created:       time.Now(),
 		}
 		r.db.Delete(&existingEnvVar)
 		r.db.Create(&envVar)
@@ -200,10 +197,6 @@ func (r *EnvironmentVariableResolver) Version() int32 {
 
 func (r *EnvironmentVariableResolver) Type() string {
 	return string(r.EnvironmentVariable.Type)
-}
-
-func (r *EnvironmentVariableResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.EnvironmentVariable.Created}
 }
 
 func (r *EnvironmentVariableResolver) Scope() string {

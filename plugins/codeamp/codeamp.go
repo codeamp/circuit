@@ -16,7 +16,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
@@ -79,17 +78,48 @@ func (x *CodeAmp) Migrate() {
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")
+
 	user := models.User{
 		Email:    "admin@codeamp.com",
 		Password: hashedPassword,
 	}
-	db.Create(&user)
+
+	db.FirstOrInit(&user, models.User{
+		Email: "admin@codeamp.com",
+	})
+	db.Save(&user)
 
 	userPermission := models.UserPermission{
 		UserId: user.Model.ID,
 		Value:  "admin",
 	}
-	db.Create(&userPermission)
+	db.FirstOrInit(&userPermission, userPermission)
+	db.Save(&userPermission)
+
+	developmentEnv := models.Environment{
+		Name: "development",
+	}
+	db.FirstOrInit(&developmentEnv, developmentEnv)
+	db.Save(&developmentEnv)
+
+	productionEnv := models.Environment{
+		Name: "production",
+	}
+	db.FirstOrInit(&productionEnv, productionEnv)
+	db.Save(&productionEnv)
+
+	serviceSpec := models.ServiceSpec{
+		Name:                   "default",
+		CpuRequest:             "500",
+		CpuLimit:               "500",
+		MemoryRequest:          "500",
+		MemoryLimit:            "500",
+		TerminationGracePeriod: "300",
+	}
+	db.FirstOrInit(&serviceSpec, models.ServiceSpec{
+		Name: "default",
+	})
+	db.Save(&serviceSpec)
 
 	defer db.Close()
 }
@@ -199,11 +229,10 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.GitCommit",
 		"plugins.GitStatus",
 		"plugins.HeartBeat",
-		"plugins.Route53",
 		"plugins.WebsocketMsg",
 		"plugins.Extension:status",
 		"plugins.Extension:complete",
-		"plugins.ReleaseExtension:create",
+		"plugins.ReleaseExtension:status",
 		"plugins.ReleaseExtension:complete",
 		"plugins.Release:status",
 		"plugins.Release:complete",
@@ -241,46 +270,37 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 	if e.Name == "plugins.Extension:complete" {
 		payload := e.Payload.(plugins.Extension)
-
-		if payload.State == plugins.Complete {
-		}
-
-		// query project from extension slug (2nd part)
 		var extension models.Extension
-		extensionId := strings.Split(payload.Slug, ":")[1]
 
-		if x.Db.Where("id = ?", extensionId).Find(&extension).RecordNotFound() {
-			log.InfoWithFields("extension not found from given slug", log.Fields{
-				"extension event": payload,
+		if x.Db.Where("id = ?", payload.Id).Find(&extension).RecordNotFound() {
+			log.InfoWithFields("extension not found", log.Fields{
+				"id": payload.Id,
 			})
 			return nil
 		}
 
 		extension.State = plugins.Complete
-		extension.Artifacts = payload.Artifacts
+		extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&extension)
+
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
 	if e.Name == "plugins.ReleaseExtension:complete" {
 		payload := e.Payload.(plugins.ReleaseExtension)
-		releaseExtension := models.ReleaseExtension{}
+		var releaseExtension models.ReleaseExtension
 
-		spew.Dump("RE COMPLETE", payload)
-
-		// get uuid from slug
-		releaseExtensionSplitSlug := strings.Split(payload.Slug, ":")
-
-		if x.Db.Where("id = ?", releaseExtensionSplitSlug[1]).Find(&releaseExtension).RecordNotFound() {
-			log.InfoWithFields("release extension not found from given slug", log.Fields{
-				"release event": payload,
+		if x.Db.Where("id = ?", payload.Id).Find(&releaseExtension).RecordNotFound() {
+			log.InfoWithFields("release extension not found", log.Fields{
+				"id": payload.Id,
 			})
 			return nil
 		}
 
 		releaseExtension.State = plugins.Complete
-		releaseExtension.Artifacts = payload.Artifacts
+		releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&releaseExtension)
+
 		x.Actions.ReleaseExtensionCompleted(&releaseExtension)
 	}
 

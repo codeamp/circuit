@@ -8,18 +8,14 @@ import (
 
 func init() {
 	transistor.RegisterApi(Project{})
-	transistor.RegisterApi(GitPing{})
 	transistor.RegisterApi(GitCommit{})
 	transistor.RegisterApi(GitStatus{})
 	transistor.RegisterApi(GitSync{})
-	transistor.RegisterApi(Release{})
-	transistor.RegisterApi(LoadBalancer{})
 	transistor.RegisterApi(WebsocketMsg{})
 	transistor.RegisterApi(HeartBeat{})
-	transistor.RegisterApi(Route53{})
+	transistor.RegisterApi(Project{})
 	transistor.RegisterApi(Extension{})
 	transistor.RegisterApi(Release{})
-	transistor.RegisterApi(Project{})
 	transistor.RegisterApi(ReleaseExtension{})
 }
 
@@ -57,14 +53,6 @@ const (
 	Notification               = "notification"
 	Once                       = "once"
 )
-
-// Used for conversion during input validation in e.g. ExtensionSpec
-var StrToExtensionType = map[string]ExtensionType{
-	"deployment":   Deployment,
-	"workflow":     Workflow,
-	"notification": Notification,
-	"once":         Once,
-}
 
 type EnvVarScope string
 
@@ -104,11 +92,6 @@ type GitCommit struct {
 	Created    time.Time `json:"created"`
 }
 
-type GitPing struct {
-	Repository string `json:"repository"`
-	User       string `json:"user"`
-}
-
 type GitStatus struct {
 	Repository string `json:"repository"`
 	User       string `json:"user"`
@@ -127,6 +110,7 @@ type GitSync struct {
 }
 
 type Feature struct {
+	Id         string    `json:"id"`
 	Hash       string    `json:"hash"`
 	ParentHash string    `json:"parentHash"`
 	User       string    `json:"user"`
@@ -145,6 +129,7 @@ type ListenerPair struct {
 }
 
 type Service struct {
+	Id           string      `json:"id"`
 	Action       Action      `json:"action"`
 	Name         string      `json:"name"`
 	Command      string      `json:"command"`
@@ -157,24 +142,12 @@ type Service struct {
 }
 
 type ServiceSpec struct {
+	Id                            string `json:"id"`
 	CpuRequest                    string `json:"cpuRequest"`
 	CpuLimit                      string `json:"cpuLimit"`
 	MemoryRequest                 string `json:"memoryRequest"`
 	MemoryLimit                   string `json:"memoryLimit"`
 	TerminationGracePeriodSeconds int64  `json:"terminationGracePeriodSeconds"`
-}
-
-type DockerRegistry struct {
-	Host     string `json:"host"`
-	Org      string `json:"org"`
-	Username string `json:"username"`
-	Password string `json:"password" role:"secret"`
-	Email    string `json:"email"`
-}
-
-type Docker struct {
-	Image    string         `json:"image"`
-	Registry DockerRegistry `json:"registry"`
 }
 
 type Secret struct {
@@ -188,64 +161,8 @@ type Arg struct {
 	Value string `json:"value" role:"secret"`
 }
 
-type DockerBuild struct {
-	Action       Action         `json:"action"`
-	State        State          `json:"state"`
-	StateMessage string         `json:"stateMessage"`
-	Project      Project        `json:"project"`
-	Git          Git            `json:"git"`
-	Feature      Feature        `json:"feature"`
-	Registry     DockerRegistry `json:"registry"`
-	BuildArgs    []Arg          `json:"buildArgs"`
-	BuildLog     string         `json:"buildLog"`
-	BuildError   string         `json:"buildError"`
-	Image        string         `json:"image"`
-}
-
 type HeartBeat struct {
 	Tick string `json:"tick"`
-}
-
-// Deploy
-type DockerDeploy struct {
-	Action             Action    `json:"action"`
-	State              State     `json:"state"`
-	StateMessage       string    `json:"stateMessage"`
-	Project            Project   `json:"project"`
-	Release            Release   `json:"release"`
-	Docker             Docker    `json:"docker"`
-	Services           []Service `json:"services"`
-	Secrets            []Secret  `json:"secrets"`
-	Timeout            int       `json:"timeout"`
-	DeploymentStrategy string    `json:"deploymentStrategy"`
-	Environment        string    `json:"environment"`
-}
-
-// LoadBalancer
-type LoadBalancer struct {
-	Action        Action         `json:"action"`
-	State         State          `json:"state"`
-	StateMessage  string         `json:"stateMessage"`
-	Name          string         `json:"name"`
-	Type          Type           `json:"type"`
-	Project       Project        `json:"project"`
-	Service       Service        `json:"service"`
-	ListenerPairs []ListenerPair `json:"portPairs"`
-	DNS           string         `json:"dns"`
-	Environment   string         `json:"environment"`
-	Subdomain     string         `json:"subdomain"`
-}
-
-// Route53
-type Route53 struct {
-	State        State   `json:"state"`
-	StateMessage string  `json:"stateMessage"`
-	Project      Project `json:"project"`
-	Service      Service `json:"service"`
-	DNS          string  `json:"dns"`
-	FQDN         string  `json:"fqdn"`
-	Environment  string  `json:"environment"`
-	Subdomain    string  `json:"subdomain"`
 }
 
 type WebsocketMsg struct {
@@ -255,66 +172,48 @@ type WebsocketMsg struct {
 }
 
 type Extension struct {
-	Action       Action `json:"action"`
-	State        State  `json:"state"`
-	StateMessage string `json:"stateMessage"`
-
-	Slug       string             `json:"slug"`
-	FormValues map[string]*string `json:"formValues"`
-	Artifacts  map[string]*string `json:"artifacts"`
+	Id           string            `json:"id"`
+	Action       Action            `json:"action"`
+	State        State             `json:"state"`
+	StateMessage string            `json:"stateMessage"`
+	FormValues   map[string]string `json:"formValues"`
+	Artifacts    map[string]string `json:"artifacts"`
 }
 
 type Release struct {
-	Action Action `json:"action"`
-	Slug   string `json:"slug"`
-	Id     string `json:"id"`
-
-	Project           Project            `json:"project"`
-	Git               Git                `json:"git"`
-	HeadFeature       Feature            `json:"headFeature"`
-	User              string             `json:"user"`
-	TailFeature       Feature            `json:"tailFeature"`
-	ReleaseExtensions []ReleaseExtension `json:"releaseExtensions"`
-	Extensions        []Extension        `json:"extensions"`
-	Services          []Service          `json:"services"`
-	Secrets           []Secret           `json:"secrets"` // secrets = build args + artifacts
-	Artifacts         map[string]*string `json:"artifacts"`
-
-	State        State  `json:"state"`
-	StateMessage string `json:"stateMessage"`
+	Id           string            `json:"id"`
+	Action       Action            `json:"action"`
+	State        State             `json:"state"`
+	StateMessage string            `json:"stateMessage"`
+	Project      Project           `json:"project"`
+	Git          Git               `json:"git"`
+	HeadFeature  Feature           `json:"headFeature"`
+	User         string            `json:"user"`
+	TailFeature  Feature           `json:"tailFeature"`
+	Services     []Service         `json:"services"`
+	Secrets      []Secret          `json:"secrets"` // secrets = build args + artifacts
+	Artifacts    map[string]string `json:"artifacts"`
 }
 
 type ReleaseExtension struct {
-	Action Action `json:"action"`
-	Slug   string `json:"slug"`
-
-	Release      Release            `json:"release"`
-	Extension    Extension          `json:"extension"`
-	Artifacts    map[string]*string `json:"artifacts"`
-	Key          string             `json:"key"`
-	Id           string             `json:"id"`
-	State        State              `json:"state"`
-	StateMessage string             `json:"stateMessage"`
+	Id           string            `json:"id"`
+	Action       Action            `json:"action"`
+	Release      Release           `json:"release"`
+	Extension    Extension         `json:"extension"`
+	Artifacts    map[string]string `json:"artifacts"`
+	State        State             `json:"state"`
+	StateMessage string            `json:"stateMessage"`
 }
 
 type Project struct {
-	Action Action `json:"action"`
-	Slug   string `json:"slug"`
-
-	Git            Git                `json:"git"`
-	Extension      ProjectExtension   `json:"extension"`
-	Services       []Service          `json:"services"`
-	Secrets        []Secret           `json:"secrets"` // secrets = build args + artifacts
-	Artifacts      map[string]*string `json:"artifacts"`
-	Repository     string             `json:"repository"`
-	NotifyChannels []string           `json:"notifyChannels,omitempty"`
-
-	State        State  `json:"state"`
-	StateMessage string `json:"stateMessage"`
-}
-
-type ProjectExtension struct {
-	Id           string `json:"id"`
-	State        State  `json:"state"`
-	StateMessage string `json:"stateMessage"`
+	Id             string            `json:"id"`
+	Action         Action            `json:"action"`
+	State          State             `json:"state"`
+	StateMessage   string            `json:"stateMessage"`
+	Git            Git               `json:"git"`
+	Services       []Service         `json:"services"`
+	Secrets        []Secret          `json:"secrets"` // secrets = build args + artifacts
+	Artifacts      map[string]string `json:"artifacts"`
+	Repository     string            `json:"repository"`
+	NotifyChannels []string          `json:"notifyChannels,omitempty"`
 }

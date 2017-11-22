@@ -15,7 +15,7 @@ func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
 	var rows []models.Service
 	var results []*ServiceResolver
 
-	r.db.Order("created desc").Find(&rows)
+	r.db.Order("created_at desc").Find(&rows)
 	for _, service := range rows {
 		results = append(results, &ServiceResolver{db: r.db, Service: service})
 	}

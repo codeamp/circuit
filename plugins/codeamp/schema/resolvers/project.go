@@ -254,7 +254,7 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Order("created desc").Find(&rows)
+	r.db.Where("project_id = ?", r.Project.ID).Order("created_at desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})
@@ -293,7 +293,7 @@ func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*Environm
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Select("key, version, id, value, created, type, user_id, project_id, environment_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, version, created desc").Find(&rows)
+	r.db.Select("key, version, id, value, created_at, type, user_id, project_id, environment_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, version, created_at desc").Find(&rows)
 
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})

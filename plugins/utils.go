@@ -42,3 +42,37 @@ func GetRegexParams(regEx, url string) (paramsMap map[string]string) {
 	}
 	return
 }
+
+func HstoreToMapStringString(hstore map[string]*string) map[string]string {
+	var mapStringString map[string]string
+	for k, v := range hstore {
+		if k == "" || *v == "" {
+			continue
+		}
+
+		mapStringString[k] = *v
+	}
+
+	return mapStringString
+}
+
+func MapStringStringToHstore(mapStringString map[string]string) map[string]*string {
+	var hstore map[string]*string
+	for k, v := range mapStringString {
+		if k == "" || v == "" {
+			continue
+		}
+
+		hstore[k] = &v
+	}
+
+	return hstore
+}
+
+// Used for conversion during input validation in e.g. ExtensionSpec
+var StrToExtensionType = map[string]ExtensionType{
+	"deployment":   Deployment,
+	"workflow":     Workflow,
+	"notification": Notification,
+	"once":         Once,
+}

@@ -15,7 +15,7 @@ func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	r.db.Order("created desc").Find(&rows)
+	r.db.Order("created_at desc").Find(&rows)
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})
 	}

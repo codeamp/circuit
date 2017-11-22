@@ -15,7 +15,7 @@ func (r *Resolver) Extensions(ctx context.Context) ([]*ExtensionResolver, error)
 	var rows []models.Extension
 	var results []*ExtensionResolver
 
-	r.db.Order("created desc").Find(&rows)
+	r.db.Order("created_at desc").Find(&rows)
 	for _, extension := range rows {
 		results = append(results, &ExtensionResolver{db: r.db, Extension: extension})
 	}

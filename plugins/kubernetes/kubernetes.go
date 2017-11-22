@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"strings"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -52,44 +51,33 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 	})
 
 	switch e.Name {
-	case "plugins.ReleaseExtension:create":
+	case "plugins.ReleaseExtension:create:kubernetes":
 		reEvent := e.Payload.(plugins.ReleaseExtension)
+		time.Sleep(5 * time.Second)
 
-		if reEvent.Key == "kubernetes" {
-			// doDeploy if it is
+		reRes := reEvent
+		reRes.Artifacts["HELLO1"] = "world"
+		reRes.Artifacts["hello2"] = "WORLD"
+		reRes.Action = plugins.Complete
+		reRes.StateMessage = "Finished deployment"
+		x.events <- transistor.NewEvent(reRes, nil)
 
-			time.Sleep(5 * time.Second)
-
-			reRes := reEvent
-			reRes.Action = plugins.Complete
-			reRes.StateMessage = "Finished deployment"
-			reRes.Slug = reRes.Slug
-
-			x.events <- transistor.NewEvent(reRes, nil)
-		}
-
-	case "plugins.Extension:create":
-		// check if extension slug is kubernetes
+	case "plugins.Extension:create:kubernetes":
 		extensionEvent := e.Payload.(plugins.Extension)
-		extensionSlugSlice := strings.Split(extensionEvent.Slug, "|")
-		switch extensionSlugSlice[0] {
-		case "kubernetes":
-			// create deployment
-			// fill artifacts
-			sampleKubeString := "checkrhq-dev.net"
-			sampleKubeConfig := "/etc/secrets"
+		// create deployment
+		// fill artifacts
+		sampleKubeString := "checkrhq-dev.net"
+		sampleKubeConfig := "/etc/secrets"
 
-			extensionRes := extensionEvent
-			extensionRes.Action = plugins.Complete
-			extensionRes.StateMessage = "Finished initialization"
-			extensionRes.Artifacts = map[string]*string{
-				"cluster":     &sampleKubeString,
-				"config path": &sampleKubeConfig,
-			}
-
-			x.events <- transistor.NewEvent(extensionRes, nil)
-		default:
+		extensionRes := extensionEvent
+		extensionRes.Action = plugins.Complete
+		extensionRes.StateMessage = "Finished initialization"
+		extensionRes.Artifacts = map[string]string{
+			"cluster":     sampleKubeString,
+			"config path": sampleKubeConfig,
 		}
+
+		x.events <- transistor.NewEvent(extensionRes, nil)
 	}
 
 	log.Info("Processed kubernetes event")

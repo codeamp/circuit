@@ -15,7 +15,7 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 	var rows []models.ServiceSpec
 	var results []*ServiceSpecResolver
 
-	r.db.Order("created desc").Find(&rows)
+	r.db.Order("created_at desc").Find(&rows)
 	for _, serviceSpec := range rows {
 		results = append(results, &ServiceSpecResolver{db: r.db, ServiceSpec: serviceSpec})
 	}
