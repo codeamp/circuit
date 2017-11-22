@@ -245,7 +245,7 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","context/ctxhttp"]
-  revision = "9dfe39835686865bff950a07b394c12a98ddc811"
+  revision = "fb018015d54fd2e3bfd5362a041991d350fde9d7"
 
 [[projects]]
   branch = "master"

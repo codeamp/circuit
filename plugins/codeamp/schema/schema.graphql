@@ -133,6 +133,7 @@ interface EnvironmentVariable {
   version: Int!
   versions: [EnvironmentVariable]!
   environment: Environment!
+  created: Time!
 }
 
 # ServiceSpec object
