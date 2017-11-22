@@ -213,6 +213,10 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
 
+func (r *ServiceResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Service.Model.CreatedAt}
+}
+
 type ContainerPortResolver struct {
 	ContainerPort models.ContainerPort
 }
@@ -223,4 +227,8 @@ func (r *ContainerPortResolver) Port() string {
 
 func (r *ContainerPortResolver) Protocol() string {
 	return r.ContainerPort.Protocol
+}
+
+func (r *ContainerPortResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.ContainerPort.Model.CreatedAt}
 }

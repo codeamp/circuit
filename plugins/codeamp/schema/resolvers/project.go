@@ -313,3 +313,7 @@ func (r *ProjectResolver) Extensions(ctx context.Context) ([]*ExtensionResolver,
 
 	return results, nil
 }
+
+func (r *ProjectResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Project.Model.CreatedAt}
+}

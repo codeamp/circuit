@@ -3,6 +3,7 @@ package transistor
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"runtime"
 	"time"
 
@@ -103,4 +104,26 @@ func (e *Event) NewEvent(payload interface{}, err error) Event {
 func (e *Event) Dump() {
 	event, _ := json.MarshalRole("dummy", e)
 	log.Info(string(event))
+}
+
+func (e *Event) Matches(name string) bool {
+	matched, err := regexp.MatchString(name, e.Name)
+	if err != nil {
+		log.InfoWithFields("Event regex match encountered an error", log.Fields{
+			"regex":  name,
+			"string": e.Name,
+			"error":  err,
+		})
+	}
+
+	if matched {
+		return true
+	}
+
+	log.DebugWithFields("Event regex not matched", log.Fields{
+		"regex":  name,
+		"string": e.Name,
+	})
+
+	return false
 }

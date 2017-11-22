@@ -121,6 +121,33 @@ func (x *CodeAmp) Migrate() {
 	})
 	db.Save(&serviceSpec)
 
+	extensionSpec := models.ExtensionSpec{
+		Type:      plugins.Workflow,
+		Key:       "dockerbuilder",
+		Name:      "Docker Builder",
+		Component: "",
+		FormSpec: plugins.MapStringStringToHstore(map[string]string{
+			"REGISTRY": "required|string",
+			"USERNAME": "required|string",
+			"PASSWORD": "required|string",
+		}),
+	}
+	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
+		Key: extensionSpec.Key,
+	})
+	db.Save(&extensionSpec)
+
+	extensionSpec = models.ExtensionSpec{
+		Type:      plugins.Deployment,
+		Key:       "kubernetes",
+		Name:      "Kubernetes",
+		Component: "",
+	}
+	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
+		Key: extensionSpec.Key,
+	})
+	db.Save(&extensionSpec)
+
 	defer db.Close()
 }
 
@@ -244,7 +271,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		"event_name": e.Name,
 	})
 
-	if e.Name == "plugins.HeartBeat" {
+	if e.Matches("plugins.HeartBeat") {
 		heartBeat := e.Payload.(plugins.HeartBeat)
 		switch heartBeat.Tick {
 		case "minute":
@@ -253,12 +280,12 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		return nil
 	}
 
-	if e.Name == "plugins.GitCommit" {
+	if e.Matches("plugins.GitCommit") {
 		payload := e.Payload.(plugins.GitCommit)
 		x.Actions.GitCommit(payload)
 	}
 
-	if e.Name == "plugins.WebsocketMsg" {
+	if e.Matches("plugins.WebsocketMsg") {
 		payload := e.Payload.(plugins.WebsocketMsg)
 
 		if payload.Channel == "" {
@@ -268,7 +295,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		x.SocketIO.BroadcastTo(payload.Channel, payload.Event, payload.Payload, nil)
 	}
 
-	if e.Name == "plugins.Extension:complete" {
+	if e.Matches("plugins.Extension:complete") {
 		payload := e.Payload.(plugins.Extension)
 		var extension models.Extension
 
@@ -286,7 +313,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
-	if e.Name == "plugins.ReleaseExtension:complete" {
+	if e.Matches("plugins.ReleaseExtension:complete") {
 		payload := e.Payload.(plugins.ReleaseExtension)
 		var releaseExtension models.ReleaseExtension
 

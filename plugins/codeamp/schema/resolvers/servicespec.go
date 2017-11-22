@@ -122,3 +122,7 @@ func (r *ServiceSpecResolver) MemoryRequest(ctx context.Context) string {
 func (r *ServiceSpecResolver) TerminationGracePeriod(ctx context.Context) string {
 	return r.ServiceSpec.TerminationGracePeriod
 }
+
+func (r *ServiceSpecResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.ServiceSpec.Model.CreatedAt}
+}

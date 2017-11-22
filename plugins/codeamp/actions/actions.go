@@ -304,7 +304,6 @@ func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable)
 }
 
 func (x *Actions) ExtensionCreated(extension *models.Extension) {
-
 	project := models.Project{}
 	extensionSpec := models.ExtensionSpec{}
 
@@ -334,6 +333,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
 		Action:       plugins.Create,
+		Slug:         extensionSpec.Key,
 		State:        plugins.Waiting,
 		StateMessage: "onCreate",
 		FormValues:   plugins.HstoreToMapStringString(extension.FormSpecValues),
@@ -373,6 +373,7 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
 		Action:       plugins.Update,
+		Slug:         extensionSpec.Key,
 		State:        plugins.Waiting,
 		StateMessage: "onUpdate",
 		FormValues:   plugins.HstoreToMapStringString(extension.FormSpecValues),
@@ -470,14 +471,14 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 		return
 	}
 
-	wsMsg := plugins.WebsocketMsg{
-		Event: fmt.Sprintf("projects/%s/releases/releaseExtensionComplete", project.Slug),
-		Payload: map[string]interface{}{
-			"releaseExtension": re,
-		},
-	}
+	//wsMsg := plugins.WebsocketMsg{
+	//	Event: fmt.Sprintf("projects/%s/releases/releaseExtensionComplete", project.Slug),
+	//	Payload: map[string]interface{}{
+	//		"releaseExtension": re,
+	//	},
+	//}
 
-	x.events <- transistor.NewEvent(wsMsg, nil)
+	//x.events <- transistor.NewEvent(wsMsg, nil)
 
 	// loop through and check if all release extensions are completed
 	done := true
@@ -498,7 +499,6 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 }
 
 func (x *Actions) ReleaseExtensionsCompleted(release *models.Release) {
-
 	project := models.Project{}
 
 	release.StateMessage = "Finished"
@@ -527,6 +527,7 @@ func (x *Actions) ReleaseExtensionsCompleted(release *models.Release) {
 func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	// find all related deployment extensions
 	depExtensions := []models.Extension{}
+	releaseExtensionArtifacts := map[string]string{}
 	found := false
 
 	if x.db.Where("project_id = ?", release.ProjectId).Find(&depExtensions).RecordNotFound() {
@@ -543,10 +544,31 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				"extension spec": de,
 			})
 		}
+		if plugins.ExtensionType(extensionSpec.Type) == plugins.Workflow {
+			releaseExtension := models.ReleaseExtension{}
+
+			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
+				log.InfoWithFields("release extension not found", log.Fields{
+					"release_id":   release.Model.ID,
+					"extension_id": de.Model.ID,
+					"state":        plugins.Complete,
+				})
+			}
+
+			for k, v := range releaseExtension.Artifacts {
+				key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
+				releaseExtensionArtifacts[key] = *v
+			}
+		}
+
 		if plugins.ExtensionType(extensionSpec.Type) == plugins.Deployment {
 			found = true
 		}
 	}
+
+	// persist workflow artifacts
+	release.Artifacts = plugins.MapStringStringToHstore(releaseExtensionArtifacts)
+	x.db.Save(release)
 
 	// if there are no deployment workflows, then release is complete
 	if !found {
@@ -584,7 +606,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		},
 	}
 	releaseExtensionEvents := []plugins.ReleaseExtension{}
-	releaseExtensionArtifacts := map[string]string{}
 
 	for _, extension := range depExtensions {
 		extensionSpec := models.ExtensionSpec{}
@@ -604,18 +625,12 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 					"state":        plugins.Complete,
 				})
 			}
-
-			for k, v := range releaseExtension.Artifacts {
-				key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
-				releaseExtensionArtifacts[key] = *v
-			}
 		}
 
 		if plugins.ExtensionType(extensionSpec.Type) == plugins.Deployment {
 
 			// create ReleaseExtension
 			releaseExtension := models.ReleaseExtension{
-				Slug:              extensionSpec.Key,
 				ReleaseId:         release.Model.ID,
 				FeatureHash:       "",
 				ServicesSignature: "",
@@ -637,6 +652,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
 				Id:           releaseExtension.Model.ID.String(),
 				Action:       plugins.Create,
+				Slug:         extensionSpec.Key,
 				State:        releaseExtension.State,
 				Artifacts:    map[string]string{},
 				Release:      releaseEvent,
@@ -655,6 +671,50 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 }
 
 func (x *Actions) DeploymentExtensionsCompleted(release *models.Release) {
+	// find all related deployment extensions
+	depExtensions := []models.Extension{}
+	releaseExtensionArtifacts := map[string]string{}
+
+	if x.db.Where("project_id = ?", release.ProjectId).Find(&depExtensions).RecordNotFound() {
+		log.InfoWithFields("deployment extensions not found", log.Fields{
+			"release": release,
+		})
+		return
+	}
+
+	for _, de := range depExtensions {
+		var extensionSpec models.ExtensionSpec
+		if x.db.Where("id = ?", de.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+			log.InfoWithFields("extension spec not found", log.Fields{
+				"id": de.ExtensionSpecId,
+			})
+		}
+
+		if plugins.ExtensionType(extensionSpec.Type) == plugins.Deployment {
+			releaseExtension := models.ReleaseExtension{}
+
+			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
+				log.InfoWithFields("release extension not found", log.Fields{
+					"release_id":   release.Model.ID,
+					"extension_id": de.Model.ID,
+					"state":        plugins.Complete,
+				})
+			}
+
+			for k, v := range releaseExtension.Artifacts {
+				key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
+				releaseExtensionArtifacts[key] = *v
+			}
+		}
+	}
+
+	// persist deployment artifacts
+	for k, v := range releaseExtensionArtifacts {
+		release.Artifacts[k] = &v
+	}
+
+	x.db.Save(release)
+
 	x.ReleaseCompleted(release)
 }
 
@@ -667,8 +727,8 @@ func (x *Actions) ReleaseCompleted(release *models.Release) {
 	}
 
 	// mark release as complete
-	(*release).State = plugins.Complete
-	(*release).StateMessage = "Release completed"
+	release.State = plugins.Complete
+	release.StateMessage = "Release completed"
 
 	x.db.Save(release)
 
@@ -693,13 +753,13 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		return
 	}
 
-	wsMsg := plugins.WebsocketMsg{
-		Event: fmt.Sprintf("projects/%s/releases/created", project.Slug),
-		Payload: map[string]interface{}{
-			"release": release,
-		},
-	}
-	x.events <- transistor.NewEvent(wsMsg, nil)
+	//wsMsg := plugins.WebsocketMsg{
+	//		Event: fmt.Sprintf("projects/%s/releases/created", project.Slug),
+	//		Payload: map[string]interface{}{
+	//			"release": release,
+	//		},
+	//	}
+	//	x.events <- transistor.NewEvent(wsMsg, nil)
 
 	// loop through extensions and send ReleaseWorkflow events
 	projectExtensions := []models.Extension{}
@@ -755,7 +815,6 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		if plugins.ExtensionType(extensionSpec.Type) == plugins.Workflow {
 			// create ReleaseExtension
 			releaseExtension := models.ReleaseExtension{
-				Slug:              extensionSpec.Key,
 				ReleaseId:         release.Model.ID,
 				FeatureHash:       "",
 				ServicesSignature: "",
@@ -776,9 +835,11 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			x.events <- transistor.NewEvent(plugins.ReleaseExtension{
 				Id:        releaseExtension.Model.ID.String(),
 				Action:    plugins.Create,
+				Slug:      extensionSpec.Key,
 				State:     releaseExtension.State,
 				Release:   releaseEvent,
 				Extension: extensionEvent,
+				Artifacts: map[string]string{},
 			}, nil)
 		}
 	}

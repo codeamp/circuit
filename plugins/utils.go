@@ -44,12 +44,11 @@ func GetRegexParams(regEx, url string) (paramsMap map[string]string) {
 }
 
 func HstoreToMapStringString(hstore map[string]*string) map[string]string {
-	var mapStringString map[string]string
+	mapStringString := map[string]string{}
 	for k, v := range hstore {
 		if k == "" || *v == "" {
 			continue
 		}
-
 		mapStringString[k] = *v
 	}
 
@@ -57,12 +56,11 @@ func HstoreToMapStringString(hstore map[string]*string) map[string]string {
 }
 
 func MapStringStringToHstore(mapStringString map[string]string) map[string]*string {
-	var hstore map[string]*string
+	hstore := map[string]*string{}
 	for k, v := range mapStringString {
 		if k == "" || v == "" {
 			continue
 		}
-
 		hstore[k] = &v
 	}
 

@@ -174,6 +174,7 @@ type WebsocketMsg struct {
 type Extension struct {
 	Id           string            `json:"id"`
 	Action       Action            `json:"action"`
+	Slug         string            `json:"slug"`
 	State        State             `json:"state"`
 	StateMessage string            `json:"stateMessage"`
 	FormValues   map[string]string `json:"formValues"`
@@ -198,6 +199,7 @@ type Release struct {
 type ReleaseExtension struct {
 	Id           string            `json:"id"`
 	Action       Action            `json:"action"`
+	Slug         string            `json:"slug"`
 	Release      Release           `json:"release"`
 	Extension    Extension         `json:"extension"`
 	Artifacts    map[string]string `json:"artifacts"`

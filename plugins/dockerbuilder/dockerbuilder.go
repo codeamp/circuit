@@ -4,6 +4,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 )
 
 type DockerBuilder struct {
@@ -38,8 +39,8 @@ func (x *DockerBuilder) Stop() {
 
 func (x *DockerBuilder) Subscribe() []string {
 	return []string{
+		"plugins.Extension:create:dockerbuilder",
 		"plugins.ReleaseExtension:create:dockerbuilder",
-		"plugins.Extension:create",
 	}
 }
 
@@ -49,16 +50,19 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	})
 
 	// var err error
-	if e.Name == "plugins.ReleaseExtension:create:dockerbuilder" {
+	if e.Matches("plugins.ReleaseExtension:create:dockerbuilder") {
+		spew.Dump(e)
 		event := e.Payload.(plugins.ReleaseExtension)
+		spew.Dump(event)
 		event.Action = plugins.Complete
 		event.State = plugins.Complete
 		event.Artifacts["IMAGE"] = "dockerhub.io/it-werks"
 		event.Artifacts["image1"] = "dockerhub.io/it-werks-1"
+		spew.Dump(event)
 		x.events <- e.NewEvent(event, nil)
 	}
 
-	if e.Name == "plugins.Extension:create:dockerbuilder" {
+	if e.Matches("plugins.Extension:create:dockerbuilder") {
 		event := e.Payload.(plugins.Extension)
 		event.State = plugins.Complete
 		event.Action = plugins.Complete

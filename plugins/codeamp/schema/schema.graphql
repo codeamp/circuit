@@ -80,6 +80,7 @@ interface User {
   id: ID!
   email: String!
   permissions: [String!]!
+  created: Time!
 }
 
 
@@ -110,12 +111,14 @@ interface Service {
   containerPorts: [ContainerPort]!
   environment: Environment!
   oneShot: Boolean!
+  created: Time!
 }
 
 # Environment object
 interface Environment {
-    id: ID!
-    name: String!
+  id: ID!
+  name: String!
+  created: Time!
 }
 
 # EnvironmentVariable object
@@ -141,6 +144,7 @@ interface ServiceSpec {
   memoryRequest: String! 
   memoryLimit: String!
   terminationGracePeriod: String!
+  created: Time!
 }
 
 # Release object
@@ -154,6 +158,7 @@ interface Release {
   releaseExtensions: [ReleaseExtension]!
   stateMessage: String!
   environment: Environment!
+  created: Time!
 }
 
 # Project object
@@ -173,6 +178,7 @@ interface Project {
   services: [Service]!
   environmentVariables: [EnvironmentVariable]!
   extensions: [Extension]!
+  created: Time!
 }
 
 # ExtensionSpec object
@@ -184,6 +190,7 @@ interface ExtensionSpec {
   type: String!
   key: String!
   environmentVariables: [EnvironmentVariable]!
+  created: Time!
 }
 
 # Extension object
@@ -195,6 +202,7 @@ interface Extension {
   formSpecValues: [KeyValue]!
   state: String!
   environment: Environment!
+  created: Time!
 }
 
 # ReleaseExtension object
@@ -209,6 +217,7 @@ interface ReleaseExtension {
   stateMessage: String!
   artifacts: [KeyValue!]!
   finished: Time
+  created: Time!
 }
 
 # ProjectInput object and all fields needed for creating new Project

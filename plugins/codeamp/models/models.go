@@ -110,6 +110,8 @@ type Feature struct {
 
 type Release struct {
 	Model         `json:",inline"`
+	State         plugins.State `json:"state"`
+	StateMessage  string        `json:"stateMessage"`
 	Project       Project
 	ProjectId     uuid.UUID `json:"projectId" gorm:"type:uuid"`
 	User          User
@@ -120,8 +122,7 @@ type Release struct {
 	TailFeatureID uuid.UUID             `json:"tailFeatureId" gorm:"type:uuid"`
 	Secrets       []EnvironmentVariable `json:"secrets"`
 	Services      []Service             `json:"services"`
-	State         plugins.State         `json:"state"`
-	StateMessage  string                `json:"stateMessage"`
+	Artifacts     postgres.Hstore       `json:"artifacts"`
 	Finished      time.Time
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
@@ -145,7 +146,6 @@ type Extension struct {
 	Model           `json:",inline"`
 	ProjectId       uuid.UUID       `json:"projectId" gorm:"type:uuid"`
 	ExtensionSpecId uuid.UUID       `json:"extensionSpecId" gorm:"type:uuid"`
-	Slug            string          `json:"slug"`
 	State           plugins.State   `json:"state"`
 	Artifacts       postgres.Hstore `json:"artifacts"`
 	FormSpecValues  postgres.Hstore `json:"formSpecValues"`
@@ -155,7 +155,6 @@ type Extension struct {
 type ReleaseExtension struct {
 	Model             `json:",inline"`
 	ReleaseId         uuid.UUID             `json:"releaseId" gorm:"type:uuid"`
-	Slug              string                `json:"slug"`
 	FeatureHash       string                `json:"featureHash"`
 	ServicesSignature string                `json:"servicesSignature"` // services config snapshot
 	SecretsSignature  string                `json:"secretsSignature"`  // build args + artifacts

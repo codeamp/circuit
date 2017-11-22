@@ -226,3 +226,7 @@ func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*Environm
 
 	return results, nil
 }
+
+func (r *EnvironmentVariableResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.EnvironmentVariable.Model.CreatedAt}
+}

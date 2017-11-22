@@ -162,3 +162,7 @@ func (r *ReleaseResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	}
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
+
+func (r *ReleaseResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Release.Model.CreatedAt}
+}

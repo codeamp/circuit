@@ -22,6 +22,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      args:
+        pull: 1
     ports:
       - "${DOCKER_COMPOSE_CIRCUIT_PORT}:3011"
       - "${DOCKER_COMPOSE_DEX_APP_PORT}:5555"

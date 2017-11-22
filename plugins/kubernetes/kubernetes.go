@@ -39,9 +39,8 @@ func (x *Kubernetes) Stop() {
 
 func (x *Kubernetes) Subscribe() []string {
 	return []string{
-		"plugins.Release:complete",
-		"plugins.Extension:create",
-		"plugins.ReleaseExtension:create",
+		"plugins.Extension:create:kubernetes",
+		"plugins.ReleaseExtension:create:kubernetes",
 	}
 }
 
@@ -50,8 +49,7 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	switch e.Name {
-	case "plugins.ReleaseExtension:create:kubernetes":
+	if e.Matches("plugins.ReleaseExtension:create:kubernetes") {
 		reEvent := e.Payload.(plugins.ReleaseExtension)
 		time.Sleep(5 * time.Second)
 
@@ -61,8 +59,9 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		reRes.Action = plugins.Complete
 		reRes.StateMessage = "Finished deployment"
 		x.events <- transistor.NewEvent(reRes, nil)
+	}
 
-	case "plugins.Extension:create:kubernetes":
+	if e.Matches("plugins.Extension:create:kubernetes") {
 		extensionEvent := e.Payload.(plugins.Extension)
 		// create deployment
 		// fill artifacts
@@ -80,6 +79,5 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		x.events <- transistor.NewEvent(extensionRes, nil)
 	}
 
-	log.Info("Processed kubernetes event")
 	return nil
 }
