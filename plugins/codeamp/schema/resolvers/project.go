@@ -241,7 +241,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 	var currentRelease models.Release
 
-	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, r.Project.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
+	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
 			"project": r.Project,
 		})
@@ -267,7 +267,7 @@ func (r *ProjectResolver) Services(ctx context.Context) ([]*ServiceResolver, err
 	var rows []models.Service
 	var results []*ServiceResolver
 
-	r.db.Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.Model.ID).Find(&rows)
+	r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
 
 	for _, service := range rows {
 		results = append(results, &ServiceResolver{db: r.db, Service: service})
@@ -280,7 +280,7 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 	var rows []models.Release
 	var results []*ReleaseResolver
 
-	r.db.Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
+	r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
 
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{db: r.db, Release: release})
@@ -293,7 +293,7 @@ func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*Environm
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Select("key, version, id, value, created, type, user_id, project_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.ID).Order("key, version, created desc").Find(&rows)
+	r.db.Select("key, version, id, value, created, type, user_id, project_id, environment_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, version, created desc").Find(&rows)
 
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})

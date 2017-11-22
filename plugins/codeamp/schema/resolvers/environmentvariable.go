@@ -36,6 +36,8 @@ func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID gra
 	if err := r.db.Where("id = ?", args.ID).First(&envVar).Error; err != nil {
 		return nil, err
 	}
+	spew.Dump(args)
+	spew.Dump(envVar)
 
 	return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
 }
@@ -54,7 +56,11 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	} else {
 		envVarScope = plugins.GlobalScope
 	}
-	environmentId = uuid.FromStringOrNil(args.EnvironmentVariable.EnvironmentId)
+
+	environmentId, err := uuid.FromString(args.EnvironmentVariable.EnvironmentId)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't parse environmentId. Invalid format.")
+	}
 
 	userIdString, err := utils.CheckAuth(ctx, []string{})
 	if err != nil {
@@ -142,6 +148,7 @@ func (r *Resolver) DeleteEnvironmentVariable(ctx context.Context, args *struct{ 
 		var rows []models.EnvironmentVariable
 
 		r.db.Where("project_id = ? and key = ? and environment_id = ?", existingEnvVar.ProjectId, existingEnvVar.Key, existingEnvVar.EnvironmentId).Find(&rows)
+		spew.Dump("FOUND EM", rows)
 		for _, envVar := range rows {
 			r.db.Unscoped().Delete(&envVar)
 		}
@@ -215,6 +222,8 @@ func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*Environm
 	}
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
+
+	spew.Dump(r.EnvironmentVariable)
 
 	r.db.Unscoped().Where("project_id = ? and key = ? and environment_id = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key, r.EnvironmentVariable.EnvironmentId).Order("version desc").Find(&rows)
 
