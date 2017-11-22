@@ -41,7 +41,6 @@ type EnvironmentVariable struct {
 	Version       int32               `json:"version"`
 	ProjectId     uuid.UUID           `bson:"projectId" json:"projectId" gorm:"type:uuid"`
 	UserId        uuid.UUID           `bson:"userId" json:"userId" gorm:"type:uuid"`
-	Created       time.Time           `json:"created"`
 	Scope         plugins.EnvVarScope `json:"scope"`
 	EnvironmentId uuid.UUID           `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
@@ -72,13 +71,12 @@ type Workflow struct {
 
 type ServiceSpec struct {
 	Model                  `json:",inline"`
-	Name                   string    `json:"name"`
-	CpuRequest             string    `json:"cpuRequest"`
-	CpuLimit               string    `json:"cpuLimit"`
-	MemoryRequest          string    `json:"memoryRequest"`
-	MemoryLimit            string    `json:"memoryLimit"`
-	TerminationGracePeriod string    `json:"terminationGracePeriod"`
-	Created                time.Time `json:"created"`
+	Name                   string `json:"name"`
+	CpuRequest             string `json:"cpuRequest"`
+	CpuLimit               string `json:"cpuLimit"`
+	MemoryRequest          string `json:"memoryRequest"`
+	MemoryLimit            string `json:"memoryLimit"`
+	TerminationGracePeriod string `json:"terminationGracePeriod"`
 }
 
 type ContainerPort struct {
@@ -96,7 +94,6 @@ type Service struct {
 	Name          string    `json:"name"`
 	OneShot       bool      `json:"oneShot"`
 	Count         string    `json:"count"`
-	Created       time.Time `json:"created"`
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
@@ -112,25 +109,20 @@ type Feature struct {
 }
 
 type Release struct {
-	Model `json:",inline"`
-
-	Project   Project
-	ProjectId uuid.UUID `json:"projectId" gorm:"type:uuid"`
-
-	User   User
-	UserID uuid.UUID `json:"userId" gorm:"type:uuid"`
-
+	Model         `json:",inline"`
+	State         plugins.State `json:"state"`
+	StateMessage  string        `json:"stateMessage"`
+	Project       Project
+	ProjectId     uuid.UUID `json:"projectId" gorm:"type:uuid"`
+	User          User
+	UserID        uuid.UUID `json:"userId" gorm:"type:uuid"`
 	HeadFeature   Feature
 	HeadFeatureID uuid.UUID `json:"headFeatureId" gorm:"type:uuid"`
-
 	TailFeature   Feature
-	TailFeatureID uuid.UUID `json:"tailFeatureId" gorm:"type:uuid"`
-
+	TailFeatureID uuid.UUID             `json:"tailFeatureId" gorm:"type:uuid"`
 	Secrets       []EnvironmentVariable `json:"secrets"`
 	Services      []Service             `json:"services"`
-	State         plugins.State         `json:"state"`
-	StateMessage  string                `json:"stateMessage"`
-	Created       time.Time             `json:"created"`
+	Artifacts     postgres.Hstore       `json:"artifacts"`
 	Finished      time.Time
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
@@ -148,14 +140,12 @@ type ExtensionSpec struct {
 	Name      string                `json:"name"`
 	Component string                `json:"component"`
 	FormSpec  postgres.Hstore       `json:"formSpec"`
-	Created   time.Time             `json:"created"`
 }
 
 type Extension struct {
 	Model           `json:",inline"`
 	ProjectId       uuid.UUID       `json:"projectId" gorm:"type:uuid"`
 	ExtensionSpecId uuid.UUID       `json:"extensionSpecId" gorm:"type:uuid"`
-	Slug            string          `json:"slug"`
 	State           plugins.State   `json:"state"`
 	Artifacts       postgres.Hstore `json:"artifacts"`
 	FormSpecValues  postgres.Hstore `json:"formSpecValues"`
@@ -165,7 +155,6 @@ type Extension struct {
 type ReleaseExtension struct {
 	Model             `json:",inline"`
 	ReleaseId         uuid.UUID             `json:"releaseId" gorm:"type:uuid"`
-	Slug              string                `json:"slug"`
 	FeatureHash       string                `json:"featureHash"`
 	ServicesSignature string                `json:"servicesSignature"` // services config snapshot
 	SecretsSignature  string                `json:"secretsSignature"`  // build args + artifacts

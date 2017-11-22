@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"strings"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -40,9 +39,8 @@ func (x *Kubernetes) Stop() {
 
 func (x *Kubernetes) Subscribe() []string {
 	return []string{
-		"plugins.Release:complete",
-		"plugins.Extension:create",
-		"plugins.ReleaseExtension:create",
+		"plugins.Extension:create:kubernetes",
+		"plugins.ReleaseExtension:create:kubernetes",
 	}
 }
 
@@ -51,47 +49,35 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	switch e.Name {
-	case "plugins.ReleaseExtension:create":
+	if e.Matches("plugins.ReleaseExtension:create:kubernetes") {
 		reEvent := e.Payload.(plugins.ReleaseExtension)
+		time.Sleep(5 * time.Second)
 
-		if reEvent.Key == "kubernetes" {
-			// doDeploy if it is
-
-			time.Sleep(5 * time.Second)
-
-			reRes := reEvent
-			reRes.Action = plugins.Complete
-			reRes.StateMessage = "Finished deployment"
-			reRes.Slug = reRes.Slug
-
-			x.events <- transistor.NewEvent(reRes, nil)
-		}
-
-	case "plugins.Extension:create":
-		// check if extension slug is kubernetes
-		extensionEvent := e.Payload.(plugins.Extension)
-		extensionSlugSlice := strings.Split(extensionEvent.Slug, "|")
-		switch extensionSlugSlice[0] {
-		case "kubernetes":
-			// create deployment
-			// fill artifacts
-			sampleKubeString := "checkrhq-dev.net"
-			sampleKubeConfig := "/etc/secrets"
-
-			extensionRes := extensionEvent
-			extensionRes.Action = plugins.Complete
-			extensionRes.StateMessage = "Finished initialization"
-			extensionRes.Artifacts = map[string]*string{
-				"cluster":     &sampleKubeString,
-				"config path": &sampleKubeConfig,
-			}
-
-			x.events <- transistor.NewEvent(extensionRes, nil)
-		default:
-		}
+		reRes := reEvent
+		reRes.Artifacts["HELLO1"] = "world"
+		reRes.Artifacts["hello2"] = "WORLD"
+		reRes.Action = plugins.Complete
+		reRes.StateMessage = "Finished deployment"
+		x.events <- transistor.NewEvent(reRes, nil)
 	}
 
-	log.Info("Processed kubernetes event")
+	if e.Matches("plugins.Extension:create:kubernetes") {
+		extensionEvent := e.Payload.(plugins.Extension)
+		// create deployment
+		// fill artifacts
+		sampleKubeString := "checkrhq-dev.net"
+		sampleKubeConfig := "/etc/secrets"
+
+		extensionRes := extensionEvent
+		extensionRes.Action = plugins.Complete
+		extensionRes.StateMessage = "Finished initialization"
+		extensionRes.Artifacts = map[string]string{
+			"cluster":     sampleKubeString,
+			"config path": sampleKubeConfig,
+		}
+
+		x.events <- transistor.NewEvent(extensionRes, nil)
+	}
+
 	return nil
 }

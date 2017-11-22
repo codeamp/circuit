@@ -231,5 +231,5 @@ func (r *ExtensionSpecResolver) FormSpec(ctx context.Context) ([]*KeyValueResolv
 }
 
 func (r *ExtensionSpecResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.ExtensionSpec.Created}
+	return graphql.Time{Time: r.ExtensionSpec.Model.CreatedAt}
 }

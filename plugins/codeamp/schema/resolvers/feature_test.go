@@ -139,7 +139,7 @@ func (suite *TestFeatures) TestSuccessfulFeature() {
 	}
 	suite.db.Save(&testFeature3)
 
-	// features() method is "created desc" so last created -> first
+	// features() method is "created_at desc" so last created -> first
 	testFeatures := []models.Feature{testFeature3, testFeature2, testFeature1}
 
 	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)

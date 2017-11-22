@@ -3,7 +3,6 @@ package resolvers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
@@ -137,7 +136,6 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 		OneShot:       args.Service.OneShot,
 		Count:         args.Service.Count,
 		ProjectId:     projectId,
-		Created:       time.Now(),
 		EnvironmentId: environmentId,
 	}
 
@@ -187,10 +185,6 @@ func (r *ServiceResolver) Count() string {
 	return r.Service.Count
 }
 
-func (r *ServiceResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.Service.Created}
-}
-
 func (r *ServiceResolver) OneShot() bool {
 	return r.Service.OneShot
 }
@@ -219,6 +213,10 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
 
+func (r *ServiceResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Service.Model.CreatedAt}
+}
+
 type ContainerPortResolver struct {
 	ContainerPort models.ContainerPort
 }
@@ -229,4 +227,8 @@ func (r *ContainerPortResolver) Port() string {
 
 func (r *ContainerPortResolver) Protocol() string {
 	return r.ContainerPort.Protocol
+}
+
+func (r *ContainerPortResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.ContainerPort.Model.CreatedAt}
 }

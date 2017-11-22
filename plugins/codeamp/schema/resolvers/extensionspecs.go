@@ -15,7 +15,7 @@ func (r *Resolver) ExtensionSpecs(ctx context.Context) ([]*ExtensionSpecResolver
 	var rows []models.ExtensionSpec
 	var results []*ExtensionSpecResolver
 
-	r.db.Order("created desc").Find(&rows)
+	r.db.Order("created_at desc").Find(&rows)
 	for _, extensionSpec := range rows {
 		results = append(results, &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec})
 	}

@@ -124,5 +124,5 @@ func (r *ServiceSpecResolver) TerminationGracePeriod(ctx context.Context) string
 }
 
 func (r *ServiceSpecResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.ServiceSpec.Created}
+	return graphql.Time{Time: r.ServiceSpec.Model.CreatedAt}
 }

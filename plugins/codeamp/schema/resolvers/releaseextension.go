@@ -95,3 +95,7 @@ func (r *ReleaseExtensionResolver) Artifacts() []*KeyValueResolver {
 func (r *ReleaseExtensionResolver) Finished() *graphql.Time {
 	return &graphql.Time{Time: r.ReleaseExtension.Finished}
 }
+
+func (r *ReleaseExtensionResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.ReleaseExtension.Model.CreatedAt}
+}

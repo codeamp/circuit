@@ -3,7 +3,6 @@ package resolvers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -60,10 +59,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	// the tail feature id is the current release's head feature id
-	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, args.Release.ProjectId, environmentId).Find(&currentRelease).Order("created desc").Limit(1).RecordNotFound() {
+	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, args.Release.ProjectId, environmentId).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
 		// get first ever feature in project if current release doesn't exist yet
 		var firstFeature models.Feature
-		if r.db.Where("project_id = ?", args.Release.ProjectId).Find(&firstFeature).Order("created asc").Limit(1).RecordNotFound() {
+		if r.db.Where("project_id = ?", args.Release.ProjectId).Find(&firstFeature).Order("created_at asc").Limit(1).RecordNotFound() {
 			log.InfoWithFields("CreateRelease", log.Fields{
 				"release": r,
 			})
@@ -89,7 +88,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		TailFeatureID: tailFeatureId,
 		State:         plugins.Waiting,
 		StateMessage:  "Release created",
-		Created:       time.Now(),
 	}
 
 	r.db.Create(&release)
@@ -154,10 +152,6 @@ func (r *ReleaseResolver) StateMessage() string {
 	return r.Release.StateMessage
 }
 
-func (r *ReleaseResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.Release.Created}
-}
-
 func (r *ReleaseResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
 	var environment models.Environment
 	if r.db.Where("id = ?", r.Release.EnvironmentId).First(&environment).RecordNotFound() {
@@ -167,4 +161,8 @@ func (r *ReleaseResolver) Environment(ctx context.Context) (*EnvironmentResolver
 		return nil, fmt.Errorf("Environment not found.")
 	}
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
+}
+
+func (r *ReleaseResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Release.Model.CreatedAt}
 }

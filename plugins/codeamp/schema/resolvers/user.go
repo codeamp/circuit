@@ -74,3 +74,7 @@ func (r *UserResolver) Permissions() []string {
 
 	return permissions
 }
+
+func (r *UserResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.User.Model.CreatedAt}
+}

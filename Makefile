@@ -4,7 +4,7 @@ up:
 	docker-compose up circuit
 
 build:
-	docker-compose build circuit
+	docker-compose build --pull circuit
 
 destroy:
 	docker-compose stop

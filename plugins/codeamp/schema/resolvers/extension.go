@@ -165,12 +165,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			FormSpecValues:  formSpecValuesMap,
 			Artifacts:       map[string]*string{},
 			State:           plugins.Waiting,
-			Slug:            "",
 		}
-
-		r.db.Create(&extension)
-
-		extension.Slug = fmt.Sprintf("%s:%s", extensionSpec.Key, extension.Model.ID.String())
 		r.db.Save(&extension)
 
 		go r.actions.ExtensionCreated(&extension)
