@@ -165,7 +165,6 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 	extension := models.Extension{
 		ProjectId:       project.Model.ID,
 		ExtensionSpecId: extensionSpec.Model.ID,
-		Slug:            "foo",
 		State:           plugins.Waiting,
 		Artifacts:       map[string]*string{},
 		FormSpecValues:  map[string]*string{},
@@ -174,7 +173,6 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 
 	re := models.ReleaseExtension{
 		ReleaseId:         release.Model.ID,
-		Slug:              extensionSpec.Key,
 		FeatureHash:       fmt.Sprintf("featurehash%s", stamp),
 		ServicesSignature: fmt.Sprintf("servicessignature%s", stamp),
 		SecretsSignature:  fmt.Sprintf("secretssignature%s", stamp),
@@ -190,7 +188,6 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 
 	re2 := models.ReleaseExtension{
 		ReleaseId:         release.Model.ID,
-		Slug:              extensionSpec.Key,
 		FeatureHash:       fmt.Sprintf("featurehash2%s", stamp),
 		ServicesSignature: fmt.Sprintf("servicessignature2%s", stamp),
 		SecretsSignature:  fmt.Sprintf("secretssignature2%s", stamp),

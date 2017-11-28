@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp"
@@ -114,7 +113,6 @@ func (suite *TestExtensions) TearDownSuite() {
 func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulCreateExtension")
-	timestamp := time.Now()
 
 	es := models.ExtensionSpec{
 		Type:      plugins.Workflow,
@@ -122,7 +120,6 @@ func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
 		FormSpec:  map[string]*string{},
-		Created:   timestamp,
 	}
 	suite.db.Save(&es)
 
@@ -217,15 +214,12 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestFailedCreateExtensionInvalidProjectId")
 
-	timestamp := time.Now()
-
 	es := models.ExtensionSpec{
 		Type:      plugins.Workflow,
 		Key:       fmt.Sprintf("testkey%s", stamp),
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
 		FormSpec:  map[string]*string{},
-		Created:   timestamp,
 	}
 	suite.db.Save(&es)
 
@@ -260,7 +254,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestFailedCreateExtensionInvalidFormSpecValues")
-	timestamp := time.Now()
 
 	requiredStringParam := "required|string"
 
@@ -273,7 +266,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 			"key1": &requiredStringParam,
 			"key3": &requiredStringParam,
 		},
-		Created: timestamp,
 	}
 	suite.db.Save(&es)
 
@@ -371,7 +363,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionExtensionSpecDoesntExist()
 func (suite *TestExtensions) TestFailedCreateExtensionInvalidEnvironmentId() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestFailedCreateExtensionExtensionSpecDoesntExist")
-	timestamp := time.Now()
 
 	p := models.Project{
 		Name:          fmt.Sprintf("test%s", stamp),
@@ -396,7 +387,6 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidEnvironmentId() {
 			"key1": &requiredStringParam,
 			"key3": &requiredStringParam,
 		},
-		Created: timestamp,
 	}
 	suite.db.Save(&es)
 
