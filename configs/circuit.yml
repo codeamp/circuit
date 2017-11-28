@@ -23,7 +23,7 @@ plugins:
     workdir: "/tmp/gitsync" 
   heartbeat:
     workers: 1
-  kubernetes:
+  kubernetesdeployments:
     workers: 1
   dockerbuilder:
     workers: 1

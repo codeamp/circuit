@@ -165,6 +165,33 @@ type HeartBeat struct {
 	Tick string `json:"tick"`
 }
 
+// LoadBalancer
+type LoadBalancer struct {
+	Action        Action         `json:"action"`
+	State         State          `json:"state"`
+	StateMessage  string         `json:"stateMessage"`
+	Name          string         `json:"name"`
+	Type          Type           `json:"type"`
+	Project       Project        `json:"project"`
+	Service       Service        `json:"service"`
+	ListenerPairs []ListenerPair `json:"portPairs"`
+	DNS           string         `json:"dns"`
+	Environment   string         `json:"environment"`
+	Subdomain     string         `json:"subdomain"`
+}
+
+// Route53
+type Route53 struct {
+	State        State   `json:"state"`
+	StateMessage string  `json:"stateMessage"`
+	Project      Project `json:"project"`
+	Service      Service `json:"service"`
+	DNS          string  `json:"dns"`
+	FQDN         string  `json:"fqdn"`
+	Environment  string  `json:"environment"`
+	Subdomain    string  `json:"subdomain"`
+}
+
 type WebsocketMsg struct {
 	Channel string      `json:"channel"`
 	Event   string      `json:"event"`
@@ -194,6 +221,7 @@ type Release struct {
 	Services     []Service         `json:"services"`
 	Secrets      []Secret          `json:"secrets"` // secrets = build args + artifacts
 	Artifacts    map[string]string `json:"artifacts"`
+	Environment  string            `json:"environment"`
 }
 
 type ReleaseExtension struct {
