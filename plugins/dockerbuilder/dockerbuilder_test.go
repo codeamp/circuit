@@ -53,7 +53,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 	formValues["USER"] = "test"
 	formValues["PASSWORD"] = "test"
 	formValues["EMAIL"] = "test@checkr.com"
-	formValues["HOST"] = "registry-testing:5000"
+	formValues["HOST"] = "registry-testing.checkrhq-dev.net:5000"
 	formValues["ORG"] = "testorg"
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
