@@ -281,7 +281,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		log.Printf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err)
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		config, err = clientcmd.BuildConfigFromFlags("", "")
 		if err != nil {
 			log.Printf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err)
 			return nil
