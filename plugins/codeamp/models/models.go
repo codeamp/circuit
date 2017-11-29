@@ -34,21 +34,30 @@ type Environment struct {
 }
 
 type EnvironmentVariable struct {
-	Model         `json:",inline"`
-	Key           string              `json:"key"`
-	Value         string              `json:"value"`
-	Type          plugins.Type        `json:"type"`
-	Version       int32               `json:"version"`
-	ProjectId     uuid.UUID           `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	UserId        uuid.UUID           `bson:"userId" json:"userId" gorm:"type:uuid"`
-	Scope         plugins.EnvVarScope `json:"scope"`
-	EnvironmentId uuid.UUID           `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	Model   `json:",inline"`
+	Key     string              `json:"key"`
+	Value   string              `json:"value"`
+	Type    plugins.Type        `json:"type"`
+	Version int32               `json:"version"`
+	Scope   plugins.EnvVarScope `json:"scope"`
+
+	ProjectId     uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	UserId        uuid.UUID `bson:"userId" json:"userId" gorm:"type:uuid"`
+	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+
+	// This is so we can find env.vars. based on the extension it's attached to, in a project
+	ExtensionId uuid.UUID `bson:"extensionId" json:"extensionId" gorm:"type:uuid"`
+
+	// this is so we can check whether the envvar value should be used or the ExtensionSpecEnvironmentVariable depending on the ESEV type
+	ExtensionSpecEnvironmentVariableId uuid.UUID `bson:"extensionSpecEnvironmentVariableId" json:"extensionSpecEnvironmentVariableId" gorm:"type:uuid"`
 }
 
 type ExtensionSpecEnvironmentVariable struct {
 	Model                 `json:"inline"`
-	ExtensionSpecId       uuid.UUID `bson:"extensionSpecId" json:"extensionSpecId" gorm:"type:uuid"`
-	EnvironmentVariableId uuid.UUID `bson:"environmentVariableId" json:"environmentVariableId" gorm:"type:uuid"`
+	ExtensionSpecId       uuid.UUID                       `bson:"extensionSpecId" json:"extensionSpecId" gorm:"type:uuid"`
+	EnvironmentVariableId uuid.UUID                       `bson:"environmentVariableId" json:"environmentVariableId" gorm:"type:uuid"`
+	Type                  plugins.ExtensionSpecEnvVarType `json:"type"`
+	Key                   string                          `json:"key"`
 }
 
 type Project struct {
@@ -139,7 +148,6 @@ type ExtensionSpec struct {
 	Key       string                `json:"key"`
 	Name      string                `json:"name"`
 	Component string                `json:"component"`
-	FormSpec  postgres.Hstore       `json:"formSpec"`
 }
 
 type Extension struct {

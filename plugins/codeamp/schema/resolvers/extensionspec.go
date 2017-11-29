@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -16,8 +17,7 @@ type ExtensionSpecInput struct {
 	ID                   *string
 	Name                 string
 	Component            string
-	FormSpec             []plugins.KeyValue
-	EnvironmentVariables []map[string]interface{}
+	EnvironmentVariables []*ExtensionSpecEnvironmentVariableInput
 	Type                 string
 	Key                  string
 }
@@ -33,12 +33,6 @@ type ExtensionSpecResolver struct {
 }
 
 func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
-	formSpecMap := make(map[string]*string)
-
-	err := plugins.ConvertKVToMapStringString(args.ExtensionSpec.FormSpec, &formSpecMap)
-	if err != nil {
-		return &ExtensionSpecResolver{}, err
-	}
 
 	// Check if valid plugins.ExtensionSpecType
 	envVarType := plugins.StrToExtensionType[args.ExtensionSpec.Type]
@@ -49,33 +43,32 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 	extensionSpec := models.ExtensionSpec{
 		Name:      args.ExtensionSpec.Name,
 		Component: args.ExtensionSpec.Component,
-		FormSpec:  formSpecMap,
 		Type:      plugins.ExtensionType(args.ExtensionSpec.Type),
 		Key:       args.ExtensionSpec.Key,
 	}
 
 	r.db.Create(&extensionSpec)
 
+	spew.Dump(args.ExtensionSpec)
+
 	// create extension spec env vars
 	for _, envVar := range args.ExtensionSpec.EnvironmentVariables {
-		if envVarStringId, ok := envVar["envVar"]; ok {
-			envVarId := uuid.FromStringOrNil(envVarStringId.(string))
+		envVarId := uuid.FromStringOrNil(*envVar.EnvironmentVariable)
 
-			// check if env var exists
-			var dbEnvVar models.EnvironmentVariable
-			if r.db.Where("id = ?", envVarId).Find(&dbEnvVar).RecordNotFound() {
-				return &ExtensionSpecResolver{}, fmt.Errorf("Specified env vars don't exist.")
-			}
-
-			extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
-				ExtensionSpecId:       extensionSpec.Model.ID,
-				EnvironmentVariableId: envVarId,
-			}
-			r.db.Save(&extensionSpecEnvVar)
-		} else {
-			return &ExtensionSpecResolver{}, fmt.Errorf("Invalid env. vars format")
+		// check if env var exists
+		var dbEnvVar models.EnvironmentVariable
+		if r.db.Where("id = ?", envVarId).Find(&dbEnvVar).RecordNotFound() {
+			return &ExtensionSpecResolver{}, fmt.Errorf("Specified env vars don't exist.")
 		}
-
+		spew.Dump("EXTENSION SPEC ENV VAR CREATING!")
+		extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
+			ExtensionSpecId:       extensionSpec.Model.ID,
+			EnvironmentVariableId: envVarId,
+			Type: plugins.ExtensionSpecEnvVarType(envVar.Type),
+			Key:  envVar.Key,
+		}
+		spew.Dump("CEATED!")
+		r.db.Create(&extensionSpecEnvVar)
 	}
 
 	r.actions.ExtensionSpecCreated(&extensionSpec)
@@ -85,7 +78,6 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
 	var extensionSpec models.ExtensionSpec
-	formSpecMap := make(map[string]*string)
 
 	if r.db.Where("id = ?", args.ExtensionSpec.ID).First(&extensionSpec).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
@@ -94,17 +86,8 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		return &ExtensionSpecResolver{}, nil
 	}
 
-	err := plugins.ConvertKVToMapStringString(args.ExtensionSpec.FormSpec, &formSpecMap)
-	if err != nil {
-		log.InfoWithFields("not able to convert kv to map[string]string", log.Fields{
-			"extension": args.ExtensionSpec,
-		})
-		return &ExtensionSpecResolver{}, nil
-	}
-
 	extensionSpec.Name = args.ExtensionSpec.Name
 	extensionSpec.Component = args.ExtensionSpec.Component
-	extensionSpec.FormSpec = formSpecMap
 	extensionSpec.Key = args.ExtensionSpec.Key
 	extensionSpec.Type = plugins.ExtensionType(args.ExtensionSpec.Type)
 
@@ -115,10 +98,12 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 	// create extension spec env vars
 	for _, envVar := range args.ExtensionSpec.EnvironmentVariables {
-		envVarId := uuid.FromStringOrNil(envVar["envVar"].(string))
+		envVarId := uuid.FromStringOrNil(*envVar.EnvironmentVariable)
 		extensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{
 			ExtensionSpecId:       extensionSpec.Model.ID,
 			EnvironmentVariableId: envVarId,
+			Type: plugins.ExtensionSpecEnvVarType(envVar.Type),
+			Key:  envVar.Key,
 		}
 		r.db.Save(&extensionSpecEnvVar)
 	}
@@ -148,22 +133,14 @@ func (r *Resolver) DeleteExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		})
 	}
 
-	// delete all release extensions using each extension
-	for _, extension := range extensions {
-		res := []models.ReleaseExtension{}
-		if r.db.Where("extension_id = ?", extension.Model.ID.String()).Find(&res).RecordNotFound() {
-			log.InfoWithFields("no release extensions using this extension id", log.Fields{
-				"extension": extension,
-			})
-		}
+	if len(extensions) > 0 {
+		return nil, fmt.Errorf("You must delete all extensions using this extension spec in order to delete this extension spec.")
+	} else {
+		r.db.Delete(&extensionSpec)
+		r.actions.ExtensionSpecDeleted(&extensionSpec)
 
-		r.db.Delete(&res)
-		r.db.Delete(&extension)
+		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
 	}
-	r.db.Delete(&extensionSpec)
-	r.actions.ExtensionSpecDeleted(&extensionSpec)
-
-	return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
 }
 
 func (r *ExtensionSpecResolver) ID() graphql.ID {
@@ -186,45 +163,20 @@ func (r *ExtensionSpecResolver) Key() string {
 	return r.ExtensionSpec.Key
 }
 
-func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*ExtensionSpecEnvironmentVariableResolver, error) {
 
 	var extensionSpecEnvVarRows []models.ExtensionSpecEnvironmentVariable
-	var results []*EnvironmentVariableResolver
+	var results []*ExtensionSpecEnvironmentVariableResolver
 
 	if r.db.Where("extension_spec_id = ?", r.ExtensionSpec.Model.ID.String()).Find(&extensionSpecEnvVarRows).RecordNotFound() {
 		log.InfoWithFields("no extension spec env vars found", log.Fields{
-			"extensionspec": r.ExtensionSpec,
+			"extension_spec_id": r.ExtensionSpec.Model.ID.String(),
 		})
-		return []*EnvironmentVariableResolver{}, nil
+		return []*ExtensionSpecEnvironmentVariableResolver{}, nil
 	}
 
 	for _, extensionSpecEnvVar := range extensionSpecEnvVarRows {
-		var envVar models.EnvironmentVariable
-		if r.db.Where("id = ?", extensionSpecEnvVar.EnvironmentVariableId).Find(&envVar).RecordNotFound() {
-			log.InfoWithFields("no env vars found", log.Fields{
-				"extensionspec": r.ExtensionSpec,
-			})
-			return []*EnvironmentVariableResolver{}, nil
-		}
-
-		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
-	}
-
-	return results, nil
-}
-
-func (r *ExtensionSpecResolver) FormSpec(ctx context.Context) ([]*KeyValueResolver, error) {
-	var keyValues []plugins.KeyValue
-	err := plugins.ConvertMapStringStringToKV(r.ExtensionSpec.FormSpec, &keyValues)
-	if err != nil {
-		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-			"extensionSpec": r.ExtensionSpec,
-		})
-	}
-
-	var results []*KeyValueResolver
-	for _, kv := range keyValues {
-		results = append(results, &KeyValueResolver{db: r.db, KeyValue: kv})
+		results = append(results, &ExtensionSpecEnvironmentVariableResolver{db: r.db, ExtensionSpecEnvironmentVariable: extensionSpecEnvVar})
 	}
 
 	return results, nil

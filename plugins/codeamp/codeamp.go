@@ -126,11 +126,6 @@ func (x *CodeAmp) Migrate() {
 		Key:       "dockerbuilder",
 		Name:      "Docker Builder",
 		Component: "",
-		FormSpec: plugins.MapStringStringToHstore(map[string]string{
-			"REGISTRY": "required|string",
-			"USERNAME": "required|string",
-			"PASSWORD": "required|string",
-		}),
 	}
 	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
 		Key: extensionSpec.Key,

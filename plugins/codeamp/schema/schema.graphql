@@ -134,6 +134,18 @@ interface EnvironmentVariable {
   versions: [EnvironmentVariable]!
   environment: Environment!
   created: Time!
+  extensionSpecEnvironmentVariable: ExtensionSpecEnvironmentVariable!
+  extension: Extension!
+}
+
+# ExtensionSpecEnvironmentVariable
+interface ExtensionSpecEnvironmentVariable {
+  id: ID!
+  type: String!
+  key: String!
+  environmentVariable: EnvironmentVariable!
+  extensionSpec: ExtensionSpec!
+  created: Time!
 }
 
 # ServiceSpec object
@@ -187,10 +199,9 @@ interface ExtensionSpec {
   id: ID!
   name: String!
   component: String!
-  formSpec: [KeyValue]!
   type: String!
   key: String!
-  environmentVariables: [EnvironmentVariable]!
+  environmentVariables: [ExtensionSpecEnvironmentVariable]!
   created: Time!
 }
 
@@ -200,7 +211,7 @@ interface Extension {
   project: Project!
   extensionSpec: ExtensionSpec!
   artifacts: [KeyValue]!
-  formSpecValues: [KeyValue]!
+  environmentVariables: [EnvironmentVariable]!
   state: String!
   environment: Environment!
   created: Time!
@@ -277,6 +288,7 @@ input EnvironmentVariableInput {
   scope: String!
   projectId: String
   environmentId: String!
+  extensionSpecEnvironmentVariableId: String
 }
 
 input ExtensionSpecInput {
@@ -284,16 +296,26 @@ input ExtensionSpecInput {
   name: String!
   key: String!
   component: String!
-  formSpec: [KeyValueInput!]!
-  environmentVariables: [String!]!
+  environmentVariables: [ExtensionSpecEnvironmentVariableInput]!
   type: String!
+}
+
+input ExtensionSpecEnvironmentVariableInput {
+  type: String!
+  key: String!
+  environmentVariable: String
+}
+
+input ExtensionEnvironmentVariableInput {
+  environmentVariableId: String
+  extensionSpecEnvironmentVariableId: String!
 }
 
 input ExtensionInput {
   id: String,
   projectId: String!,
   extensionSpecId: String!,
-  formSpecValues: [KeyValueInput!]!
+  environmentVariables: [ExtensionEnvironmentVariableInput]!
   environmentId: String!
 }
 
