@@ -104,7 +104,6 @@ func (suite *TestService) SetupDBAndContext() {
 		MemoryRequest:          "2",
 		MemoryLimit:            "4",
 		TerminationGracePeriod: "600",
-		Created:                time.Now(),
 	}
 	suite.db.Save(&serviceSpec)
 

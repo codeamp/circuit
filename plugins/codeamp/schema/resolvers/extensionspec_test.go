@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp"
@@ -112,7 +111,6 @@ func (suite *TestExtensionSpecs) SetupDBAndContext() {
 		Type:          plugins.Env,
 		Scope:         plugins.ExtensionScope,
 		UserId:        user.Model.ID,
-		Created:       time.Now(),
 		EnvironmentId: env.Model.ID,
 	}
 	suite.db.Save(&envVar)
@@ -277,7 +275,6 @@ func (suite *TestExtensionSpecs) TestSuccessfulUpdateExtensionSpec() {
 		FormSpec: map[string]*string{
 			"key": &valString,
 		},
-		Created: time.Now(),
 	}
 
 	suite.db.Save(&es)
@@ -333,7 +330,6 @@ func (suite *TestExtensionSpecs) TestSuccessfulDeleteExtensionSpec() {
 		FormSpec: map[string]*string{
 			"key": &valString,
 		},
-		Created: time.Now(),
 	}
 
 	suite.db.Save(&es)

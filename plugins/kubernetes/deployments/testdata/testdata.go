@@ -2,7 +2,6 @@ package testdata
 
 import (
 	"os"
-	"path"
 
 	"github.com/codeamp/circuit/plugins"
 )
@@ -16,9 +15,8 @@ func BasicFailedReleaseExtension() plugins.ReleaseExtension {
 func BasicReleaseExtension() plugins.ReleaseExtension {
 	formValues := make(map[string]string)
 	var kubeconfig string
-	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
-		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
-	}
+	// If this is not set the test will use inClusterConfig
+	kubeconfig = os.Getenv("KUBECONFIG")
 	formValues["KUBECONFIG"] = kubeconfig
 	formValues["DOCKERBUILDER_PASSWORD"] = "test"
 	formValues["DOCKERBUILDER_USER"] = "test"

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -275,7 +273,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ReleaseExtension)
 	kubeconfig := payload.Extension.FormValues["KUBECONFIG"]
-	spew.Dump(payload.Extension.FormValues)
 	log.Printf("Using kubeconfig file: %s", kubeconfig)
 
 	releaseData := e.Payload.(plugins.ReleaseExtension).Release
@@ -283,8 +280,12 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		log.Printf("ERROR '%s' while building kubernetes api client config.  Aborting!", err)
-		return nil
+		log.Printf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err)
+		config, err = clientcmd.BuildConfigFromFlags("", "")
+		if err != nil {
+			log.Printf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err)
+			return nil
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)

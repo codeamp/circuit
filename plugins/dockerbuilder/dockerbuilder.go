@@ -14,7 +14,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -200,7 +199,6 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	err = dockerClient.BuildImage(buildOptions)
-	spew.Dump(buildOptions)
 	if err != nil {
 		log.Debug(err)
 		return err
