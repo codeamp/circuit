@@ -54,10 +54,10 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) TestLBCreate() {
 	var e transistor.Event
-	payload := testdata.LBDataForTCP(plugins.Create, plugins.Internal)
+	payload := testdata.LBDataForTCP(plugins.Update, plugins.Internal)
 	suite.transistor.Events <- transistor.NewEvent(payload, nil)
 
-	e = suite.transistor.GetTestEvent("plugins.Release:status", 10)
+	e = suite.transistor.GetTestEvent("plugins.Extension:status", 10)
 	spew.Dump(e)
 
 	assert.Equal(suite.T(), string(e.Payload.(plugins.Extension).State), string(plugins.Running))
@@ -67,7 +67,7 @@ func (suite *TestSuite) TestLBCreate() {
 func (suite *TestSuite) TestLBDestroy() {
 	var e transistor.Event
 	suite.transistor.Events <- transistor.NewEvent(testdata.GetDestroyExtension(), nil)
-	e = suite.transistor.GetTestEvent("plugins.Release:status", 10)
+	e = suite.transistor.GetTestEvent("plugins.Extension:status", 10)
 	spew.Dump(e)
 
 	assert.Equal(suite.T(), string(e.Payload.(plugins.Extension).State), string(plugins.Running))
