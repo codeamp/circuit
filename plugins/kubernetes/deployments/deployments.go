@@ -1,6 +1,7 @@
 package kubernetesdeployments
 
 import (
+	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
@@ -37,6 +38,7 @@ func (x *Deployments) Stop() {
 func (x *Deployments) Subscribe() []string {
 	return []string{
 		"plugins.ReleaseExtension:create:kubernetesdeployments",
+		"plugins.Extension:create:kubernetesdeployments",
 	}
 }
 
@@ -45,6 +47,14 @@ func (x *Deployments) Process(e transistor.Event) error {
 	log.InfoWithFields("Processing Deployments event", log.Fields{
 		"event": e,
 	})
+
+	if e.Name == "plugins.Extension:create:kubernetesdeployments" {
+		var extensionEvent plugins.Extension
+		extensionEvent = e.Payload.(plugins.Extension)
+		extensionEvent.Action = plugins.Complete
+		x.events <- e.NewEvent(extensionEvent, nil)
+		return nil
+	}
 
 	x.doDeploy(e)
 
