@@ -257,7 +257,6 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
-
 	if e.Name == "plugins.Extension:create:dockerbuilder" {
 		var extensionEvent plugins.Extension
 		extensionEvent = e.Payload.(plugins.Extension)
