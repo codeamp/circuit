@@ -10,6 +10,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
+	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -44,10 +45,6 @@ type SimplePodSpec struct {
 }
 
 func int32Ptr(i int32) *int32 { return &i }
-
-func genNamespaceName(suggestedEnvironment string, projectSlug string) string {
-	return fmt.Sprintf("%s-%s", suggestedEnvironment, projectSlug)
-}
 
 func genDeploymentName(slugName string, serviceName string) string {
 	return slugName + "-" + serviceName
@@ -294,7 +291,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	}
 
 	x.sendDDInProgress(e, releaseData.Services, "Deploy in-progress")
-	namespace := genNamespaceName(releaseData.Environment, projectSlug)
+	namespace := utils.GenNamespaceName(releaseData.Environment, projectSlug)
 	coreInterface := clientset.Core()
 
 	successfulDeploys := 0
