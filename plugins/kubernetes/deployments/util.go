@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -43,10 +44,6 @@ type SimplePodSpec struct {
 
 func int32Ptr(i int32) *int32 { return &i }
 
-func genNamespaceName(suggestedEnvironment string, projectSlug string) string {
-	return fmt.Sprintf("%s-%s", suggestedEnvironment, projectSlug)
-}
-
 func genDeploymentName(slugName string, serviceName string) string {
 	return slugName + "-" + serviceName
 }
@@ -81,7 +78,7 @@ func (x *Deployments) sendDDInProgress(e transistor.Event, services []plugins.Se
 func secretifyDockerCred(e transistor.Event) (string, error) {
 	ext := e.Payload.(plugins.ReleaseExtension)
 
-	prefix := ext.Extension.FormValues["DOCKERBUILDER_PREFIX"]
+	prefix := ext.Extension.FormValues["DOCKERBUILDER_PREFIX"].(string)
 	if prefix == "" {
 		prefix = "DOCKERBUILDER_"
 	}
@@ -272,7 +269,7 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ReleaseExtension)
-	kubeconfig := payload.Extension.FormValues["KUBECONFIG"]
+	kubeconfig := payload.Extension.FormValues["KUBECONFIG"].(string)
 	log.Printf("Using kubeconfig file: %s", kubeconfig)
 
 	releaseData := e.Payload.(plugins.ReleaseExtension).Release
@@ -295,7 +292,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	}
 
 	x.sendDDInProgress(e, releaseData.Services, "Deploy in-progress")
-	namespace := genNamespaceName(releaseData.Environment, projectSlug)
+	namespace := utils.GenNamespaceName(releaseData.Environment, projectSlug)
 	coreInterface := clientset.Core()
 
 	successfulDeploys := 0

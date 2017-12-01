@@ -199,13 +199,15 @@ type WebsocketMsg struct {
 }
 
 type Extension struct {
-	Id           string            `json:"id"`
-	Action       Action            `json:"action"`
-	Slug         string            `json:"slug"`
-	State        State             `json:"state"`
-	StateMessage string            `json:"stateMessage"`
-	FormValues   map[string]string `json:"formValues"`
-	Artifacts    map[string]string `json:"artifacts"`
+	Id           string                 `json:"id"`
+	Action       Action                 `json:"action"`
+	Slug         string                 `json:"slug"`
+	State        State                  `json:"state"`
+	StateMessage string                 `json:"stateMessage"`
+	FormValues   map[string]interface{} `json:"formValues"`
+	Artifacts    map[string]string      `json:"artifacts"`
+	Environment  string                 `json:"environment"`
+	Project      Project                `json:"project"`
 }
 
 type Release struct {
