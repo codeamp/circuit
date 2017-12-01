@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp"
@@ -166,7 +165,6 @@ func (suite *TestEnvironmentVariables) TestFailedCreateEnvironmentVariableAlread
 		Type:          plugins.Env,
 		Scope:         plugins.ExtensionScope,
 		UserId:        suite.user.Model.ID,
-		Created:       time.Now(),
 		EnvironmentId: suite.env.Model.ID,
 	}
 	suite.db.Save(&envVar)
@@ -208,7 +206,6 @@ func (suite *TestEnvironmentVariables) TestSuccessfulUpdateEnvironmentVariable()
 		Type:          plugins.Env,
 		Scope:         plugins.ExtensionScope,
 		UserId:        suite.user.Model.ID,
-		Created:       time.Now(),
 		EnvironmentId: suite.env.Model.ID,
 	}
 	suite.db.Save(&envVar)
@@ -279,7 +276,6 @@ func (suite *TestEnvironmentVariables) TestSuccessfulDeleteEnvironmentVariable()
 		Type:          plugins.Env,
 		Scope:         plugins.ExtensionScope,
 		UserId:        suite.user.Model.ID,
-		Created:       time.Now(),
 		EnvironmentId: suite.env.Model.ID,
 	}
 	suite.db.Save(&envVar)

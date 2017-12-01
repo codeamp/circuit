@@ -15,14 +15,24 @@ import (
 func GetFormValuePrefix(e transistor.Event, fallbackPrefix string) string {
 	formValues := e.Payload.(plugins.Extension).FormValues
 
-	prefix := formValues["EXTENSION_PREFIX"].(string)
-	if prefix == "" {
+	prefix := formValues["EXTENSION_PREFIX"]
+	if prefix == nil {
 		return fallbackPrefix
 	}
-	return prefix
+	return prefix.(string)
 }
 
-func CreateExtensionEvent(e transistor.Event, state plugins.State, action plugins.Action, msg string, err error) transistor.Event {
+func GetFormValue(form map[string]interface{}, prefix string, key string) (interface{}, error) {
+	value := form[prefix+key]
+
+	if value == nil {
+		err := fmt.Errorf(fmt.Sprintf("Form Value: %s not found.", prefix+key))
+		return nil, err
+	}
+	return value, nil
+}
+
+func CreateExtensionEvent(e transistor.Event, action plugins.Action, state plugins.State, msg string, err error) transistor.Event {
 	payload := e.Payload.(plugins.Extension)
 	payload.State = state
 	payload.Action = action

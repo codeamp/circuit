@@ -49,6 +49,7 @@ func (x *LoadBalancers) Stop() {
 
 func (x *LoadBalancers) Subscribe() []string {
 	return []string{
+		"plugins.Extension:create:kubernetesloadbalancers",
 		"plugins.Extension:update:kubernetesloadbalancers",
 		"plugins.Extension:destroy:kubernetesloadbalancers",
 	}
@@ -65,6 +66,8 @@ func (x *LoadBalancers) Process(e transistor.Event) error {
 	switch event.Action {
 	case plugins.Destroy:
 		err = x.doDeleteLoadBalancer(e)
+	case plugins.Create:
+		err = x.doLoadBalancer(e)
 	case plugins.Update:
 		err = x.doLoadBalancer(e)
 	}
@@ -92,17 +95,18 @@ type ListenerPair struct {
 
 func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	log.Println("doLoadBalancer")
+
 	payload := e.Payload.(plugins.Extension)
 	formPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
 
 	svcName := payload.FormValues[formPrefix+"SERVICE"].(string)
-	lbName := payload.FormValues[formPrefix+"NAM"].(string)
+	lbName := payload.FormValues[formPrefix+"NAME"].(string)
 	sslARN := payload.FormValues[formPrefix+"SSL_CERT_ARN"].(string)
 	s3AccessLogs := payload.FormValues[formPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
 	lbType := payload.FormValues[formPrefix+"TYPE"].(plugins.Type)
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 
-	kubeconfig := payload.FormValues["KUBECONFIG"].(string)
+	kubeconfig := payload.FormValues[formPrefix+"KUBECONFIG"].(string)
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
@@ -165,7 +169,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		}
 	}
 
-	listenerPairs := payload.FormValues["LISTENER_PAIRS"].([]ListenerPair)
+	listenerPairs := payload.FormValues[formPrefix+"LISTENER_PAIRS"].([]ListenerPair)
 	var sslPorts []string
 	for _, p := range listenerPairs {
 		var realProto string
@@ -299,16 +303,32 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	log.Println("doDeleteLoadBalancer")
-
+	var err error
 	payload := e.Payload.(plugins.Extension)
 	formPrefix := utils.GetFormValuePrefix(e, "LOADBALANCER_")
-	kubeconfig := payload.FormValues[formPrefix+"KUBECONFIG"].(string)
-	svcName := payload.FormValues[formPrefix+"SERVICE_NAME"].(string)
-	lbName := payload.FormValues[formPrefix+"LB_NAME"].(string)
+	kubeconfig, err := utils.GetFormValue(payload.FormValues, formPrefix, "KUBECONFIG")
+	if err != nil {
+		log.Debug(err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, err.Error(), err)
+		return nil
+	}
 
+	svcName, err := utils.GetFormValue(payload.FormValues, formPrefix, "SERVICE")
+	if err != nil {
+		log.Debug(err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, err.Error(), err)
+		return nil
+	}
+
+	lbName, err := utils.GetFormValue(payload.FormValues, formPrefix, "NAME")
+	if err != nil {
+		log.Debug(err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, err.Error(), err)
+		return nil
+	}
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig.(string))
 	if err != nil {
 		fmt.Printf("ERROR '%s' while building kubernetes api client config.  Aborting!", err)
 		return nil
@@ -323,10 +343,11 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	coreInterface := clientset.Core()
 	namespace := utils.GenNamespaceName(payload.Environment, projectSlug)
 
-	_, svcGetErr := coreInterface.Services(namespace).Get(lbName, meta_v1.GetOptions{})
+	log.Println(namespace, lbName.(string))
+	_, svcGetErr := coreInterface.Services(namespace).Get(lbName.(string), meta_v1.GetOptions{})
 	if svcGetErr == nil {
 		// Service was found, ready to delete
-		svcDeleteErr := coreInterface.Services(namespace).Delete(lbName, &meta_v1.DeleteOptions{})
+		svcDeleteErr := coreInterface.Services(namespace).Delete(lbName.(string), &meta_v1.DeleteOptions{})
 		if svcDeleteErr != nil {
 			failMessage := fmt.Sprintf("Error '%s' deleting service %s", svcDeleteErr, lbName)
 			fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)

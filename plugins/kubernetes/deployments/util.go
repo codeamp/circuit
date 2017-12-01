@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -80,7 +78,7 @@ func (x *Deployments) sendDDInProgress(e transistor.Event, services []plugins.Se
 func secretifyDockerCred(e transistor.Event) (string, error) {
 	ext := e.Payload.(plugins.ReleaseExtension)
 
-	prefix := ext.Extension.FormValues["DOCKERBUILDER_PREFIX"]
+	prefix := ext.Extension.FormValues["DOCKERBUILDER_PREFIX"].(string)
 	if prefix == "" {
 		prefix = "DOCKERBUILDER_"
 	}
@@ -271,8 +269,7 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ReleaseExtension)
-	kubeconfig := payload.Extension.FormValues["KUBECONFIG"]
-	spew.Dump(payload.Extension.FormValues)
+	kubeconfig := payload.Extension.FormValues["KUBECONFIG"].(string)
 	log.Printf("Using kubeconfig file: %s", kubeconfig)
 
 	releaseData := e.Payload.(plugins.ReleaseExtension).Release
@@ -280,8 +277,12 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		log.Printf("ERROR '%s' while building kubernetes api client config.  Aborting!", err)
-		return nil
+		log.Printf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err)
+		config, err = clientcmd.BuildConfigFromFlags("", "")
+		if err != nil {
+			log.Printf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err)
+			return nil
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)

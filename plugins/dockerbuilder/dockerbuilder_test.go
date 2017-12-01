@@ -49,16 +49,17 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	log.SetLogLevel(logrus.DebugLevel)
 
-	formValues := make(map[string]string)
+	formValues := make(map[string]interface{})
 	formValues["USER"] = "test"
 	formValues["PASSWORD"] = "test"
 	formValues["EMAIL"] = "test@checkr.com"
-	formValues["HOST"] = "localhost:5000"
+	formValues["HOST"] = "registry-testing.checkrhq-dev.net:5000"
 	formValues["ORG"] = "testorg"
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
 
 	dockerBuildEvent := plugins.ReleaseExtension{
+		Slug:   "dockerbuilder",
 		Action: plugins.Create,
 		State:  plugins.Waiting,
 		Release: plugins.Release{
@@ -93,13 +94,13 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	suite.transistor.Events <- transistor.NewEvent(dockerBuildEvent, nil)
 
-	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 60)
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 60)
 	payload := e.Payload.(plugins.ReleaseExtension)
 	spew.Dump(payload.StateMessage)
 	assert.Equal(suite.T(), string(plugins.Status), string(payload.Action))
 	assert.Equal(suite.T(), string(plugins.Fetching), string(payload.State))
 
-	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 600)
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 600)
 	payload = e.Payload.(plugins.ReleaseExtension)
 	spew.Dump(payload.StateMessage)
 	assert.Equal(suite.T(), string(plugins.Status), string(payload.Action))

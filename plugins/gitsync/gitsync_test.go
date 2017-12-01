@@ -51,7 +51,6 @@ func (suite *TestSuite) TestGitSync() {
 		Action: plugins.Update,
 		State:  plugins.Waiting,
 		Project: plugins.Project{
-			Slug:       "codeamp-circuit",
 			Repository: "codeamp/circuit",
 		},
 		Git: plugins.Git{

@@ -42,8 +42,8 @@ func (suite *TestSuite) SetupSuite() {
 	go suite.transistor.Run()
 
 	// Test teardown of any existing LBs
-	// suite.transistor.Events <- testdata.TearDownLBTCP(plugins.Internal)
-	// _ = suite.agent.GetTestEvent("plugins.Release:status", 60)
+	suite.transistor.Events <- transistor.NewEvent(testdata.LBDataForTCP(plugins.Destroy, plugins.Office), nil)
+	_ = suite.transistor.GetTestEvent("plugins.Extension:status", 60)
 	// suite.agent.Events <- testdata.TearDownLBHTTPS(plugins.Internal)
 	// _ = suite.agent.GetTestEvent("plugins.LoadBalancer:status", 60)
 	// suite.agent.Events <- testdata.TearDownLBTCP(plugins.External)
@@ -52,25 +52,20 @@ func (suite *TestSuite) SetupSuite() {
 	// _ = suite.agent.GetTestEvent("plugins.LoadBalancer:status", 60)
 }
 
-func (suite *TestSuite) TestLBCreate() {
+func (suite *TestSuite) TestLBTCPOffice() {
 	var e transistor.Event
-	payload := testdata.LBDataForTCP(plugins.Update, plugins.Internal)
+	payload := testdata.LBDataForTCP(plugins.Update, plugins.Office)
 	suite.transistor.Events <- transistor.NewEvent(payload, nil)
 
-	e = suite.transistor.GetTestEvent("plugins.Extension:status", 10)
-	spew.Dump(e)
+	e = suite.transistor.GetTestEvent("plugins.Extension:status", 120)
+	spew.Dump(e.Payload.(plugins.Extension).StateMessage)
+	assert.Equal(suite.T(), string(plugins.Complete), string(e.Payload.(plugins.Extension).State))
 
-	assert.Equal(suite.T(), string(e.Payload.(plugins.Extension).State), string(plugins.Running))
+	payload = testdata.LBDataForTCP(plugins.Destroy, plugins.Office)
+	suite.transistor.Events <- transistor.NewEvent(payload, nil)
+	e = suite.transistor.GetTestEvent("plugins.Extension:status", 120)
+	assert.Equal(suite.T(), string(plugins.Deleted), string(e.Payload.(plugins.Extension).State))
 
-}
-
-func (suite *TestSuite) TestLBDestroy() {
-	var e transistor.Event
-	suite.transistor.Events <- transistor.NewEvent(testdata.GetDestroyExtension(), nil)
-	e = suite.transistor.GetTestEvent("plugins.Extension:status", 10)
-	spew.Dump(e)
-
-	assert.Equal(suite.T(), string(e.Payload.(plugins.Extension).State), string(plugins.Running))
 }
 
 func TestLoadBalancers(t *testing.T) {

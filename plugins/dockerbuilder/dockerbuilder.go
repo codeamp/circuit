@@ -14,7 +14,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -51,7 +50,8 @@ func (x *DockerBuilder) Stop() {
 
 func (x *DockerBuilder) Subscribe() []string {
 	return []string{
-		"plugins.ReleaseExtension:create",
+		"plugins.ReleaseExtension:create:dockerbuilder",
+		"plugins.Extension:create:dockerbuilder",
 	}
 }
 
@@ -178,7 +178,7 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	for key, val := range event.Extension.FormValues {
 		ba := docker.BuildArg{
 			Name:  key,
-			Value: val,
+			Value: val.(string),
 		}
 		buildArgs = append(buildArgs, ba)
 	}
@@ -200,7 +200,6 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	err = dockerClient.BuildImage(buildOptions)
-	spew.Dump(buildOptions)
 	if err != nil {
 		log.Debug(err)
 		return err
@@ -221,9 +220,9 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 		Tag:          imageTagGen(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Extension.FormValues["USER"],
-		Password: event.Extension.FormValues["PASSWORD"],
-		Email:    event.Extension.FormValues["EMAIL"],
+		Username: event.Extension.FormValues["USER"].(string),
+		Password: event.Extension.FormValues["PASSWORD"].(string),
+		Email:    event.Extension.FormValues["EMAIL"].(string),
 	})
 	if err != nil {
 		return err
@@ -246,9 +245,9 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 		Tag:          imageTagLatest(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Extension.FormValues["USER"],
-		Password: event.Extension.FormValues["PASSWORD"],
-		Email:    event.Extension.FormValues["EMAIL"],
+		Username: event.Extension.FormValues["USER"].(string),
+		Password: event.Extension.FormValues["PASSWORD"].(string),
+		Email:    event.Extension.FormValues["EMAIL"].(string),
 	})
 	if err != nil {
 		return err
@@ -258,6 +257,13 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
+	if e.Name == "plugins.Extension:create:dockerbuilder" {
+		var extensionEvent plugins.Extension
+		extensionEvent = e.Payload.(plugins.Extension)
+		extensionEvent.Action = plugins.Complete
+		x.events <- e.NewEvent(extensionEvent, nil)
+		return nil
+	}
 
 	event := e.Payload.(plugins.ReleaseExtension)
 
@@ -307,10 +313,10 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 	event.State = plugins.Complete
 	event.Artifacts["IMAGE"] = fullImagePath(event)
-	event.Artifacts["USER"] = event.Extension.FormValues["USER"]
-	event.Artifacts["PASSWORD"] = event.Extension.FormValues["PASSWORD"]
-	event.Artifacts["EMAIL"] = event.Extension.FormValues["EMAIL"]
-	event.Artifacts["HOST"] = event.Extension.FormValues["HOST"]
+	event.Artifacts["USER"] = event.Extension.FormValues["USER"].(string)
+	event.Artifacts["PASSWORD"] = event.Extension.FormValues["PASSWORD"].(string)
+	event.Artifacts["EMAIL"] = event.Extension.FormValues["EMAIL"].(string)
+	event.Artifacts["HOST"] = event.Extension.FormValues["HOST"].(string)
 	event.StateMessage = ""
 	// event.BuildLog = buildlog.String()
 	x.events <- e.NewEvent(event, nil)

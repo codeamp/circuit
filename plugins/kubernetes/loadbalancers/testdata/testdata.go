@@ -28,11 +28,14 @@ func GetBasicExtension() plugins.Extension {
 		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
 	}
 
+	formPrefix := "LOADBALANCERS_"
 	formValues := map[string]interface{}{
-		"SERVICE_NAME":         "test-service-name",
-		"ACCESS_LOG_S3_BUCKET": "test-s3-logs-bucket",
-		"SSL_CERT_ARN":         "arn:1234:arnid",
-		"KUBECONFIG":           kubeconfig,
+		"EXTENSION_PREFIX":                  formPrefix,
+		formPrefix + "NAME":                 "nginx-test-lb-asdf1234",
+		formPrefix + "SERVICE":              "nginx-test-service-asdf",
+		formPrefix + "ACCESS_LOG_S3_BUCKET": "test-s3-logs-bucket",
+		formPrefix + "SSL_CERT_ARN":         "arn:1234:arnid",
+		formPrefix + "KUBECONFIG":           kubeconfig,
 	}
 
 	extensionEvent := plugins.Extension{
@@ -54,6 +57,10 @@ func GetBasicExtension() plugins.Extension {
 }
 
 func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.Extension {
+	var kubeconfig string
+	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
+		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
+	}
 	project := plugins.Project{
 		Repository: "checkr/nginx-test-success",
 	}
@@ -62,10 +69,11 @@ func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.Extension {
 	formValues := map[string]interface{}{
 		"EXTENSION_PREFIX":                  formPrefix,
 		formPrefix + "NAME":                 "nginx-test-lb-asdf1234",
-		formPrefix + "SSL_CERT_ARN":         "arn",
-		formPrefix + "ACCESS_LOG_S3_BUCKET": "bucket",
+		formPrefix + "SSL_CERT_ARN":         "",
+		formPrefix + "ACCESS_LOG_S3_BUCKET": "",
 		formPrefix + "TYPE":                 t,
-		formPrefix + "SERVICE":              "nginx-test-service-asdf",
+		formPrefix + "SERVICE":              "nginx-test-service-asdf1234",
+		formPrefix + "KUBECONFIG":           kubeconfig,
 		formPrefix + "LISTENER_PAIRS": []kubernetesloadbalancers.ListenerPair{
 			{
 				Name:       "port1",
@@ -83,10 +91,12 @@ func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.Extension {
 	}
 
 	lbe := plugins.Extension{
+		Slug:        "kubernetesloadbalancers",
 		Action:      action,
 		Environment: "testing",
 		Project:     project,
 		FormValues:  formValues,
+		Artifacts:   map[string]string{},
 	}
 	return lbe
 }
