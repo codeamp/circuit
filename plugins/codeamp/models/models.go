@@ -88,13 +88,13 @@ type ContainerPort struct {
 
 type Service struct {
 	Model         `json:",inline"`
-	ProjectId     uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	ServiceSpecId uuid.UUID `bson:"serviceSpecId" json:"serviceSpecId" gorm:"type:uuid"`
-	Command       string    `json:"command"`
-	Name          string    `json:"name"`
-	OneShot       bool      `json:"oneShot"`
-	Count         string    `json:"count"`
-	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	ProjectId     uuid.UUID    `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	ServiceSpecId uuid.UUID    `bson:"serviceSpecId" json:"serviceSpecId" gorm:"type:uuid"`
+	Command       string       `json:"command"`
+	Name          string       `json:"name"`
+	Type          plugins.Type `json:"type"`
+	Count         string       `json:"count"`
+	EnvironmentId uuid.UUID    `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type Feature struct {
@@ -135,11 +135,11 @@ type Bookmark struct {
 
 type ExtensionSpec struct {
 	Model     `json:",inline"`
-	Type      plugins.ExtensionType `json:"type"`
-	Key       string                `json:"key"`
-	Name      string                `json:"name"`
-	Component string                `json:"component"`
-	FormSpec  postgres.Hstore       `json:"formSpec"`
+	Type      plugins.Type    `json:"type"`
+	Key       string          `json:"key"`
+	Name      string          `json:"name"`
+	Component string          `json:"component"`
+	FormSpec  postgres.Hstore `json:"formSpec"`
 }
 
 type Extension struct {
@@ -154,15 +154,15 @@ type Extension struct {
 
 type ReleaseExtension struct {
 	Model             `json:",inline"`
-	ReleaseId         uuid.UUID             `json:"releaseId" gorm:"type:uuid"`
-	FeatureHash       string                `json:"featureHash"`
-	ServicesSignature string                `json:"servicesSignature"` // services config snapshot
-	SecretsSignature  string                `json:"secretsSignature"`  // build args + artifacts
-	ExtensionId       uuid.UUID             `json:"extensionId" gorm:"type:uuid"`
-	State             plugins.State         `json:"state"`
-	StateMessage      string                `json:"stateMessage"`
-	Type              plugins.ExtensionType `json:"type"`
-	Artifacts         postgres.Hstore       `json:"artifacts"` // captured on workflow success/ fail
+	ReleaseId         uuid.UUID       `json:"releaseId" gorm:"type:uuid"`
+	FeatureHash       string          `json:"featureHash"`
+	ServicesSignature string          `json:"servicesSignature"` // services config snapshot
+	SecretsSignature  string          `json:"secretsSignature"`  // build args + artifacts
+	ExtensionId       uuid.UUID       `json:"extensionId" gorm:"type:uuid"`
+	State             plugins.State   `json:"state"`
+	StateMessage      string          `json:"stateMessage"`
+	Type              plugins.Type    `json:"type"`
+	Artifacts         postgres.Hstore `json:"artifacts"` // captured on workflow success/ fail
 	Finished          time.Time
 }
 

@@ -72,11 +72,3 @@ func MapStringStringToHstore(mapStringString map[string]string) map[string]*stri
 func GetSlug(name string) string {
 	return slug.Slug(name)
 }
-
-// Used for conversion during input validation in e.g. ExtensionSpec
-var StrToExtensionType = map[string]ExtensionType{
-	"deployment":   Deployment,
-	"workflow":     Workflow,
-	"notification": Notification,
-	"once":         Once,
-}

@@ -254,7 +254,7 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Order("created_at desc").Find(&rows)
+	r.db.Where("project_id = ?", r.Project.ID).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})

@@ -43,15 +43,12 @@ const (
 	Internal          = "internal"
 	External          = "external"
 	Office            = "office"
-)
-
-type ExtensionType string
-
-const (
-	Deployment   ExtensionType = "deployment"
-	Workflow                   = "workflow"
-	Notification               = "notification"
-	Once                       = "once"
+	Workflow          = "workflow"
+	Notification      = "notification"
+	Once              = "once"
+	Deployment        = "deployment"
+	General           = "general"
+	OneShot           = "one-shot"
 )
 
 type EnvVarScope string

@@ -113,7 +113,7 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 			UserId:        existingEnvVar.UserId,
 			EnvironmentId: environmentId,
 		}
-		r.db.Delete(&existingEnvVar)
+		r.db.Where("id = ?", args.EnvironmentVariable.ID).Delete(existingEnvVar)
 		r.db.Create(&envVar)
 
 		// find all extension specs using the env var if project id is nil

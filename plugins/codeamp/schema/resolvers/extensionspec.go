@@ -40,17 +40,11 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		return &ExtensionSpecResolver{}, err
 	}
 
-	// Check if valid plugins.ExtensionSpecType
-	envVarType := plugins.StrToExtensionType[args.ExtensionSpec.Type]
-	if envVarType == "" {
-		return &ExtensionSpecResolver{}, fmt.Errorf("Invalid extension type: %s", args.ExtensionSpec.Type)
-	}
-
 	extensionSpec := models.ExtensionSpec{
 		Name:      args.ExtensionSpec.Name,
 		Component: args.ExtensionSpec.Component,
 		FormSpec:  formSpecMap,
-		Type:      plugins.ExtensionType(args.ExtensionSpec.Type),
+		Type:      plugins.Type(args.ExtensionSpec.Type),
 		Key:       args.ExtensionSpec.Key,
 	}
 
@@ -106,7 +100,7 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 	extensionSpec.Component = args.ExtensionSpec.Component
 	extensionSpec.FormSpec = formSpecMap
 	extensionSpec.Key = args.ExtensionSpec.Key
-	extensionSpec.Type = plugins.ExtensionType(args.ExtensionSpec.Type)
+	extensionSpec.Type = plugins.Type(args.ExtensionSpec.Type)
 
 	r.db.Save(&extensionSpec)
 

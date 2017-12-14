@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/davecgh/go-spew/spew"
@@ -17,7 +18,7 @@ type ServiceInput struct {
 	Name           string
 	Command        string
 	ServiceSpecId  string
-	OneShot        bool
+	Type           string
 	Count          string
 	ContainerPorts *[]models.ContainerPort
 	ProjectId      string
@@ -79,9 +80,11 @@ func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*Servic
 		return nil, fmt.Errorf("Record not found with given argument id")
 	}
 
+	spew.Dump(args.Service.Type)
+
 	service.Command = args.Service.Command
 	service.Name = args.Service.Name
-	service.OneShot = args.Service.OneShot
+	service.Type = plugins.Type(args.Service.Type)
 	service.ServiceSpecId = serviceSpecId
 	service.Count = args.Service.Count
 
@@ -129,11 +132,12 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 	if err != nil {
 		return &ServiceResolver{}, err
 	}
+
 	service := models.Service{
 		Name:          args.Service.Name,
 		Command:       args.Service.Command,
 		ServiceSpecId: serviceSpecId,
-		OneShot:       args.Service.OneShot,
+		Type:          plugins.Type(args.Service.Type),
 		Count:         args.Service.Count,
 		ProjectId:     projectId,
 		EnvironmentId: environmentId,
@@ -185,8 +189,8 @@ func (r *ServiceResolver) Count() string {
 	return r.Service.Count
 }
 
-func (r *ServiceResolver) OneShot() bool {
-	return r.Service.OneShot
+func (r *ServiceResolver) Type() string {
+	return string(r.Service.Type)
 }
 
 func (r *ServiceResolver) ContainerPorts(ctx context.Context) ([]*ContainerPortResolver, error) {

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -152,7 +153,7 @@ func (suite *TestService) TestSuccessfulCreateService() {
 			Name:          fmt.Sprintf("name%s", stamp),
 			Command:       fmt.Sprintf("command%s", stamp),
 			ServiceSpecId: suite.serviceSpec.Model.ID.String(),
-			OneShot:       true,
+			Type:          plugins.OneShot,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
 			EnvironmentId: suite.env.Model.ID.String(),
@@ -168,7 +169,7 @@ func (suite *TestService) TestSuccessfulCreateService() {
 			Name:          fmt.Sprintf("name2%s", stamp),
 			Command:       fmt.Sprintf("command2%s", stamp),
 			ServiceSpecId: suite.serviceSpec.Model.ID.String(),
-			OneShot:       true,
+			Type:          plugins.OneShot,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
 			EnvironmentId: suite.env.Model.ID.String(),
@@ -184,7 +185,7 @@ func (suite *TestService) TestSuccessfulCreateService() {
 			Name:          fmt.Sprintf("name3%s", stamp),
 			Command:       fmt.Sprintf("command3%s", stamp),
 			ServiceSpecId: suite.serviceSpec.Model.ID.String(),
-			OneShot:       true,
+			Type:          plugins.OneShot,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
 			EnvironmentId: suite.env.Model.ID.String(),
@@ -214,7 +215,7 @@ func (suite *TestService) TestSuccessfulUpdateService() {
 		Name:          fmt.Sprintf("name2%s", stamp),
 		Command:       fmt.Sprintf("command2%s", stamp),
 		ServiceSpecId: suite.serviceSpec.Model.ID,
-		OneShot:       true,
+		Type:          plugins.OneShot,
 		Count:         "1",
 		ProjectId:     suite.project.Model.ID,
 	}
@@ -229,7 +230,7 @@ func (suite *TestService) TestSuccessfulUpdateService() {
 			Name:          fmt.Sprintf("name3%s", stamp),
 			Command:       fmt.Sprintf("command3%s", stamp),
 			ServiceSpecId: suite.serviceSpec.Model.ID.String(),
-			OneShot:       true,
+			Type:          plugins.OneShot,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
 		},
@@ -262,7 +263,7 @@ func (suite *TestService) TestSuccessfulDeleteService() {
 		Name:          fmt.Sprintf("name2%s", stamp),
 		Command:       fmt.Sprintf("command2%s", stamp),
 		ServiceSpecId: suite.serviceSpec.Model.ID,
-		OneShot:       true,
+		Type:          plugins.OneShot,
 		Count:         "1",
 		ProjectId:     suite.project.Model.ID,
 		EnvironmentId: suite.env.Model.ID,
@@ -282,7 +283,7 @@ func (suite *TestService) TestSuccessfulDeleteService() {
 			Name:          fmt.Sprintf("name2%s", stamp),
 			Command:       fmt.Sprintf("command2%s", stamp),
 			ServiceSpecId: suite.serviceSpec.Model.ID.String(),
-			OneShot:       true,
+			Type:          plugins.OneShot,
 			Count:         "1",
 			ProjectId:     suite.project.Model.ID.String(),
 			EnvironmentId: suite.env.Model.ID.String(),

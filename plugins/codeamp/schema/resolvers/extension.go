@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -102,6 +103,8 @@ func (r *ExtensionResolver) FormSpecValues(ctx context.Context) ([]*KeyValueReso
 func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
 	var extension models.Extension
 	formSpecValuesMap := make(map[string]*string)
+
+	spew.Dump(args.Extension)
 
 	extensionSpecId, err := uuid.FromString(args.Extension.ExtensionSpecId)
 	if err != nil {

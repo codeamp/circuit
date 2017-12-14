@@ -139,7 +139,7 @@ func (x *CodeAmp) Migrate() {
 
 	extensionSpec = models.ExtensionSpec{
 		Type:      plugins.Deployment,
-		Key:       "kubernetes",
+		Key:       "kubernetesdeployment",
 		Name:      "Kubernetes",
 		Component: "",
 	}
@@ -260,7 +260,6 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.Extension:status",
 		"plugins.Extension:complete",
 		"plugins.ReleaseExtension:status",
-		"plugins.ReleaseExtension:complete",
 		"plugins.Release:status",
 		"plugins.Release:complete",
 	}
@@ -313,7 +312,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
-	if e.Matches("plugins.ReleaseExtension:complete") {
+	if e.Matches("plugins.ReleaseExtension:status") {
 		payload := e.Payload.(plugins.ReleaseExtension)
 		var releaseExtension models.ReleaseExtension
 
@@ -324,11 +323,13 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			return nil
 		}
 
-		releaseExtension.State = plugins.Complete
+		releaseExtension.State = payload.State
 		releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&releaseExtension)
 
-		x.Actions.ReleaseExtensionCompleted(&releaseExtension)
+		if payload.State == plugins.Complete {
+			x.Actions.ReleaseExtensionCompleted(&releaseExtension)
+		}
 	}
 
 	return nil

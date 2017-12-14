@@ -15,7 +15,7 @@ func (r *Resolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVari
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 
-	r.db.Order("created_at desc").Find(&rows)
+	r.db.Where("scope != 'project'").Order("created_at desc").Find(&rows)
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
 	}

@@ -31,8 +31,6 @@ type ReleaseInput struct {
 }
 
 func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
-	fmt.Println("CreateRelease")
-
 	var tailFeatureId uuid.UUID
 	var currentRelease models.Release
 
@@ -111,7 +109,7 @@ func (r *ReleaseResolver) Project(ctx context.Context) (*ProjectResolver, error)
 func (r *ReleaseResolver) User(ctx context.Context) (*UserResolver, error) {
 	var user models.User
 
-	r.db.Model(r.User).Related(&user)
+	r.db.Model(r.Release).Related(&user)
 
 	return &UserResolver{db: r.db, User: user}, nil
 }
