@@ -47,16 +47,16 @@ type Query {
 type Mutation {
   createProject(project: ProjectInput): Project
   updateProject(project: ProjectInput): Project
-  
+
   createRelease(release: ReleaseInput): Release
-  
+
   createService(service: ServiceInput): Service
   updateService(service: ServiceInput): Service
   deleteService(service: ServiceInput): Service
 
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
-  updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
-  deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec  
+  updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
+  deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
 
   createEnvironment(environment: EnvironmentInput): Environment
   updateEnvironment(environment: EnvironmentInput): Environment
@@ -101,7 +101,7 @@ interface ContainerPort {
   port: String!
 }
 
-interface Service { 
+interface Service {
   id: ID!
   project: Project
   command: String!
@@ -110,7 +110,7 @@ interface Service {
   count: String!
   containerPorts: [ContainerPort]!
   environment: Environment!
-  oneShot: Boolean!
+  type: String!
   created: Time!
 }
 
@@ -142,7 +142,7 @@ interface ServiceSpec {
   name: String!
   cpuRequest: String!
   cpuLimit: String!
-  memoryRequest: String! 
+  memoryRequest: String!
   memoryLimit: String!
   terminationGracePeriod: String!
   created: Time!
@@ -155,7 +155,7 @@ interface Release {
   user: User
   headFeature: Feature!
   tailFeature: Feature!
-  state: String!        
+  state: String!
   releaseExtensions: [ReleaseExtension]!
   stateMessage: String!
   environment: Environment!
@@ -237,7 +237,7 @@ input ReleaseInput {
   environmentId: String!
 }
 
-input ServiceInput { 
+input ServiceInput {
   id: String
   projectId: String!
   command: String!
@@ -245,7 +245,7 @@ input ServiceInput {
   serviceSpecId: String!
   count: String!
   containerPorts: [ContainerPortInput!]
-  oneShot: Boolean!
+  type: String!
   environmentId: String!
 }
 

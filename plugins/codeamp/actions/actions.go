@@ -544,7 +544,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				"extension spec": de,
 			})
 		}
-		if plugins.ExtensionType(extensionSpec.Type) == plugins.Workflow {
+		if plugins.Type(extensionSpec.Type) == plugins.Workflow {
 			releaseExtension := models.ReleaseExtension{}
 
 			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
@@ -561,7 +561,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			}
 		}
 
-		if plugins.ExtensionType(extensionSpec.Type) == plugins.Deployment {
+		if plugins.Type(extensionSpec.Type) == plugins.Deployment {
 			found = true
 		}
 	}
@@ -615,7 +615,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			})
 		}
 
-		if plugins.ExtensionType(extensionSpec.Type) == plugins.Workflow {
+		if plugins.Type(extensionSpec.Type) == plugins.Workflow {
 			releaseExtension := models.ReleaseExtension{}
 
 			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, extension.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
@@ -627,7 +627,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			}
 		}
 
-		if plugins.ExtensionType(extensionSpec.Type) == plugins.Deployment {
+		if plugins.Type(extensionSpec.Type) == plugins.Deployment {
 
 			// create ReleaseExtension
 			releaseExtension := models.ReleaseExtension{
@@ -690,7 +690,7 @@ func (x *Actions) DeploymentExtensionsCompleted(release *models.Release) {
 			})
 		}
 
-		if plugins.ExtensionType(extensionSpec.Type) == plugins.Deployment {
+		if plugins.Type(extensionSpec.Type) == plugins.Deployment {
 			releaseExtension := models.ReleaseExtension{}
 
 			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
@@ -812,7 +812,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			})
 		}
 
-		if plugins.ExtensionType(extensionSpec.Type) == plugins.Workflow {
+		if plugins.Type(extensionSpec.Type) == plugins.Workflow {
 			// create ReleaseExtension
 			releaseExtension := models.ReleaseExtension{
 				ReleaseId:         release.Model.ID,

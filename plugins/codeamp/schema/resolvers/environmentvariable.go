@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/jinzhu/gorm"
@@ -35,8 +34,6 @@ func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID gra
 	if err := r.db.Where("id = ?", args.ID).First(&envVar).Error; err != nil {
 		return nil, err
 	}
-	spew.Dump(args)
-	spew.Dump(envVar)
 
 	return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
 }
@@ -46,8 +43,6 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	projectId := uuid.UUID{}
 	var environmentId uuid.UUID
 	var envVarScope plugins.EnvVarScope
-
-	spew.Dump(args.EnvironmentVariable.ProjectId)
 
 	if args.EnvironmentVariable.ProjectId != nil {
 		projectId = uuid.FromStringOrNil(*args.EnvironmentVariable.ProjectId)
@@ -113,7 +108,7 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 			UserId:        existingEnvVar.UserId,
 			EnvironmentId: environmentId,
 		}
-		r.db.Delete(&existingEnvVar)
+		r.db.Where("id = ?", args.EnvironmentVariable.ID).Delete(existingEnvVar)
 		r.db.Create(&envVar)
 
 		// find all extension specs using the env var if project id is nil
@@ -145,7 +140,6 @@ func (r *Resolver) DeleteEnvironmentVariable(ctx context.Context, args *struct{ 
 		var rows []models.EnvironmentVariable
 
 		r.db.Where("project_id = ? and key = ? and environment_id = ?", existingEnvVar.ProjectId, existingEnvVar.Key, existingEnvVar.EnvironmentId).Find(&rows)
-		spew.Dump("FOUND EM", rows)
 		for _, envVar := range rows {
 			r.db.Unscoped().Delete(&envVar)
 		}
@@ -215,8 +209,6 @@ func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*Environm
 	}
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
-
-	spew.Dump(r.EnvironmentVariable)
 
 	r.db.Unscoped().Where("project_id = ? and key = ? and environment_id = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key, r.EnvironmentVariable.EnvironmentId).Order("version desc").Find(&rows)
 

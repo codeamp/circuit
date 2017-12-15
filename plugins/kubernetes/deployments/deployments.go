@@ -56,8 +56,14 @@ func (x *Deployments) Process(e transistor.Event) error {
 		return nil
 	}
 
-	x.doDeploy(e)
+	event := e.Payload.(plugins.ReleaseExtension)
 
+	event.Action = plugins.Status
+	event.State = plugins.Complete
+	event.StateMessage = "Completed"
+
+	// x.doDeploy(e)
 	log.Info("Processed Deployments event")
+	x.events <- e.NewEvent(event, nil)
 	return nil
 }
