@@ -68,8 +68,6 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 		r.actions.EnvironmentDeleted(&existingEnv)
 		return &EnvironmentResolver{db: r.db, Environment: existingEnv}, nil
 	}
-
-	return &EnvironmentResolver{}, nil
 }
 
 func (r *EnvironmentResolver) ID() graphql.ID {

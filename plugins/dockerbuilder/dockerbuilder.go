@@ -14,7 +14,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -268,51 +267,48 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 	event := e.Payload.(plugins.ReleaseExtension)
 
-	// var err error
-	//
-	// event.Action = plugins.Status
-	// event.State = plugins.Fetching
-	// event.StateMessage = ""
-	// x.events <- e.NewEvent(event, nil)
-	//
-	// repoPath := fmt.Sprintf("%s/%s_%s", event.Release.Git.Workdir, event.Release.Project.Repository, event.Release.Git.Branch)
-	//
-	// buf := bytes.NewBuffer(nil)
-	// buildlog := io.MultiWriter(buf, os.Stdout)
-	//
-	// err = x.bootstrap(repoPath, event)
-	// if err != nil {
-	// 	log.Debug(err)
-	// 	event.State = plugins.Failed
-	// 	event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: bootstrap)", err.Error(), event.State)
-	// 	event := e.NewEvent(event, err)
-	// 	x.events <- event
-	// 	return err
-	// }
-	//
-	// err = x.build(repoPath, event, buildlog)
-	// if err != nil {
-	// 	log.Debug(err)
-	// 	event.State = plugins.Failed
-	// 	event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
-	// 	//event.BuildLog = buildlog.String()
-	// 	event := e.NewEvent(event, err)
-	// 	x.events <- event
-	// 	return err
-	// }
-	//
-	// err = x.push(repoPath, event, buildlog)
-	// if err != nil {
-	// 	log.Debug(err)
-	// 	event.State = plugins.Failed
-	// 	event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
-	// 	// event.BuildLog = buildlog.String()
-	// 	event := e.NewEvent(event, err)
-	// 	x.events <- event
-	// 	return err
-	// }
+	var err error
 
 	event.Action = plugins.Status
+	event.State = plugins.Fetching
+	event.StateMessage = ""
+	x.events <- e.NewEvent(event, nil)
+
+	// repoPath := fmt.Sprintf("%s/%s_%s", event.Release.Git.Workdir, event.Release.Project.Repository, event.Release.Git.Branch)
+	repoPath := fmt.Sprintf("%s", event.Release.Project.Repository)
+
+	buf := bytes.NewBuffer(nil)
+	buildlog := io.MultiWriter(buf, os.Stdout)
+
+	err = x.bootstrap(repoPath, event)
+	if err != nil {
+		log.Debug(err)
+		event.State = plugins.Failed
+		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: bootstrap)", err.Error(), event.State)
+		x.events <- e.NewEvent(event, nil)
+		return err
+	}
+
+	err = x.build(repoPath, event, buildlog)
+	if err != nil {
+		log.Debug(err)
+		event.State = plugins.Failed
+		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
+		//event.BuildLog = buildlog.String()
+		x.events <- e.NewEvent(event, nil)
+		return err
+	}
+
+	err = x.push(repoPath, event, buildlog)
+	if err != nil {
+		log.Debug(err)
+		event.State = plugins.Failed
+		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
+		// event.BuildLog = buildlog.String()
+		x.events <- e.NewEvent(event, nil)
+		return err
+	}
+
 	event.State = plugins.Complete
 	event.Artifacts["IMAGE"] = fullImagePath(event)
 	event.Artifacts["USER"] = event.Extension.FormValues["USER"]
@@ -321,8 +317,6 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	event.Artifacts["HOST"] = event.Extension.FormValues["HOST"]
 	event.StateMessage = "Completed"
 	// event.BuildLog = buildlog.String()
-
-	spew.Dump(event)
 	x.events <- e.NewEvent(event, nil)
 	return nil
 }
