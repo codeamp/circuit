@@ -148,8 +148,13 @@ type Extension struct {
 	ExtensionSpecId uuid.UUID       `json:"extensionSpecId" gorm:"type:uuid"`
 	State           plugins.State   `json:"state"`
 	Artifacts       postgres.Hstore `json:"artifacts"`
-	FormSpecValues  postgres.Hstore `json:"formSpecValues"`
+	FormSpecValues  postgres.Jsonb  `json:"formSpecValues"`
 	EnvironmentId   uuid.UUID       `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+}
+
+type Experiment struct {
+	Model          `json:",inline"`
+	FormSpecValues postgres.Jsonb `json:"formSpecValues"`
 }
 
 type ReleaseExtension struct {

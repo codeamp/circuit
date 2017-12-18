@@ -33,3 +33,4 @@ server/secrets/*
 *.sw*
 
 .vscode
+plugins/codeamp/schema/resolvers/experiments/

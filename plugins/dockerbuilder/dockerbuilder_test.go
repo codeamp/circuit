@@ -23,7 +23,7 @@ var viperConfig = []byte(`
 plugins:
   dockerbuilder:
     workers: 1
-    workdir: "/tmp/dockerbuilder"   
+    workdir: "/tmp/dockerbuilder"
 `)
 
 func (suite *TestSuite) SetupSuite() {
@@ -49,7 +49,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	log.SetLogLevel(logrus.DebugLevel)
 
-	formValues := make(map[string]string)
+	formValues := make(map[string]interface{})
 	formValues["USER"] = "test"
 	formValues["PASSWORD"] = "test"
 	formValues["EMAIL"] = "test@checkr.com"
