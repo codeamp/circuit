@@ -11,6 +11,14 @@ type KeyValue struct {
 	Value string `json:"value"`
 }
 
+func ConvertMapStringInterfaceToKV(formSpecMap map[string]interface{}, kv *[]KeyValue) error {
+	return nil
+}
+
+func ConvertKVToMapStringInterface(kv []KeyValue, formSpecMap *map[string]interface{}) error {
+	return nil
+}
+
 func ConvertKVToMapStringString(kv []KeyValue, formSpecMap *map[string]*string) error {
 
 	formMap := *formSpecMap

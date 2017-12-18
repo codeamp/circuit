@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -330,13 +332,19 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 
+	var interfaceFormSpecValues map[string]interface{}
+	err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+	if err != nil {
+		spew.Dump(err)
+	}
+
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
 		Action:       plugins.Create,
 		Slug:         extensionSpec.Key,
 		State:        plugins.Waiting,
 		StateMessage: "onCreate",
-		FormValues:   plugins.HstoreToMapStringString(extension.FormSpecValues),
+		FormValues:   interfaceFormSpecValues,
 		Artifacts:    map[string]string{},
 	}
 
@@ -370,13 +378,19 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 
+	var interfaceFormSpecValues map[string]interface{}
+	err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+	if err != nil {
+		spew.Dump(err)
+	}
+
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
 		Action:       plugins.Update,
 		Slug:         extensionSpec.Key,
 		State:        plugins.Waiting,
 		StateMessage: "onUpdate",
-		FormValues:   plugins.HstoreToMapStringString(extension.FormSpecValues),
+		FormValues:   interfaceFormSpecValues,
 		Artifacts:    map[string]string{},
 	}
 	x.events <- transistor.NewEvent(eventExtension, nil)
@@ -643,9 +657,15 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
+			var interfaceFormSpecValues map[string]interface{}
+			err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+			if err != nil {
+				spew.Dump(err)
+			}
+
 			extensionEvent := plugins.Extension{
 				Id:         extension.Model.ID.String(),
-				FormValues: plugins.HstoreToMapStringString(extension.FormSpecValues),
+				FormValues: interfaceFormSpecValues,
 				Artifacts:  plugins.HstoreToMapStringString(extension.Artifacts),
 			}
 
@@ -826,9 +846,15 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
+			var interfaceFormSpecValues map[string]interface{}
+			err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+			if err != nil {
+				spew.Dump(err)
+			}
+
 			extensionEvent := plugins.Extension{
 				Id:         extension.Model.ID.String(),
-				FormValues: plugins.HstoreToMapStringString(extension.FormSpecValues),
+				FormValues: interfaceFormSpecValues,
 				Artifacts:  plugins.HstoreToMapStringString(extension.Artifacts),
 			}
 

@@ -15,6 +15,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -167,7 +168,7 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 		ExtensionSpecId: extensionSpec.Model.ID,
 		State:           plugins.Waiting,
 		Artifacts:       map[string]*string{},
-		FormSpecValues:  map[string]*string{},
+		FormSpecValues:  postgres.Jsonb{},
 	}
 	suite.db.Save(&extension)
 
