@@ -13,7 +13,7 @@ func BasicFailedReleaseExtension() plugins.ReleaseExtension {
 }
 
 func BasicReleaseExtension() plugins.ReleaseExtension {
-	var formValues map[string]interface{}
+	formValues := make(map[string]interface{})
 	var kubeconfig string
 	// If this is not set the test will use inClusterConfig
 	kubeconfig = os.Getenv("KUBECONFIG")

@@ -49,7 +49,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	log.SetLogLevel(logrus.DebugLevel)
 
-	var formValues map[string]interface{}
+	formValues := make(map[string]interface{})
 	formValues["USER"] = "test"
 	formValues["PASSWORD"] = "test"
 	formValues["EMAIL"] = "test@checkr.com"

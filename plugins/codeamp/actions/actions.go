@@ -332,7 +332,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 
-	var interfaceFormSpecValues map[string]interface{}
+	interfaceFormSpecValues := make(map[string]interface{})
 	err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
 	if err != nil {
 		spew.Dump(err)
@@ -378,7 +378,7 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 
-	var interfaceFormSpecValues map[string]interface{}
+	interfaceFormSpecValues := make(map[string]interface{})
 	err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
 	if err != nil {
 		spew.Dump(err)
@@ -657,7 +657,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
-			var interfaceFormSpecValues map[string]interface{}
+			interfaceFormSpecValues := make(map[string]interface{})
 			err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
 			if err != nil {
 				spew.Dump(err)
@@ -846,7 +846,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
-			var interfaceFormSpecValues map[string]interface{}
+			interfaceFormSpecValues := make(map[string]interface{})
 			err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
 			if err != nil {
 				spew.Dump(err)

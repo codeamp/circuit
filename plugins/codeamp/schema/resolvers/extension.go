@@ -86,7 +86,7 @@ func (r *ExtensionResolver) Created() graphql.Time {
 
 func (r *ExtensionResolver) FormSpecValues(ctx context.Context) ([]*KeyValueResolver, error) {
 	var keyValues []plugins.KeyValue
-	var interfaceFormSpecValues map[string]interface{}
+	interfaceFormSpecValues := make(map[string]interface{})
 
 	err := json.Unmarshal(r.Extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
 	if err != nil {
@@ -193,7 +193,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 
 func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
 	var extension models.Extension
-	var formSpecValuesMap map[string]interface{}
+	formSpecValuesMap := make(map[string]interface{})
 
 	if r.db.Where("id = ?", args.Extension.ID).First(&extension).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
