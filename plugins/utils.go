@@ -12,10 +12,21 @@ type KeyValue struct {
 }
 
 func ConvertMapStringInterfaceToKV(formSpecMap map[string]interface{}, kv *[]KeyValue) error {
+	for key, value := range formSpecMap {
+		*kv = append(*kv, KeyValue{Key: key, Value: value.(string)})
+	}
 	return nil
 }
 
 func ConvertKVToMapStringInterface(kv []KeyValue, formSpecMap *map[string]interface{}) error {
+	formMap := *formSpecMap
+
+	for _, keyValue := range kv {
+		tmpKv := keyValue
+		formMap[tmpKv.Key] = &tmpKv.Value
+	}
+
+	formSpecMap = &formMap
 	return nil
 }
 
