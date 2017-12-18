@@ -81,7 +81,7 @@ func (x *Deployments) sendDDInProgress(e transistor.Event, services []plugins.Se
 func secretifyDockerCred(e transistor.Event) (string, error) {
 	ext := e.Payload.(plugins.ReleaseExtension)
 
-	prefix := ext.Extension.FormValues["DOCKERBUILDER_PREFIX"]
+	prefix := ext.Extension.FormValues["DOCKERBUILDER_PREFIX"].(string)
 	if prefix == "" {
 		prefix = "DOCKERBUILDER_"
 	}
@@ -272,7 +272,7 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ReleaseExtension)
-	kubeconfig := payload.Extension.FormValues["KUBECONFIG"]
+	kubeconfig := payload.Extension.FormValues["KUBECONFIG"].(string)
 	log.Printf("Using kubeconfig file: %s", kubeconfig)
 
 	releaseData := e.Payload.(plugins.ReleaseExtension).Release
