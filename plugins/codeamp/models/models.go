@@ -154,7 +154,7 @@ type Extension struct {
 
 type Experiment struct {
 	Model          `json:",inline"`
-	FormSpecValues postgres.Jsonb `json:"formSpecValues"`
+	FormSpecValues postgres.Jsonb `json:"formSpecValues" gorm:"type:jsonb;not null"`
 }
 
 type ReleaseExtension struct {
