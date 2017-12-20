@@ -8,7 +8,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
@@ -83,7 +82,7 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 
 	r.db.Save(&extensionSpec)
 
-	spew.Dump(extensionSpec)
+	r.actions.ExtensionSpecUpdated(&extensionSpec)
 
 	return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
 }
@@ -145,23 +144,8 @@ func (r *ExtensionSpecResolver) Key() string {
 	return r.ExtensionSpec.Key
 }
 
-func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*ExtensionEnvironmentVariableResolver, error) {
-	// unmarshal into interface
-	var rows []plugins.ExtensionEnvironmentVariable
-	var results []*ExtensionEnvironmentVariableResolver
-
-	err := json.Unmarshal(r.ExtensionSpec.EnvironmentVariables.RawMessage, &rows)
-	if err != nil {
-		log.InfoWithFields("could not unmarshal r.ExtensionSpec.EnvironmentVariables", log.Fields{
-			"data": r.ExtensionSpec.EnvironmentVariables,
-			"v":    &results,
-		})
-		return results, err
-	}
-
-	for _, row := range rows {
-		results = append(results, &ExtensionEnvironmentVariableResolver{db: r.db, ExtensionEnvironmentVariable: row})
-	}
+func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+	var results []*EnvironmentVariableResolver
 
 	return results, nil
 }

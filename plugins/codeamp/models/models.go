@@ -35,20 +35,19 @@ type Environment struct {
 
 type EnvironmentVariable struct {
 	Model         `json:",inline"`
-	Key           string              `json:"key"`
-	Value         string              `json:"value"`
-	Type          plugins.Type        `json:"type"`
-	Version       int32               `json:"version"`
-	ProjectId     uuid.UUID           `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	UserId        uuid.UUID           `bson:"userId" json:"userId" gorm:"type:uuid"`
-	Scope         plugins.EnvVarScope `json:"scope"`
-	EnvironmentId uuid.UUID           `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	Key           string                   `json:"key"`
+	Value         EnvironmentVariableValue `json:"value"`
+	Type          plugins.Type             `json:"type"`
+	ProjectId     uuid.UUID                `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	Scope         plugins.EnvVarScope      `json:"scope"`
+	EnvironmentId uuid.UUID                `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
-type ExtensionSpecEnvironmentVariable struct {
-	Model                 `json:"inline"`
-	ExtensionSpecId       uuid.UUID `bson:"extensionSpecId" json:"extensionSpecId" gorm:"type:uuid"`
-	EnvironmentVariableId uuid.UUID `bson:"environmentVariableId" json:"environmentVariableId" gorm:"type:uuid"`
+type EnvironmentVariableValue struct {
+	Model                 `json:",inline"`
+	EnvironmentVariableId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	Value                 string    `json:"value"`
+	UserId                uuid.UUID `bson:"userId" json:"userId" gorm:"type:uuid"`
 }
 
 type Project struct {

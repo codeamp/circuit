@@ -72,7 +72,7 @@ func (x *CodeAmp) Migrate() {
 		&models.ExtensionSpec{},
 		&models.Extension{},
 		&models.EnvironmentVariable{},
-		&models.ExtensionSpecEnvironmentVariable{},
+		&models.EnvironmentVariableValue{},
 		&models.ReleaseExtension{},
 		&models.Environment{},
 	)

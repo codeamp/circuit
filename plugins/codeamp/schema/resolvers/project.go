@@ -243,7 +243,9 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 
 	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
-			"project": r.Project,
+			"state":          plugins.Complete,
+			"project_id":     r.Project.Model.ID,
+			"environment_id": r.Environment.Model.ID,
 		})
 		return &ReleaseResolver{db: r.db, Release: currentRelease}, fmt.Errorf("Current release does not exist.")
 	}
