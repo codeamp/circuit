@@ -126,11 +126,11 @@ func (x *CodeAmp) Migrate() {
 		Key:       "dockerbuilder",
 		Name:      "Docker Builder",
 		Component: "",
-		FormSpec: plugins.MapStringStringToHstore(map[string]string{
-			"REGISTRY": "required|string",
-			"USERNAME": "required|string",
-			"PASSWORD": "required|string",
-		}),
+		// FormSpec: plugins.MapStringStringToHstore(map[string]string{
+		// 	"REGISTRY": "required|string",
+		// 	"USERNAME": "required|string",
+		// 	"PASSWORD": "required|string",
+		// }),
 	}
 	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
 		Key: extensionSpec.Key,
@@ -306,7 +306,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		}
 
 		extension.State = plugins.Complete
-		extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
+		// extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&extension)
 
 		x.Actions.ExtensionInitCompleted(&extension)
@@ -325,7 +325,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		releaseExtension.State = payload.State
 		releaseExtension.StateMessage = payload.StateMessage
-		releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
+		// releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&releaseExtension)
 
 		if payload.State == plugins.Complete {

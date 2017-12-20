@@ -1,15 +1,12 @@
 package actions
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -332,11 +329,11 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 
-	interfaceFormSpecValues := make(map[string]interface{})
-	err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
-	if err != nil {
-		spew.Dump(err)
-	}
+	// interfaceFormSpecValues := make(map[string]interface{})
+	// err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+	// if err != nil {
+	// 	spew.Dump(err)
+	// }
 
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
@@ -344,8 +341,8 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 		Slug:         extensionSpec.Key,
 		State:        plugins.Waiting,
 		StateMessage: "onCreate",
-		FormValues:   interfaceFormSpecValues,
-		Artifacts:    map[string]string{},
+		// FormValues:   interfaceFormSpecValues,
+		Artifacts: map[string]string{},
 	}
 
 	x.events <- transistor.NewEvent(eventExtension, nil)
@@ -378,11 +375,11 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 	}
 	x.events <- transistor.NewEvent(wsMsg, nil)
 
-	interfaceFormSpecValues := make(map[string]interface{})
-	err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
-	if err != nil {
-		spew.Dump(err)
-	}
+	// interfaceFormSpecValues := make(map[string]interface{})
+	// err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+	// if err != nil {
+	// 	spew.Dump(err)
+	// }
 
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
@@ -390,8 +387,8 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 		Slug:         extensionSpec.Key,
 		State:        plugins.Waiting,
 		StateMessage: "onUpdate",
-		FormValues:   interfaceFormSpecValues,
-		Artifacts:    map[string]string{},
+		// FormValues:   interfaceFormSpecValues,
+		Artifacts: map[string]string{},
 	}
 	x.events <- transistor.NewEvent(eventExtension, nil)
 }
@@ -569,10 +566,10 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				})
 			}
 
-			for k, v := range releaseExtension.Artifacts {
-				key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
-				releaseExtensionArtifacts[key] = *v
-			}
+			// for k, v := range releaseExtension.Artifacts {
+			// 	key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
+			// 	releaseExtensionArtifacts[key] = *v
+			// }
 		}
 
 		if plugins.Type(extensionSpec.Type) == plugins.Deployment {
@@ -581,7 +578,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 
 	// persist workflow artifacts
-	release.Artifacts = plugins.MapStringStringToHstore(releaseExtensionArtifacts)
+	// release.Artifacts = plugins.MapStringStringToHstore(releaseExtensionArtifacts)
 	x.db.Save(release)
 
 	// if there are no deployment workflows, then release is complete
@@ -657,16 +654,16 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
-			interfaceFormSpecValues := make(map[string]interface{})
-			err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
-			if err != nil {
-				spew.Dump(err)
-			}
+			// interfaceFormSpecValues := make(map[string]interface{})
+			// err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+			// if err != nil {
+			// 	spew.Dump(err)
+			// }
 
 			extensionEvent := plugins.Extension{
-				Id:         extension.Model.ID.String(),
-				FormValues: interfaceFormSpecValues,
-				Artifacts:  plugins.HstoreToMapStringString(extension.Artifacts),
+				Id: extension.Model.ID.String(),
+				// FormValues: interfaceFormSpecValues,
+				// Artifacts: plugins.HstoreToMapStringString(extension.Artifacts),
 			}
 
 			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
@@ -693,7 +690,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 func (x *Actions) DeploymentExtensionsCompleted(release *models.Release) {
 	// find all related deployment extensions
 	depExtensions := []models.Extension{}
-	releaseExtensionArtifacts := map[string]string{}
+	// releaseExtensionArtifacts := map[string]string{}
 
 	if x.db.Where("project_id = ?", release.ProjectId).Find(&depExtensions).RecordNotFound() {
 		log.InfoWithFields("deployment extensions not found", log.Fields{
@@ -721,17 +718,17 @@ func (x *Actions) DeploymentExtensionsCompleted(release *models.Release) {
 				})
 			}
 
-			for k, v := range releaseExtension.Artifacts {
-				key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
-				releaseExtensionArtifacts[key] = *v
-			}
+			// for k, v := range releaseExtension.Artifacts {
+			// 	key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
+			// 	releaseExtensionArtifacts[key] = *v
+			// }
 		}
 	}
 
 	// persist deployment artifacts
-	for k, v := range releaseExtensionArtifacts {
-		release.Artifacts[k] = &v
-	}
+	// for k, v := range releaseExtensionArtifacts {
+	// 	release.Artifacts[k] = &v
+	// }
 
 	x.db.Save(release)
 
@@ -846,16 +843,16 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
-			interfaceFormSpecValues := make(map[string]interface{})
-			err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
-			if err != nil {
-				spew.Dump(err)
-			}
+			// interfaceFormSpecValues := make(map[string]interface{})
+			// err := json.Unmarshal(extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
+			// if err != nil {
+			// 	spew.Dump(err)
+			// }
 
 			extensionEvent := plugins.Extension{
-				Id:         extension.Model.ID.String(),
-				FormValues: interfaceFormSpecValues,
-				Artifacts:  plugins.HstoreToMapStringString(extension.Artifacts),
+				Id: extension.Model.ID.String(),
+				// FormValues: interfaceFormSpecValues,
+				// Artifacts:  plugins.HstoreToMapStringString(extension.Artifacts),
 			}
 
 			x.events <- transistor.NewEvent(plugins.ReleaseExtension{

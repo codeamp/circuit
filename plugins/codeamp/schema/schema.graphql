@@ -182,6 +182,13 @@ interface Project {
   created: Time!
 }
 
+interface ExtensionEnvironmentVariable {
+  projectId: String
+  key: String!
+  type: String!
+  environmentVariableId: String
+}
+
 # ExtensionSpec object
 interface ExtensionSpec {
   id: ID!
@@ -190,7 +197,7 @@ interface ExtensionSpec {
   formSpec: [KeyValue]!
   type: String!
   key: String!
-  environmentVariables: [EnvironmentVariable]!
+  environmentVariables: [ExtensionEnvironmentVariable]!
   created: Time!
 }
 
@@ -279,13 +286,19 @@ input EnvironmentVariableInput {
   environmentId: String!
 }
 
+input ExtensionEnvironmentVariableInput {
+  projectId: String
+  key: String!
+  type: String!
+  environmentVariableId: String
+}
+
 input ExtensionSpecInput {
   id: String
   name: String!
   key: String!
   component: String!
-  formSpec: [KeyValueInput!]!
-  environmentVariables: [String!]!
+  environmentVariables: [ExtensionEnvironmentVariableInput]!
   type: String!
 }
 

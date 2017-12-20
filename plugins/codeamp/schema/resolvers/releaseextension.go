@@ -78,12 +78,12 @@ func (r *ReleaseExtensionResolver) StateMessage() string {
 
 func (r *ReleaseExtensionResolver) Artifacts() []*KeyValueResolver {
 	keyValues := []plugins.KeyValue{}
-	err := plugins.ConvertMapStringStringToKV(r.ReleaseExtension.Artifacts, &keyValues)
-	if err != nil {
-		log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-			"extensionSpec": r.ReleaseExtension,
-		})
-	}
+	// err := plugins.ConvertMapStringStringToKV(r.ReleaseExtension.Artifacts, &keyValues)
+	// if err != nil {
+	// 	log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
+	// 		"extensionSpec": r.ReleaseExtension,
+	// 	})
+	// }
 
 	var rows []*KeyValueResolver
 	for _, kv := range keyValues {
