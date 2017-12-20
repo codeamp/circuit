@@ -138,6 +138,7 @@ type ExtensionSpec struct {
 	Key                  string         `json:"key"`
 	Name                 string         `json:"name"`
 	Component            string         `json:"component"`
+	EnvironmentId        uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 	EnvironmentVariables postgres.Jsonb `json:"formSpec" gorm:"type:jsonb;not null"`
 }
 

@@ -197,6 +197,7 @@ interface ExtensionSpec {
   formSpec: [KeyValue]!
   type: String!
   key: String!
+  environment: Environment!
   environmentVariables: [ExtensionEnvironmentVariable]!
   created: Time!
 }
@@ -298,6 +299,7 @@ input ExtensionSpecInput {
   name: String!
   key: String!
   component: String!
+  environmentId: String!
   environmentVariables: [ExtensionEnvironmentVariableInput]!
   type: String!
 }

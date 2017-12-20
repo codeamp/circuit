@@ -27,6 +27,7 @@ type ExtensionSpecInput struct {
 	Component            string
 	Type                 string
 	Key                  string
+	EnvironmentId        string
 	EnvironmentVariables []*ExtensionEnvironmentVariableInput
 }
 
@@ -73,11 +74,17 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, nil
 	}
 
+	environmentId, err := uuid.FromString(args.ExtensionSpec.EnvironmentId)
+	if err != nil {
+		return nil, fmt.Errorf("Missing argument EnvironmentId")
+	}
+
 	// update extensionspec properties
 	extensionSpec.Name = args.ExtensionSpec.Name
 	extensionSpec.Key = args.ExtensionSpec.Key
 	extensionSpec.Type = plugins.Type(args.ExtensionSpec.Type)
 	extensionSpec.Component = args.ExtensionSpec.Component
+	extensionSpec.EnvironmentId = environmentId
 	extensionSpec.EnvironmentVariables = postgres.Jsonb{marshalledEnvVars}
 
 	r.db.Save(&extensionSpec)
@@ -144,8 +151,35 @@ func (r *ExtensionSpecResolver) Key() string {
 	return r.ExtensionSpec.Key
 }
 
-func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
-	var results []*EnvironmentVariableResolver
+func (r *ExtensionSpecResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
+	var environment models.Environment
+
+	if r.db.Where("id = ?", r.ExtensionSpec.EnvironmentId).First(&environment).RecordNotFound() {
+		log.InfoWithFields("environment not found", log.Fields{
+			"id": r.ExtensionSpec.EnvironmentId,
+		})
+		return nil, fmt.Errorf("Environment not found.")
+	}
+
+	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
+}
+
+func (r *ExtensionSpecResolver) EnvironmentVariables(ctx context.Context) ([]*ExtensionEnvironmentVariableResolver, error) {
+	var rows []plugins.ExtensionEnvironmentVariable
+	var results []*ExtensionEnvironmentVariableResolver
+
+	err := json.Unmarshal(r.ExtensionSpec.EnvironmentVariables.RawMessage, &rows)
+	if err != nil {
+		log.InfoWithFields("could not unmarshal r.ExtensionSpec.EnvironmentVariables", log.Fields{
+			"data": r.ExtensionSpec.EnvironmentVariables,
+			"v":    &results,
+		})
+		return results, err
+	}
+
+	for _, row := range rows {
+		results = append(results, &ExtensionEnvironmentVariableResolver{db: r.db, ExtensionEnvironmentVariable: row})
+	}
 
 	return results, nil
 }
