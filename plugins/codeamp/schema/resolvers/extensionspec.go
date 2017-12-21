@@ -171,7 +171,7 @@ func (r *ExtensionSpecResolver) Config(ctx context.Context) (string, error) {
 	tmp := make(map[string]interface{})
 	err := json.Unmarshal(r.ExtensionSpec.Config.RawMessage, &tmp)
 	if err != nil {
-		log.InfoWithFields("could not unmarshal r.ExtensionSpec.Configs", log.Fields{
+		log.InfoWithFields("could not unmarshal r.ExtensionSpec.Config", log.Fields{
 			"data": r.ExtensionSpec.Config,
 			"v":    &tmp,
 		})
