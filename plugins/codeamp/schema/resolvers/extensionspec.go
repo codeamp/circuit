@@ -8,7 +8,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
@@ -22,7 +21,7 @@ type ExtensionSpecInput struct {
 	Type          string
 	Key           string
 	EnvironmentId string
-	Config        []plugins.KeyValue
+	Config        string
 }
 
 func (r *Resolver) ExtensionSpec(ctx context.Context, args *struct{ ID graphql.ID }) *ExtensionSpecResolver {
@@ -53,20 +52,21 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpecInput }) (*ExtensionSpecResolver, error) {
 	// convert to object from KV
 	convertedConfig := make(map[string]interface{})
-
-	err := plugins.ConvertKVToMapStringInterface(args.ExtensionSpec.Config, &convertedConfig)
+	err := json.Unmarshal([]byte(args.ExtensionSpec.Config), &convertedConfig)
 	if err != nil {
-		log.Info(err.Error())
-		return nil, err
+		log.InfoWithFields(err.Error(), log.Fields{
+			"v": args.ExtensionSpec.Config,
+		})
+		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, err
 	}
 
 	// marshal args.ExtensionSpec.Configs for JSONB storage in db
 	marshalledConfig, err := json.Marshal(convertedConfig)
 	if err != nil {
-		log.InfoWithFields("could not marshal args.ExtensionSpec.Configs", log.Fields{
-			"v": args.ExtensionSpec.Config,
+		log.InfoWithFields("could not marshal convertedConfig", log.Fields{
+			"v": convertedConfig,
 		})
-		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, nil
+		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, err
 	}
 
 	extensionSpec := models.ExtensionSpec{}
@@ -74,7 +74,7 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		log.InfoWithFields("could not find extensionspec with id", log.Fields{
 			"id": args.ExtensionSpec.ID,
 		})
-		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, nil
+		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, fmt.Errorf("could not find extensionspec with id")
 	}
 
 	environmentId, err := uuid.FromString(args.ExtensionSpec.EnvironmentId)
@@ -167,30 +167,24 @@ func (r *ExtensionSpecResolver) Environment(ctx context.Context) (*EnvironmentRe
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
 
-func (r *ExtensionSpecResolver) Config(ctx context.Context) ([]*KeyValueResolver, error) {
-	var rows []plugins.KeyValue
-	var results []*KeyValueResolver
-
+func (r *ExtensionSpecResolver) Config(ctx context.Context) (string, error) {
 	tmp := make(map[string]interface{})
 	err := json.Unmarshal(r.ExtensionSpec.Config.RawMessage, &tmp)
 	if err != nil {
 		log.InfoWithFields("could not unmarshal r.ExtensionSpec.Configs", log.Fields{
 			"data": r.ExtensionSpec.Config,
-			"v":    &results,
+			"v":    &tmp,
 		})
-		return results, err
+		return "", err
 	}
 
-	err = plugins.ConvertMapStringInterfaceToKV(tmp, &rows)
+	str, err := json.Marshal(tmp)
 	if err != nil {
-		spew.Dump(err)
+		log.Info("could not marshal config")
+		return "", err
 	}
 
-	for _, row := range rows {
-		results = append(results, &KeyValueResolver{db: r.db, KeyValue: row})
-	}
-
-	return results, nil
+	return string(str), nil
 }
 
 func (r *ExtensionSpecResolver) FormSpec(ctx context.Context) ([]*KeyValueResolver, error) {

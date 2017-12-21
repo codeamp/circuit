@@ -198,7 +198,7 @@ interface ExtensionSpec {
   type: String!
   key: String!
   environment: Environment!
-  config: [KeyValue]!
+  config: String!
   created: Time!
 }
 
@@ -300,7 +300,7 @@ input ExtensionSpecInput {
   key: String!
   component: String!
   environmentId: String!
-  config: [KeyValueInput!]!
+  config: String!
   type: String!
 }
 
