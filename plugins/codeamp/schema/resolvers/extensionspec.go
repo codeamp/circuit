@@ -61,7 +61,7 @@ func (r *Resolver) UpdateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		log.InfoWithFields("could not find extensionspec with id", log.Fields{
 			"id": args.ExtensionSpec.ID,
 		})
-		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, nil
+		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: models.ExtensionSpec{}}, fmt.Errorf("could not find extensionspec with id")
 	}
 
 	environmentId, err := uuid.FromString(args.ExtensionSpec.EnvironmentId)

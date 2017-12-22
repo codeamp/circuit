@@ -11,13 +11,6 @@ type KeyValue struct {
 	Value string `json:"value"`
 }
 
-type ExtensionEnvironmentVariable struct {
-	ProjectId             string `json:"projectId"`
-	Key                   string `json:"key"`
-	Type                  string `json:"type"`
-	EnvironmentVariableId string `json:"environmentVariableId"`
-}
-
 func ConvertMapStringInterfaceToKV(formSpecMap map[string]interface{}, kv *[]KeyValue) error {
 	for key, value := range formSpecMap {
 		*kv = append(*kv, KeyValue{Key: key, Value: value.(string)})
