@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/neelance/graphql-go/internal/common"
 	"github.com/neelance/graphql-go/internal/exec/packer"
 	"github.com/neelance/graphql-go/internal/schema"
@@ -179,6 +180,9 @@ func (b *execBuilder) makeExec(t common.Type, resolverType reflect.Type) (Resolv
 
 func makeScalarExec(t *schema.Scalar, resolverType reflect.Type) (Resolvable, error) {
 	implementsType := false
+	spew.Dump(resolverType)
+
+	spew.Dump(reflect.New(resolverType).Interface())
 	switch r := reflect.New(resolverType).Interface().(type) {
 	case *int32:
 		implementsType = (t.Name == "Int")

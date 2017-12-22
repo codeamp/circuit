@@ -1,4 +1,5 @@
 scalar Time
+scalar Json
 
 schema {
   query: Query
@@ -194,11 +195,10 @@ interface ExtensionSpec {
   id: ID!
   name: String!
   component: String!
-  formSpec: [KeyValue]!
   type: String!
   key: String!
   environment: Environment!
-  config: [KeyValue]!
+  config: Json!
   created: Time!
 }
 
@@ -300,7 +300,7 @@ input ExtensionSpecInput {
   key: String!
   component: String!
   environmentId: String!
-  config: [KeyValueInput!]!
+  config: Json!
   type: String!
 }
 
