@@ -281,38 +281,30 @@ func (r *ProjectResolver) Services(ctx context.Context) ([]*ServiceResolver, err
 func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	var rows []models.Release
 	var results []*ReleaseResolver
-
 	r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
-
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{db: r.db, Release: release})
 	}
-
 	return results, nil
 }
 
 func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
-
-	r.db.Select("key, version, id, value, created_at, type, user_id, project_id, environment_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, version, created_at desc").Find(&rows)
-
+	r.db.Select("key, id, created_at, type, project_id, environment_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
 	}
-
 	return results, nil
 }
 
 func (r *ProjectResolver) Extensions(ctx context.Context) ([]*ExtensionResolver, error) {
 	var rows []models.Extension
 	var results []*ExtensionResolver
-
 	r.db.Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.Model.ID).Find(&rows)
 	for _, extension := range rows {
 		results = append(results, &ExtensionResolver{db: r.db, Extension: extension})
 	}
-
 	return results, nil
 }
 
