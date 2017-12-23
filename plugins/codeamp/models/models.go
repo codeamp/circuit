@@ -1,9 +1,11 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 )
@@ -33,13 +35,33 @@ type Environment struct {
 	Name  string `json:"name"`
 }
 
+type EnvironmentVariableScope string
+
+func GetEnvironmentVariableScope(s string) EnvironmentVariableScope {
+	environmentVariableScopes := []string{
+		"project",
+		"extension",
+		"global",
+	}
+
+	for _, environmentVariableScope := range environmentVariableScopes {
+		if s == environmentVariableScope {
+			return EnvironmentVariableScope(environmentVariableScope)
+		}
+	}
+
+	log.Info(fmt.Sprintf("EnvironmentVariableScope not found: %s", s))
+
+	return EnvironmentVariableScope("unknown")
+}
+
 type EnvironmentVariable struct {
 	Model         `json:",inline"`
 	Key           string                   `json:"key"`
 	Value         EnvironmentVariableValue `json:"value"`
 	Type          plugins.Type             `json:"type"`
 	ProjectId     uuid.UUID                `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	Scope         plugins.EnvVarScope      `json:"scope"`
+	Scope         EnvironmentVariableScope `json:"scope"`
 	EnvironmentId uuid.UUID                `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 

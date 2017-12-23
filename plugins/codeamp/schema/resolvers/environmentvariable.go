@@ -41,13 +41,13 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 
 	projectId := uuid.UUID{}
 	var environmentId uuid.UUID
-	var envVarScope plugins.EnvVarScope
+	var environmentVariableScope models.EnvironmentVariableScope
 
 	if args.EnvironmentVariable.ProjectId != nil {
 		projectId = uuid.FromStringOrNil(*args.EnvironmentVariable.ProjectId)
-		envVarScope = plugins.EnvVarScope(args.EnvironmentVariable.Scope)
+		environmentVariableScope = models.GetEnvironmentVariableScope(args.EnvironmentVariable.Scope)
 	} else {
-		envVarScope = plugins.GlobalScope
+		environmentVariableScope = models.GetEnvironmentVariableScope("global")
 	}
 
 	environmentId, err := uuid.FromString(args.EnvironmentVariable.EnvironmentId)
@@ -72,7 +72,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 			Key:           args.EnvironmentVariable.Key,
 			ProjectId:     projectId,
 			Type:          plugins.Type(args.EnvironmentVariable.Type),
-			Scope:         envVarScope,
+			Scope:         environmentVariableScope,
 			EnvironmentId: environmentId,
 		}
 		r.db.Create(&envVar)

@@ -162,8 +162,14 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,
 			EnvironmentId:   environmentId,
+<<<<<<< HEAD
 			Config: postgres.Jsonb{[]byte(marshalledUserConfig)},
 			State: plugins.Waiting,
+=======
+			// FormSpecValues:  postgres.Jsonb{jsonFormSpecValuesMap},
+			// Artifacts:       map[string]*string{},
+			State: plugins.GetState("waiting"),
+>>>>>>> aa3b7681367e86a6b1addb3ddc78b51676f18331
 		}
 		r.db.Save(&extension)
 
@@ -182,9 +188,31 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*
 		})
 		return &ExtensionResolver{}, nil
 	}
+<<<<<<< HEAD
 	
 	extension.Config = postgres.Jsonb{args.Extension.Config.RawMessage}
 	extension.State = plugins.Waiting
+=======
+
+	err := plugins.ConvertKVToMapStringInterface(args.Extension.FormSpecValues, &formSpecValuesMap)
+	if err != nil {
+		log.InfoWithFields("not able to convert kv to map[string]string", log.Fields{
+			"extension": args.Extension,
+		})
+		return &ExtensionResolver{}, nil
+	}
+
+	// jsonFormSpecValuesMap, err := json.Marshal(formSpecValuesMap)
+	// if err != nil {
+	// 	log.InfoWithFields("can't marshal formSpecValuesMap", log.Fields{
+	// 		"formSpecValuesMap": formSpecValuesMap,
+	// 	})
+	// 	return nil, errors.New("Can't marshal FormSpecValues")
+	// }
+
+	// extension.FormSpecValues = postgres.Jsonb{jsonFormSpecValuesMap}
+	extension.State = plugins.GetState("waiting")
+>>>>>>> aa3b7681367e86a6b1addb3ddc78b51676f18331
 
 	r.db.Save(&extension)
 	r.actions.ExtensionUpdated(&extension)

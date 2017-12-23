@@ -115,7 +115,7 @@ func (suite *TestExtensions) TestSuccessfulCreateExtension() {
 	stamp := strings.ToLower("TestSuccessfulCreateExtension")
 
 	es := models.ExtensionSpec{
-		Type:      plugins.Workflow,
+		Type:      plugins.GetType("workflow"),
 		Key:       fmt.Sprintf("testkey%s", stamp),
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
@@ -215,7 +215,7 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidProjectId() {
 	stamp := strings.ToLower("TestFailedCreateExtensionInvalidProjectId")
 
 	es := models.ExtensionSpec{
-		Type:      plugins.Workflow,
+		Type:      plugins.GetType("workflow"),
 		Key:       fmt.Sprintf("testkey%s", stamp),
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
@@ -258,7 +258,7 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidFormSpecValues() {
 	requiredStringParam := "required|string"
 
 	es := models.ExtensionSpec{
-		Type:      plugins.Workflow,
+		Type:      plugins.GetType("workflow"),
 		Key:       fmt.Sprintf("testkey%s", stamp),
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),
@@ -379,7 +379,7 @@ func (suite *TestExtensions) TestFailedCreateExtensionInvalidEnvironmentId() {
 	requiredStringParam := "required|string"
 
 	es := models.ExtensionSpec{
-		Type:      plugins.Workflow,
+		Type:      plugins.GetType("workflow"),
 		Key:       fmt.Sprintf("testkey%s", stamp),
 		Name:      fmt.Sprintf("test%s", stamp),
 		Component: fmt.Sprintf("testcomponent%s", stamp),

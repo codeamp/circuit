@@ -108,7 +108,7 @@ func (suite *TestExtensionSpecs) SetupDBAndContext() {
 		Value:         "value",
 		ProjectId:     uuid.UUID{},
 		Version:       int32(0),
-		Type:          plugins.Env,
+		Type:          plugins.GetType("env"),
 		Scope:         plugins.ExtensionScope,
 		UserId:        user.Model.ID,
 		EnvironmentId: env.Model.ID,
@@ -268,7 +268,7 @@ func (suite *TestExtensionSpecs) TestSuccessfulUpdateExtensionSpec() {
 
 	valString := "val"
 	es := models.ExtensionSpec{
-		Type:      plugins.Workflow,
+		Type:      plugins.GetType("workflow"),
 		Key:       fmt.Sprintf("key%s", stamp),
 		Name:      fmt.Sprintf("name%s", stamp),
 		Component: fmt.Sprintf("component%s", stamp),
@@ -323,7 +323,7 @@ func (suite *TestExtensionSpecs) TestSuccessfulDeleteExtensionSpec() {
 
 	valString := "val"
 	es := models.ExtensionSpec{
-		Type:      plugins.Workflow,
+		Type:      plugins.GetType("workflow"),
 		Key:       fmt.Sprintf("key%s", stamp),
 		Name:      fmt.Sprintf("name%s", stamp),
 		Component: fmt.Sprintf("component%s", stamp),

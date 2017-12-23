@@ -49,7 +49,7 @@ func (suite *TestSuite) TestGitSync() {
 
 	gitSync := plugins.GitSync{
 		Action: plugins.Update,
-		State:  plugins.Waiting,
+		State:  plugins.GetState("waiting"),
 		Project: plugins.Project{
 			Repository: "codeamp/circuit",
 		},

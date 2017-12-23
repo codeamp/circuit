@@ -260,7 +260,8 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	if e.Name == "plugins.Extension:create:dockerbuilder" {
 		var extensionEvent plugins.Extension
 		extensionEvent = e.Payload.(plugins.Extension)
-		extensionEvent.Action = plugins.Complete
+		extensionEvent.Action = plugins.GetAction("status")
+		extensionEvent.State = plugins.GetState("complete")
 		x.events <- e.NewEvent(extensionEvent, nil)
 		return nil
 	}
@@ -269,8 +270,8 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 	var err error
 
-	event.Action = plugins.Status
-	event.State = plugins.Fetching
+	event.Action = plugins.GetAction("status")
+	event.State = plugins.GetState("fetching")
 	event.StateMessage = ""
 	x.events <- e.NewEvent(event, nil)
 
@@ -283,7 +284,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	err = x.bootstrap(repoPath, event)
 	if err != nil {
 		log.Debug(err)
-		event.State = plugins.Failed
+		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: bootstrap)", err.Error(), event.State)
 		x.events <- e.NewEvent(event, nil)
 		return err
@@ -292,7 +293,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	err = x.build(repoPath, event, buildlog)
 	if err != nil {
 		log.Debug(err)
-		event.State = plugins.Failed
+		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
 		//event.BuildLog = buildlog.String()
 		x.events <- e.NewEvent(event, nil)
@@ -302,14 +303,14 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	err = x.push(repoPath, event, buildlog)
 	if err != nil {
 		log.Debug(err)
-		event.State = plugins.Failed
+		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
 		// event.BuildLog = buildlog.String()
 		x.events <- e.NewEvent(event, nil)
 		return err
 	}
 
-	event.State = plugins.Complete
+	event.State = plugins.GetState("complete")
 	event.Artifacts["IMAGE"] = fullImagePath(event)
 	event.Artifacts["USER"] = event.Extension.FormValues["USER"].(string)
 	event.Artifacts["PASSWORD"] = event.Extension.FormValues["PASSWORD"].(string)

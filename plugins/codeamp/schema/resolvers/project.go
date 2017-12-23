@@ -241,9 +241,9 @@ func (r *ProjectResolver) RsaPublicKey() string {
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 	var currentRelease models.Release
 
-	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.Complete, r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
+	if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("CurrentRelease does not exist", log.Fields{
-			"state":          plugins.Complete,
+			"state":          plugins.GetState("complete"),
 			"project_id":     r.Project.Model.ID,
 			"environment_id": r.Environment.Model.ID,
 		})

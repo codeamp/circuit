@@ -122,7 +122,7 @@ func (x *CodeAmp) Migrate() {
 	db.Save(&serviceSpec)
 
 	extensionSpec := models.ExtensionSpec{
-		Type:      plugins.Workflow,
+		Type:      plugins.GetType("workflow"),
 		Key:       "dockerbuilder",
 		Name:      "Docker Builder",
 		Component: "",
@@ -138,7 +138,7 @@ func (x *CodeAmp) Migrate() {
 	db.Save(&extensionSpec)
 
 	extensionSpec = models.ExtensionSpec{
-		Type:      plugins.Deployment,
+		Type:      plugins.GetType("deployment"),
 		Key:       "kubernetesdeployment",
 		Name:      "Kubernetes",
 		Component: "",
@@ -305,7 +305,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			return nil
 		}
 
-		extension.State = plugins.Complete
+		extension.State = plugins.GetState("complete")
 		// extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&extension)
 
@@ -328,11 +328,11 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		// releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&releaseExtension)
 
-		if payload.State == plugins.Complete {
+		if payload.State == plugins.GetState("complete") {
 			x.Actions.ReleaseExtensionCompleted(&releaseExtension)
 		}
 
-		if payload.State == plugins.Failed {
+		if payload.State == plugins.GetState("failed") {
 			var release models.Release
 
 			if x.Db.Where("id = ?", payload.Release.Id).Find(&release).RecordNotFound() {
@@ -341,7 +341,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 				})
 				return nil
 			}
-			release.State = plugins.Failed
+			release.State = plugins.GetState("failed")
 			release.StateMessage = payload.StateMessage
 			x.Db.Save(&release)
 		}

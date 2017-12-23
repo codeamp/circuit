@@ -52,20 +52,20 @@ func (suite *TestSuite) TestBasicSuccessDeploy() {
 	var e transistor.Event
 	suite.transistor.Events <- transistor.NewEvent(testdata.BasicReleaseExtension(), nil)
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 20)
-	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.Running))
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("running")))
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 120)
 	suite.T().Log(e.Payload.(plugins.ReleaseExtension).StateMessage)
-	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.Complete))
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("complete")))
 }
 
 func (suite *TestSuite) TestBasicFailedDeploy() {
 	var e transistor.Event
 	suite.transistor.Events <- transistor.NewEvent(testdata.BasicFailedReleaseExtension(), nil)
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 20)
-	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.Running))
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("running")))
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 120)
 	suite.T().Log(e.Payload.(plugins.ReleaseExtension).StateMessage)
-	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.Failed))
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("failed")))
 }
 
 func TestDeployments(t *testing.T) {
