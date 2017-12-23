@@ -130,7 +130,7 @@ func (suite *TestEnvironmentVariables) TestSuccessfulCreateEnvironmentVariable()
 		EnvironmentVariable: &resolvers.EnvironmentVariableInput{
 			Key:           fmt.Sprintf("key%s", stamp),
 			Value:         fmt.Sprintf("value%s", stamp),
-			Type:          plugins.Env,
+			Type:          plugins.GetType("env"),
 			Scope:         plugins.ExtensionScope,
 			EnvironmentId: suite.env.Model.ID.String(),
 		},
@@ -143,7 +143,7 @@ func (suite *TestEnvironmentVariables) TestSuccessfulCreateEnvironmentVariable()
 
 	assert.Equal(suite.T(), fmt.Sprintf("key%s", stamp), envVarResolver.Key())
 	assert.Equal(suite.T(), fmt.Sprintf("value%s", stamp), envVarResolver.Value())
-	assert.Equal(suite.T(), string(plugins.Env), envVarResolver.Type())
+	assert.Equal(suite.T(), string(plugins.GetType("env")), envVarResolver.Type())
 
 	// since no projectId, will auto-save to Global Scope even if ExtensionScope requested
 	assert.Equal(suite.T(), string(plugins.GlobalScope), envVarResolver.Scope())
@@ -162,7 +162,7 @@ func (suite *TestEnvironmentVariables) TestFailedCreateEnvironmentVariableAlread
 		Value:         fmt.Sprintf("value%s", stamp),
 		ProjectId:     uuid.UUID{},
 		Version:       int32(0),
-		Type:          plugins.Env,
+		Type:          plugins.GetType("env"),
 		Scope:         plugins.ExtensionScope,
 		UserId:        suite.user.Model.ID,
 		EnvironmentId: suite.env.Model.ID,
@@ -175,7 +175,7 @@ func (suite *TestEnvironmentVariables) TestFailedCreateEnvironmentVariableAlread
 		EnvironmentVariable: &resolvers.EnvironmentVariableInput{
 			Key:           fmt.Sprintf("key%s", stamp),
 			Value:         fmt.Sprintf("value%s", stamp),
-			Type:          plugins.Env,
+			Type:          plugins.GetType("env"),
 			Scope:         plugins.ExtensionScope,
 			EnvironmentId: suite.env.Model.ID.String(),
 		},
@@ -203,7 +203,7 @@ func (suite *TestEnvironmentVariables) TestSuccessfulUpdateEnvironmentVariable()
 		Value:         fmt.Sprintf("value%s", stamp),
 		ProjectId:     uuid.UUID{},
 		Version:       int32(0),
-		Type:          plugins.Env,
+		Type:          plugins.GetType("env"),
 		Scope:         plugins.ExtensionScope,
 		UserId:        suite.user.Model.ID,
 		EnvironmentId: suite.env.Model.ID,
@@ -218,7 +218,7 @@ func (suite *TestEnvironmentVariables) TestSuccessfulUpdateEnvironmentVariable()
 			ID:            &envVarId,
 			Key:           fmt.Sprintf("key%s", stamp),
 			Value:         fmt.Sprintf("value2%s", stamp),
-			Type:          plugins.Env,
+			Type:          plugins.GetType("env"),
 			Scope:         plugins.GlobalScope,
 			EnvironmentId: e2.Model.ID.String(),
 		},
@@ -250,7 +250,7 @@ func (suite *TestEnvironmentVariables) TestFailedUpdateEnvironmentVariableDoesnt
 			ID:            &fakeEnvVarId,
 			Key:           fmt.Sprintf("key%s", stamp),
 			Value:         fmt.Sprintf("value2%s", stamp),
-			Type:          plugins.Env,
+			Type:          plugins.GetType("env"),
 			Scope:         plugins.GlobalScope,
 			EnvironmentId: suite.env.ID.String(),
 		},
@@ -273,7 +273,7 @@ func (suite *TestEnvironmentVariables) TestSuccessfulDeleteEnvironmentVariable()
 		Value:         fmt.Sprintf("value%s", stamp),
 		ProjectId:     uuid.UUID{},
 		Version:       int32(0),
-		Type:          plugins.Env,
+		Type:          plugins.GetType("env"),
 		Scope:         plugins.ExtensionScope,
 		UserId:        suite.user.Model.ID,
 		EnvironmentId: suite.env.Model.ID,
@@ -288,7 +288,7 @@ func (suite *TestEnvironmentVariables) TestSuccessfulDeleteEnvironmentVariable()
 			ID:            &envVarId,
 			Key:           fmt.Sprintf("key%s", stamp),
 			Value:         fmt.Sprintf("value%s", stamp),
-			Type:          plugins.Env,
+			Type:          plugins.GetType("env"),
 			Scope:         plugins.ExtensionScope,
 			EnvironmentId: suite.env.Model.ID.String(),
 		},

@@ -155,7 +155,7 @@ func (suite *TestRelease) TestSuccessfulCreateRelease() {
 	releaseResolver, _ := resolver.CreateRelease(suite.context, &releaseInput)
 
 	assert.Equal(suite.T(), "Release created", releaseResolver.StateMessage())
-	assert.Equal(suite.T(), string(plugins.Waiting), releaseResolver.State())
+	assert.Equal(suite.T(), string(plugins.GetState("waiting")), releaseResolver.State())
 
 	suite.TearDownSuite()
 }

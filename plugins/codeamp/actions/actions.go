@@ -46,8 +46,8 @@ func (x *Actions) GitSync(project *models.Project) {
 	}
 
 	gitSync := plugins.GitSync{
-		Action: plugins.Update,
-		State:  plugins.Waiting,
+		Action: plugins.GetAction("update"),
+		State:  plugins.GetState("waiting"),
 		Project: plugins.Project{
 			Id:         project.Model.ID.String(),
 			Repository: project.Repository,
@@ -186,9 +186,9 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
-		Action:       plugins.Create,
+		Action:       plugins.GetAction("create"),
 		Slug:         extensionSpec.Key,
-		State:        plugins.Waiting,
+		State:        plugins.GetState("waiting"),
 		StateMessage: "onCreate",
 		// FormValues:   interfaceFormSpecValues,
 		Artifacts: map[string]string{},
@@ -221,9 +221,9 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 
 	eventExtension := plugins.Extension{
 		Id:           extension.Model.ID.String(),
-		Action:       plugins.Update,
+		Action:       plugins.GetAction("update"),
 		Slug:         extensionSpec.Key,
-		State:        plugins.Waiting,
+		State:        plugins.GetState("waiting"),
 		StateMessage: "onUpdate",
 		// FormValues:   interfaceFormSpecValues,
 		Artifacts: map[string]string{},
@@ -243,7 +243,7 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 
 	fellowReleaseExtensions := []models.ReleaseExtension{}
 
-	re.State = plugins.Complete
+	re.State = plugins.GetState("complete")
 	re.StateMessage = "Finished"
 	x.db.Save(&re)
 
@@ -271,16 +271,16 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 	// loop through and check if all release extensions are completed
 	done := true
 	for _, fre := range fellowReleaseExtensions {
-		if fre.Type == re.Type && fre.State != plugins.Complete {
+		if fre.Type == re.Type && fre.State != plugins.GetState("complete") {
 			done = false
 		}
 	}
 
 	if done {
 		switch re.Type {
-		case plugins.Workflow:
+		case plugins.GetType("workflow"):
 			x.WorkflowExtensionsCompleted(&release)
-		case plugins.Deployment:
+		case plugins.GetType("deployment"):
 			x.DeploymentExtensionsCompleted(&release)
 		}
 	}
@@ -290,7 +290,7 @@ func (x *Actions) ReleaseExtensionsCompleted(release *models.Release) {
 	project := models.Project{}
 
 	release.StateMessage = "Finished"
-	release.State = plugins.Complete
+	release.State = plugins.GetState("complete")
 
 	x.db.Save(&release)
 
@@ -322,14 +322,14 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				"extension spec": de,
 			})
 		}
-		if plugins.Type(extensionSpec.Type) == plugins.Workflow {
+		if plugins.Type(extensionSpec.Type) == plugins.GetType("workflow") {
 			releaseExtension := models.ReleaseExtension{}
 
-			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
+			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.GetState("complete")).Find(&releaseExtension).RecordNotFound() {
 				log.InfoWithFields("release extension not found", log.Fields{
 					"release_id":   release.Model.ID,
 					"extension_id": de.Model.ID,
-					"state":        plugins.Complete,
+					"state":        plugins.GetState("complete"),
 				})
 			}
 
@@ -339,7 +339,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			// }
 		}
 
-		if plugins.Type(extensionSpec.Type) == plugins.Deployment {
+		if plugins.Type(extensionSpec.Type) == plugins.GetType("deployment") {
 			found = true
 		}
 	}
@@ -369,8 +369,8 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 
 	releaseEvent := plugins.Release{
-		Action:       plugins.Create,
-		State:        plugins.Waiting,
+		Action:       plugins.GetAction("create"),
+		State:        plugins.GetState("waiting"),
 		StateMessage: "create release event",
 		Id:           release.Model.ID.String(),
 		HeadFeature:  plugins.Feature{},
@@ -378,7 +378,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		User:         "",
 		Project: plugins.Project{
 			Id:             project.Model.ID.String(),
-			Action:         plugins.Update,
+			Action:         plugins.GetAction("update"),
 			Repository:     project.GitUrl,
 			NotifyChannels: []string{}, // not sure what channels can be notified with this
 		},
@@ -393,19 +393,19 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			})
 		}
 
-		if plugins.Type(extensionSpec.Type) == plugins.Workflow {
+		if plugins.Type(extensionSpec.Type) == plugins.GetType("workflow") {
 			releaseExtension := models.ReleaseExtension{}
 
-			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, extension.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
+			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, extension.Model.ID, plugins.GetState("complete")).Find(&releaseExtension).RecordNotFound() {
 				log.InfoWithFields("release extension not found", log.Fields{
 					"release_id":   release.Model.ID,
 					"extension_id": extension.Model.ID,
-					"state":        plugins.Complete,
+					"state":        plugins.GetState("complete"),
 				})
 			}
 		}
 
-		if plugins.Type(extensionSpec.Type) == plugins.Deployment {
+		if plugins.Type(extensionSpec.Type) == plugins.GetType("deployment") {
 
 			// create ReleaseExtension
 			releaseExtension := models.ReleaseExtension{
@@ -414,8 +414,8 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				ServicesSignature: "",
 				SecretsSignature:  "",
 				ExtensionId:       extension.Model.ID,
-				State:             plugins.Waiting,
-				Type:              plugins.Deployment,
+				State:             plugins.GetState("waiting"),
+				Type:              plugins.GetType("deployment"),
 				StateMessage:      "initialized",
 			}
 
@@ -435,7 +435,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
 				Id:           releaseExtension.Model.ID.String(),
-				Action:       plugins.Create,
+				Action:       plugins.GetAction("create"),
 				Slug:         extensionSpec.Key,
 				State:        releaseExtension.State,
 				Artifacts:    map[string]string{},
@@ -474,14 +474,14 @@ func (x *Actions) DeploymentExtensionsCompleted(release *models.Release) {
 			})
 		}
 
-		if plugins.Type(extensionSpec.Type) == plugins.Deployment {
+		if plugins.Type(extensionSpec.Type) == plugins.GetType("deployment") {
 			releaseExtension := models.ReleaseExtension{}
 
-			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.Complete).Find(&releaseExtension).RecordNotFound() {
+			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.GetState("complete")).Find(&releaseExtension).RecordNotFound() {
 				log.InfoWithFields("release extension not found", log.Fields{
 					"release_id":   release.Model.ID,
 					"extension_id": de.Model.ID,
-					"state":        plugins.Complete,
+					"state":        plugins.GetState("complete"),
 				})
 			}
 
@@ -511,7 +511,7 @@ func (x *Actions) ReleaseCompleted(release *models.Release) {
 	}
 
 	// mark release as complete
-	release.State = plugins.Complete
+	release.State = plugins.GetState("complete")
 	release.StateMessage = "Release completed"
 
 	x.db.Save(release)
@@ -546,8 +546,8 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 	releaseEvent := plugins.Release{
 		Id:     release.Model.ID.String(),
-		Action: plugins.Create,
-		State:  plugins.Waiting,
+		Action: plugins.GetAction("create"),
+		State:  plugins.GetState("waiting"),
 		HeadFeature: plugins.Feature{
 			Id:         release.HeadFeatureID.String(),
 			Hash:       release.HeadFeature.Hash,
@@ -578,7 +578,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			})
 		}
 
-		if plugins.Type(extensionSpec.Type) == plugins.Workflow {
+		if plugins.Type(extensionSpec.Type) == plugins.GetType("workflow") {
 			// create ReleaseExtension
 			releaseExtension := models.ReleaseExtension{
 				ReleaseId:         release.Model.ID,
@@ -586,8 +586,8 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 				ServicesSignature: "",
 				SecretsSignature:  "",
 				ExtensionId:       extension.Model.ID,
-				State:             plugins.Waiting,
-				Type:              plugins.Workflow,
+				State:             plugins.GetState("waiting"),
+				Type:              plugins.GetType("workflow"),
 			}
 
 			x.db.Save(&releaseExtension)
@@ -606,7 +606,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 			x.events <- transistor.NewEvent(plugins.ReleaseExtension{
 				Id:        releaseExtension.Model.ID.String(),
-				Action:    plugins.Create,
+				Action:    plugins.GetAction("create"),
 				Slug:      extensionSpec.Key,
 				State:     releaseExtension.State,
 				Release:   releaseEvent,

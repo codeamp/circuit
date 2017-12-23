@@ -178,7 +178,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			EnvironmentId:   environmentId,
 			// FormSpecValues:  postgres.Jsonb{jsonFormSpecValuesMap},
 			// Artifacts:       map[string]*string{},
-			State: plugins.Waiting,
+			State: plugins.GetState("waiting"),
 		}
 		r.db.Save(&extension)
 
@@ -216,7 +216,7 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*
 	// }
 
 	// extension.FormSpecValues = postgres.Jsonb{jsonFormSpecValuesMap}
-	extension.State = plugins.Waiting
+	extension.State = plugins.GetState("waiting")
 
 	r.db.Save(&extension)
 	r.actions.ExtensionUpdated(&extension)
