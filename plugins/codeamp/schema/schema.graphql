@@ -131,7 +131,6 @@ interface EnvironmentVariable {
   project: Project!
   user: User!
   type: String!
-  version: Int!
   versions: [EnvironmentVariable]!
   environment: Environment!
   created: Time!

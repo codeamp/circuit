@@ -162,14 +162,8 @@ func (r *EnvironmentVariableResolver) Key() string {
 
 func (r *EnvironmentVariableResolver) Value() string {
 	var envVarValue models.EnvironmentVariableValue
-
 	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").First(&envVarValue)
-
 	return envVarValue.Value
-}
-
-func (r *EnvironmentVariableResolver) Version() int32 {
-	return 0
 }
 
 func (r *EnvironmentVariableResolver) Type() string {
@@ -181,8 +175,10 @@ func (r *EnvironmentVariableResolver) Scope() string {
 }
 
 func (r *EnvironmentVariableResolver) User() (*UserResolver, error) {
-	var user models.User
-	r.db.Model(r.EnvironmentVariable).Related(&user)
+	var envVarValue models.EnvironmentVariableValue
+	var user models.User	
+	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").First(&envVarValue)	
+	r.db.Model(envVarValue).Related(&user)
 	return &UserResolver{db: r.db, User: user}, nil
 }
 
@@ -192,13 +188,10 @@ func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*Environm
 	}
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
-
-	r.db.Unscoped().Where("project_id = ? and key = ? and environment_id = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key, r.EnvironmentVariable.EnvironmentId).Order("version desc").Find(&rows)
-
+	r.db.Unscoped().Where("project_id = ? and key = ? and environment_id = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key, r.EnvironmentVariable.EnvironmentId).Order("created_at desc").Find(&rows)
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
 	}
-
 	return results, nil
 }
 
