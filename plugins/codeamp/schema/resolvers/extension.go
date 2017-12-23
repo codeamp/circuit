@@ -1,14 +1,17 @@
 package resolvers
 
 import (
+	"github.com/jinzhu/gorm/dialects/postgres"
 	"context"
 	"errors"
 	"fmt"
+	"encoding/json"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
 )
@@ -29,7 +32,7 @@ type ExtensionInput struct {
 	ID              *string
 	ProjectId       string
 	ExtensionSpecId string
-	FormSpecValues  []plugins.KeyValue
+	Config          scalar.Json
 	EnvironmentId   string
 }
 
@@ -62,6 +65,10 @@ func (r *ExtensionResolver) State() string {
 	return string(r.Extension.State)
 }
 
+func (r *ExtensionResolver) Config(ctx context.Context) (scalar.Json, error) {
+	return scalar.Json{r.Extension.Config.RawMessage}, nil
+}
+
 func (r *ExtensionResolver) Artifacts() []*KeyValueResolver {
 	var keyValues []plugins.KeyValue
 	// err := plugins.ConvertMapStringStringToKV(r.Extension.Artifacts, &keyValues)
@@ -81,34 +88,8 @@ func (r *ExtensionResolver) Created() graphql.Time {
 	return graphql.Time{Time: r.Extension.Model.CreatedAt}
 }
 
-func (r *ExtensionResolver) FormSpecValues(ctx context.Context) ([]*KeyValueResolver, error) {
-	var keyValues []plugins.KeyValue
-	// interfaceFormSpecValues := make(map[string]interface{})
-
-	// err := json.Unmarshal(r.Extension.FormSpecValues.RawMessage, &interfaceFormSpecValues)
-	// if err != nil {
-	// 	spew.Dump(err)
-	// }
-
-	// err = plugins.ConvertMapStringInterfaceToKV(interfaceFormSpecValues, &keyValues)
-	// if err != nil {
-	// 	log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-	// 		"extensionSpec": r.Extension,
-	// 	})
-	// 	return nil, err
-	// }
-
-	var rows []*KeyValueResolver
-	for _, kv := range keyValues {
-		rows = append(rows, &KeyValueResolver{db: r.db, KeyValue: kv})
-	}
-
-	return rows, nil
-}
-
 func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
 	var extension models.Extension
-	formSpecValuesMap := make(map[string]interface{})
 	extensionSpecId, err := uuid.FromString(args.Extension.ExtensionSpecId)
 	if err != nil {
 		log.InfoWithFields("couldn't parse ExtensionSpecId", log.Fields{
@@ -137,9 +118,7 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 	if r.db.Where("project_id = ? and extension_spec_id = ? and environment_id = ?", projectId, extensionSpecId, environmentId).Find(&extension).RecordNotFound() {
 		// make sure extension form spec values are valid
 		// if they are valid, create extension object
-
 		var extensionSpec models.ExtensionSpec
-
 		if r.db.Where("id = ?", extensionSpecId).Find(&extensionSpec).RecordNotFound() {
 			log.InfoWithFields("can't find corresponding extensionSpec", log.Fields{
 				"extension": args.Extension,
@@ -147,37 +126,43 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			return nil, errors.New("Can't find corresponding extensionSpec.")
 		}
 
-		err = plugins.ConvertKVToMapStringInterface(args.Extension.FormSpecValues, &formSpecValuesMap)
+		// replace empty config values with corresponding, extensionSpec specified values
+		userConfigInterface := make(map[string]interface{})
+		err = json.Unmarshal(args.Extension.Config.RawMessage, &userConfigInterface)
 		if err != nil {
-			log.InfoWithFields("can't convert kv to map[string]*string", log.Fields{
-				"extension": args.Extension,
-			})
-			return nil, errors.New("Can't convert kv to map[string]*string")
+			log.Info("Could not unmarshal args.Extension.Config.RawMessage")
+			return nil, errors.New("Could not unmarshal args.Extension.Config.RawMessage")			
 		}
 
-		// jsonFormSpecValuesMap, err := json.Marshal(formSpecValuesMap)
-		// if err != nil {
-		// 	log.InfoWithFields("can't marshal formSpecValuesMap", log.Fields{
-		// 		"formSpecValuesMap": formSpecValuesMap,
-		// 	})
-		// 	return nil, errors.New("Can't marshal FormSpecValues")
-		// }
+		adminConfigInterface := make(map[string]interface{})
+		err = json.Unmarshal(extensionSpec.Config.RawMessage, &adminConfigInterface)
+		if err != nil {
+			log.Info("Could not unmarshal args.Extension.Config.RawMessage")
+			return nil, errors.New("Could not unmarshal args.Extension.Config.RawMessage")			
+		}
 
-		// validate from formSpec
-		// err := FormSpecValuesIsValid(r.db, args.Extension)
-		// if err != nil {
-		// 	log.InfoWithFields("FormSpecValuesIsValid failed", log.Fields{
-		// 		"err": err,
-		// 	})
-		// 	return nil, err
-		// }
+		// type casts 4 life
+		for idx, uv := range userConfigInterface["config"].([]interface{}) {
+			if uv.(map[string]interface{})["value"].(string) == "" {
+				for _, av := range adminConfigInterface["config"].([]interface{}) {
+					if av.(map[string]interface{})["key"].(string) == uv.(map[string]interface{})["key"].(string) {
+						userConfigInterface["config"].([]interface{})[idx].(map[string]interface{})["value"] = av.(map[string]interface{})["value"].(string)
+					}
+				}
+			}
+		}
+
+		marshalledUserConfig, err := json.Marshal(userConfigInterface)
+		if err != nil {
+			log.Info(err.Error())
+			return nil, err
+		}
 
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,
 			EnvironmentId:   environmentId,
-			// FormSpecValues:  postgres.Jsonb{jsonFormSpecValuesMap},
-			// Artifacts:       map[string]*string{},
+			Config: postgres.Jsonb{[]byte(marshalledUserConfig)},
 			State: plugins.Waiting,
 		}
 		r.db.Save(&extension)
@@ -190,7 +175,6 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 
 func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
 	var extension models.Extension
-	formSpecValuesMap := make(map[string]interface{})
 
 	if r.db.Where("id = ?", args.Extension.ID).First(&extension).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
@@ -198,24 +182,8 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*
 		})
 		return &ExtensionResolver{}, nil
 	}
-
-	err := plugins.ConvertKVToMapStringInterface(args.Extension.FormSpecValues, &formSpecValuesMap)
-	if err != nil {
-		log.InfoWithFields("not able to convert kv to map[string]string", log.Fields{
-			"extension": args.Extension,
-		})
-		return &ExtensionResolver{}, nil
-	}
-
-	// jsonFormSpecValuesMap, err := json.Marshal(formSpecValuesMap)
-	// if err != nil {
-	// 	log.InfoWithFields("can't marshal formSpecValuesMap", log.Fields{
-	// 		"formSpecValuesMap": formSpecValuesMap,
-	// 	})
-	// 	return nil, errors.New("Can't marshal FormSpecValues")
-	// }
-
-	// extension.FormSpecValues = postgres.Jsonb{jsonFormSpecValuesMap}
+	
+	extension.Config = postgres.Jsonb{args.Extension.Config.RawMessage}
 	extension.State = plugins.Waiting
 
 	r.db.Save(&extension)
@@ -261,45 +229,4 @@ func (r *ExtensionResolver) Environment(ctx context.Context) (*EnvironmentResolv
 		return nil, fmt.Errorf("Environment not found.")
 	}
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
-}
-
-func FormSpecValuesIsValid(db *gorm.DB, extensionInput *ExtensionInput) error {
-	// get extension spec
-	var extensionSpec models.ExtensionSpec
-	var missingKeys []string
-
-	if db.Where("id = ?", extensionInput.ExtensionSpecId).Find(&extensionSpec).RecordNotFound() {
-		log.InfoWithFields("extensionSpec not found", log.Fields{
-			"extensionInput": extensionInput,
-		})
-		return errors.New("ExtensionSpec not found")
-	}
-
-	// loop through extension spec
-
-	// convert extensionSpec's form spec values into KV array
-	// var extensionSpecKVFormSpec []plugins.KeyValue
-	// err := plugins.ConvertMapStringStringToKV(extensionSpec.FormSpec, &extensionSpecKVFormSpec)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// convert extensionInput's form spec values into map[string]string
-	// extensionInputMap := make(map[string]*string)
-	// err = plugins.ConvertKVToMapStringString(extensionInput.FormSpecValues, &extensionInputMap)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// for _, kv := range extensionSpecKVFormSpec {
-	// 	if extensionInputMap[kv.Key] == nil {
-	// 		missingKeys = append(missingKeys, kv.Key)
-	// 	}
-	// }
-
-	if len(missingKeys) > 0 {
-		return fmt.Errorf("Required keys not found within extension input: %v", missingKeys)
-	}
-
-	return nil
 }

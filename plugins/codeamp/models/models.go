@@ -148,14 +148,8 @@ type Extension struct {
 	ExtensionSpecId      uuid.UUID      `json:"extensionSpecId" gorm:"type:uuid"`
 	State                plugins.State  `json:"state"`
 	Artifacts            postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"`
-	EnvironmentVariables postgres.Jsonb `json:"envVars" gorm:"type:jsonb;not null"`
-	FormValues           postgres.Jsonb `json:"formSpecValues" gorm:"type:jsonb;not null"`
+    Config        	     postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
 	EnvironmentId        uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
-}
-
-type Experiment struct {
-	Model          `json:",inline"`
-	FormSpecValues postgres.Jsonb `json:"formSpecValues" gorm:"type:jsonb;not null"`
 }
 
 type ReleaseExtension struct {

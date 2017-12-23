@@ -207,7 +207,7 @@ interface Extension {
   project: Project!
   extensionSpec: ExtensionSpec!
   artifacts: [KeyValue]!
-  formSpecValues: [KeyValue]!
+  config: Json!
   state: String!
   environment: Environment!
   created: Time!
@@ -307,7 +307,7 @@ input ExtensionInput {
   id: String,
   projectId: String!,
   extensionSpecId: String!,
-  formSpecValues: [KeyValueInput!]!
+  config: Json!
   environmentId: String!
 }
 
