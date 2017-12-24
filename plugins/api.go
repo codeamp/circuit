@@ -77,22 +77,6 @@ func GetType(s string) Type {
 	return Type("unknown")
 }
 
-type EnvVarScope string
-
-const (
-	ProjectScope   EnvVarScope = "project"
-	ExtensionScope             = "extension"
-	GlobalScope                = "global"
-)
-
-type ExtensionSpecEnvVarType string
-
-const (
-	Hidden  ExtensionSpecEnvVarType = "hidden"
-	Visible                         = "visible"
-	Empty                           = "empty"
-)
-
 type Action string
 
 func GetAction(s string) Action {

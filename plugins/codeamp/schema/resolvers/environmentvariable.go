@@ -41,7 +41,6 @@ func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID gra
 func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
 
 	projectId := uuid.UUID{}
-	extensionSpecEnvironmentVariableId := uuid.UUID{}
 	var environmentId uuid.UUID
 	var environmentVariableScope models.EnvironmentVariableScope
 
@@ -51,8 +50,6 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	} else {
 		environmentVariableScope = models.GetEnvironmentVariableScope("global")
 	}
-
-	envVarScope = plugins.EnvVarScope(args.EnvironmentVariable.Scope)
 
 	environmentId, err := uuid.FromString(args.EnvironmentVariable.EnvironmentId)
 	if err != nil {
@@ -75,7 +72,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 		envVar := models.EnvironmentVariable{
 			Key:           args.EnvironmentVariable.Key,
 			ProjectId:     projectId,
-			Type:          plugins.Type(args.EnvironmentVariable.Type),
+			Type:          plugins.GetType(args.EnvironmentVariable.Type),
 			Scope:         environmentVariableScope,
 			EnvironmentId: environmentId,
 		}
@@ -159,12 +156,6 @@ func (r *EnvironmentVariableResolver) Environment(ctx context.Context) (*Environ
 	var env models.Environment
 	r.db.Model(r.EnvironmentVariable).Related(&env)
 	return &EnvironmentResolver{db: r.db, Environment: env}, nil
-}
-
-func (r *EnvironmentVariableResolver) ExtensionSpecEnvironmentVariable(ctx context.Context) (*ExtensionSpecEnvironmentVariableResolver, error) {
-	var esev models.ExtensionSpecEnvironmentVariable
-	r.db.Model(r.EnvironmentVariable).Related(&esev)
-	return &ExtensionSpecEnvironmentVariableResolver{db: r.db, ExtensionSpecEnvironmentVariable: esev}, nil
 }
 
 func (r *EnvironmentVariableResolver) Extension(ctx context.Context) (*ExtensionResolver, error) {
