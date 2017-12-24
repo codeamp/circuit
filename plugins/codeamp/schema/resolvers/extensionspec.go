@@ -17,7 +17,7 @@ import (
 type ExtensionSpecInput struct {
 	ID            *string
 	Name          string
-	Component     string
+	Component     string	
 	Type          string
 	Key           string
 	EnvironmentId string
