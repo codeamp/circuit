@@ -1,6 +1,7 @@
 package dockerbuilder
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"bytes"
 	"errors"
 	"fmt"
@@ -262,6 +263,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		extensionEvent = e.Payload.(plugins.Extension)
 		extensionEvent.Action = plugins.GetAction("status")
 		extensionEvent.State = plugins.GetState("complete")
+		spew.Dump(extensionEvent)
 		x.events <- e.NewEvent(extensionEvent, nil)
 		return nil
 	}

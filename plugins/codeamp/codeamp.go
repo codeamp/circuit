@@ -294,6 +294,25 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		x.SocketIO.BroadcastTo(payload.Channel, payload.Event, payload.Payload, nil)
 	}
 
+	if e.Matches("plugins.Extension:status") {
+		payload := e.Payload.(plugins.Extension)
+		var extension models.Extension
+
+		if x.Db.Where("id = ?", payload.Id).Find(&extension).RecordNotFound() {
+			log.InfoWithFields("extension not found", log.Fields{
+				"id": payload.Id,
+			})
+			return nil
+		}
+
+		extension.State = payload.State
+		// extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
+		x.Db.Save(&extension)
+		if payload.State == plugins.GetState("complete") {
+			x.Actions.ExtensionInitCompleted(&extension)
+		}
+	}
+
 	if e.Matches("plugins.Extension:complete") {
 		payload := e.Payload.(plugins.Extension)
 		var extension models.Extension
@@ -308,7 +327,6 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		extension.State = plugins.GetState("complete")
 		// extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&extension)
-
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
