@@ -134,6 +134,18 @@ interface EnvironmentVariable {
   versions: [EnvironmentVariable]!
   environment: Environment!
   created: Time!
+  extensionSpecEnvironmentVariable: ExtensionSpecEnvironmentVariable!
+  extension: Extension!
+}
+
+# ExtensionSpecEnvironmentVariable
+interface ExtensionSpecEnvironmentVariable {
+  id: ID!
+  type: String!
+  key: String!
+  environmentVariable: EnvironmentVariable!
+  extensionSpec: ExtensionSpec!
+  created: Time!
 }
 
 # ServiceSpec object
@@ -284,6 +296,7 @@ input EnvironmentVariableInput {
   scope: String!
   projectId: String
   environmentId: String!
+  extensionSpecEnvironmentVariableId: String
 }
 
 input ExtensionEnvironmentVariableInput {
@@ -301,6 +314,13 @@ input ExtensionSpecInput {
   environmentId: String!
   config: Json!
   type: String!
+  key: String!
+  environmentVariable: String
+}
+
+input ExtensionEnvironmentVariableInput {
+  environmentVariableId: String
+  extensionSpecEnvironmentVariableId: String!
 }
 
 input ExtensionInput {

@@ -85,6 +85,14 @@ const (
 	GlobalScope                = "global"
 )
 
+type ExtensionSpecEnvVarType string
+
+const (
+	Hidden  ExtensionSpecEnvVarType = "hidden"
+	Visible                         = "visible"
+	Empty                           = "empty"
+)
+
 type Action string
 
 func GetAction(s string) Action {

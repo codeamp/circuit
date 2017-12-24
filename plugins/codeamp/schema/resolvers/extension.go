@@ -9,6 +9,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
@@ -26,6 +27,11 @@ func NewExtensionResolver(extension models.Extension, db *gorm.DB) *ExtensionRes
 		db:        db,
 		Extension: extension,
 	}
+}
+
+type ExtensionEnvironmentVariableInput struct {
+	EnvironmentVariableId              *string
+	ExtensionSpecEnvironmentVariableId string
 }
 
 type ExtensionInput struct {
@@ -162,16 +168,71 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,
 			EnvironmentId:   environmentId,
-<<<<<<< HEAD
 			Config: postgres.Jsonb{[]byte(marshalledUserConfig)},
 			State: plugins.Waiting,
-=======
-			// FormSpecValues:  postgres.Jsonb{jsonFormSpecValuesMap},
-			// Artifacts:       map[string]*string{},
-			State: plugins.GetState("waiting"),
->>>>>>> aa3b7681367e86a6b1addb3ddc78b51676f18331
+			Artifacts:       map[string]*string{},
+			State:           plugins.Waiting,
 		}
 		r.db.Save(&extension)
+
+		// create env. vars
+		for _, ev := range args.Extension.EnvironmentVariables {
+
+			var envVarValue string
+			overrideEv := models.EnvironmentVariable{}
+			parentEv := models.EnvironmentVariable{}
+			parentExtensionSpecEnvVar := models.ExtensionSpecEnvironmentVariable{}
+
+			userIdString, err := utils.CheckAuth(ctx, []string{})
+			if err != nil {
+				return &ExtensionResolver{}, err
+			}
+
+			userId, err := uuid.FromString(userIdString)
+			if err != nil {
+				return &ExtensionResolver{}, err
+			}
+
+			if r.db.Where("id = ?", ev.EnvironmentVariableId).Find(&parentEv).RecordNotFound() {
+				log.InfoWithFields("parentEv not found", log.Fields{
+					"id": ev.EnvironmentVariableId,
+				})
+				continue
+			}
+			if r.db.Where("id = ?", ev.ExtensionSpecEnvironmentVariableId).Find(&parentExtensionSpecEnvVar).RecordNotFound() {
+				log.InfoWithFields("parentExtensionSpecEnvVar not found", log.Fields{
+					"id": ev.ExtensionSpecEnvironmentVariableId,
+				})
+				continue
+			}
+
+			if parentExtensionSpecEnvVar.Type != plugins.Hidden {
+				if ev.EnvironmentVariableId != nil {
+					if r.db.Where("id = ?", ev.EnvironmentVariableId).Find(&overrideEv).RecordNotFound() {
+						log.InfoWithFields("overrideEv not found. using parentEv value instead.", log.Fields{
+							"id": ev.ExtensionSpecEnvironmentVariableId,
+						})
+					}
+					envVarValue = overrideEv.Value
+				} else {
+					envVarValue = parentEv.Value
+				}
+			}
+
+			newEv := models.EnvironmentVariable{
+				Key:                                parentExtensionSpecEnvVar.Key,
+				Value:                              envVarValue,
+				Type:                               parentEv.Type,
+				Version:                            int32(0),
+				Scope:                              plugins.ProjectScope,
+				ProjectId:                          projectId,
+				UserId:                             userId,
+				EnvironmentId:                      environmentId,
+				ExtensionId:                        extension.Model.ID,
+				ExtensionSpecEnvironmentVariableId: parentExtensionSpecEnvVar.Model.ID,
+			}
+			r.db.Save(&newEv)
+		}
 
 		go r.actions.ExtensionCreated(&extension)
 		return &ExtensionResolver{db: r.db, Extension: extension}, nil
@@ -188,31 +249,8 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*
 		})
 		return &ExtensionResolver{}, nil
 	}
-<<<<<<< HEAD
-	
 	extension.Config = postgres.Jsonb{args.Extension.Config.RawMessage}
 	extension.State = plugins.Waiting
-=======
-
-	err := plugins.ConvertKVToMapStringInterface(args.Extension.FormSpecValues, &formSpecValuesMap)
-	if err != nil {
-		log.InfoWithFields("not able to convert kv to map[string]string", log.Fields{
-			"extension": args.Extension,
-		})
-		return &ExtensionResolver{}, nil
-	}
-
-	// jsonFormSpecValuesMap, err := json.Marshal(formSpecValuesMap)
-	// if err != nil {
-	// 	log.InfoWithFields("can't marshal formSpecValuesMap", log.Fields{
-	// 		"formSpecValuesMap": formSpecValuesMap,
-	// 	})
-	// 	return nil, errors.New("Can't marshal FormSpecValues")
-	// }
-
-	// extension.FormSpecValues = postgres.Jsonb{jsonFormSpecValuesMap}
-	extension.State = plugins.GetState("waiting")
->>>>>>> aa3b7681367e86a6b1addb3ddc78b51676f18331
 
 	r.db.Save(&extension)
 	r.actions.ExtensionUpdated(&extension)
@@ -252,7 +290,7 @@ func (r *ExtensionResolver) Environment(ctx context.Context) (*EnvironmentResolv
 	var environment models.Environment
 	if r.db.Where("id = ?", r.Extension.EnvironmentId).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"service": r.Extension,
+			"id": r.Extension.EnvironmentId,
 		})
 		return nil, fmt.Errorf("Environment not found.")
 	}

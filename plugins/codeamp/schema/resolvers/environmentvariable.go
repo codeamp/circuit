@@ -14,13 +14,14 @@ import (
 )
 
 type EnvironmentVariableInput struct {
-	ID            *string
-	Key           string
-	Value         string
-	Type          string
-	Scope         string
-	ProjectId     *string
-	EnvironmentId string
+	ID                                 *string
+	Key                                string
+	Value                              string
+	Type                               string
+	Scope                              string
+	ProjectId                          *string
+	EnvironmentId                      string
+	ExtensionSpecEnvironmentVariableId *string
 }
 
 type EnvironmentVariableResolver struct {
@@ -40,6 +41,7 @@ func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID gra
 func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
 
 	projectId := uuid.UUID{}
+	extensionSpecEnvironmentVariableId := uuid.UUID{}
 	var environmentId uuid.UUID
 	var environmentVariableScope models.EnvironmentVariableScope
 
@@ -49,6 +51,8 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	} else {
 		environmentVariableScope = models.GetEnvironmentVariableScope("global")
 	}
+
+	envVarScope = plugins.EnvVarScope(args.EnvironmentVariable.Scope)
 
 	environmentId, err := uuid.FromString(args.EnvironmentVariable.EnvironmentId)
 	if err != nil {
@@ -90,6 +94,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	} else {
 		return nil, fmt.Errorf("CreateEnvironmentVariable: key already exists")
 	}
+
 }
 
 func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
@@ -154,6 +159,18 @@ func (r *EnvironmentVariableResolver) Environment(ctx context.Context) (*Environ
 	var env models.Environment
 	r.db.Model(r.EnvironmentVariable).Related(&env)
 	return &EnvironmentResolver{db: r.db, Environment: env}, nil
+}
+
+func (r *EnvironmentVariableResolver) ExtensionSpecEnvironmentVariable(ctx context.Context) (*ExtensionSpecEnvironmentVariableResolver, error) {
+	var esev models.ExtensionSpecEnvironmentVariable
+	r.db.Model(r.EnvironmentVariable).Related(&esev)
+	return &ExtensionSpecEnvironmentVariableResolver{db: r.db, ExtensionSpecEnvironmentVariable: esev}, nil
+}
+
+func (r *EnvironmentVariableResolver) Extension(ctx context.Context) (*ExtensionResolver, error) {
+	var extension models.Extension
+	r.db.Model(r.EnvironmentVariable).Related(&extension)
+	return &ExtensionResolver{db: r.db, Extension: extension}, nil
 }
 
 func (r *EnvironmentVariableResolver) Key() string {

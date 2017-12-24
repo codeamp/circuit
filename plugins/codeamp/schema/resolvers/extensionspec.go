@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
@@ -103,22 +104,14 @@ func (r *Resolver) DeleteExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		})
 	}
 
-	// delete all release extensions using each extension
-	for _, extension := range extensions {
-		res := []models.ReleaseExtension{}
-		if r.db.Where("extension_id = ?", extension.Model.ID.String()).Find(&res).RecordNotFound() {
-			log.InfoWithFields("no release extensions using this extension id", log.Fields{
-				"extension": extension,
-			})
-		}
+	if len(extensions) > 0 {
+		return nil, fmt.Errorf("You must delete all extensions using this extension spec in order to delete this extension spec.")
+	} else {
+		r.db.Delete(&extensionSpec)
+		r.actions.ExtensionSpecDeleted(&extensionSpec)
 
-		r.db.Delete(&res)
-		r.db.Delete(&extension)
+		return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
 	}
-	r.db.Delete(&extensionSpec)
-	r.actions.ExtensionSpecDeleted(&extensionSpec)
-
-	return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
 }
 
 func (r *ExtensionSpecResolver) ID() graphql.ID {
