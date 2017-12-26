@@ -1,4 +1,5 @@
 scalar Time
+scalar Json
 
 schema {
   query: Query
@@ -130,9 +131,19 @@ interface EnvironmentVariable {
   project: Project!
   user: User!
   type: String!
-  version: Int!
   versions: [EnvironmentVariable]!
   environment: Environment!
+  created: Time!
+  extension: Extension!
+}
+
+# ExtensionSpecEnvironmentVariable
+interface ExtensionSpecEnvironmentVariable {
+  id: ID!
+  type: String!
+  key: String!
+  environmentVariable: EnvironmentVariable!
+  extensionSpec: ExtensionSpec!
   created: Time!
 }
 
@@ -187,10 +198,10 @@ interface ExtensionSpec {
   id: ID!
   name: String!
   component: String!
-  formSpec: [KeyValue]!
   type: String!
   key: String!
-  environmentVariables: [EnvironmentVariable]!
+  environment: Environment!
+  config: Json!
   created: Time!
 }
 
@@ -200,7 +211,7 @@ interface Extension {
   project: Project!
   extensionSpec: ExtensionSpec!
   artifacts: [KeyValue]!
-  formSpecValues: [KeyValue]!
+  config: Json!
   state: String!
   environment: Environment!
   created: Time!
@@ -284,16 +295,17 @@ input ExtensionSpecInput {
   name: String!
   key: String!
   component: String!
-  formSpec: [KeyValueInput!]!
-  environmentVariables: [String!]!
+  environmentId: String!
+  config: Json!
   type: String!
+  key: String!
 }
 
 input ExtensionInput {
   id: String,
   projectId: String!,
   extensionSpecId: String!,
-  formSpecValues: [KeyValueInput!]!
+  config: Json!
   environmentId: String!
 }
 

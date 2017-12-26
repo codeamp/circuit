@@ -180,14 +180,14 @@ func (x *GitSync) Process(e transistor.Event) error {
 	var err error
 
 	gitSyncEvent := e.Payload.(plugins.GitSync)
-	gitSyncEvent.Action = plugins.Status
-	gitSyncEvent.State = plugins.Fetching
+	gitSyncEvent.Action = plugins.GetAction("status")
+	gitSyncEvent.State = plugins.GetState("fetching")
 	gitSyncEvent.StateMessage = ""
 	x.events <- e.NewEvent(gitSyncEvent, nil)
 
 	commits, err := x.commits(gitSyncEvent.Project, gitSyncEvent.Git)
 	if err != nil {
-		gitSyncEvent.State = plugins.Failed
+		gitSyncEvent.State = plugins.GetState("failed")
 		gitSyncEvent.StateMessage = fmt.Sprintf("%v (Action: %v)", err.Error(), gitSyncEvent.State)
 		event := e.NewEvent(gitSyncEvent, err)
 		x.events <- event
@@ -206,7 +206,7 @@ func (x *GitSync) Process(e transistor.Event) error {
 		x.events <- e.NewEvent(c, nil)
 	}
 
-	gitSyncEvent.State = plugins.Complete
+	gitSyncEvent.State = plugins.GetState("complete")
 	gitSyncEvent.StateMessage = ""
 	x.events <- e.NewEvent(gitSyncEvent, nil)
 

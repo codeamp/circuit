@@ -51,15 +51,16 @@ func (x *Deployments) Process(e transistor.Event) error {
 	if e.Name == "plugins.Extension:create:kubernetesdeployments" {
 		var extensionEvent plugins.Extension
 		extensionEvent = e.Payload.(plugins.Extension)
-		extensionEvent.Action = plugins.Complete
+		extensionEvent.Action = plugins.GetAction("status")
+		extensionEvent.State = plugins.GetState("complete")
 		x.events <- e.NewEvent(extensionEvent, nil)
 		return nil
 	}
 
 	event := e.Payload.(plugins.ReleaseExtension)
 
-	event.Action = plugins.Status
-	event.State = plugins.Complete
+	event.Action = plugins.GetAction("status")
+	event.State = plugins.GetState("complete")
 	event.StateMessage = "Completed"
 
 	// x.doDeploy(e)

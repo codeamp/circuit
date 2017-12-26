@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -43,10 +44,6 @@ type SimplePodSpec struct {
 
 func int32Ptr(i int32) *int32 { return &i }
 
-func genNamespaceName(suggestedEnvironment string, projectSlug string) string {
-	return fmt.Sprintf("%s-%s", suggestedEnvironment, projectSlug)
-}
-
 func genDeploymentName(slugName string, serviceName string) string {
 	return slugName + "-" + serviceName
 }
@@ -57,7 +54,7 @@ func genOneShotServiceName(slugName string, serviceName string) string {
 
 func (x *Deployments) sendDDResponse(e transistor.Event, services []plugins.Service, state plugins.State, failureMessage string) {
 	data := e.Payload.(plugins.ReleaseExtension)
-	data.Action = plugins.Status
+	data.Action = plugins.GetAction("status")
 	data.State = state
 	data.Release.Services = services
 	data.StateMessage = failureMessage
@@ -67,15 +64,15 @@ func (x *Deployments) sendDDResponse(e transistor.Event, services []plugins.Serv
 }
 
 func (x *Deployments) sendDDSuccessResponse(e transistor.Event, services []plugins.Service) {
-	x.sendDDResponse(e, services, plugins.Complete, "")
+	x.sendDDResponse(e, services, plugins.GetState("complete"), "")
 }
 
 func (x *Deployments) sendDDErrorResponse(e transistor.Event, services []plugins.Service, failureMessage string) {
-	x.sendDDResponse(e, services, plugins.Failed, failureMessage)
+	x.sendDDResponse(e, services, plugins.GetState("failed"), failureMessage)
 }
 
 func (x *Deployments) sendDDInProgress(e transistor.Event, services []plugins.Service, message string) {
-	x.sendDDResponse(e, services, plugins.Running, message)
+	x.sendDDResponse(e, services, plugins.GetState("running"), message)
 }
 
 func secretifyDockerCred(e transistor.Event) (string, error) {
@@ -196,8 +193,8 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 func setFailServices(deploymentServices []plugins.Service) []plugins.Service {
 	var deploymentServicesFailed []plugins.Service
 	for index := range deploymentServices {
-		if deploymentServices[index].State == plugins.Waiting {
-			deploymentServices[index].State = plugins.Failed
+		if deploymentServices[index].State == plugins.GetState("waiting") {
+			deploymentServices[index].State = plugins.GetState("failed")
 			deploymentServices[index].StateMessage = "Failed from waiting too long"
 		}
 	}
@@ -295,7 +292,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	}
 
 	x.sendDDInProgress(e, releaseData.Services, "Deploy in-progress")
-	namespace := genNamespaceName(releaseData.Environment, projectSlug)
+	namespace := utils.GenNamespaceName(releaseData.Environment, projectSlug)
 	coreInterface := clientset.Core()
 
 	successfulDeploys := 0
@@ -354,7 +351,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
 	for _, secret := range releaseData.Secrets {
-		if secret.Type == plugins.Env || secret.Type == plugins.ProtectedEnv {
+		if secret.Type == plugins.GetType("env") || secret.Type == plugins.GetType("protected-env") {
 			newEnv := v1.EnvVar{
 				Name: secret.Key,
 				ValueFrom: &v1.EnvVarSource{
@@ -379,7 +376,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		ReadOnly:  true,
 	})
 	for _, secret := range releaseData.Secrets {
-		if secret.Type == plugins.File {
+		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
 				Path: secret.Key,
 				Key:  secret.Key,
@@ -451,7 +448,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		existingJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
-			oneShotServices[index].State = plugins.Failed
+			oneShotServices[index].State = plugins.GetState("failed")
 			oneShotServices[index].StateMessage = errMsg
 			x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
 			return nil
@@ -460,7 +457,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		for index, job := range existingJobs.Items {
 			if *job.Spec.Completions > 0 {
 				if (job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0) || job.Status.Active > 0 {
-					oneShotServices[index].State = plugins.Failed
+					oneShotServices[index].State = plugins.GetState("failed")
 					oneShotServices[index].StateMessage = fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
 					x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
 					return nil
@@ -543,7 +540,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
 		if err != nil {
 			log.Printf("Failed to create service job %s, with error: %s", createdJob.Name, err)
-			oneShotServices[index].State = plugins.Failed
+			oneShotServices[index].State = plugins.GetState("failed")
 			oneShotServices[index].StateMessage = fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
 			x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
 			return nil
@@ -577,7 +574,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 					log.Printf("Error %s updating job %s before deletion", job.Name, err)
 				}
 
-				oneShotServices[index].State = plugins.Failed
+				oneShotServices[index].State = plugins.GetState("failed")
 				oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
 				x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
 				return nil
@@ -586,11 +583,11 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			if job.Status.Active == int32(0) {
 				// Check for success
 				if job.Status.Succeeded == int32(service.Replicas) {
-					oneShotServices[index].State = plugins.Complete
+					oneShotServices[index].State = plugins.GetState("complete")
 					break
 				} else {
 					// Job has failed!
-					oneShotServices[index].State = plugins.Failed
+					oneShotServices[index].State = plugins.GetState("failed")
 					oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
 					x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
 					return nil
@@ -600,14 +597,14 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			// Check Job's Pod status
 			if pods, err := clientset.Core().Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
 				log.Printf("List Pods of service[%s] error: %v", job.Name, err)
-				oneShotServices[index].State = plugins.Failed
+				oneShotServices[index].State = plugins.GetState("failed")
 				oneShotServices[index].StateMessage = fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
 				x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
 			} else {
 				for _, item := range pods.Items {
 					if message, result := detectPodFailure(item); result {
 						// Job has failed
-						oneShotServices[index].State = plugins.Failed
+						oneShotServices[index].State = plugins.GetState("failed")
 						oneShotServices[index].StateMessage = fmt.Sprintf(message)
 						x.sendDDErrorResponse(e, oneShotServices, message)
 						return nil
@@ -705,7 +702,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 		// Deployment
 		replicas := int32(service.Replicas)
-		if service.Action == plugins.Destroy {
+		if service.Action == plugins.GetAction("destroy") {
 			replicas = 0
 		}
 
@@ -771,7 +768,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			if myError != nil {
 				// send failed status
 				log.Printf("Failed to create service deployment %s, with error: %s", deploymentName, myError)
-				deploymentServices[index].State = plugins.Failed
+				deploymentServices[index].State = plugins.GetState("failed")
 				deploymentServices[index].StateMessage = fmt.Sprintf("Error creating deployment: %s", myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
@@ -781,7 +778,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
 				log.Printf("Failed to update service deployment %s, with error: %s", deploymentName, myError)
-				deploymentServices[index].State = plugins.Failed
+				deploymentServices[index].State = plugins.GetState("failed")
 				deploymentServices[index].StateMessage = fmt.Sprintf("Failed to update deployment %s, with error: %s", deploymentName, myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
@@ -792,7 +789,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	log.Printf("Waiting %d seconds for deployment to succeed.", timeout)
 	for i := range deploymentServices {
-		deploymentServices[i].State = plugins.Waiting
+		deploymentServices[i].State = plugins.GetState("waiting")
 	}
 
 	if len(deploymentServices) > 0 {
@@ -809,10 +806,10 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				log.Printf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d", deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas, deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas)
 				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation && deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas && deployment.Status.AvailableReplicas >= deployment.Status.UpdatedReplicas && deployment.Status.UnavailableReplicas == 0 {
 					// deployment success
-					deploymentServices[index].State = plugins.Complete
+					deploymentServices[index].State = plugins.GetState("complete")
 					successfulDeploys = 0
 					for _, d := range deploymentServices {
-						if d.State == plugins.Complete {
+						if d.State == plugins.GetState("complete") {
 							successfulDeploys++
 						}
 					}

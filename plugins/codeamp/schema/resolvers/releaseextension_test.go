@@ -158,7 +158,7 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 	suite.db.Save(&release)
 
 	extensionSpec := models.ExtensionSpec{
-		Type: plugins.Workflow,
+		Type: plugins.GetType("workflow"),
 		Key:  fmt.Sprintf("releaseextension%s", stamp),
 	}
 	suite.db.Save(&extensionSpec)
@@ -166,7 +166,7 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 	extension := models.Extension{
 		ProjectId:       project.Model.ID,
 		ExtensionSpecId: extensionSpec.Model.ID,
-		State:           plugins.Waiting,
+		State:           plugins.GetState("waiting"),
 		Artifacts:       map[string]*string{},
 		FormSpecValues:  postgres.Jsonb{},
 	}
@@ -178,9 +178,9 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 		ServicesSignature: fmt.Sprintf("servicessignature%s", stamp),
 		SecretsSignature:  fmt.Sprintf("secretssignature%s", stamp),
 		ExtensionId:       extension.Model.ID,
-		State:             plugins.Waiting,
+		State:             plugins.GetState("waiting"),
 		StateMessage:      "testmessage",
-		Type:              plugins.Workflow,
+		Type:              plugins.GetType("workflow"),
 		Artifacts:         map[string]*string{},
 		Finished:          time.Now(),
 	}
@@ -193,9 +193,9 @@ func (suite *TestReleaseExtension) TestReleaseExtensions() {
 		ServicesSignature: fmt.Sprintf("servicessignature2%s", stamp),
 		SecretsSignature:  fmt.Sprintf("secretssignature2%s", stamp),
 		ExtensionId:       extension.Model.ID,
-		State:             plugins.Waiting,
+		State:             plugins.GetState("waiting"),
 		StateMessage:      "testmessage",
-		Type:              plugins.Workflow,
+		Type:              plugins.GetType("workflow"),
 		Artifacts:         map[string]*string{},
 		Finished:          time.Now(),
 	}

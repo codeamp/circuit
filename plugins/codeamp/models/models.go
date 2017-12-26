@@ -1,9 +1,11 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 )
@@ -33,22 +35,41 @@ type Environment struct {
 	Name  string `json:"name"`
 }
 
-type EnvironmentVariable struct {
-	Model         `json:",inline"`
-	Key           string              `json:"key"`
-	Value         string              `json:"value"`
-	Type          plugins.Type        `json:"type"`
-	Version       int32               `json:"version"`
-	ProjectId     uuid.UUID           `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	UserId        uuid.UUID           `bson:"userId" json:"userId" gorm:"type:uuid"`
-	Scope         plugins.EnvVarScope `json:"scope"`
-	EnvironmentId uuid.UUID           `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+type EnvironmentVariableScope string
+
+func GetEnvironmentVariableScope(s string) EnvironmentVariableScope {
+	environmentVariableScopes := []string{
+		"project",
+		"extension",
+		"global",
+	}
+
+	for _, environmentVariableScope := range environmentVariableScopes {
+		if s == environmentVariableScope {
+			return EnvironmentVariableScope(environmentVariableScope)
+		}
+	}
+
+	log.Info(fmt.Sprintf("EnvironmentVariableScope not found: %s", s))
+
+	return EnvironmentVariableScope("unknown")
 }
 
-type ExtensionSpecEnvironmentVariable struct {
-	Model                 `json:"inline"`
-	ExtensionSpecId       uuid.UUID `bson:"extensionSpecId" json:"extensionSpecId" gorm:"type:uuid"`
-	EnvironmentVariableId uuid.UUID `bson:"environmentVariableId" json:"environmentVariableId" gorm:"type:uuid"`
+type EnvironmentVariable struct {
+	Model         `json:",inline"`
+	Key           string                   `json:"key"`
+	Value         EnvironmentVariableValue `json:"value"`
+	Type          plugins.Type             `json:"type"`
+	ProjectId     uuid.UUID                `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	Scope         EnvironmentVariableScope `json:"scope"`
+	EnvironmentId uuid.UUID                `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+}
+
+type EnvironmentVariableValue struct {
+	Model                 `json:",inline"`
+	EnvironmentVariableId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	Value                 string    `json:"value"`
+	UserId                uuid.UUID `bson:"userId" json:"userId" gorm:"type:uuid"`
 }
 
 type Project struct {
@@ -122,7 +143,7 @@ type Release struct {
 	TailFeatureID uuid.UUID             `json:"tailFeatureId" gorm:"type:uuid"`
 	Secrets       []EnvironmentVariable `json:"secrets"`
 	Services      []Service             `json:"services"`
-	Artifacts     postgres.Hstore       `json:"artifacts"`
+	Artifacts     postgres.Jsonb        `json:"artifacts" gorm:"type:jsonb;not null"`
 	Finished      time.Time
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
@@ -134,48 +155,44 @@ type Bookmark struct {
 }
 
 type ExtensionSpec struct {
-	Model     `json:",inline"`
-	Type      plugins.Type    `json:"type"`
-	Key       string          `json:"key"`
-	Name      string          `json:"name"`
-	Component string          `json:"component"`
-	FormSpec  postgres.Hstore `json:"formSpec"`
+	Model         `json:",inline"`
+	Type          plugins.Type   `json:"type"`
+	Key           string         `json:"key"`
+	Name          string         `json:"name"`
+	Component     string         `json:"component"`
+	EnvironmentId uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	Config        postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
 }
 
 type Extension struct {
-	Model           `json:",inline"`
-	ProjectId       uuid.UUID       `json:"projectId" gorm:"type:uuid"`
-	ExtensionSpecId uuid.UUID       `json:"extensionSpecId" gorm:"type:uuid"`
-	State           plugins.State   `json:"state"`
-	Artifacts       postgres.Hstore `json:"artifacts"`
-	FormSpecValues  postgres.Jsonb  `json:"formSpecValues"`
-	EnvironmentId   uuid.UUID       `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
-}
-
-type Experiment struct {
-	Model          `json:",inline"`
-	FormSpecValues postgres.Jsonb `json:"formSpecValues" gorm:"type:jsonb;not null"`
+	Model                `json:",inline"`
+	ProjectId            uuid.UUID      `json:"projectId" gorm:"type:uuid"`
+	ExtensionSpecId      uuid.UUID      `json:"extensionSpecId" gorm:"type:uuid"`
+	State                plugins.State  `json:"state"`
+	Artifacts            postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"`
+    Config        	     postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
+	EnvironmentId        uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type ReleaseExtension struct {
 	Model             `json:",inline"`
-	ReleaseId         uuid.UUID       `json:"releaseId" gorm:"type:uuid"`
-	FeatureHash       string          `json:"featureHash"`
-	ServicesSignature string          `json:"servicesSignature"` // services config snapshot
-	SecretsSignature  string          `json:"secretsSignature"`  // build args + artifacts
-	ExtensionId       uuid.UUID       `json:"extensionId" gorm:"type:uuid"`
-	State             plugins.State   `json:"state"`
-	StateMessage      string          `json:"stateMessage"`
-	Type              plugins.Type    `json:"type"`
-	Artifacts         postgres.Hstore `json:"artifacts"` // captured on workflow success/ fail
+	ReleaseId         uuid.UUID      `json:"releaseId" gorm:"type:uuid"`
+	FeatureHash       string         `json:"featureHash"`
+	ServicesSignature string         `json:"servicesSignature"` // services config snapshot
+	SecretsSignature  string         `json:"secretsSignature"`  // build args + artifacts
+	ExtensionId       uuid.UUID      `json:"extensionId" gorm:"type:uuid"`
+	State             plugins.State  `json:"state"`
+	StateMessage      string         `json:"stateMessage"`
+	Type              plugins.Type   `json:"type"`
+	Artifacts         postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"` // captured on workflow success/ fail
 	Finished          time.Time
 }
 
 type ReleaseDeployment struct {
 	Model        `json:",inline"`
-	ReleaseId    uuid.UUID       `json:"releaseId" gorm:"type:uuid"`
-	State        plugins.State   `json:"state"`
-	StateMessage string          `json:"stateMessage"`
-	Artifacts    postgres.Hstore `json:"artifacts"` // captured on workflow success/ fail
+	ReleaseId    uuid.UUID      `json:"releaseId" gorm:"type:uuid"`
+	State        plugins.State  `json:"state"`
+	StateMessage string         `json:"stateMessage"`
+	Artifacts    postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"` // captured on workflow success/ fail
 	Finished     time.Time
 }

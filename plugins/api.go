@@ -1,8 +1,10 @@
 package plugins
 
 import (
+	"fmt"
 	"time"
 
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
@@ -21,53 +23,81 @@ func init() {
 
 type State string
 
-const (
-	Waiting  State = "waiting"
-	Running        = "running"
-	Fetching       = "fetching"
-	Building       = "building"
-	Pushing        = "pushing"
-	Complete       = "complete"
-	Failed         = "failed"
-	Deleting       = "deleting"
-	Deleted        = "deleted"
-)
+func GetState(s string) State {
+	states := []string{
+		"waiting",
+		"running",
+		"fetching",
+		"building",
+		"pushing",
+		"complete",
+		"failed",
+		"deleting",
+		"deleted",
+	}
+
+	for _, state := range states {
+		if s == state {
+			return State(state)
+		}
+	}
+
+	log.Info(fmt.Sprintf("State not found: %s", s))
+
+	return State("unknown")
+}
 
 type Type string
 
-const (
-	File         Type = "file"
-	Env               = "env"
-	ProtectedEnv      = "protected-env"
-	Build             = "build"
-	Internal          = "internal"
-	External          = "external"
-	Office            = "office"
-	Workflow          = "workflow"
-	Notification      = "notification"
-	Once              = "once"
-	Deployment        = "deployment"
-	General           = "general"
-	OneShot           = "one-shot"
-)
+func GetType(s string) Type {
+	types := []string{
+		"file",
+		"env",
+		"protected-env",
+		"build",
+		"internal",
+		"external",
+		"office",
+		"workflow",
+		"notification",
+		"once",
+		"deployment",
+		"general",
+		"one-shot",
+	}
 
-type EnvVarScope string
+	for _, t := range types {
+		if s == t {
+			return Type(t)
+		}
+	}
 
-const (
-	ProjectScope   EnvVarScope = "project"
-	ExtensionScope             = "extension"
-	GlobalScope                = "global"
-)
+	log.Info(fmt.Sprintf("Type not found: %s", s))
+
+	return Type("unknown")
+}
 
 type Action string
 
-const (
-	Create   Action = "create"
-	Update          = "update"
-	Destroy         = "destroy"
-	Rollback        = "rollback"
-	Status          = "status"
-)
+func GetAction(s string) Action {
+	actions := []string{
+		"create",
+		"update",
+		"destroy",
+		"rollback",
+		"status",
+	}
+
+	for _, action := range actions {
+		if s == action {
+			return Action(action)
+		}
+	}
+
+	log.Info(fmt.Sprintf("Action not found: %s", s))
+
+	return Action("unknown")
+}
 
 type Git struct {
 	Url           string `json:"gitUrl"`
@@ -162,33 +192,6 @@ type HeartBeat struct {
 	Tick string `json:"tick"`
 }
 
-// LoadBalancer
-type LoadBalancer struct {
-	Action        Action         `json:"action"`
-	State         State          `json:"state"`
-	StateMessage  string         `json:"stateMessage"`
-	Name          string         `json:"name"`
-	Type          Type           `json:"type"`
-	Project       Project        `json:"project"`
-	Service       Service        `json:"service"`
-	ListenerPairs []ListenerPair `json:"portPairs"`
-	DNS           string         `json:"dns"`
-	Environment   string         `json:"environment"`
-	Subdomain     string         `json:"subdomain"`
-}
-
-// Route53
-type Route53 struct {
-	State        State   `json:"state"`
-	StateMessage string  `json:"stateMessage"`
-	Project      Project `json:"project"`
-	Service      Service `json:"service"`
-	DNS          string  `json:"dns"`
-	FQDN         string  `json:"fqdn"`
-	Environment  string  `json:"environment"`
-	Subdomain    string  `json:"subdomain"`
-}
-
 type WebsocketMsg struct {
 	Channel string      `json:"channel"`
 	Event   string      `json:"event"`
@@ -203,6 +206,8 @@ type Extension struct {
 	StateMessage string                 `json:"stateMessage"`
 	FormValues   map[string]interface{} `json:"formValues"`
 	Artifacts    map[string]string      `json:"artifacts"`
+	Environment  string                 `json:"environment"`
+	Project      Project                `json:"project"`
 }
 
 type Release struct {

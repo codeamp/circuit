@@ -49,7 +49,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 						Protocol: "TCP",
 					},
 				},
-				State: plugins.Waiting,
+				State: plugins.GetState("waiting"),
 				Spec: plugins.ServiceSpec{
 
 					CpuRequest:                    "10m",
@@ -74,7 +74,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 	releaseExtensionEvent := plugins.ReleaseExtension{
 		Slug:    "kubernetesdeployments",
 		Action:  plugins.Create,
-		State:   plugins.Waiting,
+		State:   plugins.GetState("waiting"),
 		Release: releaseEvent,
 		Extension: plugins.Extension{
 			Action:     plugins.Create,
