@@ -206,6 +206,8 @@ type Extension struct {
 	StateMessage string                 `json:"stateMessage"`
 	FormValues   map[string]interface{} `json:"formValues"`
 	Artifacts    map[string]string      `json:"artifacts"`
+	Environment  string                 `json:"environment"`
+	Project      Project                `json:"project"`
 }
 
 type Release struct {
