@@ -210,7 +210,7 @@ interface Extension {
   id: ID!
   project: Project!
   extensionSpec: ExtensionSpec!
-  artifacts: [KeyValue]!
+  artifacts: Json!
   config: Json!
   state: String!
   environment: Environment!
@@ -227,7 +227,7 @@ interface ReleaseExtension {
   state: String!
   type: String!
   stateMessage: String!
-  artifacts: [KeyValue!]!
+  artifacts: Json!
   finished: Time
   created: Time!
 }
@@ -307,14 +307,4 @@ input ExtensionInput {
   extensionSpecId: String!,
   config: Json!
   environmentId: String!
-}
-
-interface KeyValue {
-  key: String!
-  value: String!
-}
-
-input KeyValueInput {
-  key: String!
-  value: String!
 }
