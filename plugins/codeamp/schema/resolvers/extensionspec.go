@@ -17,7 +17,7 @@ import (
 type ExtensionSpecInput struct {
 	ID            *string
 	Name          string
-	Component     string	
+	Component     string
 	Type          string
 	Key           string
 	EnvironmentId string
@@ -46,7 +46,7 @@ func (r *Resolver) CreateExtensionSpec(args *struct{ ExtensionSpec *ExtensionSpe
 		Type:          plugins.Type(args.ExtensionSpec.Type),
 		Key:           args.ExtensionSpec.Key,
 		EnvironmentId: environmentId,
-		Config:        postgres.Jsonb{args.ExtensionSpec.Config.RawMessage},
+		Config:        postgres.Jsonb{[]byte(args.ExtensionSpec.Config.RawMessage)},
 	}
 
 	r.db.Create(&extensionSpec)

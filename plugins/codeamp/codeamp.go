@@ -122,10 +122,11 @@ func (x *CodeAmp) Migrate() {
 	db.Save(&serviceSpec)
 
 	extensionSpec := models.ExtensionSpec{
-		Type:      plugins.GetType("workflow"),
-		Key:       "dockerbuilder",
-		Name:      "Docker Builder",
-		Component: "",
+		Type:          plugins.GetType("workflow"),
+		Key:           "dockerbuilder",
+		Name:          "Docker Builder",
+		Component:     "",
+		EnvironmentId: productionEnv.Model.ID,
 		// FormSpec: plugins.MapStringStringToHstore(map[string]string{
 		// 	"REGISTRY": "required|string",
 		// 	"USERNAME": "required|string",
@@ -138,10 +139,11 @@ func (x *CodeAmp) Migrate() {
 	db.Save(&extensionSpec)
 
 	extensionSpec = models.ExtensionSpec{
-		Type:      plugins.GetType("deployment"),
-		Key:       "kubernetesdeployment",
-		Name:      "Kubernetes",
-		Component: "",
+		Type:          plugins.GetType("deployment"),
+		Key:           "kubernetesdeployment",
+		Name:          "Kubernetes",
+		Component:     "",
+		EnvironmentId: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
 		Key: extensionSpec.Key,

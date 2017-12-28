@@ -3,8 +3,6 @@ package scalar
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 type Json struct {
@@ -17,6 +15,13 @@ func (_ Json) ImplementsGraphQLType(name string) bool {
 
 func (j *Json) UnmarshalGraphQL(input interface{}) error {
 	switch input := input.(type) {
+	case []interface{}:
+		_input, err := json.Marshal(input)
+		if err != nil {
+			return err
+		}
+		j.RawMessage = _input
+		return nil
 	case map[string]interface{}:
 		_input, err := json.Marshal(input)
 		if err != nil {
@@ -31,7 +36,6 @@ func (j *Json) UnmarshalGraphQL(input interface{}) error {
 		j.RawMessage = json.RawMessage([]byte(input))
 		return nil
 	default:
-		spew.Dump(input)
-		return fmt.Errorf("wrong type")
+		return fmt.Errorf("JSON type not matched")
 	}
 }

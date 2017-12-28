@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -76,20 +76,8 @@ func (r *ReleaseExtensionResolver) StateMessage() string {
 	return r.ReleaseExtension.StateMessage
 }
 
-func (r *ReleaseExtensionResolver) Artifacts() []*KeyValueResolver {
-	keyValues := []plugins.KeyValue{}
-	// err := plugins.ConvertMapStringStringToKV(r.ReleaseExtension.Artifacts, &keyValues)
-	// if err != nil {
-	// 	log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-	// 		"extensionSpec": r.ReleaseExtension,
-	// 	})
-	// }
-
-	var rows []*KeyValueResolver
-	for _, kv := range keyValues {
-		rows = append(rows, &KeyValueResolver{db: r.db, KeyValue: kv})
-	}
-	return rows
+func (r *ReleaseExtensionResolver) Artifacts() scalar.Json {
+	return scalar.Json{r.ReleaseExtension.Artifacts.RawMessage}
 }
 
 func (r *ReleaseExtensionResolver) Finished() *graphql.Time {

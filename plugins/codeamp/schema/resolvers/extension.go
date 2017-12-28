@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"encoding/json"
 
+	"github.com/jinzhu/gorm/dialects/postgres"
+
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
@@ -65,23 +68,12 @@ func (r *ExtensionResolver) State() string {
 	return string(r.Extension.State)
 }
 
-func (r *ExtensionResolver) Config(ctx context.Context) (scalar.Json, error) {
-	return scalar.Json{r.Extension.Config.RawMessage}, nil
+func (r *ExtensionResolver) Config(ctx context.Context) scalar.Json {
+	return scalar.Json{r.Extension.Config.RawMessage}
 }
 
-func (r *ExtensionResolver) Artifacts() []*KeyValueResolver {
-	var keyValues []plugins.KeyValue
-	// err := plugins.ConvertMapStringStringToKV(r.Extension.Artifacts, &keyValues)
-	// if err != nil {
-	// 	log.InfoWithFields("not able to convert map[string]string to keyvalues", log.Fields{
-	// 		"extensionSpec": r.Extension,
-	// 	})
-	// }
-	var rows []*KeyValueResolver
-	for _, kv := range keyValues {
-		rows = append(rows, &KeyValueResolver{db: r.db, KeyValue: kv})
-	}
-	return rows
+func (r *ExtensionResolver) Artifacts() scalar.Json {
+	return scalar.Json{r.Extension.Config.RawMessage}
 }
 
 func (r *ExtensionResolver) Created() graphql.Time {
@@ -126,44 +118,12 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 			return nil, errors.New("Can't find corresponding extensionSpec.")
 		}
 
-		// replace empty config values with corresponding, extensionSpec specified values
-		userConfigInterface := make(map[string]interface{})
-		err = json.Unmarshal(args.Extension.Config.RawMessage, &userConfigInterface)
-		if err != nil {
-			log.Info("Could not unmarshal args.Extension.Config.RawMessage")
-			return nil, errors.New("Could not unmarshal args.Extension.Config.RawMessage")			
-		}
-
-		adminConfigInterface := make(map[string]interface{})
-		err = json.Unmarshal(extensionSpec.Config.RawMessage, &adminConfigInterface)
-		if err != nil {
-			log.Info("Could not unmarshal args.Extension.Config.RawMessage")
-			return nil, errors.New("Could not unmarshal args.Extension.Config.RawMessage")			
-		}
-
-		// type casts 4 life
-		for idx, uv := range userConfigInterface["config"].([]interface{}) {
-			if uv.(map[string]interface{})["value"].(string) == "" {
-				for _, av := range adminConfigInterface["config"].([]interface{}) {
-					if av.(map[string]interface{})["key"].(string) == uv.(map[string]interface{})["key"].(string) {
-						userConfigInterface["config"].([]interface{})[idx].(map[string]interface{})["value"] = av.(map[string]interface{})["value"].(string)
-					}
-				}
-			}
-		}
-
-		marshalledUserConfig, err := json.Marshal(userConfigInterface)
-		if err != nil {
-			log.Info(err.Error())
-			return nil, err
-		}
-
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,
 			EnvironmentId:   environmentId,
-			Config: postgres.Jsonb{[]byte(marshalledUserConfig)},
-			State: plugins.GetState("waiting"),
+			Config:          postgres.Jsonb{[]byte(args.Extension.Config.RawMessage)},
+			State:           plugins.GetState("waiting"),
 			Artifacts:       postgres.Jsonb{},
 		}
 		r.db.Save(&extension)
