@@ -212,7 +212,7 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 		log.InfoWithFields("environment not found", log.Fields{
 			"service": r.Service,
 		})
-		return nil, fmt.Errorf("Environment not found.")
+		return nil, fmt.Errorf("Environment not found.")		
 	}
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
@@ -223,6 +223,10 @@ func (r *ServiceResolver) Created() graphql.Time {
 
 type ContainerPortResolver struct {
 	ContainerPort models.ContainerPort
+}
+
+func (r *ContainerPortResolver) ID() graphql.ID {
+	return graphql.ID(r.ContainerPort.Model.ID.String())
 }
 
 func (r *ContainerPortResolver) Port() string {
