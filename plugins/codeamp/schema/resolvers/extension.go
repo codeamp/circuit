@@ -5,16 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"encoding/json"
-
-	"github.com/jinzhu/gorm/dialects/postgres"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
-	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
 )
