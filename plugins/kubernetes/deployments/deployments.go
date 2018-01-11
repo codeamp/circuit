@@ -1,6 +1,7 @@
 package kubernetesdeployments
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -63,7 +64,8 @@ func (x *Deployments) Process(e transistor.Event) error {
 	event.State = plugins.GetState("complete")
 	event.StateMessage = "Completed"
 
-	// x.doDeploy(e)
+	spew.Dump("doDeploy", e)
+	x.doDeploy(e)
 	log.Info("Processed Deployments event")
 	x.events <- e.NewEvent(event, nil)
 	return nil

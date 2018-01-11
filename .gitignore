@@ -35,3 +35,4 @@ server/secrets/*
 .vscode
 plugins/codeamp/schema/resolvers/experiments/
 rm.sh
+credentials/*

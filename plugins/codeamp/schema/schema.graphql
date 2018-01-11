@@ -132,10 +132,18 @@ interface EnvironmentVariable {
   project: Project!
   user: User!
   type: String!
-  versions: [EnvironmentVariable]!
+  versions: [EnvironmentVariableValue]!
   environment: Environment!
   created: Time!
   extension: Extension!
+}
+
+interface EnvironmentVariableValue {
+  id: ID!
+  value: String!
+  user: User!
+  environmentVariable: EnvironmentVariable!
+  created: Time!
 }
 
 # ExtensionSpecEnvironmentVariable

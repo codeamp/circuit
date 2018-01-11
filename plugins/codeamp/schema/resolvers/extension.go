@@ -56,7 +56,7 @@ func (r *ExtensionResolver) Project(ctx context.Context) (*ProjectResolver, erro
 
 func (r *ExtensionResolver) ExtensionSpec(ctx context.Context) (*ExtensionSpecResolver, error) {
 	var extensionSpec models.ExtensionSpec
-	r.db.Model(r.Extension).Related(&extensionSpec)
+	r.db.Model(r.Extension).Related(&extensionSpec)	
 	return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
 }
 
@@ -69,7 +69,7 @@ func (r *ExtensionResolver) Config(ctx context.Context) scalar.Json {
 }
 
 func (r *ExtensionResolver) Artifacts() scalar.Json {
-	return scalar.Json{r.Extension.Config.RawMessage}
+	return scalar.Json{r.Extension.Artifacts.RawMessage}
 }
 
 func (r *ExtensionResolver) Created() graphql.Time {

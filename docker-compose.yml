@@ -32,6 +32,7 @@ services:
       - .:/go/src/github.com/codeamp/circuit
       - /var/run/docker.sock:/var/run/docker.sock
       - ./configs/dex.dev.yaml:/etc/dex/dex.dev.yaml
+      - ./credentials:/etc/secrets
     depends_on:
       - postgres
       - redis

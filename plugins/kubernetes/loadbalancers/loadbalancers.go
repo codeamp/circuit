@@ -1,6 +1,8 @@
 package kubernetesloadbalancers
 
 import (
+	"strconv"
+	"github.com/davecgh/go-spew/spew"
 	"fmt"
 	"strings"
 	"time"
@@ -97,16 +99,22 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	log.Println("doLoadBalancer")
 
 	payload := e.Payload.(plugins.Extension)
-	formPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
+	// configPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
+	configPrefix := "KUBERNETESLOADBALANCERS_"
 
-	svcName := payload.FormValues[formPrefix+"SERVICE"].(string)
-	lbName := payload.FormValues[formPrefix+"NAME"].(string)
-	sslARN := payload.FormValues[formPrefix+"SSL_CERT_ARN"].(string)
-	s3AccessLogs := payload.FormValues[formPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
-	lbType := payload.FormValues[formPrefix+"TYPE"].(plugins.Type)
+	spew.Dump("configPrefix", configPrefix)
+
+	spew.Dump("PAYLOAD", payload)
+	svcName := payload.Config[configPrefix+"SERVICE"].(string)
+	lbName := payload.Config[configPrefix+"NAME"].(string)
+	sslARN := payload.Config[configPrefix+"SSL_CERT_ARN"].(string)
+	s3AccessLogs := payload.Config[configPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
+	lbType := plugins.GetType(payload.Config[configPrefix+"TYPE"].(string))
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 
-	kubeconfig := payload.FormValues[formPrefix+"KUBECONFIG"].(string)
+	spew.Dump("INPUTS", svcName, lbName, sslARN, s3AccessLogs, lbType, projectSlug)
+
+	kubeconfig := payload.Config[configPrefix+"KUBECONFIG"].(string)
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
@@ -133,6 +141,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	var servicePorts []v1.ServicePort
 	serviceAnnotations := make(map[string]string)
 
+	spew.Dump("HELLLLLLLOI", projectSlug, payload.Environment)
 	namespace := utils.GenNamespaceName(payload.Environment, projectSlug)
 	createNamespaceErr := utils.CreateNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
@@ -140,6 +149,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		return nil
 	}
 
+	spew.Dump("NAMESPACE", namespace)
 	// Begin create
 	switch lbType {
 	case plugins.GetType("internal"):
@@ -168,14 +178,21 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
 		}
 	}
-
-	listenerPairs := payload.FormValues[formPrefix+"LISTENER_PAIRS"].([]ListenerPair)
+	spew.Dump("GOING THROUGH LISTENER PAIRS", payload.Config[configPrefix+"LISTENER_PAIRS"])
+	listenerPairs := payload.Config[configPrefix+"LISTENER_PAIRS"]
 	var sslPorts []string
-	for _, p := range listenerPairs {
+	spew.Dump("WENT THROUGH LISTENER PAIRS", listenerPairs)
+	for _, p := range listenerPairs.([]interface{}) {
+		spew.Dump("llopping through pairs", p)
+		
+		spew.Dump(p.(map[string]interface{})["serviceProtocol"].(string))
+		spew.Dump(p.(map[string]interface{})["serviceProtocol"].(string))
+		spew.Dump(p.(map[string]interface{})["port"].(string))
+
 		var realProto string
-		switch p.Protocol {
+		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "http"
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "https"
 			realProto = "TCP"
 		case "SSL":
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
@@ -189,23 +206,43 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		case "UDP":
 			realProto = "UDP"
 		}
-		convPort := intstr.IntOrString{
-			IntVal: p.TargetPort,
+		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
+		if err != nil {
+			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+			return nil			
 		}
+
+		intContainerPort, err := strconv.Atoi(p.(map[string]interface{})["containerPort"].(string))
+		if err != nil {
+			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+			return nil			
+		}		
+
+		spew.Dump("intPort", intPort)
+		convPort := intstr.IntOrString{
+			IntVal: int32(intContainerPort),
+		}
+		// random 5 letter sequence
+		// randomLetters := "abcdev"
 		newPort := v1.ServicePort{
 			// TODO: remove this toLower when we fix the data in mongo, kube only allows lowercase port names
-			Name:       strings.ToLower(p.Name),
-			Port:       p.SourcePort,
+			Name:       strings.ToLower(fmt.Sprintf("%s", p.(map[string]interface{})["serviceProtocol"])),
+			Port:       int32(intPort),
 			TargetPort: convPort,
 			Protocol:   v1.Protocol(realProto),
 		}
-		if p.Protocol == "HTTPS" || p.Protocol == "SSL" {
-			sslPorts = append(sslPorts, fmt.Sprintf("%d", p.SourcePort))
+		spew.Dump("newPort", newPort)
+		if strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "HTTPS" || 
+			strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "SSL" {
+			sslPorts = append(sslPorts, fmt.Sprintf("%d", intPort))
 		}
 		servicePorts = append(servicePorts, newPort)
 	}
+
+	spew.Dump(servicePorts, sslPorts)
 	if len(sslPorts) > 0 {
 		sslPortsCombined := strings.Join(sslPorts, ",")
+		spew.Dump(sslPortsCombined, sslARN)
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-ports"] = sslPortsCombined
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-cert"] = sslARN
 	}
@@ -266,13 +303,14 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	}
 
 	// If ELB grab the DNS name for the response
-	var ELBDNS string
+	ELBDNS := ""
 	if lbType == plugins.GetType("external") || lbType == plugins.GetType("office") {
 		fmt.Printf("Waiting for ELB address for %s", lbName)
 		// Timeout waiting for ELB DNS name after 900 seconds
-		timeout := 900
+		timeout := 90
 		for {
 			elbResult, elbErr := coreInterface.Services(namespace).Get(lbName, meta_v1.GetOptions{})
+			spew.Dump(elbResult.Status.LoadBalancer.Ingress)
 			if elbErr != nil {
 				fmt.Printf("Error '%s' describing service %s", elbErr, lbName)
 			} else {
@@ -305,22 +343,22 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	log.Println("doDeleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.Extension)
-	formPrefix := utils.GetFormValuePrefix(e, "LOADBALANCER_")
-	kubeconfig, err := utils.GetFormValue(payload.FormValues, formPrefix, "KUBECONFIG")
+	configPrefix := utils.GetFormValuePrefix(e, "KUBERNETESLOADBALANCERS_")
+	kubeconfig, err := utils.GetFormValue(payload.Config, configPrefix, "KUBECONFIG")
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
-	svcName, err := utils.GetFormValue(payload.FormValues, formPrefix, "SERVICE")
+	svcName, err := utils.GetFormValue(payload.Config, configPrefix, "SERVICE")
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
-	lbName, err := utils.GetFormValue(payload.FormValues, formPrefix, "NAME")
+	lbName, err := utils.GetFormValue(payload.Config, configPrefix, "NAME")
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)

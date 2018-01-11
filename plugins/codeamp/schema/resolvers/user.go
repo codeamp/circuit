@@ -1,6 +1,7 @@
 package resolvers
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"context"
 	"fmt"
 
@@ -32,6 +33,8 @@ func (r *Resolver) User(ctx context.Context, args *struct{ ID *graphql.ID }) (*U
 	var err error
 	var userId string
 	var user models.User
+
+	spew.Dump(args)
 
 	if userId, err = utils.CheckAuth(ctx, []string{"admin", fmt.Sprintf("user:%s", args.ID)}); err != nil {
 		return nil, err

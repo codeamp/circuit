@@ -1,6 +1,7 @@
 package codeamp
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/jinzhu/gorm/dialects/postgres"	
 	"github.com/codeamp/circuit/plugins/codeamp/schema"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
@@ -260,6 +262,7 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.HeartBeat",
 		"plugins.WebsocketMsg",
 		"plugins.Extension:status",
+		"plugins.Extension:update",
 		"plugins.Extension:complete",
 		"plugins.ReleaseExtension:status",
 		"plugins.Release:status",
@@ -307,8 +310,14 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			return nil
 		}
 
-		extension.State = payload.State
-		// extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
+		marshalledArtifacts, err := json.Marshal(payload.Artifacts)
+		if err != nil {
+			log.InfoWithFields(err.Error(), log.Fields{})
+			return nil
+		}
+
+		extension.State = plugins.GetState("complete")
+		extension.Artifacts = postgres.Jsonb{marshalledArtifacts}
 		x.Db.Save(&extension)
 		if payload.State == plugins.GetState("complete") {
 			x.Actions.ExtensionInitCompleted(&extension)
@@ -326,8 +335,14 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			return nil
 		}
 
+		marshalledArtifacts, err := json.Marshal(payload.Artifacts)
+		if err != nil {
+			log.InfoWithFields(err.Error(), log.Fields{})
+			return nil
+		}
+
 		extension.State = plugins.GetState("complete")
-		// extension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
+		extension.Artifacts = postgres.Jsonb{marshalledArtifacts}
 		x.Db.Save(&extension)
 		x.Actions.ExtensionInitCompleted(&extension)
 	}
@@ -342,9 +357,15 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			})
 			return nil
 		}
+		marshalledReArtifacts, err := json.Marshal(payload.Artifacts)
+		if err != nil {
+			log.InfoWithFields(err.Error(), log.Fields{})
+			return nil
+		}
 
 		releaseExtension.State = payload.State
-		releaseExtension.StateMessage = payload.StateMessage
+		releaseExtension.StateMessage = payload.StateMessage			
+		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		// releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&releaseExtension)
 

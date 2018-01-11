@@ -13,7 +13,7 @@ import (
 )
 
 func GetFormValuePrefix(e transistor.Event, fallbackPrefix string) string {
-	formValues := e.Payload.(plugins.Extension).FormValues
+	formValues := e.Payload.(plugins.Extension).Config
 
 	prefix := formValues["EXTENSION_PREFIX"]
 	if prefix == nil {
