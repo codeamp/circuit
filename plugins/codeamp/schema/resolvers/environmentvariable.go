@@ -2,7 +2,6 @@ package resolvers
 
 import (
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"context"
 	"fmt"
 

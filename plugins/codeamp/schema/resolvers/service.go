@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
