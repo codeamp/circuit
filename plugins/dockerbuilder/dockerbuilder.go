@@ -185,13 +185,15 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	buildArgs := []docker.BuildArg{}
-	// for key, val := range event.Extension.Config {
-	// 	ba := docker.BuildArg{
-	// 		Name:  key,
-	// 		Value: val.(string),
-	// 	}
-	// 	buildArgs = append(buildArgs, ba)
-	// }
+	for _, secret := range event.Extension.Project.Secrets {
+		if(secret.Type == plugins.GetType("build-arg")){
+			ba := docker.BuildArg{
+				Name:  secret.Key,
+				Value: secret.Value,
+			}
+			buildArgs = append(buildArgs, ba)
+		}
+	}
 	fullImagePath := fullImagePath(event)
 	spew.Dump("full imagepath", fullImagePath)	
 	buildOptions := docker.BuildImageOptions{

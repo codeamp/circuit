@@ -219,7 +219,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	// get env vars in project and admin and insert into secrets
 	secrets := []plugins.Secret{}
 	adminEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope in ?", "global").Find(&adminEnvVars).RecordNotFound(){
+	if x.db.Where("scope = ?", "global").Find(&adminEnvVars).RecordNotFound(){
 		log.InfoWithFields("no global admin env vars", log.Fields{})
 	}
 	for _, val := range adminEnvVars {
@@ -238,7 +238,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 
 	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope in ?", "global").Find(&adminEnvVars).RecordNotFound(){
+	if x.db.Where("scope = ? and project_id = ?", "global", project.Model.ID.String()).Find(&adminEnvVars).RecordNotFound(){
 		log.InfoWithFields("no project env vars found", log.Fields{})
 	}	
 	for _, val := range projectEnvVars {
@@ -326,7 +326,6 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 			Secrets: secrets,
 			Repository: project.Repository,
 		},
-
 	}
 
 	x.events <- transistor.NewEvent(eventExtension, nil)

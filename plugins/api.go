@@ -205,7 +205,7 @@ type Extension struct {
 	State        State                  `json:"state"`
 	StateMessage string                 `json:"stateMessage"`
 	Config       map[string]interface{} `json:"config"`
-	Artifacts    map[string]string      `json:"artifacts"`
+	Artifacts    map[string]string     `json:"artifacts"`
 	Environment  string                 `json:"environment"`
 	Project      Project                `json:"project"`
 }

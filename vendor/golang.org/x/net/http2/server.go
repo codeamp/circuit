@@ -652,7 +652,7 @@ func (sc *serverConn) condlogf(err error, format string, args ...interface{}) {
 	if err == nil {
 		return
 	}
-	if err == io.EOF || err == io.ErrUnexpectedEOF || isClosedConnError(err) || err == errPrefaceTimeout {
+	if err == io.EOF || err == io.ErrUnexpectedEOF || isClosedConnError(err) {
 		// Boring, expected errors.
 		sc.vlogf(format, args...)
 	} else {
@@ -897,11 +897,8 @@ func (sc *serverConn) sendServeMsg(msg interface{}) {
 	}
 }
 
-var errPrefaceTimeout = errors.New("timeout waiting for client preface")
-
-// readPreface reads the ClientPreface greeting from the peer or
-// returns errPrefaceTimeout on timeout, or an error if the greeting
-// is invalid.
+// readPreface reads the ClientPreface greeting from the peer
+// or returns an error on timeout or an invalid greeting.
 func (sc *serverConn) readPreface() error {
 	errc := make(chan error, 1)
 	go func() {
@@ -919,7 +916,7 @@ func (sc *serverConn) readPreface() error {
 	defer timer.Stop()
 	select {
 	case <-timer.C:
-		return errPrefaceTimeout
+		return errors.New("timeout waiting for client preface")
 	case err := <-errc:
 		if err == nil {
 			if VerboseLogs {

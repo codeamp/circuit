@@ -97,6 +97,7 @@ func (e *Event) NewEvent(payload interface{}, err error) Event {
 			LineNumber: no,
 		}
 	}
+
 	return event
 }
 

@@ -318,7 +318,9 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		extension.State = plugins.GetState("complete")
 		extension.Artifacts = postgres.Jsonb{marshalledArtifacts}
+
 		x.Db.Save(&extension)
+
 		if payload.State == plugins.GetState("complete") {
 			x.Actions.ExtensionInitCompleted(&extension)
 		}

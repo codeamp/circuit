@@ -192,7 +192,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		var realProto string
 		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "https"
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
 			realProto = "TCP"
 		case "SSL":
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
@@ -332,9 +332,31 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		ELBDNS = fmt.Sprintf("%s.%s", lbName, utils.GenNamespaceName(payload.Environment, projectSlug))
 	}
 
-	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("complete"), "", nil)
-	event.Payload.(plugins.Extension).Artifacts["DNS"] = ELBDNS
+	route53Config := e.Payload.(plugins.Extension).Config
+	route53Config["KUBERNETESLOADBALANCERS_ELBDNS"] = ELBDNS
+	
+	route53Event := e
+	route53Event.Payload = plugins.Extension{
+		Action: plugins.GetAction("create"),
+		Slug: "route53",
+		State: plugins.GetState("waiting"),
+		StateMessage: "",
+		Config: route53Config,
+		Artifacts: map[string]string{},
+		Environment: e.Payload.(plugins.Extension).Environment,
+		Project: e.Payload.(plugins.Extension).Project,
+	}	
+	
+	// send event to codeamp to signal loadbalancers completion
+	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)	
+	event.Payload.(plugins.Extension).Artifacts["ELBDNS"] = ELBDNS
+	spew.Dump("KLB EVENT", event)
 	x.events <- event
+
+	// send route53 event
+	route53Event = e.NewEvent(route53Event.Payload, err)
+	spew.Dump("ROUTE 53 EVENT", route53Event)
+	x.events <- route53Event
 
 	return nil
 }
