@@ -5,7 +5,6 @@ import (
 	"strings"
 	"fmt"
 	"encoding/json"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	log "github.com/codeamp/logger"

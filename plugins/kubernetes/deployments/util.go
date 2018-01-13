@@ -1,7 +1,6 @@
 package kubernetesdeployments
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"encoding/base64"
 	"fmt"
 	"log"
