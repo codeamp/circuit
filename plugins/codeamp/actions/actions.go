@@ -441,7 +441,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	aggregateReleaseExtensionArtifacts := make(map[string]interface{})
 	found := false
 
-	if x.db.Where("project_id = ?", release.ProjectId).Find(&depExtensions).RecordNotFound() {
+	if x.db.Where("project_id = ? and environment_id = ?", release.ProjectId, release.EnvironmentId).Find(&depExtensions).RecordNotFound() {
 		log.InfoWithFields("deployment extensions not found", log.Fields{
 			"release": release,
 		})
@@ -458,7 +458,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		if plugins.Type(extensionSpec.Type) == plugins.GetType("workflow") {
 			releaseExtension := models.ReleaseExtension{}
 
-			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.GetState("complete")).Find(&releaseExtension).RecordNotFound() {
+			if x.db.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, string(plugins.GetState("complete")) ).Find(&releaseExtension).RecordNotFound() {
 				log.InfoWithFields("release extension not found", log.Fields{
 					"release_id":   release.Model.ID,
 					"extension_id": de.Model.ID,
