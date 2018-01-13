@@ -1,6 +1,7 @@
 package kubernetesdeployments
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -56,7 +57,7 @@ func (x *Deployments) sendDDResponse(e transistor.Event, services []plugins.Serv
 	data := e.Payload.(plugins.ReleaseExtension)
 	data.Action = plugins.GetAction("status")
 	data.State = state
-	data.Release.Services = services
+	data.Release.Project.Services = services
 	data.StateMessage = failureMessage
 	event := e.NewEvent(data, nil)
 
@@ -77,16 +78,16 @@ func (x *Deployments) sendDDInProgress(e transistor.Event, services []plugins.Se
 
 func secretifyDockerCred(e transistor.Event) (string, error) {
 	ext := e.Payload.(plugins.ReleaseExtension)
+	// prefix := ext.Extension.Config["EXTENSION_PREFIX"].(string)
+	// if prefix == "" {
+	// 	prefix = "DOCKERBUILDER_"
+	// }
+	prefix := "DOCKERBUILDER_"
 
-	prefix := ext.Extension.FormValues["DOCKERBUILDER_PREFIX"].(string)
-	if prefix == "" {
-		prefix = "DOCKERBUILDER_"
-	}
-
-	user := ext.Artifacts[prefix+"USER"]
-	pass := ext.Artifacts[prefix+"PASSWORD"]
-	email := ext.Artifacts[prefix+"EMAIL"]
-	host := ext.Artifacts[prefix+"HOST"]
+	user := ext.Release.Artifacts[prefix+"USER"].(string)
+	pass := ext.Release.Artifacts[prefix+"PASSWORD"].(string)
+	email := ext.Release.Artifacts[prefix+"EMAIL"].(string)
+	host := ext.Release.Artifacts[prefix+"HOST"].(string)
 
 	encodeMe := fmt.Sprintf("%s:%s", user, pass)
 	encodeResult := []byte(encodeMe)
@@ -267,13 +268,13 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 }
 
 func (x *Deployments) doDeploy(e transistor.Event) error {
-
+	
 	payload := e.Payload.(plugins.ReleaseExtension)
-	kubeconfig := payload.Extension.FormValues["KUBECONFIG"].(string)
+	kubeconfig := payload.Extension.Config["KUBERNETESDEPLOYMENTS_KUBECONFIG"].(string)
 	log.Printf("Using kubeconfig file: %s", kubeconfig)
 
-	releaseData := e.Payload.(plugins.ReleaseExtension).Release
-	projectSlug := plugins.GetSlug(releaseData.Project.Repository)
+	reData := e.Payload.(plugins.ReleaseExtension)
+	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -291,9 +292,15 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		return nil
 	}
 
-	x.sendDDInProgress(e, releaseData.Services, "Deploy in-progress")
-	namespace := utils.GenNamespaceName(releaseData.Environment, projectSlug)
+	// spew.Dump("DEPLOY IN PROGRESS")
+	x.sendDDInProgress(e, reData.Release.Project.Services, "Deploy in-progress")
+	// spew.Dump("GenNamespaceName", reData.Release.Environment, projectSlug)
+	namespace := utils.GenNamespaceName(reData.Release.Environment, projectSlug)
+	// spew.Dump("output: ", namespace)
+
+	// spew.Dump("coreInterface")
 	coreInterface := clientset.Core()
+	// spew.Dump("output: ", coreInterface)
 
 	successfulDeploys := 0
 	// TODO: get timeout from formValues
@@ -304,26 +311,28 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	//}
 	curTime := 0
 
+	// spew.Dump("createNamespaceIfNotExists", namespace, coreInterface)
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
-		x.sendDDErrorResponse(e, releaseData.Services, createNamespaceErr.Error())
+		x.sendDDErrorResponse(e, reData.Release.Project.Services, createNamespaceErr.Error())
 		return nil
 	}
+	// spew.Dump("output:", createNamespaceErr)
 
+	// spew.Dump("createDockerIOSecretIfNotExists", namespace, coreInterface)
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, coreInterface, e)
 	if createDockerIOSecretErr != nil {
-		x.sendDDErrorResponse(e, releaseData.Services, createDockerIOSecretErr.Error())
+		x.sendDDErrorResponse(e, reData.Release.Project.Services, createDockerIOSecretErr.Error())
 		return nil
 	}
-
 	// Create secrets for this deploy
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
 	var myEnvVars []v1.EnvVar
 
 	// This map is used in to create the secrets themselves
-	for _, secret := range releaseData.Secrets {
-		secretMap[secret.Key] = secret.Value
+	for key, val := range reData.Extension.Config {
+		secretMap[key] = val.(string)
 	}
 
 	secretParams := &v1.Secret{
@@ -342,15 +351,16 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	secretResult, secErr := coreInterface.Secrets(namespace).Create(secretParams)
 	if secErr != nil {
 		failMessage := fmt.Sprintf("Error '%s' creating secret %s", secErr, projectSlug)
-		x.sendDDErrorResponse(e, releaseData.Services, failMessage)
+		x.sendDDErrorResponse(e, reData.Release.Project.Services, failMessage)
 		return nil
 	}
 	secretName := secretResult.Name
 	log.Printf("Secrets created: %s", secretName)
+	x.sendDDInProgress(e, reData.Release.Project.Services, "Secrets created")
 
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
-	for _, secret := range releaseData.Secrets {
+	for _, secret := range reData.Release.Secrets {
 		if secret.Type == plugins.GetType("env") || secret.Type == plugins.GetType("protected-env") {
 			newEnv := v1.EnvVar{
 				Name: secret.Key,
@@ -366,6 +376,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			myEnvVars = append(myEnvVars, newEnv)
 		}
 	}
+
 	// as Files
 	var volumeMounts []v1.VolumeMount
 	var deployVolumes []v1.Volume
@@ -375,7 +386,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		MountPath: "/etc/secrets",
 		ReadOnly:  true,
 	})
-	for _, secret := range releaseData.Secrets {
+	for _, secret := range reData.Release.Secrets {
 		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
 				Path: secret.Key,
@@ -397,15 +408,17 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			Secret: &secretVolume,
 		},
 	})
+	
+	x.sendDDInProgress(e, reData.Release.Project.Services, "Secrets added to deployVolumes")	
 
 	// Do update/create of deployments and services
 	depInterface := clientset.Extensions()
 	batchv1DepInterface := clientset.BatchV1()
 
 	// Validate we have some services to deploy
-	if len(releaseData.Services) == 0 {
+	if len(reData.Release.Project.Services) == 0 {
 		failMessage := fmt.Sprintf("ERROR: Zero services were found in the deploy message.")
-		x.sendDDErrorResponse(e, releaseData.Services, failMessage)
+		x.sendDDErrorResponse(e, reData.Release.Project.Services, failMessage)
 		return nil
 	}
 
@@ -433,14 +446,13 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	var deploymentServices []plugins.Service
 	var oneShotServices []plugins.Service
 
-	for _, service := range releaseData.Services {
-		if service.OneShot == true {
+	for _, service := range reData.Release.Project.Services {
+		if service.Type == "one-shot" {
 			oneShotServices = append(oneShotServices, service)
 		} else {
 			deploymentServices = append(deploymentServices, service)
 		}
 	}
-
 	for index, service := range oneShotServices {
 		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
 
@@ -509,7 +521,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			NodeSelector:  nodeSelector,
 			Args:          commandArray,
 			Service:       service,
-			Image:         payload.Release.Artifacts["IMAGE"],
+			Image:         payload.Release.Artifacts["DOCKERBUILDER_IMAGE"].(string),
 			Env:           myEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
@@ -718,8 +730,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 		var revisionHistoryLimit int32 = 10
 
-		dockerImageForRelease := payload.Release.Artifacts["IMAGE"]
-
+		dockerImageForRelease := payload.Release.Artifacts["DOCKERBUILDER_IMAGE"].(string)
 		simplePod := SimplePodSpec{
 			Name:          deploymentName,
 			DeployPorts:   deployPorts,
@@ -755,6 +766,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			},
 		}
 
+		x.sendDDInProgress(e, reData.Release.Project.Services, "Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
 		var err error
 		log.Printf("Getting list of deployments/ jobs matching %s", deploymentName)
 		_, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
@@ -764,6 +776,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			log.Printf("Existing deployment not found for %s. requested action: %s.", deploymentName, service.Action)
 			// Sanity check that we were told to create this service or error out.
 
+			x.sendDDInProgress(e, reData.Release.Project.Services, "Successfully creating Deployment.")
 			_, myError = depInterface.Deployments(namespace).Create(deployParams)
 			if myError != nil {
 				// send failed status
@@ -772,9 +785,10 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				deploymentServices[index].StateMessage = fmt.Sprintf("Error creating deployment: %s", myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
+				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError))
 			}
 		} else {
-			// Deployment exists, update deployment with new configuration
+			// Deployment exists, update deployment with new configuration	
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
 				log.Printf("Failed to update service deployment %s, with error: %s", deploymentName, myError)
@@ -782,6 +796,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				deploymentServices[index].StateMessage = fmt.Sprintf("Failed to update deployment %s, with error: %s", deploymentName, myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
+				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError))
 			}
 		}
 
@@ -928,7 +943,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	var orphans []v1beta1.Deployment
 	for _, deployment := range allDeploymentsList.Items {
 		foundIt = false
-		for _, service := range releaseData.Services {
+		for _, service := range reData.Release.Project.Services {
 			if deployment.Name == genDeploymentName(projectSlug, service.Name) {
 				foundIt = true
 			}

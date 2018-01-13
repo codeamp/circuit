@@ -1,7 +1,7 @@
 package dockerbuilder
 
 import (
-	"github.com/davecgh/go-spew/spew"
+	"github.com/spf13/viper"
 	"bytes"
 	"errors"
 	"fmt"
@@ -52,6 +52,7 @@ func (x *DockerBuilder) Stop() {
 func (x *DockerBuilder) Subscribe() []string {
 	return []string{
 		"plugins.ReleaseExtension:create:dockerbuilder",
+		"plugins.ReleaseExtension:update:dockerbuilder",
 		"plugins.Extension:create:dockerbuilder",
 	}
 }
@@ -84,14 +85,15 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 	var err error
 	var output []byte
 
-	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", event.Release.Git.Workdir, event.Release.Project.Repository)
+	// idRsaPath := fmt.Sprintf("%s/%s_id_rsa", event.Release.Git.Workdir, event.Release.Project.Repository)
+	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)
+	repoPath = fmt.Sprintf("%s/%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)
 	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
 
 	// Git Env
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	log.Debug(repoPath)
 	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
 	if err != nil {
 		return err
@@ -124,14 +126,14 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", event.Release.Git.Branch)
 	if err != nil {
-		log.Debug(err)
+		log.Info(err)
 		return err
 	}
 	log.Info(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "checkout", event.Release.Git.Branch)
 	if err != nil {
-		log.Debug(err)
+		log.Info(err)
 		return err
 	}
 	log.Info(string(output))
@@ -140,9 +142,9 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 }
 
 func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, dockerBuildOut io.Writer) error {
+	idRsaPath := fmt.Sprintf("%s/%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)	
 	gitArchive := exec.Command("git", "archive", event.Release.HeadFeature.Hash)
-	gitArchive.Dir = repoPath
-
+	gitArchive.Dir = idRsaPath
 	gitArchiveOut, err := gitArchive.StdoutPipe()
 	if err != nil {
 		log.Debug(err)
@@ -162,7 +164,6 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	dockerBuildIn := bytes.NewBuffer(nil)
-
 	go func() {
 		io.Copy(os.Stderr, gitArchiveErr)
 	}()
@@ -175,22 +176,23 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 		return err
 	}
 
-	var buildArgs []docker.BuildArg
-	for key, val := range event.Extension.FormValues {
-		ba := docker.BuildArg{
-			Name:  key,
-			Value: val.(string),
+	buildArgs := []docker.BuildArg{}
+	for _, secret := range event.Extension.Project.Secrets {
+		if(secret.Type == plugins.GetType("build-arg")){
+			ba := docker.BuildArg{
+				Name:  secret.Key,
+				Value: secret.Value,
+			}
+			buildArgs = append(buildArgs, ba)
 		}
-		buildArgs = append(buildArgs, ba)
 	}
-
 	fullImagePath := fullImagePath(event)
-
 	buildOptions := docker.BuildImageOptions{
-		Dockerfile:   "Dockerfile",
+		Dockerfile:   fmt.Sprintf("Dockerfile"),
 		Name:         fullImagePath,
+		ContextDir:   fmt.Sprintf("%s/%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository),		
 		OutputStream: dockerBuildOut,
-		InputStream:  dockerBuildIn,
+		// InputStream:  dockerBuildIn,
 		BuildArgs:    buildArgs,
 	}
 
@@ -215,15 +217,14 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(event))))
 
 	dockerClient, err := docker.NewClient(x.Socket)
-
 	err = dockerClient.PushImage(docker.PushImageOptions{
 		Name:         imagePathGen(event),
 		Tag:          imageTagGen(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Extension.FormValues["USER"].(string),
-		Password: event.Extension.FormValues["PASSWORD"].(string),
-		Email:    event.Extension.FormValues["EMAIL"].(string),
+		Username: event.Extension.Config["DOCKERBUILDER_USER"].(string),
+		Password: event.Extension.Config["DOCKERBUILDER_PASSWORD"].(string),
+		Email:    event.Extension.Config["DOCKERBUILDER_EMAIL"].(string),
 	})
 	if err != nil {
 		return err
@@ -246,9 +247,9 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 		Tag:          imageTagLatest(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Extension.FormValues["USER"].(string),
-		Password: event.Extension.FormValues["PASSWORD"].(string),
-		Email:    event.Extension.FormValues["EMAIL"].(string),
+		Username: event.Extension.Config["DOCKERBUILDER_USER"].(string),
+		Password: event.Extension.Config["DOCKERBUILDER_PASSWORD"].(string),
+		Email:    event.Extension.Config["DOCKERBUILDER_EMAIL"].(string),
 	})
 	if err != nil {
 		return err
@@ -263,10 +264,18 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		extensionEvent = e.Payload.(plugins.Extension)
 		extensionEvent.Action = plugins.GetAction("status")
 		extensionEvent.State = plugins.GetState("complete")
-		spew.Dump(extensionEvent)
 		x.events <- e.NewEvent(extensionEvent, nil)
 		return nil
 	}
+	
+	if e.Name == "plugins.Extension:update:dockerbuilder" {
+		var extensionEvent plugins.Extension
+		extensionEvent = e.Payload.(plugins.Extension)
+		extensionEvent.Action = plugins.GetAction("status")
+		extensionEvent.State = plugins.GetState("complete")
+		x.events <- e.NewEvent(extensionEvent, nil)
+		return nil
+	}	
 
 	event := e.Payload.(plugins.ReleaseExtension)
 
@@ -314,10 +323,10 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 	event.State = plugins.GetState("complete")
 	event.Artifacts["IMAGE"] = fullImagePath(event)
-	event.Artifacts["USER"] = event.Extension.FormValues["USER"].(string)
-	event.Artifacts["PASSWORD"] = event.Extension.FormValues["PASSWORD"].(string)
-	event.Artifacts["EMAIL"] = event.Extension.FormValues["EMAIL"].(string)
-	event.Artifacts["HOST"] = event.Extension.FormValues["HOST"].(string)
+	event.Artifacts["USER"] = event.Extension.Config["DOCKERBUILDER_USER"].(string)
+	event.Artifacts["PASSWORD"] = event.Extension.Config["DOCKERBUILDER_PASSWORD"].(string)
+	event.Artifacts["EMAIL"] = event.Extension.Config["DOCKERBUILDER_EMAIL"].(string)
+	event.Artifacts["HOST"] = event.Extension.Config["DOCKERBUILDER_HOST"].(string)
 	event.StateMessage = "Completed"
 	// event.BuildLog = buildlog.String()
 	x.events <- e.NewEvent(event, nil)
@@ -338,8 +347,8 @@ func imageTagLatest(event plugins.ReleaseExtension) string {
 
 // rengerate image path name
 func imagePathGen(event plugins.ReleaseExtension) string {
-	registryHost := event.Extension.FormValues["HOST"]
-	registryOrg := event.Extension.FormValues["ORG"]
+	registryHost := event.Extension.Config["DOCKERBUILDER_HOST"]
+	registryOrg := event.Extension.Config["DOCKERBUILDER_ORG"]
 	return (fmt.Sprintf("%s/%s/%s", registryHost, registryOrg, slug.Slug(event.Release.Project.Repository)))
 }
 

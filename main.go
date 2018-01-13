@@ -7,6 +7,8 @@ import (
 	_ "github.com/codeamp/circuit/plugins/gitsync"
 	_ "github.com/codeamp/circuit/plugins/heartbeat"
 	_ "github.com/codeamp/circuit/plugins/kubernetes/deployments"
+	_ "github.com/codeamp/circuit/plugins/kubernetes/loadbalancers"
+	_ "github.com/codeamp/circuit/plugins/route53"
 )
 
 func main() {

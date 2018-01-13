@@ -80,8 +80,6 @@ func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*Servic
 		return nil, fmt.Errorf("Record not found with given argument id")
 	}
 
-	spew.Dump(args.Service.Type)
-
 	service.Command = args.Service.Command
 	service.Name = args.Service.Name
 	service.Type = plugins.Type(args.Service.Type)
@@ -199,10 +197,8 @@ func (r *ServiceResolver) ContainerPorts(ctx context.Context) ([]*ContainerPortR
 
 	r.db.Where("service_id = ?", r.Service.ID).Order("created_at desc").Find(&rows)
 	for _, cPort := range rows {
-		spew.Dump(cPort)
 		results = append(results, &ContainerPortResolver{ContainerPort: cPort})
 	}
-	spew.Dump(results)
 	return results, nil
 }
 
@@ -212,7 +208,7 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 		log.InfoWithFields("environment not found", log.Fields{
 			"service": r.Service,
 		})
-		return nil, fmt.Errorf("Environment not found.")
+		return nil, fmt.Errorf("Environment not found.")		
 	}
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
@@ -223,6 +219,10 @@ func (r *ServiceResolver) Created() graphql.Time {
 
 type ContainerPortResolver struct {
 	ContainerPort models.ContainerPort
+}
+
+func (r *ContainerPortResolver) ID() graphql.ID {
+	return graphql.ID(r.ContainerPort.Model.ID.String())
 }
 
 func (r *ContainerPortResolver) Port() string {

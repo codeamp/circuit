@@ -1,6 +1,8 @@
 package resolvers
 
 import (
+	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"context"
 	"fmt"
 
@@ -43,12 +45,14 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	projectId := uuid.UUID{}
 	var environmentId uuid.UUID
 	var environmentVariableScope models.EnvironmentVariableScope
-
+	
 	if args.EnvironmentVariable.ProjectId != nil {
 		projectId = uuid.FromStringOrNil(*args.EnvironmentVariable.ProjectId)
-		environmentVariableScope = models.GetEnvironmentVariableScope(args.EnvironmentVariable.Scope)
-	} else {
-		environmentVariableScope = models.GetEnvironmentVariableScope("global")
+	}
+	
+	environmentVariableScope = models.GetEnvironmentVariableScope(args.EnvironmentVariable.Scope)
+	if environmentVariableScope == models.EnvironmentVariableScope("unknown") {
+		return nil, fmt.Errorf("Invalid env var scope.")
 	}
 
 	environmentId, err := uuid.FromString(args.EnvironmentVariable.EnvironmentId)
@@ -116,7 +120,6 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 			UserId: userId,
 		}
 		r.db.Create(&envVarValue)
-
 		r.actions.EnvironmentVariableUpdated(&envVar)
 
 		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
@@ -190,17 +193,27 @@ func (r *EnvironmentVariableResolver) User() (*UserResolver, error) {
 	return &UserResolver{db: r.db, User: user}, nil
 }
 
-func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*EnvironmentVariableValueResolver, error) {
 	if _, err := utils.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
-	var rows []models.EnvironmentVariable
-	var results []*EnvironmentVariableResolver
-	r.db.Unscoped().Where("project_id = ? and key = ? and environment_id = ?", r.EnvironmentVariable.ProjectId, r.EnvironmentVariable.Key, r.EnvironmentVariable.EnvironmentId).Order("created_at desc").Find(&rows)
-	for _, envVar := range rows {
-		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
+
+	var envVarValues []models.EnvironmentVariableValue
+	var envVarValueResolvers []*EnvironmentVariableValueResolver
+
+	if r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").Find(&envVarValues).RecordNotFound() {
+		log.InfoWithFields("env var values not found", log.Fields{
+			"environment_variable_id": r.EnvironmentVariable.Model.ID,
+		})
+		return nil, fmt.Errorf("env var values not found")
 	}
-	return results, nil
+
+	// iter and return env var value resolvers
+	for _, ev := range envVarValues {
+		envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: ev })
+	}
+
+	return envVarValueResolvers, nil
 }
 
 func (r *EnvironmentVariableResolver) Created() graphql.Time {

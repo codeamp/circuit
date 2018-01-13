@@ -165,7 +165,7 @@ type Service struct {
 	State        State       `json:"state"`
 	StateMessage string      `json:"stateMessage"`
 	Spec         ServiceSpec `json:"spec"`
-	OneShot      bool        `json:"oneShot"`
+	Type         string      `json:"type"`
 }
 
 type ServiceSpec struct {
@@ -204,8 +204,8 @@ type Extension struct {
 	Slug         string                 `json:"slug"`
 	State        State                  `json:"state"`
 	StateMessage string                 `json:"stateMessage"`
-	FormValues   map[string]interface{} `json:"formValues"`
-	Artifacts    map[string]string      `json:"artifacts"`
+	Config       map[string]interface{} `json:"config"`
+	Artifacts    map[string]string     `json:"artifacts"`
 	Environment  string                 `json:"environment"`
 	Project      Project                `json:"project"`
 }
@@ -222,7 +222,7 @@ type Release struct {
 	TailFeature  Feature           `json:"tailFeature"`
 	Services     []Service         `json:"services"`
 	Secrets      []Secret          `json:"secrets"` // secrets = build args + artifacts
-	Artifacts    map[string]string `json:"artifacts"`
+	Artifacts    map[string]interface{} `json:"artifacts"`
 	Environment  string            `json:"environment"`
 }
 

@@ -1,6 +1,7 @@
 package kubernetesloadbalancers
 
 import (
+	"strconv"
 	"fmt"
 	"strings"
 	"time"
@@ -64,16 +65,16 @@ func (x *LoadBalancers) Process(e transistor.Event) error {
 
 	var err error
 	switch event.Action {
-	case plugins.Destroy:
+	case plugins.GetAction("destroy"):
 		err = x.doDeleteLoadBalancer(e)
-	case plugins.Create:
+	case plugins.GetAction("create"):
 		err = x.doLoadBalancer(e)
-	case plugins.Update:
+	case plugins.GetAction("update"):
 		err = x.doLoadBalancer(e)
 	}
 
 	if err != nil {
-		event.State = plugins.Failed
+		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State)
 		log.Debug(event.StateMessage)
 		event := e.NewEvent(event, err)
@@ -97,16 +98,15 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	log.Println("doLoadBalancer")
 
 	payload := e.Payload.(plugins.Extension)
-	formPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
-
-	svcName := payload.FormValues[formPrefix+"SERVICE"].(string)
-	lbName := payload.FormValues[formPrefix+"NAME"].(string)
-	sslARN := payload.FormValues[formPrefix+"SSL_CERT_ARN"].(string)
-	s3AccessLogs := payload.FormValues[formPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
-	lbType := payload.FormValues[formPrefix+"TYPE"].(plugins.Type)
+	// configPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
+	configPrefix := "KUBERNETESLOADBALANCERS_"
+	svcName := payload.Config[configPrefix+"SERVICE"].(string)
+	lbName := payload.Config[configPrefix+"NAME"].(string)
+	sslARN := payload.Config[configPrefix+"SSL_CERT_ARN"].(string)
+	s3AccessLogs := payload.Config[configPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
+	lbType := plugins.GetType(payload.Config[configPrefix+"TYPE"].(string))
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-
-	kubeconfig := payload.FormValues[formPrefix+"KUBECONFIG"].(string)
+	kubeconfig := payload.Config[configPrefix+"KUBECONFIG"].(string)
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
@@ -114,7 +114,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
 		log.Println(failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, failMessage, err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return err
 	}
 
@@ -122,7 +122,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Println(failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, failMessage, err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return nil
 	}
 
@@ -132,19 +132,18 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	var serviceType v1.ServiceType
 	var servicePorts []v1.ServicePort
 	serviceAnnotations := make(map[string]string)
-
 	namespace := utils.GenNamespaceName(payload.Environment, projectSlug)
 	createNamespaceErr := utils.CreateNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, createNamespaceErr.Error(), err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), createNamespaceErr.Error(), err)
 		return nil
 	}
 
 	// Begin create
 	switch lbType {
-	case plugins.Internal:
+	case plugins.GetType("internal"):
 		serviceType = v1.ServiceTypeClusterIP
-	case plugins.External:
+	case plugins.GetType("external"):
 		serviceType = v1.ServiceTypeLoadBalancer
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout"] = "300"
@@ -155,7 +154,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
 		}
-	case plugins.Office:
+	case plugins.GetType("office"):
 		serviceType = v1.ServiceTypeLoadBalancer
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-internal"] = "0.0.0.0/0"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
@@ -168,14 +167,13 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
 		}
 	}
-
-	listenerPairs := payload.FormValues[formPrefix+"LISTENER_PAIRS"].([]ListenerPair)
+	listenerPairs := payload.Config[configPrefix+"LISTENER_PAIRS"]
 	var sslPorts []string
-	for _, p := range listenerPairs {
+	for _, p := range listenerPairs.([]interface{}) {
 		var realProto string
-		switch p.Protocol {
+		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "http"
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
 			realProto = "TCP"
 		case "SSL":
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
@@ -189,18 +187,32 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		case "UDP":
 			realProto = "UDP"
 		}
-		convPort := intstr.IntOrString{
-			IntVal: p.TargetPort,
+		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
+		if err != nil {
+			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+			return nil			
 		}
+
+		intContainerPort, err := strconv.Atoi(p.(map[string]interface{})["containerPort"].(string))
+		if err != nil {
+			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+			return nil			
+		}		
+		convPort := intstr.IntOrString{
+			IntVal: int32(intContainerPort),
+		}
+		// random 5 letter sequence
+		// randomLetters := "abcdev"
 		newPort := v1.ServicePort{
 			// TODO: remove this toLower when we fix the data in mongo, kube only allows lowercase port names
-			Name:       strings.ToLower(p.Name),
-			Port:       p.SourcePort,
+			Name:       strings.ToLower(fmt.Sprintf("%s", p.(map[string]interface{})["serviceProtocol"])),
+			Port:       int32(intPort),
 			TargetPort: convPort,
 			Protocol:   v1.Protocol(realProto),
 		}
-		if p.Protocol == "HTTPS" || p.Protocol == "SSL" {
-			sslPorts = append(sslPorts, fmt.Sprintf("%d", p.SourcePort))
+		if strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "HTTPS" || 
+			strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "SSL" {
+			sslPorts = append(sslPorts, fmt.Sprintf("%d", intPort))
 		}
 		servicePorts = append(servicePorts, newPort)
 	}
@@ -247,7 +259,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		_, err = service.Update(&serviceParams)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: failed to update service: %s", err.Error())
-			x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, errMsg, err)
+			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 			return nil
 		}
 		fmt.Printf("Service updated: %s", lbName)
@@ -255,22 +267,22 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		_, err = service.Create(&serviceParams)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: failed to create service: %s", err.Error())
-			x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, errMsg, err)
+			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 			return nil
 		}
 		fmt.Printf("Service created: %s", lbName)
 	default:
 		errMsg := fmt.Sprintf("Unexpected error: %s", err.Error())
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, errMsg, err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 		return nil
 	}
 
 	// If ELB grab the DNS name for the response
-	var ELBDNS string
-	if lbType == plugins.External || lbType == plugins.Office {
+	ELBDNS := ""
+	if lbType == plugins.GetType("external") || lbType == plugins.GetType("office") {
 		fmt.Printf("Waiting for ELB address for %s", lbName)
 		// Timeout waiting for ELB DNS name after 900 seconds
-		timeout := 900
+		timeout := 90
 		for {
 			elbResult, elbErr := coreInterface.Services(namespace).Get(lbName, meta_v1.GetOptions{})
 			if elbErr != nil {
@@ -283,7 +295,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 				}
 				if timeout <= 0 {
 					failMessage := fmt.Sprintf("Error: timeout waiting for ELB DNS name for: %s", lbName)
-					x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, failMessage, err)
+					x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 					return nil
 				}
 			}
@@ -294,9 +306,29 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		ELBDNS = fmt.Sprintf("%s.%s", lbName, utils.GenNamespaceName(payload.Environment, projectSlug))
 	}
 
-	event := utils.CreateExtensionEvent(e, plugins.Status, plugins.Complete, "", nil)
-	event.Payload.(plugins.Extension).Artifacts["DNS"] = ELBDNS
+	route53Config := e.Payload.(plugins.Extension).Config
+	route53Config["KUBERNETESLOADBALANCERS_ELBDNS"] = ELBDNS
+	
+	route53Event := e
+	route53Event.Payload = plugins.Extension{
+		Action: plugins.GetAction("create"),
+		Slug: "route53",
+		State: plugins.GetState("waiting"),
+		StateMessage: "",
+		Config: route53Config,
+		Artifacts: map[string]string{},
+		Environment: e.Payload.(plugins.Extension).Environment,
+		Project: e.Payload.(plugins.Extension).Project,
+	}	
+	
+	// send event to codeamp to signal loadbalancers completion
+	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)	
+	event.Payload.(plugins.Extension).Artifacts["ELBDNS"] = ELBDNS
 	x.events <- event
+
+	// send route53 event
+	route53Event = e.NewEvent(route53Event.Payload, err)
+	x.events <- route53Event
 
 	return nil
 }
@@ -305,25 +337,25 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	log.Println("doDeleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.Extension)
-	formPrefix := utils.GetFormValuePrefix(e, "LOADBALANCER_")
-	kubeconfig, err := utils.GetFormValue(payload.FormValues, formPrefix, "KUBECONFIG")
+	configPrefix := utils.GetFormValuePrefix(e, "KUBERNETESLOADBALANCERS_")
+	kubeconfig, err := utils.GetFormValue(payload.Config, configPrefix, "KUBECONFIG")
 	if err != nil {
 		log.Debug(err)
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, err.Error(), err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
-	svcName, err := utils.GetFormValue(payload.FormValues, formPrefix, "SERVICE")
+	svcName, err := utils.GetFormValue(payload.Config, configPrefix, "SERVICE")
 	if err != nil {
 		log.Debug(err)
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, err.Error(), err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
-	lbName, err := utils.GetFormValue(payload.FormValues, formPrefix, "NAME")
+	lbName, err := utils.GetFormValue(payload.Config, configPrefix, "NAME")
 	if err != nil {
 		log.Debug(err)
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, err.Error(), err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
@@ -351,15 +383,15 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		if svcDeleteErr != nil {
 			failMessage := fmt.Sprintf("Error '%s' deleting service %s", svcDeleteErr, lbName)
 			fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)
-			x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, failMessage, err)
+			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 			return nil
 		}
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Deleted, "", nil)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("deleted"), "", nil)
 	} else {
 		// Send failure message that we couldn't find the service to delete
 		failMessage := fmt.Sprintf("Error finding %s service: '%s'", lbName, svcGetErr)
 		fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.Status, plugins.Failed, failMessage, err)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 	}
 	return nil
 }

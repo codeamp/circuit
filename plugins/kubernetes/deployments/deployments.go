@@ -63,7 +63,7 @@ func (x *Deployments) Process(e transistor.Event) error {
 	event.State = plugins.GetState("complete")
 	event.StateMessage = "Completed"
 
-	// x.doDeploy(e)
+	x.doDeploy(e)
 	log.Info("Processed Deployments event")
 	x.events <- e.NewEvent(event, nil)
 	return nil

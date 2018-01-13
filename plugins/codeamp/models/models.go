@@ -165,13 +165,13 @@ type ExtensionSpec struct {
 }
 
 type Extension struct {
-	Model           `json:",inline"`
-	ProjectId       uuid.UUID      `json:"projectId" gorm:"type:uuid"`
-	ExtensionSpecId uuid.UUID      `json:"extensionSpecId" gorm:"type:uuid"`
-	State           plugins.State  `json:"state"`
-	Artifacts       postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"`
-	Config          postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
-	EnvironmentId   uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	Model                `json:",inline"`
+	ProjectId            uuid.UUID      `json:"projectId" gorm:"type:uuid"`
+	ExtensionSpecId      uuid.UUID      `json:"extensionSpecId" gorm:"type:uuid"`
+	State                plugins.State  `json:"state"`
+	Artifacts            postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"`
+    Config        	     postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
+	EnvironmentId        uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type ReleaseExtension struct {
