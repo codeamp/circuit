@@ -2,7 +2,6 @@ package kubernetesloadbalancers
 
 import (
 	"strconv"
-	"github.com/davecgh/go-spew/spew"
 	"fmt"
 	"strings"
 	"time"
@@ -101,19 +100,12 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	payload := e.Payload.(plugins.Extension)
 	// configPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
 	configPrefix := "KUBERNETESLOADBALANCERS_"
-
-	spew.Dump("configPrefix", configPrefix)
-
-	spew.Dump("PAYLOAD", payload)
 	svcName := payload.Config[configPrefix+"SERVICE"].(string)
 	lbName := payload.Config[configPrefix+"NAME"].(string)
 	sslARN := payload.Config[configPrefix+"SSL_CERT_ARN"].(string)
 	s3AccessLogs := payload.Config[configPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
 	lbType := plugins.GetType(payload.Config[configPrefix+"TYPE"].(string))
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-
-	spew.Dump("INPUTS", svcName, lbName, sslARN, s3AccessLogs, lbType, projectSlug)
-
 	kubeconfig := payload.Config[configPrefix+"KUBECONFIG"].(string)
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
@@ -140,8 +132,6 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	var serviceType v1.ServiceType
 	var servicePorts []v1.ServicePort
 	serviceAnnotations := make(map[string]string)
-
-	spew.Dump("HELLLLLLLOI", projectSlug, payload.Environment)
 	namespace := utils.GenNamespaceName(payload.Environment, projectSlug)
 	createNamespaceErr := utils.CreateNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
@@ -149,7 +139,6 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		return nil
 	}
 
-	spew.Dump("NAMESPACE", namespace)
 	// Begin create
 	switch lbType {
 	case plugins.GetType("internal"):
@@ -178,17 +167,9 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
 		}
 	}
-	spew.Dump("GOING THROUGH LISTENER PAIRS", payload.Config[configPrefix+"LISTENER_PAIRS"])
 	listenerPairs := payload.Config[configPrefix+"LISTENER_PAIRS"]
 	var sslPorts []string
-	spew.Dump("WENT THROUGH LISTENER PAIRS", listenerPairs)
 	for _, p := range listenerPairs.([]interface{}) {
-		spew.Dump("llopping through pairs", p)
-		
-		spew.Dump(p.(map[string]interface{})["serviceProtocol"].(string))
-		spew.Dump(p.(map[string]interface{})["serviceProtocol"].(string))
-		spew.Dump(p.(map[string]interface{})["port"].(string))
-
 		var realProto string
 		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
@@ -217,8 +198,6 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 			return nil			
 		}		
-
-		spew.Dump("intPort", intPort)
 		convPort := intstr.IntOrString{
 			IntVal: int32(intContainerPort),
 		}
@@ -231,18 +210,14 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			TargetPort: convPort,
 			Protocol:   v1.Protocol(realProto),
 		}
-		spew.Dump("newPort", newPort)
 		if strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "HTTPS" || 
 			strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "SSL" {
 			sslPorts = append(sslPorts, fmt.Sprintf("%d", intPort))
 		}
 		servicePorts = append(servicePorts, newPort)
 	}
-
-	spew.Dump(servicePorts, sslPorts)
 	if len(sslPorts) > 0 {
 		sslPortsCombined := strings.Join(sslPorts, ",")
-		spew.Dump(sslPortsCombined, sslARN)
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-ports"] = sslPortsCombined
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-cert"] = sslARN
 	}
@@ -310,7 +285,6 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		timeout := 90
 		for {
 			elbResult, elbErr := coreInterface.Services(namespace).Get(lbName, meta_v1.GetOptions{})
-			spew.Dump(elbResult.Status.LoadBalancer.Ingress)
 			if elbErr != nil {
 				fmt.Printf("Error '%s' describing service %s", elbErr, lbName)
 			} else {
@@ -350,12 +324,10 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	// send event to codeamp to signal loadbalancers completion
 	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)	
 	event.Payload.(plugins.Extension).Artifacts["ELBDNS"] = ELBDNS
-	spew.Dump("KLB EVENT", event)
 	x.events <- event
 
 	// send route53 event
 	route53Event = e.NewEvent(route53Event.Payload, err)
-	spew.Dump("ROUTE 53 EVENT", route53Event)
 	x.events <- route53Event
 
 	return nil

@@ -96,13 +96,11 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 60)
 	payload := e.Payload.(plugins.ReleaseExtension)
-	spew.Dump(payload.StateMessage)
 	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
 	assert.Equal(suite.T(), string(plugins.GetState("fetching")), string(payload.State))
 
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 600)
 	payload = e.Payload.(plugins.ReleaseExtension)
-	spew.Dump(payload.StateMessage)
 	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
 	assert.Equal(suite.T(), string(plugins.GetState("complete")), string(payload.State))
 

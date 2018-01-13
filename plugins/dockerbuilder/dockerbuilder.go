@@ -1,7 +1,6 @@
 package dockerbuilder
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 	"bytes"
 	"errors"
@@ -95,7 +94,6 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	spew.Dump("repoPath", repoPath)
 	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
 	if err != nil {
 		return err
@@ -144,12 +142,9 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 }
 
 func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, dockerBuildOut io.Writer) error {
-	spew.Dump("GIT ARCHIVE MAKING", event.Release.HeadFeature.Hash)
 	idRsaPath := fmt.Sprintf("%s/%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)	
 	gitArchive := exec.Command("git", "archive", event.Release.HeadFeature.Hash)
 	gitArchive.Dir = idRsaPath
-
-	spew.Dump("GIT ARCHIVING", gitArchive)
 	gitArchiveOut, err := gitArchive.StdoutPipe()
 	if err != nil {
 		log.Debug(err)
@@ -169,13 +164,10 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	dockerBuildIn := bytes.NewBuffer(nil)
-
-	spew.Dump("go func")
 	go func() {
 		io.Copy(os.Stderr, gitArchiveErr)
 	}()
 
-	spew.Dump("ioCopy", dockerBuildIn, gitArchiveOut)
 	io.Copy(dockerBuildIn, gitArchiveOut)
 
 	err = gitArchive.Wait()
@@ -195,7 +187,6 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 		}
 	}
 	fullImagePath := fullImagePath(event)
-	spew.Dump("full imagepath", fullImagePath)	
 	buildOptions := docker.BuildImageOptions{
 		Dockerfile:   fmt.Sprintf("Dockerfile"),
 		Name:         fullImagePath,
@@ -205,17 +196,14 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 		BuildArgs:    buildArgs,
 	}
 
-	spew.Dump("MAKING DOCKER CLIENT", buildOptions)
 	dockerClient, err := docker.NewClient(x.Socket)
 	if err != nil {
 		log.Debug(err)
 		return err
 	}
 
-	spew.Dump("BUILDING IMAGE", buildOptions)
 	err = dockerClient.BuildImage(buildOptions)
 	if err != nil {
-		spew.Dump("ERRRRRR", err)
 		log.Debug(err)
 		return err
 	}
@@ -229,9 +217,6 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(event))))
 
 	dockerClient, err := docker.NewClient(x.Socket)
-
-	spew.Dump(event.Extension)
-
 	err = dockerClient.PushImage(docker.PushImageOptions{
 		Name:         imagePathGen(event),
 		Tag:          imageTagGen(event),
@@ -362,7 +347,6 @@ func imageTagLatest(event plugins.ReleaseExtension) string {
 
 // rengerate image path name
 func imagePathGen(event plugins.ReleaseExtension) string {
-	spew.Dump("imagePathGen", event.Extension)
 	registryHost := event.Extension.Config["DOCKERBUILDER_HOST"]
 	registryOrg := event.Extension.Config["DOCKERBUILDER_ORG"]
 	return (fmt.Sprintf("%s/%s/%s", registryHost, registryOrg, slug.Slug(event.Release.Project.Repository)))

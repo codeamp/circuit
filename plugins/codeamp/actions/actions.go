@@ -195,7 +195,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 
 	err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
 	if err != nil {
-		spew.Dump(err)
+		log.Info(err.Error())
 	}
 
 	// iter through custom + config and add to formvalues interface
@@ -207,7 +207,6 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	for key, val := range unmarshalledConfig["custom"].(map[string]interface{}) {
 		formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(key))] = val
 	}	
-	spew.Dump(formValues)	
 
 	services := []models.Service{}
 	if x.db.Where("project_id = ?", extension.ProjectId).Find(&services).RecordNotFound() {
@@ -378,8 +377,6 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 	release := models.Release{}
 	fellowReleaseExtensions := []models.ReleaseExtension{}
 
-	spew.Dump("UPDATED RE", re.Artifacts)
-
 	if x.db.Where("id = ?", re.ReleaseId).First(&release).RecordNotFound() {
 		log.InfoWithFields("release not found", log.Fields{
 			"releaseExtension": re,
@@ -484,8 +481,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			found = true
 		}
 	}
-
-	spew.Dump("AGGREGATE RELEASE EXTENSION ARTIFACTS", aggregateReleaseExtensionArtifacts)
 
 	// persist workflow artifacts
 	// release.Artifacts = plugins.MapStringStringToHstore(releaseExtensionArtifacts)
@@ -622,9 +617,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			Replicas: int64(intReplicas),
 		})
 	}	
-
-	spew.Dump("pluginServices", pluginServices)
-
 	releaseEvent := plugins.Release{
 		Action:       plugins.GetAction("create"),
 		State:        plugins.GetState("waiting"),
@@ -703,11 +695,10 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		
 			err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
 			if err != nil {
-				spew.Dump(err)
+				log.Info(err.Error())
 			}
 		
 			// iter through custom + config and add to formvalues interface
-			spew.Dump(unmarshalledConfig)
 			for _, val := range unmarshalledConfig["config"].([]interface{}) {
 				val := val.(map[string]interface{})
 				formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
@@ -723,8 +714,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				// Artifacts: plugins.HstoreToMapStringString(extension.Artifacts),
 			}
 
-			spew.Dump(formValues)
-			spew.Dump(extensionEvent)
 			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
 				Id:           releaseExtension.Model.ID.String(),
 				Action:       plugins.GetAction("create"),
@@ -966,7 +955,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		
 			err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
 			if err != nil {
-				spew.Dump(err)
+				log.Info(err.Error())
 			}
 		
 			// iter through custom + config and add to formvalues interface
@@ -978,15 +967,11 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			for key, val := range unmarshalledConfig["custom"].(map[string]interface{}) {
 				formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(key))] = val
 			}	
-			spew.Dump(formValues)	
-
 			extensionEvent := plugins.Extension{
 				Id: extension.Model.ID.String(),
 				Config: formValues,
 				// Artifacts:  plugins.HstoreToMapStringString(extension.Artifacts),
 			}
-
-			spew.Dump(extensionEvent)
 			x.events <- transistor.NewEvent(plugins.ReleaseExtension{
 				Id:        releaseExtension.Model.ID.String(),
 				Action:    plugins.GetAction("create"),

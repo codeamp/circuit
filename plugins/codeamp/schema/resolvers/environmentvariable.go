@@ -45,8 +45,6 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	projectId := uuid.UUID{}
 	var environmentId uuid.UUID
 	var environmentVariableScope models.EnvironmentVariableScope
-
-	spew.Dump(args.EnvironmentVariable)
 	
 	if args.EnvironmentVariable.ProjectId != nil {
 		projectId = uuid.FromStringOrNil(*args.EnvironmentVariable.ProjectId)

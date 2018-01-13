@@ -220,7 +220,6 @@ func getContainerPorts(service plugins.Service) []v1.ContainerPort {
 }
 
 func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec {
-	spew.Dump("SERVICE SPEC in GENPODTEMPLATESPEC", podConfig.Service.Spec)
 	container := v1.Container{
 		Name:  strings.ToLower(podConfig.Service.Name),
 		Image: podConfig.Image,
@@ -326,8 +325,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		x.sendDDErrorResponse(e, reData.Release.Project.Services, createDockerIOSecretErr.Error())
 		return nil
 	}
-	spew.Dump("output:", createDockerIOSecretErr)
-
 	// Create secrets for this deploy
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
@@ -442,8 +439,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		})
 	}
 
-	spew.Dump("DEPLOYING SERVICES NOW!", reData.Release.Project.Services)
-
 	// prioritize one-shot services over deployments
 	// because migrations (which are one-shot jobs) should be
 	// run before app code deployments
@@ -458,9 +453,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			deploymentServices = append(deploymentServices, service)
 		}
 	}
-
-	spew.Dump("DEPLOYING SERVICES!", oneShotServices, deploymentServices)
-
 	for index, service := range oneShotServices {
 		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
 
@@ -635,7 +627,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		}
 	}
 
-	spew.Dump("LET'S DO DEPLOYMENTS", deploymentServices)
 	for index, service := range deploymentServices {
 		deploymentName := genDeploymentName(projectSlug, service.Name)
 		deployPorts := getContainerPorts(service)
@@ -740,8 +731,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		var revisionHistoryLimit int32 = 10
 
 		dockerImageForRelease := payload.Release.Artifacts["DOCKERBUILDER_IMAGE"].(string)
-
-		spew.Dump("SIMPLE POD", service)
 		simplePod := SimplePodSpec{
 			Name:          deploymentName,
 			DeployPorts:   deployPorts,
@@ -799,8 +788,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError))
 			}
 		} else {
-			// Deployment exists, update deployment with new configuration
-			spew.Dump("Err:", err)			
+			// Deployment exists, update deployment with new configuration	
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
 				log.Printf("Failed to update service deployment %s, with error: %s", deploymentName, myError)

@@ -1,7 +1,6 @@
 package route53
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"fmt"
 	"strings"
 	"time"
@@ -96,7 +95,6 @@ func (x *Route53) sendRoute53Response(e transistor.Event, state plugins.State, f
 }
 
 func (x *Route53) updateRoute53(e transistor.Event) error {
-	spew.Dump("updateRoute53", e.Payload.(plugins.Extension).Config)
 	payload := e.Payload.(plugins.Extension)
 	// Sanity checks
 	if payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string) == "" {
@@ -154,8 +152,6 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			return nil
 		}
 		fmt.Printf("DNS for %s resolved to: %s\n", payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string), strings.Join(dnsLookup, ","))
-
-		spew.Dump("AWSOME CONFIG", credentials.NewStaticCredentials(payload.Config["KUBERNETESLOADBALANCERS_AWS_ACCESS_KEY_ID"].(string), payload.Config["KUBERNETESLOADBALANCERS_AWS_SECRET_KEY"].(string), ""))
 		// Create the client
 		sess := awssession.Must(awssession.NewSessionWithOptions(
 			awssession.Options{
@@ -217,7 +213,6 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			},
 		}
 
-		spew.Dump("UPDATE PARAMS", updateParams)
 		_, err := client.ChangeResourceRecordSets(updateParams)
 		if err != nil {
 			failMessage := fmt.Sprintf("ERROR '%s' setting Route53 DNS for %s", err, route53Name)

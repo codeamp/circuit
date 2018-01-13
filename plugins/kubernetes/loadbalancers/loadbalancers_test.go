@@ -58,7 +58,6 @@ func (suite *TestSuite) TestLBTCPOffice() {
 	suite.transistor.Events <- transistor.NewEvent(payload, nil)
 
 	e = suite.transistor.GetTestEvent("plugins.Extension:status", 120)
-	spew.Dump(e.Payload.(plugins.Extension).StateMessage)
 	assert.Equal(suite.T(), string(plugins.Complete), string(e.Payload.(plugins.Extension).State))
 
 	payload = testdata.LBDataForTCP(plugins.Destroy, plugins.Office)
