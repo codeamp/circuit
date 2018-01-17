@@ -14,6 +14,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 )
 
@@ -136,6 +137,20 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		log.Info(string(output))
 	}
 
+	output, err = x.git(env, "-C", repoPath, "config", "--global", "user.email", "test@gmail.com")
+	if err != nil {
+		log.Debug(err)
+		return nil, err
+	}
+	log.Info(string(output))
+
+	output, err = x.git(env, "-C", repoPath, "reset", "--hard")
+	if err != nil {
+		log.Debug(err)
+		return nil, err
+	}
+	log.Info(string(output))
+
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
 		log.Debug(err)
@@ -184,6 +199,8 @@ func (x *GitSync) Process(e transistor.Event) error {
 	gitSyncEvent.State = plugins.GetState("fetching")
 	gitSyncEvent.StateMessage = ""
 	x.events <- e.NewEvent(gitSyncEvent, nil)
+
+	spew.Dump("gitSync", gitSyncEvent)
 
 	commits, err := x.commits(gitSyncEvent.Project, gitSyncEvent.Git)
 	if err != nil {

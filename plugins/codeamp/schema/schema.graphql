@@ -190,6 +190,7 @@ interface Project {
   repository: String!
   secret: String!
   gitUrl: String!
+  gitBranch: String!
   gitProtocol: String!
   rsaPrivateKey: String!
   rsaPublicKey: String!
@@ -247,6 +248,7 @@ input ProjectInput {
   gitProtocol: String!
   gitUrl: String!
   bookmarked: Boolean
+  gitBranch: String!
   environmentId: String!
 }
 
