@@ -3,6 +3,7 @@ package codeamp
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -110,6 +111,144 @@ func (x *CodeAmp) Migrate() {
 	db.FirstOrInit(&productionEnv, productionEnv)
 	db.Save(&productionEnv)
 
+	// loop through secrets
+	secretsContent, err := ioutil.ReadFile("./configs/secrets.json")
+	if err != nil {
+		log.Info("Could not read file ./configs/secrets.json")
+	}
+	secretsMap := make(map[string]interface{})
+	err = json.Unmarshal(secretsContent, &secretsMap)
+	if err != nil {
+		log.Info("Could not unmarshal config. Please look at your secrets to ensure valid JSON format.")
+	}
+
+	// create empty env vars
+	envvar := models.EnvironmentVariable{
+		Key:           "HOSTED_ZONE_ID",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue := models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "HOSTED_ZONE_NAME",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "AWS_SECRET_KEY",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "AWS_ACCESS_KEY_ID",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "DOCKER_ORG",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "DOCKER_HOST",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "S3_BUCKET",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "SSL_ARN",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
+	envvar = models.EnvironmentVariable{
+		Key:           "KUBECONFIG",
+		Type:          "file",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&envvar)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: envvar.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.Create(&eValue)
+
 	serviceSpec := models.ServiceSpec{
 		Name:                   "default",
 		CpuRequest:             "500",
@@ -123,29 +262,102 @@ func (x *CodeAmp) Migrate() {
 	})
 	db.Save(&serviceSpec)
 
+	// docker builder
+	dbConfig := []map[string]interface{}{
+		map[string]interface{}{"key": "KUBECONFIG", "value": ""},
+		map[string]interface{}{"key": "ORG", "value": ""},
+		map[string]interface{}{"key": "HOST", "value": ""},
+		map[string]interface{}{"key": "USER", "value": ""},
+		map[string]interface{}{"key": "EMAIL", "value": ""},
+		map[string]interface{}{"key": "PASSWORD", "value": ""},
+	}
+	marshalledDbConfig, err := json.Marshal(dbConfig)
+	if err != nil {
+		log.Info("could not marshal dockerbuilder config")
+	}
 	extensionSpec := models.ExtensionSpec{
 		Type:          plugins.GetType("workflow"),
 		Key:           "dockerbuilder",
 		Name:          "Docker Builder",
 		Component:     "",
+		Config:        postgres.Jsonb{marshalledDbConfig},
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
-		Key: extensionSpec.Key,
-	})
-	db.Save(&extensionSpec)
+	db.Create(&extensionSpec)
 
 	extensionSpec = models.ExtensionSpec{
-		Type:          plugins.GetType("deployment"),
-		Key:           "kubernetesdeployment",
-		Name:          "Kubernetes",
+		Type:          plugins.GetType("workflow"),
+		Key:           "dockerbuilder",
+		Name:          "Docker Builder Dev",
 		Component:     "",
+		Config:        postgres.Jsonb{marshalledDbConfig},
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+	db.Create(&extensionSpec)
+
+	// load balancer
+	lbConfig := []map[string]interface{}{
+		map[string]interface{}{"key": "KUBECONFIG", "value": ""},
+		map[string]interface{}{"key": "SSL_CERT_ARN", "value": ""},
+		map[string]interface{}{"key": "ACCESS_LOG_S3_BUCKET", "value": ""},
+		map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": ""},
+		map[string]interface{}{"key": "HOSTED_ZONE_NAME", "value": ""},
+		map[string]interface{}{"key": "AWS_ACCESS_KEY_ID", "value": ""},
+		map[string]interface{}{"key": "AWS_SECRET_KEY", "value": ""},
+	}
+	marshalledLbConfig, err := json.Marshal(lbConfig)
+	if err != nil {
+		log.Info("could not marshal loadbalancer config")
+	}
+	extensionSpec = models.ExtensionSpec{
+		Type:          plugins.GetType("once"),
+		Key:           "kubernetesloadbalancers",
+		Name:          "Load Balancer",
+		Component:     "LoadBalancer",
+		Config:        postgres.Jsonb{marshalledLbConfig},
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
-		Key: extensionSpec.Key,
-	})
-	db.Save(&extensionSpec)
+	db.Create(&extensionSpec)
+	extensionSpec = models.ExtensionSpec{
+		Type:          plugins.GetType("once"),
+		Key:           "kubernetesloadbalancers",
+		Name:          "Load Balancer Dev",
+		Component:     "LoadBalancer",
+		Config:        postgres.Jsonb{marshalledLbConfig},
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+	db.Create(&extensionSpec)
+
+	// kubernetes
+	kubeConfig := []map[string]interface{}{
+		map[string]interface{}{"key": "KUBECONFIG", "value": ""},
+		map[string]interface{}{"key": "USER", "value": ""},
+		map[string]interface{}{"key": "PASSWORD", "value": ""},
+		map[string]interface{}{"key": "EMAIL", "value": ""},
+		map[string]interface{}{"key": "HOST", "value": ""},
+	}
+	marshalledKubeConfig, err := json.Marshal(kubeConfig)
+	if err != nil {
+		log.Info("could not marshal kube config")
+	}
+	extensionSpec = models.ExtensionSpec{
+		Type:          plugins.GetType("deployment"),
+		Key:           "kubernetesdeployments",
+		Name:          "Kubernetes",
+		Component:     "",
+		Config:        postgres.Jsonb{marshalledKubeConfig},
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.Create(&extensionSpec)
+	extensionSpec = models.ExtensionSpec{
+		Type:          plugins.GetType("deployment"),
+		Key:           "kubernetesdeployments",
+		Name:          "Kubernetes Dev",
+		Component:     "",
+		Config:        postgres.Jsonb{marshalledKubeConfig},
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+	db.Create(&extensionSpec)
 
 	defer db.Close()
 }
