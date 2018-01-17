@@ -12,7 +12,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/actions"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
-	"github.com/jinzhu/gorm/dialects/postgres"	
 	"github.com/codeamp/circuit/plugins/codeamp/schema"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/resolvers"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
@@ -21,6 +20,7 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
 	"github.com/neelance/graphql-go/relay"
@@ -129,11 +129,6 @@ func (x *CodeAmp) Migrate() {
 		Name:          "Docker Builder",
 		Component:     "",
 		EnvironmentId: productionEnv.Model.ID,
-		// FormSpec: plugins.MapStringStringToHstore(map[string]string{
-		// 	"REGISTRY": "required|string",
-		// 	"USERNAME": "required|string",
-		// 	"PASSWORD": "required|string",
-		// }),
 	}
 	db.FirstOrInit(&extensionSpec, models.ExtensionSpec{
 		Key: extensionSpec.Key,
@@ -366,7 +361,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		}
 
 		releaseExtension.State = payload.State
-		releaseExtension.StateMessage = payload.StateMessage			
+		releaseExtension.StateMessage = payload.StateMessage
 		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		// releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&releaseExtension)
