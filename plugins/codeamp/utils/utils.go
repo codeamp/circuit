@@ -5,8 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	oidc "github.com/coreos/go-oidc"
 	"github.com/jinzhu/gorm"
@@ -25,6 +30,41 @@ type Claims struct {
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
+}
+
+/* fills in Config by querying config ids and getting the actual value */
+func GetFilledFormValues(configWithEnvVarIds map[string]interface{}, extensionSpecKey string, db *gorm.DB) (map[string]interface{}, error) {
+	spew.Dump("CONFIG WITH ENVVAR IDS", configWithEnvVarIds)
+	formValues := make(map[string]interface{})
+	// iter through custom + config and add to formvalues interface
+	for _, val := range configWithEnvVarIds["config"].([]interface{}) {
+		val := val.(map[string]interface{})
+		// check if val is UUID. If so, query in environment variables for id
+		spew.Dump("looking for envvar with id", val["value"].(string))
+		valId := uuid.FromStringOrNil(val["value"].(string))
+		if valId != uuid.Nil {
+			envVar := models.EnvironmentVariableValue{}
+
+			if db.Where("environment_variable_id = ?", valId).Order("created_at desc").First(&envVar).RecordNotFound() {
+				log.InfoWithFields("envvarvalue not found", log.Fields{
+					"environment_variable_id": valId,
+				})
+			}
+
+			spew.Dump(envVar.Value)
+			formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(val["key"].(string)))] = envVar.Value
+		} else {
+			formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
+		}
+	}
+
+	for key, val := range configWithEnvVarIds["custom"].(map[string]interface{}) {
+		// check if val is UUID. If so, query in environment variables for id
+		formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(key))] = val
+	}
+
+	spew.Dump("FINAL FORM VALUES", formValues)
+	return formValues, nil
 }
 
 func CheckPasswordHash(password, hash string) bool {
