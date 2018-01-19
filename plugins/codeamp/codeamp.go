@@ -61,7 +61,7 @@ func (x *CodeAmp) Migrate() {
 		log.Fatal(err)
 	}
 
-	db.LogMode(true)
+	db.LogMode(false)
 
 	db.AutoMigrate(
 		&models.User{},
@@ -659,7 +659,7 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	x.Schema = parsedSchema
 
 	// DEBUG
-	db.LogMode(true)
+	db.LogMode(false)
 
 	x.Db = db
 

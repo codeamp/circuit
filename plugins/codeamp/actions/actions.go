@@ -11,6 +11,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -250,9 +251,9 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	for _, val := range adminEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -269,9 +270,9 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	for _, val := range projectEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -280,6 +281,8 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 				Type:  val.Type,
 			})
 		}
+		spew.Dump("evValue", evValue)
+		spew.Dump("secrets", secrets)
 	}
 
 	pluginServices := []plugins.Service{}
@@ -541,9 +544,9 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 	for _, val := range adminEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -560,9 +563,9 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 	for _, val := range projectEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -571,6 +574,8 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				Type:  val.Type,
 			})
 		}
+		spew.Dump("evValue", evValue)
+		spew.Dump("secrets", secrets)
 	}
 
 	headFeature := models.Feature{}

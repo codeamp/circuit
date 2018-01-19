@@ -347,6 +347,12 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		secretMap[key] = val.(string)
 	}
 
+	for _, secret := range reData.Release.Secrets {
+		secretMap[secret.Key] = secret.Value
+	}
+
+	spew.Dump("SECRETS CREATED", secretMap)
+
 	secretParams := &v1.Secret{
 		TypeMeta: meta_v1.TypeMeta{
 			Kind:       "Secret",
@@ -404,7 +410,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
 				Path: secret.Key,
-				Key:  secret.Value,
+				Key:  secret.Key,
 				Mode: int32Ptr(256),
 			})
 		}
