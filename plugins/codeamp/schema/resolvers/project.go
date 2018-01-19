@@ -26,7 +26,6 @@ type ProjectInput struct {
 	GitProtocol   string
 	GitUrl        string
 	Bookmarked    *bool
-	GitBranch     string
 	EnvironmentId string
 }
 
@@ -130,7 +129,6 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	}
 
 	var project models.Project
-	gitBranch := "master"
 
 	// Check if project already exists with same name
 	existingProject := models.Project{}
@@ -148,7 +146,6 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project = models.Project{
 		GitProtocol: protocol,
 		GitUrl:      args.Project.GitUrl,
-		GitBranch:   gitBranch,
 		Secret:      transistor.RandomString(30),
 	}
 
@@ -230,10 +227,6 @@ func (r *ProjectResolver) GitUrl() string {
 	return r.Project.GitUrl
 }
 
-func (r *ProjectResolver) GitBranch() string {
-	return r.Project.GitBranch
-}
-
 func (r *ProjectResolver) GitProtocol() string {
 	return r.Project.GitProtocol
 }
@@ -263,8 +256,6 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 	var rows []models.Feature
 	var results []*FeatureResolver
-
-	spew.Dump("PROJECT BRANCH", r.Environment.GitBranch)
 
 	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.Environment.GitBranch)).Order("created desc").Find(&rows)
 

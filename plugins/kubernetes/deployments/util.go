@@ -398,11 +398,13 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		MountPath: "/etc/secrets",
 		ReadOnly:  true,
 	})
+
+	spew.Dump("FILE SECRETS", reData.Release.Secrets)
 	for _, secret := range reData.Release.Secrets {
 		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
 				Path: secret.Key,
-				Key:  secret.Key,
+				Key:  secret.Value,
 				Mode: int32Ptr(256),
 			})
 		}
