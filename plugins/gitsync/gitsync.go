@@ -95,6 +95,75 @@ func (x *GitSync) toGitCommit(entry string) (plugins.GitCommit, error) {
 	}, nil
 }
 
+func (x *GitSync) branches(project plugins.Project, git plugins.Git) ([]plugins.GitBranch, error) {
+	var err error
+	var output []byte
+
+	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.gitsync.workdir"), project.Repository)
+	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
+	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), project.Repository, git.Branch)
+
+	// Git Env
+	env := os.Environ()
+	env = append(env, idRsa)
+
+	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := os.Stat(idRsaPath); os.IsNotExist(err) {
+		log.InfoWithFields("creating repository id_rsa", log.Fields{
+			"path": idRsaPath,
+		})
+
+		err := ioutil.WriteFile(idRsaPath, []byte(git.RsaPrivateKey), 0600)
+		if err != nil {
+			log.Debug(err)
+			return nil, err
+		}
+	}
+
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		log.InfoWithFields("cloning repository", log.Fields{
+			"path": repoPath,
+		})
+
+		output, err := x.git(env, "clone", git.Url, repoPath)
+		if err != nil {
+			log.Debug(err)
+			return nil, err
+		}
+		log.Info(string(output))
+	}
+
+	_, err = x.git(env, "-C", repoPath, "fetch", "--all")
+	if err != nil {
+		log.Debug(err)
+		return nil, err
+	}
+	output, err = x.git(env, "-C", repoPath, "ls-remote", "--heads")
+	if err != nil {
+		log.Debug(err)
+		return nil, err
+	}
+
+	var branches []plugins.GitBranch
+
+	for _, line := range strings.Split(string(output), "\n") {
+		for idx, branch := range strings.Split(line, "refs/heads/") {
+			if idx%2 == 1 {
+				branches = append(branches, plugins.GitBranch{
+					Repository: project.Repository,
+					Name:       branch,
+				})
+			}
+		}
+	}
+
+	return branches, nil
+}
+
 func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.GitCommit, error) {
 	var err error
 	var output []byte
@@ -137,19 +206,12 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		log.Info(string(output))
 	}
 
-	output, err = x.git(env, "-C", repoPath, "config", "--global", "user.email", "test@gmail.com")
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-	log.Info(string(output))
-
-	output, err = x.git(env, "-C", repoPath, "reset", "--hard")
-	if err != nil {
-		log.Debug(err)
-		return nil, err
-	}
-	log.Info(string(output))
+	// output, err = x.git(env, "-C", repoPath, "reset", "", git.Branch)
+	// if err != nil {
+	// 	log.Debug(err)
+	// 	return nil, err
+	// }
+	// log.Info(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
@@ -209,6 +271,20 @@ func (x *GitSync) Process(e transistor.Event) error {
 		event := e.NewEvent(gitSyncEvent, err)
 		x.events <- event
 		return err
+	}
+
+	branches, err := x.branches(gitSyncEvent.Project, gitSyncEvent.Git)
+	if err != nil {
+		gitSyncEvent.State = plugins.GetState("failed")
+		gitSyncEvent.StateMessage = fmt.Sprintf("%v (Action: %v)", err.Error(), gitSyncEvent.State)
+		event := e.NewEvent(gitSyncEvent, err)
+		x.events <- event
+		return err
+	}
+
+	for i := range branches {
+		branchEvent := e.NewEvent(branches[i], nil)
+		x.events <- branchEvent
 	}
 
 	for i := range commits {

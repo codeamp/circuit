@@ -8,7 +8,11 @@ import (
 	"strings"
 	"time"
 
+	ca_log "github.com/codeamp/logger"
+
+	ca_utils "github.com/codeamp/circuit/plugins/codeamp/utils"
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
+	"github.com/davecgh/go-spew/spew"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -267,15 +271,22 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 }
 
 func (x *Deployments) doDeploy(e transistor.Event) error {
-	
-	payload := e.Payload.(plugins.ReleaseExtension)
-	kubeconfig := payload.Extension.Config["KUBERNETESDEPLOYMENTS_KUBECONFIG"].(string)
-	log.Printf("Using kubeconfig file: %s", kubeconfig)
 
+	payload := e.Payload.(plugins.ReleaseExtension)
+
+	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Extension.Config, "KUBERNETESDEPLOYMENTS_")
+	if err != nil {
+		ca_log.Info(err.Error())
+		return err
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
 	if err != nil {
 		log.Printf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err)
 		config, err = clientcmd.BuildConfigFromFlags("", "")
@@ -284,6 +295,8 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			return nil
 		}
 	}
+
+	spew.Dump("parsed kubeconfig", config)
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -407,8 +420,8 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			Secret: &secretVolume,
 		},
 	})
-	
-	x.sendDDInProgress(e, reData.Release.Project.Services, "Secrets added to deployVolumes")	
+
+	x.sendDDInProgress(e, reData.Release.Project.Services, "Secrets added to deployVolumes")
 
 	// Do update/create of deployments and services
 	depInterface := clientset.Extensions()
@@ -787,7 +800,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError))
 			}
 		} else {
-			// Deployment exists, update deployment with new configuration	
+			// Deployment exists, update deployment with new configuration
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
 				log.Printf("Failed to update service deployment %s, with error: %s", deploymentName, myError)

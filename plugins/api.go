@@ -11,6 +11,7 @@ import (
 func init() {
 	transistor.RegisterApi(Project{})
 	transistor.RegisterApi(GitCommit{})
+	transistor.RegisterApi(GitBranch{})
 	transistor.RegisterApi(GitStatus{})
 	transistor.RegisterApi(GitSync{})
 	transistor.RegisterApi(WebsocketMsg{})
@@ -119,6 +120,11 @@ type GitCommit struct {
 	Created    time.Time `json:"created"`
 }
 
+type GitBranch struct {
+	Repository string `json:"repository"`
+	Name       string `json:"repository"`
+}
+
 type GitStatus struct {
 	Repository string `json:"repository"`
 	User       string `json:"user"`
@@ -205,25 +211,25 @@ type Extension struct {
 	State        State                  `json:"state"`
 	StateMessage string                 `json:"stateMessage"`
 	Config       map[string]interface{} `json:"config"`
-	Artifacts    map[string]string     `json:"artifacts"`
+	Artifacts    map[string]string      `json:"artifacts"`
 	Environment  string                 `json:"environment"`
 	Project      Project                `json:"project"`
 }
 
 type Release struct {
-	Id           string            `json:"id"`
-	Action       Action            `json:"action"`
-	State        State             `json:"state"`
-	StateMessage string            `json:"stateMessage"`
-	Project      Project           `json:"project"`
-	Git          Git               `json:"git"`
-	HeadFeature  Feature           `json:"headFeature"`
-	User         string            `json:"user"`
-	TailFeature  Feature           `json:"tailFeature"`
-	Services     []Service         `json:"services"`
-	Secrets      []Secret          `json:"secrets"` // secrets = build args + artifacts
+	Id           string                 `json:"id"`
+	Action       Action                 `json:"action"`
+	State        State                  `json:"state"`
+	StateMessage string                 `json:"stateMessage"`
+	Project      Project                `json:"project"`
+	Git          Git                    `json:"git"`
+	HeadFeature  Feature                `json:"headFeature"`
+	User         string                 `json:"user"`
+	TailFeature  Feature                `json:"tailFeature"`
+	Services     []Service              `json:"services"`
+	Secrets      []Secret               `json:"secrets"` // secrets = build args + artifacts
 	Artifacts    map[string]interface{} `json:"artifacts"`
-	Environment  string            `json:"environment"`
+	Environment  string                 `json:"environment"`
 }
 
 type ReleaseExtension struct {

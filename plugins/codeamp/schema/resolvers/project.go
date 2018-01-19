@@ -112,9 +112,6 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.Repository = repository
 	project.Name = repository
 	project.Slug = slug.Slug(repository)
-	if args.Project.GitBranch != "" {
-		project.GitBranch = args.Project.GitBranch
-	}
 	r.db.Save(&project)
 
 	// Cascade delete all features and releases related to old git url
@@ -146,11 +143,6 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 		})
 	} else {
 		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
-	}
-
-	spew.Dump(args.Project)
-	if args.Project.GitBranch != "" {
-		gitBranch = args.Project.GitBranch
 	}
 
 	project = models.Project{
@@ -272,7 +264,9 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.Project.GitBranch)).Order("created desc").Find(&rows)
+	spew.Dump("PROJECT BRANCH", r.Environment.GitBranch)
+
+	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.Environment.GitBranch)).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})

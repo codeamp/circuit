@@ -1,8 +1,8 @@
 package kubernetesloadbalancers
 
 import (
-	"strconv"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/codeamp/circuit/plugins"
+	ca_utils "github.com/codeamp/circuit/plugins/codeamp/utils"
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -106,7 +107,12 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	s3AccessLogs := payload.Config[configPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
 	lbType := plugins.GetType(payload.Config[configPrefix+"TYPE"].(string))
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-	kubeconfig := payload.Config[configPrefix+"KUBECONFIG"].(string)
+	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Config, configPrefix)
+	if err != nil {
+		log.Info(err.Error())
+		return err
+	}
+
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
@@ -190,14 +196,14 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
 		if err != nil {
 			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
-			return nil			
+			return nil
 		}
 
 		intContainerPort, err := strconv.Atoi(p.(map[string]interface{})["containerPort"].(string))
 		if err != nil {
 			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
-			return nil			
-		}		
+			return nil
+		}
 		convPort := intstr.IntOrString{
 			IntVal: int32(intContainerPort),
 		}
@@ -210,7 +216,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			TargetPort: convPort,
 			Protocol:   v1.Protocol(realProto),
 		}
-		if strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "HTTPS" || 
+		if strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "HTTPS" ||
 			strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) == "SSL" {
 			sslPorts = append(sslPorts, fmt.Sprintf("%d", intPort))
 		}
@@ -308,22 +314,22 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	route53Config := e.Payload.(plugins.Extension).Config
 	route53Config["KUBERNETESLOADBALANCERS_ELBDNS"] = ELBDNS
-	
+
 	route53Event := e
 	route53Event.Payload = plugins.Extension{
-		Id: e.Payload.(plugins.Extension).Id,
-		Action: plugins.GetAction("create"),
-		Slug: "route53",
-		State: plugins.GetState("waiting"),
+		Id:           e.Payload.(plugins.Extension).Id,
+		Action:       plugins.GetAction("create"),
+		Slug:         "route53",
+		State:        plugins.GetState("waiting"),
 		StateMessage: "",
-		Config: route53Config,
-		Artifacts: map[string]string{},
-		Environment: e.Payload.(plugins.Extension).Environment,
-		Project: e.Payload.(plugins.Extension).Project,
-	}	
-	
+		Config:       route53Config,
+		Artifacts:    map[string]string{},
+		Environment:  e.Payload.(plugins.Extension).Environment,
+		Project:      e.Payload.(plugins.Extension).Project,
+	}
+
 	// send event to codeamp to signal loadbalancers completion
-	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)	
+	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)
 	event.Payload.(plugins.Extension).Artifacts["ELBDNS"] = ELBDNS
 	x.events <- event
 
