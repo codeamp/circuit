@@ -18,5 +18,5 @@ COPY --from=0 /usr/local/bin/dex /usr/local/bin/dex
 COPY --from=1 /go/bin/codeamp-circuit /usr/local/bin/codeamp-circuit
 
 COPY --from=1 /go/src/github.com/codeamp/circuit/configs /usr/local/bin/
-COPY --from=1 /go/src/github.com/codeamp/circuit/plugins/codeamp/schema/schema.graphql $APP_PATH/schema.graphql
+COPY --from=1 /go/src/github.com/codeamp/circuit/plugins/codeamp/schema/schema.graphql $APP_PATH/plugins/codeamp/schema/schema.graphql
 
