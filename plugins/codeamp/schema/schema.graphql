@@ -120,6 +120,7 @@ interface Service {
 interface Environment {
   id: ID!
   name: String!
+  gitBranch: String!
   created: Time!
 }
 
@@ -287,6 +288,7 @@ input ServiceSpecInput {
 input EnvironmentInput {
     id: String
     name: String!
+    gitBranch: String
 }
 
 input EnvironmentVariableInput {

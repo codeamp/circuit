@@ -1,7 +1,6 @@
 package dockerbuilder
 
 import (
-	"github.com/spf13/viper"
 	"bytes"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/viper"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -87,7 +88,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 
 	// idRsaPath := fmt.Sprintf("%s/%s_id_rsa", event.Release.Git.Workdir, event.Release.Project.Repository)
 	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)
-	repoPath = fmt.Sprintf("%s/%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)
+	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository, event.Release.Git.Branch)
 	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
 
 	// Git Env
@@ -124,14 +125,14 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 		log.Info(string(output))
 	}
 
-	output, err = x.git(env, "-C", repoPath, "pull", "origin", event.Release.Git.Branch)
+	output, err = x.git(env, "-C", repoPath, "checkout", event.Release.Git.Branch)
 	if err != nil {
 		log.Info(err)
 		return err
 	}
 	log.Info(string(output))
 
-	output, err = x.git(env, "-C", repoPath, "checkout", event.Release.Git.Branch)
+	output, err = x.git(env, "-C", repoPath, "pull", "origin", event.Release.Git.Branch)
 	if err != nil {
 		log.Info(err)
 		return err
@@ -142,9 +143,9 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 }
 
 func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, dockerBuildOut io.Writer) error {
-	idRsaPath := fmt.Sprintf("%s/%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)	
+	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository, event.Release.Git.Branch)
 	gitArchive := exec.Command("git", "archive", event.Release.HeadFeature.Hash)
-	gitArchive.Dir = idRsaPath
+	gitArchive.Dir = repoPath
 	gitArchiveOut, err := gitArchive.StdoutPipe()
 	if err != nil {
 		log.Debug(err)
@@ -178,7 +179,7 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 
 	buildArgs := []docker.BuildArg{}
 	for _, secret := range event.Extension.Project.Secrets {
-		if(secret.Type == plugins.GetType("build-arg")){
+		if secret.Type == plugins.GetType("build-arg") {
 			ba := docker.BuildArg{
 				Name:  secret.Key,
 				Value: secret.Value,
@@ -190,9 +191,8 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	buildOptions := docker.BuildImageOptions{
 		Dockerfile:   fmt.Sprintf("Dockerfile"),
 		Name:         fullImagePath,
-		ContextDir:   fmt.Sprintf("%s/%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository),		
 		OutputStream: dockerBuildOut,
-		// InputStream:  dockerBuildIn,
+		InputStream:  dockerBuildIn,
 		BuildArgs:    buildArgs,
 	}
 
@@ -267,7 +267,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		x.events <- e.NewEvent(extensionEvent, nil)
 		return nil
 	}
-	
+
 	if e.Name == "plugins.Extension:update:dockerbuilder" {
 		var extensionEvent plugins.Extension
 		extensionEvent = e.Payload.(plugins.Extension)
@@ -275,7 +275,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		extensionEvent.State = plugins.GetState("complete")
 		x.events <- e.NewEvent(extensionEvent, nil)
 		return nil
-	}	
+	}
 
 	event := e.Payload.(plugins.ReleaseExtension)
 

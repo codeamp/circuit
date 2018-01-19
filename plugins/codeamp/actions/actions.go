@@ -51,24 +51,32 @@ func (x *Actions) GitSync(project *models.Project) {
 		hash = release.HeadFeature.Hash
 	}
 
-	gitSync := plugins.GitSync{
-		Action: plugins.GetAction("update"),
-		State:  plugins.GetState("waiting"),
-		Project: plugins.Project{
-			Id:         project.Model.ID.String(),
-			Repository: project.Repository,
-		},
-		Git: plugins.Git{
-			Url:           project.GitUrl,
-			Protocol:      project.GitProtocol,
-			Branch:        "master",
-			RsaPrivateKey: project.RsaPrivateKey,
-			RsaPublicKey:  project.RsaPublicKey,
-		},
-		From: hash,
+	// get branches of entire environments
+	environments := []models.Environment{}
+	if x.db.Find(&environments).RecordNotFound() {
+		log.Info("no envs found")
 	}
 
-	x.events <- transistor.NewEvent(gitSync, nil)
+	for _, env := range environments {
+		gitSync := plugins.GitSync{
+			Action: plugins.GetAction("update"),
+			State:  plugins.GetState("waiting"),
+			Project: plugins.Project{
+				Id:         project.Model.ID.String(),
+				Repository: project.Repository,
+			},
+			Git: plugins.Git{
+				Url:           project.GitUrl,
+				Protocol:      project.GitProtocol,
+				Branch:        env.GitBranch,
+				RsaPrivateKey: project.RsaPrivateKey,
+				RsaPublicKey:  project.RsaPublicKey,
+			},
+			From: hash,
+		}
+
+		x.events <- transistor.NewEvent(gitSync, nil)
+	}
 }
 
 func (x *Actions) GitCommit(commit plugins.GitCommit) {
@@ -97,6 +105,31 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 		log.InfoWithFields("feature already exists", log.Fields{
 			"repository": commit.Repository,
 			"hash":       commit.Hash,
+		})
+	}
+}
+
+func (x *Actions) GitBranch(branch plugins.GitBranch) {
+	project := models.Project{}
+	gitBranch := models.GitBranch{}
+
+	if x.db.Where("repository = ?", branch.Repository).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"repository": branch.Repository,
+		})
+		return
+	}
+
+	if x.db.Where("project_id = ? and name = ?", project.ID, branch.Name).First(&gitBranch).RecordNotFound() {
+		gitBranch = models.GitBranch{
+			ProjectId: project.ID,
+			Name:      branch.Name,
+		}
+		x.db.Save(&gitBranch)
+	} else {
+		log.InfoWithFields("feature already exists", log.Fields{
+			"repository": branch.Repository,
+			"name":       branch.Name,
 		})
 	}
 }
@@ -311,7 +344,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 			Git: plugins.Git{
 				Url:           project.GitUrl,
 				Protocol:      project.GitProtocol,
-				Branch:        "master",
+				Branch:        environment.GitBranch,
 				RsaPrivateKey: project.RsaPrivateKey,
 				RsaPublicKey:  project.RsaPublicKey,
 			},
@@ -642,7 +675,8 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			Services:       pluginServices,
 		},
 		Git: plugins.Git{
-			Url: project.GitUrl,
+			Url:    project.GitUrl,
+			Branch: environment.GitBranch,
 		},
 		Secrets: secrets,
 	}
@@ -911,7 +945,8 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			Services:   pluginServices,
 		},
 		Git: plugins.Git{
-			Url: project.GitUrl,
+			Url:    project.GitUrl,
+			Branch: environment.GitBranch,
 		},
 	}
 	for _, extension := range projectExtensions {

@@ -69,6 +69,7 @@ func (x *CodeAmp) Migrate() {
 		&models.Project{},
 		&models.Release{},
 		&models.Feature{},
+		&models.GitBranch{},
 		&models.Service{},
 		&models.ContainerPort{},
 		&models.ServiceSpec{},
@@ -123,33 +124,39 @@ func (x *CodeAmp) Migrate() {
 	}
 
 	// hosted zone id
+	// hosted zone name
 	hostedZoneId := models.EnvironmentVariable{
 		Key:           "HOSTED_ZONE_ID",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&hostedZoneId)
+	db.FirstOrInit(&hostedZoneId, hostedZoneId)
+	db.Save(&hostedZoneId)
+
 	eValue := models.EnvironmentVariableValue{
 		EnvironmentVariableId: hostedZoneId.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	hostedZoneIdDev := models.EnvironmentVariable{
 		Key:           "HOSTED_ZONE_ID",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&hostedZoneIdDev)
+	db.FirstOrInit(&hostedZoneIdDev, hostedZoneIdDev)
+	db.Save(&hostedZoneIdDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: hostedZoneIdDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// hosted zone name
 	hostedZone := models.EnvironmentVariable{
@@ -158,13 +165,15 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&hostedZone)
+	db.FirstOrInit(&hostedZone, hostedZone)
+	db.Save(&hostedZone)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: hostedZone.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	hostedZoneDev := models.EnvironmentVariable{
 		Key:           "HOSTED_ZONE_NAME",
@@ -172,13 +181,15 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&hostedZoneDev)
+	db.FirstOrInit(&hostedZoneDev, hostedZoneDev)
+	db.Save(&hostedZoneDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: hostedZoneDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// aws secret key
 	awsSecretKey := models.EnvironmentVariable{
@@ -187,27 +198,31 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&awsSecretKey)
+	db.FirstOrInit(&awsSecretKey, awsSecretKey)
+	db.Save(&awsSecretKey)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: awsSecretKey.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	awsSecretKeyDev := models.EnvironmentVariable{
 		Key:           "AWS_SECRET_KEY",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&awsSecretKeyDev)
+	db.FirstOrInit(&awsSecretKeyDev, awsSecretKeyDev)
+	db.Save(&awsSecretKeyDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: awsSecretKeyDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// aws access key
 	awsAccessKey := models.EnvironmentVariable{
@@ -216,27 +231,31 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&awsAccessKey)
+	db.FirstOrInit(&productionEnv, productionEnv)
+	db.Save(&productionEnv)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: awsAccessKey.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	awsAccessKeyDev := models.EnvironmentVariable{
 		Key:           "AWS_ACCESS_KEY_ID",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&awsAccessKeyDev)
+	db.FirstOrInit(&awsAccessKeyDev, awsAccessKeyDev)
+	db.Save(&awsAccessKeyDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: awsAccessKeyDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// docker org
 	dockerOrg := models.EnvironmentVariable{
@@ -245,27 +264,31 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&dockerOrg)
+	db.FirstOrInit(&dockerOrg, dockerOrg)
+	db.Save(&dockerOrg)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: dockerOrg.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	dockerOrgDev := models.EnvironmentVariable{
 		Key:           "DOCKER_ORG",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&dockerOrgDev)
+	db.FirstOrInit(&dockerOrgDev, dockerOrgDev)
+	db.Save(&dockerOrgDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: dockerOrgDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// docker host
 	dockerHost := models.EnvironmentVariable{
@@ -274,27 +297,31 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&dockerHost)
+	db.FirstOrInit(&dockerHost, dockerHost)
+	db.Save(&dockerHost)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: dockerHost.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	dockerHostDev := models.EnvironmentVariable{
 		Key:           "DOCKER_HOST",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&dockerHostDev)
+	db.FirstOrInit(&dockerHostDev, dockerHostDev)
+	db.Save(&dockerHostDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: dockerHostDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// s3 bucket
 	s3Bucket := models.EnvironmentVariable{
@@ -303,27 +330,31 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&s3Bucket)
+	db.FirstOrInit(&s3Bucket, s3Bucket)
+	db.Save(&s3Bucket)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: s3Bucket.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	s3BucketDev := models.EnvironmentVariable{
 		Key:           "S3_BUCKET",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&s3BucketDev)
+	db.FirstOrInit(&s3BucketDev, s3BucketDev)
+	db.Save(&s3BucketDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: s3BucketDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// ssl arn
 	sslArn := models.EnvironmentVariable{
@@ -332,27 +363,31 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&sslArn)
+	db.FirstOrInit(&sslArn, sslArn)
+	db.Save(&sslArn)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: sslArn.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	sslArnDev := models.EnvironmentVariable{
 		Key:           "SSL_ARN",
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&sslArnDev)
+	db.FirstOrInit(&sslArnDev, sslArnDev)
+	db.Save(&sslArnDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: sslArnDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	// kubeconfig
 	kubeConfig := models.EnvironmentVariable{
@@ -361,27 +396,31 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&kubeConfig)
+	db.FirstOrInit(&kubeConfig, kubeConfig)
+	db.Save(&kubeConfig)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: kubeConfig.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	kubeConfigDev := models.EnvironmentVariable{
 		Key:           "KUBECONFIG",
 		Type:          "file",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentId: developmentEnv.Model.ID,
 	}
-	db.Create(&kubeConfigDev)
+	db.FirstOrInit(&kubeConfigDev, kubeConfigDev)
+	db.Save(&kubeConfigDev)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: kubeConfigDev.Model.ID,
 		UserId:                user.Model.ID,
 		Value:                 "",
 	}
-	db.Create(&eValue)
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
 
 	serviceSpec := models.ServiceSpec{
 		Name:                   "default",
@@ -637,6 +676,7 @@ func (x *CodeAmp) Subscribe() []string {
 	return []string{
 		"plugins.GitPing",
 		"plugins.GitCommit",
+		"plugins.GitBranch",
 		"plugins.GitStatus",
 		"plugins.HeartBeat",
 		"plugins.WebsocketMsg",
@@ -666,6 +706,11 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	if e.Matches("plugins.GitCommit") {
 		payload := e.Payload.(plugins.GitCommit)
 		x.Actions.GitCommit(payload)
+	}
+
+	if e.Matches("plugins.GitBranch") {
+		payload := e.Payload.(plugins.GitBranch)
+		x.Actions.GitBranch(payload)
 	}
 
 	if e.Matches("plugins.WebsocketMsg") {

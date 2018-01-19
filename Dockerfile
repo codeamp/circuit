@@ -3,7 +3,7 @@ FROM golang:alpine
 
 ENV APP_PATH /go/src/github.com/codeamp/circuit
 
-RUN apk -U add alpine-sdk git gcc
+RUN apk -U add alpine-sdk git gcc docker
 RUN go get github.com/cespare/reflex
 
 RUN mkdir -p $APP_PATH

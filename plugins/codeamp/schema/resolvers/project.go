@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
@@ -26,6 +27,7 @@ type ProjectInput struct {
 	GitUrl        string
 	Bookmarked    *bool
 	EnvironmentId string
+	GitBranch     string
 }
 
 func (r *Resolver) Project(ctx context.Context, args *struct {
@@ -110,6 +112,7 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	project.Repository = repository
 	project.Name = repository
 	project.Slug = slug.Slug(repository)
+
 	r.db.Save(&project)
 
 	// Cascade delete all features and releases related to old git url
@@ -256,7 +259,9 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	r.db.Where("project_id = ?", r.Project.ID).Order("created desc").Find(&rows)
+	spew.Dump("PROJECT BRANCH", r.Environment.GitBranch)
+
+	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.Environment.GitBranch)).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})

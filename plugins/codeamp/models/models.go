@@ -31,8 +31,9 @@ type UserPermission struct {
 }
 
 type Environment struct {
-	Model `json:",inline"`
-	Name  string `json:"name"`
+	Model     `json:",inline"`
+	Name      string `json:"name"`
+	GitBranch string `json:"gitBranch"`
 }
 
 type EnvironmentVariableScope string
@@ -129,6 +130,12 @@ type Feature struct {
 	Created    time.Time `json:"created"`
 }
 
+type GitBranch struct {
+	Model     `json:"inline"`
+	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	Name      string    `json:"name"`
+}
+
 type Release struct {
 	Model         `json:",inline"`
 	State         plugins.State `json:"state"`
@@ -165,13 +172,13 @@ type ExtensionSpec struct {
 }
 
 type Extension struct {
-	Model                `json:",inline"`
-	ProjectId            uuid.UUID      `json:"projectId" gorm:"type:uuid"`
-	ExtensionSpecId      uuid.UUID      `json:"extensionSpecId" gorm:"type:uuid"`
-	State                plugins.State  `json:"state"`
-	Artifacts            postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"`
-    Config        	     postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
-	EnvironmentId        uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	Model           `json:",inline"`
+	ProjectId       uuid.UUID      `json:"projectId" gorm:"type:uuid"`
+	ExtensionSpecId uuid.UUID      `json:"extensionSpecId" gorm:"type:uuid"`
+	State           plugins.State  `json:"state"`
+	Artifacts       postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"`
+	Config          postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
+	EnvironmentId   uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 type ReleaseExtension struct {
