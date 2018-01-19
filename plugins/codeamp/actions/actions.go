@@ -264,7 +264,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 
 	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope = ? and project_id = ?", "global", project.Model.ID.String()).Find(&adminEnvVars).RecordNotFound() {
+	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
 		log.InfoWithFields("no project env vars found", log.Fields{})
 	}
 	for _, val := range projectEnvVars {
@@ -555,7 +555,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 
 	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope in ?", "global").Find(&adminEnvVars).RecordNotFound() {
+	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
 		log.InfoWithFields("no project env vars found", log.Fields{})
 	}
 	for _, val := range projectEnvVars {

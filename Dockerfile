@@ -15,3 +15,6 @@ RUN go build -i -o /go/bin/codeamp-circuit .
 FROM alpine:3.4
 COPY --from=0 /usr/local/bin/dex /usr/local/bin/dex
 COPY --from=1 /go/bin/codeamp-circuit /usr/local/bin/codeamp-circuit
+
+COPY --from=1 /go/src/github.com/codeamp/circuit/configs /usr/local/bin/
+
