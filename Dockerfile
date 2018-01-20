@@ -7,8 +7,8 @@ WORKDIR $APP_PATH
 
 COPY . $APP_PATH
 RUN go get -u github.com/jteeuwen/go-bindata/...
-RUN mkdir -p $APP_PATH/assets/
-RUN /go/bin/go-bindata -pkg assets -o $APP_PATH/assets/assets.go $APP_PATH/plugins/codeamp/schema/schema.graphql
+RUN mkdir -p assets/
+RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema/schema.graphql
 RUN go build -i -o /go/bin/codeamp-circuit .
 
 

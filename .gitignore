@@ -36,3 +36,5 @@ server/secrets/*
 plugins/codeamp/schema/resolvers/experiments/
 rm.sh
 credentials/*
+
+assets/*
