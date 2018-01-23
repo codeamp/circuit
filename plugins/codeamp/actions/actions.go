@@ -251,7 +251,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	for _, val := range adminEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
 				"id": val.Model.ID.String(),
 			})
@@ -270,7 +270,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	for _, val := range projectEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
 				"id": val.Model.ID.String(),
 			})
@@ -281,9 +281,9 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 				Type:  val.Type,
 			})
 		}
-		spew.Dump("evValue", evValue)
-		spew.Dump("secrets", secrets)
 	}
+
+	spew.Dump("SECRETS DONE!", secrets)
 
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
@@ -544,7 +544,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 	for _, val := range adminEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
 				"id": val.Model.ID.String(),
 			})
@@ -563,7 +563,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 	for _, val := range projectEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
 				"id": val.Model.ID.String(),
 			})
@@ -574,9 +574,9 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				Type:  val.Type,
 			})
 		}
-		spew.Dump("evValue", evValue)
-		spew.Dump("secrets", secrets)
 	}
+
+	spew.Dump("SECRETS DONE!", secrets)
 
 	headFeature := models.Feature{}
 	if x.db.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
