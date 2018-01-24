@@ -12,7 +12,6 @@ import (
 
 	ca_utils "github.com/codeamp/circuit/plugins/codeamp/utils"
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
-	"github.com/davecgh/go-spew/spew"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -296,23 +295,15 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		}
 	}
 
-	spew.Dump("parsed kubeconfig", config)
-
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Println("Error getting cluster config.  Aborting!")
 		return nil
 	}
 
-	// spew.Dump("DEPLOY IN PROGRESS")
 	x.sendDDInProgress(e, reData.Release.Project.Services, "Deploy in-progress")
-	// spew.Dump("GenNamespaceName", reData.Release.Environment, projectSlug)
 	namespace := utils.GenNamespaceName(reData.Release.Environment, projectSlug)
-	// spew.Dump("output: ", namespace)
-
-	// spew.Dump("coreInterface")
 	coreInterface := clientset.Core()
-	// spew.Dump("output: ", coreInterface)
 
 	successfulDeploys := 0
 	// TODO: get timeout from formValues
@@ -323,15 +314,12 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	//}
 	curTime := 0
 
-	// spew.Dump("createNamespaceIfNotExists", namespace, coreInterface)
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
 		x.sendDDErrorResponse(e, reData.Release.Project.Services, createNamespaceErr.Error())
 		return nil
 	}
-	// spew.Dump("output:", createNamespaceErr)
 
-	// spew.Dump("createDockerIOSecretIfNotExists", namespace, coreInterface)
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, coreInterface, e)
 	if createDockerIOSecretErr != nil {
 		x.sendDDErrorResponse(e, reData.Release.Project.Services, createDockerIOSecretErr.Error())
@@ -350,8 +338,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	for _, secret := range reData.Release.Secrets {
 		secretMap[secret.Key] = secret.Value
 	}
-
-	spew.Dump("SECRETS CREATED", secretMap)
 
 	secretParams := &v1.Secret{
 		TypeMeta: meta_v1.TypeMeta{
@@ -405,7 +391,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		ReadOnly:  true,
 	})
 
-	spew.Dump("FILE SECRETS", reData.Release.Secrets)
 	for _, secret := range reData.Release.Secrets {
 		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{

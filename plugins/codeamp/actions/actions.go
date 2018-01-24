@@ -57,26 +57,27 @@ func (x *Actions) GitSync(project *models.Project) {
 		log.Info("no envs found")
 	}
 
-	for _, env := range environments {
-		gitSync := plugins.GitSync{
-			Action: plugins.GetAction("update"),
-			State:  plugins.GetState("waiting"),
-			Project: plugins.Project{
-				Id:         project.Model.ID.String(),
-				Repository: project.Repository,
-			},
-			Git: plugins.Git{
-				Url:           project.GitUrl,
-				Protocol:      project.GitProtocol,
-				Branch:        env.GitBranch,
-				RsaPrivateKey: project.RsaPrivateKey,
-				RsaPublicKey:  project.RsaPublicKey,
-			},
-			From: hash,
-		}
 
-		x.events <- transistor.NewEvent(gitSync, nil)
-	}
+	// for _, env := range environments {
+	// 	gitSync := plugins.GitSync{
+	// 		Action: plugins.GetAction("update"),
+	// 		State:  plugins.GetState("waiting"),
+	// 		Project: plugins.Project{
+	// 			Id:         project.Model.ID.String(),
+	// 			Repository: project.Repository,
+	// 		},
+	// 		Git: plugins.Git{
+	// 			Url:           project.GitUrl,
+	// 			Protocol:      project.GitProtocol,
+	// 			Branch:        env.GitBranch,
+	// 			RsaPrivateKey: project.RsaPrivateKey,
+	// 			RsaPublicKey:  project.RsaPublicKey,
+	// 		},
+	// 		From: hash,
+	// 	}
+
+	// 	x.events <- transistor.NewEvent(gitSync, nil)
+	// }
 }
 
 func (x *Actions) GitCommit(commit plugins.GitCommit) {
@@ -127,7 +128,7 @@ func (x *Actions) GitBranch(branch plugins.GitBranch) {
 		}
 		x.db.Save(&gitBranch)
 	} else {
-		log.InfoWithFields("feature already exists", log.Fields{
+		log.InfoWithFields("branch already exists", log.Fields{
 			"repository": branch.Repository,
 			"name":       branch.Name,
 		})

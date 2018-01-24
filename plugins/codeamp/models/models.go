@@ -33,7 +33,6 @@ type UserPermission struct {
 type Environment struct {
 	Model     `json:",inline"`
 	Name      string `json:"name"`
-	GitBranch string `json:"gitBranch"`
 }
 
 type EnvironmentVariableScope string
@@ -79,7 +78,6 @@ type Project struct {
 	Slug          string `json:"slug"`
 	Repository    string `json:"repository"`
 	Secret        string `json:"-"`
-	GitBranch     string `json::"GitBranch"`
 	GitUrl        string `json:"GitUrl"`
 	GitProtocol   string `json:"GitProtocol"`
 	RsaPrivateKey string `json:"-"`
