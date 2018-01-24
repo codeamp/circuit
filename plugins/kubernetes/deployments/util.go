@@ -319,7 +319,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	//timeout := e.Payload.(plugins.ReleaseExtension).Release.Timeout
 	// Set default timeout to 600 seconds if not specified.
 	//if timeout == 0 {
-	timeout := 60
+	timeout := 600
 	//}
 	curTime := 0
 
