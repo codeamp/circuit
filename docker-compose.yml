@@ -16,8 +16,22 @@ services:
       - ./bootstrap/postgres:/docker-entrypoint-initdb.d
     networks:
       - codeamp
+  dex:
+    container_name: circuit_dex
+    image: dex
+    build: https://github.com/codeamp/dex-infrastructure.git
+    command: serve /etc/dex/dex.dev.yaml
+    ports:
+      - "${DOCKER_COMPOSE_DEX_PORT}:5556"
+    depends_on:
+      - postgres
+    volumes:
+      - .:/etc/dex/
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - codeamp 
   circuit:
-    image: codeamp:v001
+    image: circuit
     command: sh -c "reflex -c reflex.conf"
     build:
       context: .
@@ -33,6 +47,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - dex
     networks:
       - codeamp
 networks:

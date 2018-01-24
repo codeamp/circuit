@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
@@ -105,7 +104,6 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	if r.db.Unscoped().Where("id != ? and repository = ?", projectId, repository).First(&models.Project{}).RecordNotFound() == false {
 		return nil, fmt.Errorf("Project with repository name already exists.")
 	}
-	spew.Dump(args.Project)
 	project.GitUrl = args.Project.GitUrl
 	project.GitProtocol = protocol
 	project.Repository = repository

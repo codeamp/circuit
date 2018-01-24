@@ -11,7 +11,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -282,8 +281,6 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 			})
 		}
 	}
-
-	spew.Dump("SECRETS DONE!", secrets)
 
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
@@ -575,8 +572,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			})
 		}
 	}
-
-	spew.Dump("SECRETS DONE!", secrets)
 
 	headFeature := models.Feature{}
 	if x.db.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {

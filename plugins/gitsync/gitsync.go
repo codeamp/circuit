@@ -14,7 +14,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 )
 
@@ -261,8 +260,6 @@ func (x *GitSync) Process(e transistor.Event) error {
 	gitSyncEvent.State = plugins.GetState("fetching")
 	gitSyncEvent.StateMessage = ""
 	x.events <- e.NewEvent(gitSyncEvent, nil)
-
-	spew.Dump("gitSync", gitSyncEvent)
 
 	commits, err := x.commits(gitSyncEvent.Project, gitSyncEvent.Git)
 	if err != nil {
