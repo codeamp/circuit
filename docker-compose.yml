@@ -18,7 +18,7 @@ services:
       - codeamp
   circuit:
     image: codeamp:v001
-    command: sh -c "/usr/local/bin/dex serve /etc/dex/dex.dev.yaml & reflex -c reflex.conf"
+    command: sh -c "reflex -c reflex.conf"
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -26,12 +26,9 @@ services:
         pull: 1
     ports:
       - "${DOCKER_COMPOSE_CIRCUIT_PORT}:3011"
-      - "${DOCKER_COMPOSE_DEX_APP_PORT}:5555"
-      - "${DOCKER_COMPOSE_DEX_PORT}:5556"
     volumes:
       - .:/go/src/github.com/codeamp/circuit
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./configs/dex.dev.yaml:/etc/dex/dex.dev.yaml
       - ./credentials:/etc/secrets
     depends_on:
       - postgres

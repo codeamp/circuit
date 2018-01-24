@@ -147,16 +147,6 @@ interface EnvironmentVariableValue {
   created: Time!
 }
 
-# ExtensionSpecEnvironmentVariable
-interface ExtensionSpecEnvironmentVariable {
-  id: ID!
-  type: String!
-  key: String!
-  environmentVariable: EnvironmentVariable!
-  extensionSpec: ExtensionSpec!
-  created: Time!
-}
-
 # ServiceSpec object
 interface ServiceSpec {
   id: ID!
