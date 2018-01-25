@@ -52,7 +52,7 @@ func (x *Actions) GitSync(project *models.Project) {
 	}
 
 	// get branches of entire environments
-	envProjectBranches := []models.EnvironmentProjectBranch{}
+	envProjectBranches := []models.EnvironmentBasedProjectBranch{}
 	if x.db.Find(&envProjectBranches).RecordNotFound() {
 		log.Info("no env project branches found")
 		gitSync := plugins.GitSync{
@@ -183,13 +183,13 @@ func (x *Actions) ServiceDeleted(service *models.Service) {
 	}
 }
 
-func (x *Actions) EnvironmentProjectBranchCreated(service *models.EnvironmentProjectBranch) {
+func (x *Actions) EnvironmentBasedProjectBranchCreated(service *models.EnvironmentBasedProjectBranch) {
 }
 
-func (x *Actions) EnvironmentProjectBranchUpdated(service *models.EnvironmentProjectBranch) {
+func (x *Actions) EnvironmentBasedProjectBranchUpdated(service *models.EnvironmentBasedProjectBranch) {
 }
 
-func (x *Actions) EnvironmentProjectBranchDeleted(service *models.EnvironmentProjectBranch) {
+func (x *Actions) EnvironmentBasedProjectBranchDeleted(service *models.EnvironmentBasedProjectBranch) {
 }
 
 func (x *Actions) ServiceSpecCreated(service *models.ServiceSpec) {
@@ -311,7 +311,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentProjectBranch{}
+	envProjectBranch := models.EnvironmentBasedProjectBranch{}
 	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
 		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
@@ -636,7 +636,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentProjectBranch{}
+	envProjectBranch := models.EnvironmentBasedProjectBranch{}
 	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
 		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
@@ -919,7 +919,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentProjectBranch{}
+	envProjectBranch := models.EnvironmentBasedProjectBranch{}
 	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
 		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})

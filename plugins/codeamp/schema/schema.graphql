@@ -34,6 +34,9 @@ type Query {
   # Retrieve all environment variables
   environmentVariables(): [EnvironmentVariable]!
 
+  # Retrieve all environment variables
+  environmentBasedProjectBranches(): [EnvironmentBasedProjectBranch]!  
+
   # Retrieve all extension specs
   extensionSpecs(): [ExtensionSpec]!
 
@@ -75,9 +78,9 @@ type Mutation {
   updateExtension(extension: ExtensionInput): Extension
   deleteExtension(extension: ExtensionInput): Extension
 
-  createEnvironmentProjectBranch(environmentProjectBranch: EnvironmentProjectBranchInput): EnvironmentProjectBranch
-  createEnvironmentProjectBranch(environmentProjectBranch: EnvironmentProjectBranchInput): EnvironmentProjectBranch
-  createEnvironmentProjectBranch(environmentProjectBranch: EnvironmentProjectBranchInput): EnvironmentProjectBranch
+  createEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
+  updateEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
+  deleteEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
 }
 
 # User object
@@ -124,7 +127,6 @@ interface Service {
 interface Environment {
   id: ID!
   name: String!
-  gitBranch: String!
   created: Time!
 }
 
@@ -236,8 +238,8 @@ interface ReleaseExtension {
   created: Time!
 }
 
-interface EnvironmentProjectBranch {
-  id: String!
+interface EnvironmentBasedProjectBranch {
+  id: ID!
   environment: Environment!
   project: Project!
   gitBranch: String! 
@@ -287,9 +289,8 @@ input ServiceSpecInput {
 }
 
 input EnvironmentInput {
-    id: String
-    name: String!
-    gitBranch: String
+  id: String
+  name: String!
 }
 
 input EnvironmentVariableInput {
@@ -302,7 +303,7 @@ input EnvironmentVariableInput {
   environmentId: String!
 }
 
-input EnvironmentProjectBranchInput {
+input EnvironmentBasedProjectBranchInput {
   id: String
   environmentId: String!
   projectId: String!
