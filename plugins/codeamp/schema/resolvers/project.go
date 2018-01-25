@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
@@ -26,7 +25,6 @@ type ProjectInput struct {
 	GitProtocol   string
 	GitUrl        string
 	Bookmarked    *bool
-	GitBranch     string
 	EnvironmentId string
 }
 
@@ -106,15 +104,11 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	if r.db.Unscoped().Where("id != ? and repository = ?", projectId, repository).First(&models.Project{}).RecordNotFound() == false {
 		return nil, fmt.Errorf("Project with repository name already exists.")
 	}
-	spew.Dump(args.Project)
 	project.GitUrl = args.Project.GitUrl
 	project.GitProtocol = protocol
 	project.Repository = repository
 	project.Name = repository
 	project.Slug = slug.Slug(repository)
-	if args.Project.GitBranch != "" {
-		project.GitBranch = args.Project.GitBranch
-	}
 	r.db.Save(&project)
 
 	// Cascade delete all features and releases related to old git url
@@ -133,7 +127,6 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	}
 
 	var project models.Project
-	gitBranch := "master"
 
 	// Check if project already exists with same name
 	existingProject := models.Project{}
@@ -148,15 +141,9 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
 	}
 
-	spew.Dump(args.Project)
-	if args.Project.GitBranch != "" {
-		gitBranch = args.Project.GitBranch
-	}
-
 	project = models.Project{
 		GitProtocol: protocol,
 		GitUrl:      args.Project.GitUrl,
-		GitBranch:   gitBranch,
 		Secret:      transistor.RandomString(30),
 	}
 
@@ -238,10 +225,6 @@ func (r *ProjectResolver) GitUrl() string {
 	return r.Project.GitUrl
 }
 
-func (r *ProjectResolver) GitBranch() string {
-	return r.Project.GitBranch
-}
-
 func (r *ProjectResolver) GitProtocol() string {
 	return r.Project.GitProtocol
 }
@@ -272,7 +255,7 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.Project.GitBranch)).Order("created desc").Find(&rows)
+	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.Environment.GitBranch)).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})

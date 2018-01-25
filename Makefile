@@ -1,6 +1,6 @@
 up:
 	docker-compose up -d redis postgres
-	docker-compose run --rm circuit go run main.go --config ./configs/circuit.dev.yml migrate
+	docker-compose run --rm circuit go run main.go migrate --config ./configs/circuit.yml
 	docker-compose up circuit
 
 build:

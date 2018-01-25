@@ -10,8 +10,9 @@ import (
 )
 
 type EnvironmentInput struct {
-	ID   *string
-	Name string
+	ID        *string
+	Name      string
+	GitBranch *string
 }
 
 type EnvironmentResolver struct {
@@ -31,9 +32,15 @@ func (r *Resolver) Environment(ctx context.Context, args *struct{ ID graphql.ID 
 func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
 
 	var existingEnv models.Environment
+
+	branch := "master"
+	if args.Environment.GitBranch != nil {
+		branch = *args.Environment.GitBranch
+	}
+
 	if r.db.Where("name = ?", args.Environment.Name).Find(&existingEnv).RecordNotFound() {
 		env := models.Environment{
-			Name: args.Environment.Name,
+			Name:      args.Environment.Name,
 		}
 
 		r.db.Create(&env)
@@ -52,6 +59,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
 	} else {
 		existingEnv.Name = args.Environment.Name
+
 		r.db.Save(&existingEnv)
 		r.actions.EnvironmentUpdated(&existingEnv)
 		return &EnvironmentResolver{db: r.db, Environment: existingEnv}, nil

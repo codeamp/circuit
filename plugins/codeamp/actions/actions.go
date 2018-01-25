@@ -8,6 +8,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
@@ -50,24 +51,50 @@ func (x *Actions) GitSync(project *models.Project) {
 		hash = release.HeadFeature.Hash
 	}
 
-	gitSync := plugins.GitSync{
-		Action: plugins.GetAction("update"),
-		State:  plugins.GetState("waiting"),
-		Project: plugins.Project{
-			Id:         project.Model.ID.String(),
-			Repository: project.Repository,
-		},
-		Git: plugins.Git{
-			Url:           project.GitUrl,
-			Protocol:      project.GitProtocol,
-			Branch:        project.GitBranch,
-			RsaPrivateKey: project.RsaPrivateKey,
-			RsaPublicKey:  project.RsaPublicKey,
-		},
-		From: hash,
-	}
+	// get branches of entire environments
+	envProjectBranches := []models.EnvironmentProjectBranch{}
+	if x.db.Find(&envProjectBranches).RecordNotFound() {
+		log.Info("no env project branches found")
+		gitSync := plugins.GitSync{
+			Action: plugins.GetAction("update"),
+			State:  plugins.GetState("waiting"),
+			Project: plugins.Project{
+				Id:         project.Model.ID.String(),
+				Repository: project.Repository,
+			},
+			Git: plugins.Git{
+				Url:           project.GitUrl,
+				Protocol:      project.GitProtocol,
+				Branch:        "master",
+				RsaPrivateKey: project.RsaPrivateKey,
+				RsaPublicKey:  project.RsaPublicKey,
+			},
+			From: hash,
+		}
 
-	x.events <- transistor.NewEvent(gitSync, nil)
+		x.events <- transistor.NewEvent(gitSync, nil)		
+	} else {
+		for _, envProjectBranch := range envProjectBranches {
+			gitSync := plugins.GitSync{
+				Action: plugins.GetAction("update"),
+				State:  plugins.GetState("waiting"),
+				Project: plugins.Project{
+					Id:         project.Model.ID.String(),
+					Repository: project.Repository,
+				},
+				Git: plugins.Git{
+					Url:           project.GitUrl,
+					Protocol:      project.GitProtocol,
+					Branch:        envProjectBranch.GitBranch,
+					RsaPrivateKey: project.RsaPrivateKey,
+					RsaPublicKey:  project.RsaPublicKey,
+				},
+				From: hash,
+			}
+
+			x.events <- transistor.NewEvent(gitSync, nil)
+		}
+	}
 }
 
 func (x *Actions) GitCommit(commit plugins.GitCommit) {
@@ -96,6 +123,31 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 		log.InfoWithFields("feature already exists", log.Fields{
 			"repository": commit.Repository,
 			"hash":       commit.Hash,
+		})
+	}
+}
+
+func (x *Actions) GitBranch(branch plugins.GitBranch) {
+	project := models.Project{}
+	gitBranch := models.GitBranch{}
+
+	if x.db.Where("repository = ?", branch.Repository).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"repository": branch.Repository,
+		})
+		return
+	}
+
+	if x.db.Where("project_id = ? and name = ?", project.ID, branch.Name).First(&gitBranch).RecordNotFound() {
+		gitBranch = models.GitBranch{
+			ProjectId: project.ID,
+			Name:      branch.Name,
+		}
+		x.db.Save(&gitBranch)
+	} else {
+		log.InfoWithFields("branch already exists", log.Fields{
+			"repository": branch.Repository,
+			"name":       branch.Name,
 		})
 	}
 }
@@ -129,6 +181,15 @@ func (x *Actions) ServiceDeleted(service *models.Service) {
 			"service": service,
 		})
 	}
+}
+
+func (x *Actions) EnvironmentProjectBranchCreated(service *models.EnvironmentProjectBranch) {
+}
+
+func (x *Actions) EnvironmentProjectBranchUpdated(service *models.EnvironmentProjectBranch) {
+}
+
+func (x *Actions) EnvironmentProjectBranchDeleted(service *models.EnvironmentProjectBranch) {
 }
 
 func (x *Actions) ServiceSpecCreated(service *models.ServiceSpec) {
@@ -190,22 +251,15 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 		})
 	}
 
-	formValues := make(map[string]interface{})
 	unmarshalledConfig := make(map[string]interface{})
-
 	err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
 	if err != nil {
 		log.Info(err.Error())
 	}
 
-	// iter through custom + config and add to formvalues interface
-	for _, val := range unmarshalledConfig["config"].([]interface{}) {
-		val := val.(map[string]interface{})
-		formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
-	}
-
-	for key, val := range unmarshalledConfig["custom"].(map[string]interface{}) {
-		formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(key))] = val
+	formValues, err := utils.GetFilledFormValues(unmarshalledConfig, extensionSpec.Key, x.db)
+	if err != nil {
+		log.Info(err.Error())
 	}
 
 	services := []models.Service{}
@@ -223,9 +277,9 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 	for _, val := range adminEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -237,14 +291,14 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 
 	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope = ? and project_id = ?", "global", project.Model.ID.String()).Find(&adminEnvVars).RecordNotFound() {
+	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
 		log.InfoWithFields("no project env vars found", log.Fields{})
 	}
 	for _, val := range projectEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -253,6 +307,16 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 				Type:  val.Type,
 			})
 		}
+	}
+
+	// get all branches relevant for the projec
+	branch := "master"
+	envProjectBranch := models.EnvironmentProjectBranch{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = envProjectBranch.GitBranch
 	}
 
 	pluginServices := []plugins.Service{}
@@ -317,7 +381,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 			Git: plugins.Git{
 				Url:           project.GitUrl,
 				Protocol:      project.GitProtocol,
-				Branch:        project.GitBranch,
+				Branch:        branch,
 				RsaPrivateKey: project.RsaPrivateKey,
 				RsaPublicKey:  project.RsaPublicKey,
 			},
@@ -514,9 +578,9 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 	for _, val := range adminEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -528,14 +592,14 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	}
 
 	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope in ?", "global").Find(&adminEnvVars).RecordNotFound() {
+	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
 		log.InfoWithFields("no project env vars found", log.Fields{})
 	}
 	for _, val := range projectEnvVars {
 		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("id = ?", val.Value).First(&evValue).RecordNotFound() {
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
 			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Value,
+				"id": val.Model.ID.String(),
 			})
 		} else {
 			secrets = append(secrets, plugins.Secret{
@@ -569,6 +633,16 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		})
 		return
 	}
+
+	// get all branches relevant for the projec
+	branch := "master"
+	envProjectBranch := models.EnvironmentProjectBranch{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = envProjectBranch.GitBranch
+	}		
 
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
@@ -648,7 +722,8 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			Services:       pluginServices,
 		},
 		Git: plugins.Git{
-			Url: project.GitUrl,
+			Url:    project.GitUrl,
+			Branch: branch,
 		},
 		Secrets: secrets,
 	}
@@ -689,8 +764,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 			}
 
 			x.db.Save(&releaseExtension)
-
-			formValues := make(map[string]interface{})
 			unmarshalledConfig := make(map[string]interface{})
 
 			err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
@@ -698,14 +771,9 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 				log.Info(err.Error())
 			}
 
-			// iter through custom + config and add to formvalues interface
-			for _, val := range unmarshalledConfig["config"].([]interface{}) {
-				val := val.(map[string]interface{})
-				formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
-			}
-
-			for key, val := range unmarshalledConfig["custom"].(map[string]interface{}) {
-				formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(key))] = val
+			formValues, err := utils.GetFilledFormValues(unmarshalledConfig, extensionSpec.Key, x.db)
+			if err != nil {
+				log.Info(err.Error())
 			}
 
 			extensionEvent := plugins.Extension{
@@ -849,6 +917,16 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		return
 	}
 
+	// get all branches relevant for the projec
+	branch := "master"
+	envProjectBranch := models.EnvironmentProjectBranch{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = envProjectBranch.GitBranch
+	}		
+
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
 		spec := models.ServiceSpec{}
@@ -924,7 +1002,8 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			Services:   pluginServices,
 		},
 		Git: plugins.Git{
-			Url: project.GitUrl,
+			Url:    project.GitUrl,
+			Branch: branch,
 		},
 	}
 	for _, extension := range projectExtensions {
@@ -950,7 +1029,6 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 			x.db.Save(&releaseExtension)
 
-			formValues := make(map[string]interface{})
 			unmarshalledConfig := make(map[string]interface{})
 
 			err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
@@ -958,15 +1036,11 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 				log.Info(err.Error())
 			}
 
-			// iter through custom + config and add to formvalues interface
-			for _, val := range unmarshalledConfig["config"].([]interface{}) {
-				val := val.(map[string]interface{})
-				formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
+			formValues, err := utils.GetFilledFormValues(unmarshalledConfig, extensionSpec.Key, x.db)
+			if err != nil {
+				log.Info(err.Error())
 			}
 
-			for key, val := range unmarshalledConfig["custom"].(map[string]interface{}) {
-				formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(key))] = val
-			}
 			extensionEvent := plugins.Extension{
 				Id:     extension.Model.ID.String(),
 				Config: formValues,

@@ -31,8 +31,8 @@ type UserPermission struct {
 }
 
 type Environment struct {
-	Model `json:",inline"`
-	Name  string `json:"name"`
+	Model     `json:",inline"`
+	Name      string `json:"name"`
 }
 
 type EnvironmentVariableScope string
@@ -78,7 +78,6 @@ type Project struct {
 	Slug          string `json:"slug"`
 	Repository    string `json:"repository"`
 	Secret        string `json:"-"`
-	GitBranch     string `json::"GitBranch"`
 	GitUrl        string `json:"GitUrl"`
 	GitProtocol   string `json:"GitProtocol"`
 	RsaPrivateKey string `json:"-"`
@@ -128,6 +127,20 @@ type Feature struct {
 	ParentHash string    `json:"parentHash"`
 	Ref        string    `json:"ref"`
 	Created    time.Time `json:"created"`
+}
+
+type GitBranch struct {
+	Model     `json:"inline"`
+	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	Name      string    `json:"name"`
+}
+
+// This branch is tied to an environment and project
+type EnvironmentProjectBranch struct {
+	Model `json:"inline"`
+	EnvironmentId uuid.UUID    `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	ProjectId     uuid.UUID    `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	GitBranch string
 }
 
 type Release struct {

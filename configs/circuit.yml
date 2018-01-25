@@ -2,7 +2,7 @@
 redis:
   username:
   password:
-  server: "0.0.0.0:6379"
+  server: "redis:6379"
   database: "0"
   pool: "30"
   process: "1"
@@ -11,7 +11,7 @@ plugins:
     workers: 1
     oidc_uri: http://localhost:5556/dex
     postgres:
-      host: "0.0.0.0"
+      host: "postgres"
       port: "5432"
       user: "postgres"
       dbname: "codeamp"

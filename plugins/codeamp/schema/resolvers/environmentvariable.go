@@ -1,9 +1,10 @@
 package resolvers
 
 import (
-	log "github.com/codeamp/logger"
 	"context"
 	"fmt"
+
+	log "github.com/codeamp/logger"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
@@ -15,14 +16,13 @@ import (
 )
 
 type EnvironmentVariableInput struct {
-	ID                                 *string
-	Key                                string
-	Value                              string
-	Type                               string
-	Scope                              string
-	ProjectId                          *string
-	EnvironmentId                      string
-	ExtensionSpecEnvironmentVariableId *string
+	ID            *string
+	Key           string
+	Value         string
+	Type          string
+	Scope         string
+	ProjectId     *string
+	EnvironmentId string
 }
 
 type EnvironmentVariableResolver struct {
@@ -44,11 +44,11 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 	projectId := uuid.UUID{}
 	var environmentId uuid.UUID
 	var environmentVariableScope models.EnvironmentVariableScope
-	
+
 	if args.EnvironmentVariable.ProjectId != nil {
 		projectId = uuid.FromStringOrNil(*args.EnvironmentVariable.ProjectId)
 	}
-	
+
 	environmentVariableScope = models.GetEnvironmentVariableScope(args.EnvironmentVariable.Scope)
 	if environmentVariableScope == models.EnvironmentVariableScope("unknown") {
 		return nil, fmt.Errorf("Invalid env var scope.")
@@ -186,8 +186,8 @@ func (r *EnvironmentVariableResolver) Scope() string {
 
 func (r *EnvironmentVariableResolver) User() (*UserResolver, error) {
 	var envVarValue models.EnvironmentVariableValue
-	var user models.User	
-	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").First(&envVarValue)	
+	var user models.User
+	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").First(&envVarValue)
 	r.db.Model(envVarValue).Related(&user)
 	return &UserResolver{db: r.db, User: user}, nil
 }
@@ -209,7 +209,7 @@ func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*Environm
 
 	// iter and return env var value resolvers
 	for _, ev := range envVarValues {
-		envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: ev })
+		envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: ev})
 	}
 
 	return envVarValueResolvers, nil

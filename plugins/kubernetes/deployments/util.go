@@ -8,6 +8,9 @@ import (
 	"strings"
 	"time"
 
+	ca_log "github.com/codeamp/logger"
+
+	ca_utils "github.com/codeamp/circuit/plugins/codeamp/utils"
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -267,15 +270,22 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 }
 
 func (x *Deployments) doDeploy(e transistor.Event) error {
-	
-	payload := e.Payload.(plugins.ReleaseExtension)
-	kubeconfig := payload.Extension.Config["KUBERNETESDEPLOYMENTS_KUBECONFIG"].(string)
-	log.Printf("Using kubeconfig file: %s", kubeconfig)
 
+	payload := e.Payload.(plugins.ReleaseExtension)
+
+	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Extension.Config, "KUBERNETESDEPLOYMENTS_")
+	if err != nil {
+		ca_log.Info(err.Error())
+		return err
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
 	if err != nil {
 		log.Printf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err)
 		config, err = clientcmd.BuildConfigFromFlags("", "")
@@ -291,15 +301,9 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		return nil
 	}
 
-	// spew.Dump("DEPLOY IN PROGRESS")
 	x.sendDDInProgress(e, reData.Release.Project.Services, "Deploy in-progress")
-	// spew.Dump("GenNamespaceName", reData.Release.Environment, projectSlug)
 	namespace := utils.GenNamespaceName(reData.Release.Environment, projectSlug)
-	// spew.Dump("output: ", namespace)
-
-	// spew.Dump("coreInterface")
 	coreInterface := clientset.Core()
-	// spew.Dump("output: ", coreInterface)
 
 	successfulDeploys := 0
 	// TODO: get timeout from formValues
@@ -310,15 +314,12 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	//}
 	curTime := 0
 
-	// spew.Dump("createNamespaceIfNotExists", namespace, coreInterface)
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
 		x.sendDDErrorResponse(e, reData.Release.Project.Services, createNamespaceErr.Error())
 		return nil
 	}
-	// spew.Dump("output:", createNamespaceErr)
 
-	// spew.Dump("createDockerIOSecretIfNotExists", namespace, coreInterface)
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, coreInterface, e)
 	if createDockerIOSecretErr != nil {
 		x.sendDDErrorResponse(e, reData.Release.Project.Services, createDockerIOSecretErr.Error())
@@ -332,6 +333,10 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	// This map is used in to create the secrets themselves
 	for key, val := range reData.Extension.Config {
 		secretMap[key] = val.(string)
+	}
+
+	for _, secret := range reData.Release.Secrets {
+		secretMap[secret.Key] = secret.Value
 	}
 
 	secretParams := &v1.Secret{
@@ -385,6 +390,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		MountPath: "/etc/secrets",
 		ReadOnly:  true,
 	})
+
 	for _, secret := range reData.Release.Secrets {
 		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
@@ -407,8 +413,8 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			Secret: &secretVolume,
 		},
 	})
-	
-	x.sendDDInProgress(e, reData.Release.Project.Services, "Secrets added to deployVolumes")	
+
+	x.sendDDInProgress(e, reData.Release.Project.Services, "Secrets added to deployVolumes")
 
 	// Do update/create of deployments and services
 	depInterface := clientset.Extensions()
@@ -787,7 +793,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError))
 			}
 		} else {
-			// Deployment exists, update deployment with new configuration	
+			// Deployment exists, update deployment with new configuration
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
 				log.Printf("Failed to update service deployment %s, with error: %s", deploymentName, myError)

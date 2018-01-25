@@ -4,9 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
+
+	"github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	oidc "github.com/coreos/go-oidc"
 	"github.com/jinzhu/gorm"
@@ -25,6 +31,96 @@ type Claims struct {
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
+}
+
+func GetTempDir() (string, error) {
+	for {
+		filePath := fmt.Sprintf("/tmp/%s", uuid.NewV1().String())
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			log.Info("directory does not exist")
+			// create the file
+			err = os.MkdirAll(filePath, os.ModeDir)
+			if err != nil {
+				log.Info(err.Error())
+				return "", err
+			}
+			return filePath, nil
+		}
+	}
+}
+
+func SetupKubeConfig(config map[string]interface{}, key string) (string, error) {
+	randomDirectory, err := GetTempDir()
+	if err != nil {
+		log.Info(err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(config[fmt.Sprintf("%sKUBECONFIG", key)].(string)), 0644)
+	if err != nil {
+		log.Info(err.Error())
+		return "", err
+	}
+
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+	log.Info("Using kubeconfig file: %s", fmt.Sprintf("%s/kubeconfig", randomDirectory))
+
+	// generate client cert, client key
+	// certificate authority
+	err = ioutil.WriteFile(fmt.Sprintf("%s/admin.pem", randomDirectory),
+		[]byte(config[fmt.Sprintf("%sCLIENT_CERTIFICATE", key)].(string)), 0644)
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
+		[]byte(config[fmt.Sprintf("%sCLIENT_KEY", key)].(string)), 0644)
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
+		[]byte(config[fmt.Sprintf("%sCERTIFICATE_AUTHORITY", key)].(string)), 0644)
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+
+	return fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
+}
+
+/* fills in Config by querying config ids and getting the actual value */
+func GetFilledFormValues(configWithEnvVarIds map[string]interface{}, extensionSpecKey string, db *gorm.DB) (map[string]interface{}, error) {
+	formValues := make(map[string]interface{})
+	// iter through custom + config and add to formvalues interface
+	for _, val := range configWithEnvVarIds["config"].([]interface{}) {
+		val := val.(map[string]interface{})
+		// check if val is UUID. If so, query in environment variables for id
+		valId := uuid.FromStringOrNil(val["value"].(string))
+		if valId != uuid.Nil {
+			envVar := models.EnvironmentVariableValue{}
+
+			if db.Where("environment_variable_id = ?", valId).Order("created_at desc").First(&envVar).RecordNotFound() {
+				log.InfoWithFields("envvarvalue not found", log.Fields{
+					"environment_variable_id": valId,
+				})
+			}
+			formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(val["key"].(string)))] = envVar.Value
+		} else {
+			formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
+		}
+	}
+
+	for key, val := range configWithEnvVarIds["custom"].(map[string]interface{}) {
+		// check if val is UUID. If so, query in environment variables for id
+		formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(key))] = val
+	}
+	return formValues, nil
 }
 
 func CheckPasswordHash(password, hash string) bool {
