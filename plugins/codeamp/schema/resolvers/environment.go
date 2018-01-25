@@ -41,7 +41,6 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 	if r.db.Where("name = ?", args.Environment.Name).Find(&existingEnv).RecordNotFound() {
 		env := models.Environment{
 			Name:      args.Environment.Name,
-			GitBranch: branch,
 		}
 
 		r.db.Create(&env)
@@ -59,12 +58,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 	if r.db.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
 		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
 	} else {
-		branch := "master"
-		if args.Environment.GitBranch != nil {
-			branch = *args.Environment.GitBranch
-		}
 		existingEnv.Name = args.Environment.Name
-		existingEnv.GitBranch = branch
 
 		r.db.Save(&existingEnv)
 		r.actions.EnvironmentUpdated(&existingEnv)
@@ -90,10 +84,6 @@ func (r *EnvironmentResolver) ID() graphql.ID {
 
 func (r *EnvironmentResolver) Name(ctx context.Context) string {
 	return r.Environment.Name
-}
-
-func (r *EnvironmentResolver) GitBranch(ctx context.Context) string {
-	return r.Environment.GitBranch
 }
 
 func (r *EnvironmentResolver) Created() graphql.Time {

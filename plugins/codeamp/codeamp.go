@@ -79,6 +79,7 @@ func (x *CodeAmp) Migrate() {
 		&models.EnvironmentVariableValue{},
 		&models.ReleaseExtension{},
 		&models.Environment{},
+		&models.EnvironmentProjectBranch{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")

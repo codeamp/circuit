@@ -52,32 +52,49 @@ func (x *Actions) GitSync(project *models.Project) {
 	}
 
 	// get branches of entire environments
-	environments := []models.Environment{}
-	if x.db.Find(&environments).RecordNotFound() {
-		log.Info("no envs found")
+	envProjectBranches := []models.EnvironmentProjectBranch{}
+	if x.db.Find(&envProjectBranches).RecordNotFound() {
+		log.Info("no env project branches found")
+		gitSync := plugins.GitSync{
+			Action: plugins.GetAction("update"),
+			State:  plugins.GetState("waiting"),
+			Project: plugins.Project{
+				Id:         project.Model.ID.String(),
+				Repository: project.Repository,
+			},
+			Git: plugins.Git{
+				Url:           project.GitUrl,
+				Protocol:      project.GitProtocol,
+				Branch:        "master",
+				RsaPrivateKey: project.RsaPrivateKey,
+				RsaPublicKey:  project.RsaPublicKey,
+			},
+			From: hash,
+		}
+
+		x.events <- transistor.NewEvent(gitSync, nil)		
+	} else {
+		for _, envProjectBranch := range envProjectBranches {
+			gitSync := plugins.GitSync{
+				Action: plugins.GetAction("update"),
+				State:  plugins.GetState("waiting"),
+				Project: plugins.Project{
+					Id:         project.Model.ID.String(),
+					Repository: project.Repository,
+				},
+				Git: plugins.Git{
+					Url:           project.GitUrl,
+					Protocol:      project.GitProtocol,
+					Branch:        envProjectBranch.GitBranch,
+					RsaPrivateKey: project.RsaPrivateKey,
+					RsaPublicKey:  project.RsaPublicKey,
+				},
+				From: hash,
+			}
+
+			x.events <- transistor.NewEvent(gitSync, nil)
+		}
 	}
-
-
-	// for _, env := range environments {
-	// 	gitSync := plugins.GitSync{
-	// 		Action: plugins.GetAction("update"),
-	// 		State:  plugins.GetState("waiting"),
-	// 		Project: plugins.Project{
-	// 			Id:         project.Model.ID.String(),
-	// 			Repository: project.Repository,
-	// 		},
-	// 		Git: plugins.Git{
-	// 			Url:           project.GitUrl,
-	// 			Protocol:      project.GitProtocol,
-	// 			Branch:        env.GitBranch,
-	// 			RsaPrivateKey: project.RsaPrivateKey,
-	// 			RsaPublicKey:  project.RsaPublicKey,
-	// 		},
-	// 		From: hash,
-	// 	}
-
-	// 	x.events <- transistor.NewEvent(gitSync, nil)
-	// }
 }
 
 func (x *Actions) GitCommit(commit plugins.GitCommit) {
@@ -164,6 +181,15 @@ func (x *Actions) ServiceDeleted(service *models.Service) {
 			"service": service,
 		})
 	}
+}
+
+func (x *Actions) EnvironmentProjectBranchCreated(service *models.EnvironmentProjectBranch) {
+}
+
+func (x *Actions) EnvironmentProjectBranchUpdated(service *models.EnvironmentProjectBranch) {
+}
+
+func (x *Actions) EnvironmentProjectBranchDeleted(service *models.EnvironmentProjectBranch) {
 }
 
 func (x *Actions) ServiceSpecCreated(service *models.ServiceSpec) {
@@ -283,6 +309,16 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 		}
 	}
 
+	// get all branches relevant for the projec
+	branch := "master"
+	envProjectBranch := models.EnvironmentProjectBranch{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = envProjectBranch.GitBranch
+	}
+
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
 		spec := models.ServiceSpec{}
@@ -345,7 +381,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 			Git: plugins.Git{
 				Url:           project.GitUrl,
 				Protocol:      project.GitProtocol,
-				Branch:        environment.GitBranch,
+				Branch:        branch,
 				RsaPrivateKey: project.RsaPrivateKey,
 				RsaPublicKey:  project.RsaPublicKey,
 			},
@@ -598,6 +634,16 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		return
 	}
 
+	// get all branches relevant for the projec
+	branch := "master"
+	envProjectBranch := models.EnvironmentProjectBranch{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = envProjectBranch.GitBranch
+	}		
+
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
 		spec := models.ServiceSpec{}
@@ -677,7 +723,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		},
 		Git: plugins.Git{
 			Url:    project.GitUrl,
-			Branch: environment.GitBranch,
+			Branch: branch,
 		},
 		Secrets: secrets,
 	}
@@ -871,6 +917,16 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		return
 	}
 
+	// get all branches relevant for the projec
+	branch := "master"
+	envProjectBranch := models.EnvironmentProjectBranch{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = envProjectBranch.GitBranch
+	}		
+
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
 		spec := models.ServiceSpec{}
@@ -947,7 +1003,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		},
 		Git: plugins.Git{
 			Url:    project.GitUrl,
-			Branch: environment.GitBranch,
+			Branch: branch,
 		},
 	}
 	for _, extension := range projectExtensions {

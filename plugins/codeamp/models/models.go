@@ -135,6 +135,14 @@ type GitBranch struct {
 	Name      string    `json:"name"`
 }
 
+// This branch is tied to an environment and project
+type EnvironmentProjectBranch struct {
+	Model `json:"inline"`
+	EnvironmentId uuid.UUID    `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	ProjectId     uuid.UUID    `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	GitBranch string
+}
+
 type Release struct {
 	Model         `json:",inline"`
 	State         plugins.State `json:"state"`
