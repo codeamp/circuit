@@ -255,7 +255,20 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.Environment.GitBranch)).Order("created desc").Find(&rows)
+	// get branch specific to the project and current environment
+	// if it is empty, simply use master
+	branch := "master"
+	var envBasedProjectBranch models.EnvironmentBasedProjectBranch
+	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&envBasedProjectBranch).RecordNotFound() {
+		log.InfoWithFields("could not find an env based project branch", log.Fields{
+			"project_id": r.Project.Model.ID.String(),
+			"environment_id": r.Environment.Model.ID.String(),
+		})
+	} else {
+		branch = envBasedProjectBranch.GitBranch
+	}
+
+	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", branch)).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})
