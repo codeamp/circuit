@@ -136,11 +136,11 @@ type GitBranch struct {
 }
 
 // This branch is tied to an environment and project
-type EnvironmentProjectBranch struct {
+type EnvironmentBasedProjectBranch struct {
 	Model `json:"inline"`
 	EnvironmentId uuid.UUID    `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 	ProjectId     uuid.UUID    `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	GitBranch string
+	GitBranch string `json:"gitBranch"`
 }
 
 type Release struct {
