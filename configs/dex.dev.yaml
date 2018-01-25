@@ -1,7 +1,7 @@
 # The base path of dex and the external name of the OpenID Connect service.
 # This is the canonical URL that all clients MUST use to refer to dex. If a
 # path is provided, dex's HTTP service will listen at a non-root URL.
-issuer: http://localhost:5556/dex
+issuer: http://192.168.12.35:5556/dex
 
 # The storage configuration determines where dex stores its state. Supported
 # options include SQL flavors and Kubernetes third party resources.
@@ -18,7 +18,7 @@ storage:
       mode: disable
 
 frontend:
-  dir: /go/src/github.com/codeamp/circuit/bootstrap/dex/web
+  dir: /etc/dex/bootstrap/dex/web
   theme: coreos
 
 # Configuration for the HTTP endpoints.

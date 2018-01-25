@@ -261,7 +261,7 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var envBasedProjectBranch models.EnvironmentBasedProjectBranch
 	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&envBasedProjectBranch).RecordNotFound() {
 		log.InfoWithFields("could not find an env based project branch", log.Fields{
-			"project_id": r.Project.Model.ID.String(),
+			"project_id":     r.Project.Model.ID.String(),
 			"environment_id": r.Environment.Model.ID.String(),
 		})
 	} else {
@@ -303,7 +303,7 @@ func (r *ProjectResolver) Releases(ctx context.Context) ([]*ReleaseResolver, err
 func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
 	var rows []models.EnvironmentVariable
 	var results []*EnvironmentVariableResolver
-	r.db.Select("key, id, created_at, type, project_id, environment_id, deleted_at").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
+	r.db.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
 	for _, envVar := range rows {
 		results = append(results, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar})
 	}

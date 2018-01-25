@@ -23,6 +23,7 @@ type EnvironmentVariableInput struct {
 	Scope         string
 	ProjectId     *string
 	EnvironmentId string
+	IsSecret      bool
 }
 
 type EnvironmentVariableResolver struct {
@@ -78,6 +79,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 			Type:          plugins.GetType(args.EnvironmentVariable.Type),
 			Scope:         environmentVariableScope,
 			EnvironmentId: environmentId,
+			IsSecret:      args.EnvironmentVariable.IsSecret,
 		}
 		r.db.Create(&envVar)
 
@@ -172,6 +174,9 @@ func (r *EnvironmentVariableResolver) Key() string {
 
 func (r *EnvironmentVariableResolver) Value() string {
 	var envVarValue models.EnvironmentVariableValue
+	if r.EnvironmentVariable.IsSecret {
+		return ""
+	}
 	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").First(&envVarValue)
 	return envVarValue.Value
 }
@@ -182,6 +187,10 @@ func (r *EnvironmentVariableResolver) Type() string {
 
 func (r *EnvironmentVariableResolver) Scope() string {
 	return string(r.EnvironmentVariable.Scope)
+}
+
+func (r *EnvironmentVariableResolver) IsSecret() bool {
+	return r.EnvironmentVariable.IsSecret
 }
 
 func (r *EnvironmentVariableResolver) User() (*UserResolver, error) {
@@ -208,8 +217,13 @@ func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*Environm
 	}
 
 	// iter and return env var value resolvers
-	for _, ev := range envVarValues {
-		envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: ev})
+	for _, evValue := range envVarValues {
+		if r.EnvironmentVariable.IsSecret {
+			evValue.Value = ""
+			envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: evValue})
+		} else {
+			envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: evValue})
+		}
 	}
 
 	return envVarValueResolvers, nil
