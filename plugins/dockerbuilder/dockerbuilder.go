@@ -1,6 +1,7 @@
 package dockerbuilder
 
 import (
+	"github.com/extemporalgenome/slug"
 	"bytes"
 	"errors"
 	"fmt"
@@ -16,7 +17,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/extemporalgenome/slug"
 	docker "github.com/fsouza/go-dockerclient"
 )
 

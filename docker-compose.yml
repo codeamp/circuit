@@ -32,7 +32,7 @@ services:
       - codeamp 
   circuit:
     image: circuit
-    command: sh -c "reflex -c reflex.conf"
+    command: sh -c "mkdir -p assets & /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema/schema.graphql & reflex -c reflex.conf"
     build:
       context: .
       dockerfile: Dockerfile.dev
