@@ -143,6 +143,7 @@ interface EnvironmentVariable {
   environment: Environment!
   created: Time!
   extension: Extension!
+  isSecret: Boolean!
 }
 
 interface EnvironmentVariableValue {
@@ -301,6 +302,7 @@ input EnvironmentVariableInput {
   scope: String!
   projectId: String
   environmentId: String!
+  isSecret: Boolean!
 }
 
 input EnvironmentBasedProjectBranchInput {

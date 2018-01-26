@@ -26,7 +26,7 @@ services:
     depends_on:
       - postgres
     volumes:
-      - .:/etc/dex/
+      - ./configs:/etc/dex
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - codeamp 
