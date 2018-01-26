@@ -455,9 +455,9 @@ func (x *CodeAmp) Migrate() {
 		Name:          "Docker Builder",
 		Component:     "",
 		EnvironmentId: productionEnv.Model.ID,
+		Config:        postgres.Jsonb{marshalledDbConfig},
 	}
 	db.FirstOrInit(&extensionSpec, extensionSpec)
-	extensionSpec.Config = postgres.Jsonb{marshalledDbConfig}
 	db.Save(&extensionSpec)
 
 	dbConfig = []map[string]interface{}{
@@ -533,7 +533,6 @@ func (x *CodeAmp) Migrate() {
 	}
 
 	db.FirstOrInit(&extensionSpec, extensionSpec)
-	// extensionSpec.Config = postgres.Jsonb{marshalledDbConfig}
 	db.Save(&extensionSpec)
 
 	// kubernetes
