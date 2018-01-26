@@ -454,10 +454,11 @@ func (x *CodeAmp) Migrate() {
 		Key:           "dockerbuilder",
 		Name:          "Docker Builder",
 		Component:     "",
-		Config:        postgres.Jsonb{marshalledDbConfig},
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.Create(&extensionSpec)
+	db.FirstOrInit(&extensionSpec, extensionSpec)
+	extensionSpec.Config = postgres.Jsonb{marshalledDbConfig}
+	db.Save(&extensionSpec)
 
 	dbConfig = []map[string]interface{}{
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfigDev.Model.ID.String()},
@@ -476,10 +477,12 @@ func (x *CodeAmp) Migrate() {
 		Key:           "dockerbuilder",
 		Name:          "Docker Builder",
 		Component:     "",
-		Config:        postgres.Jsonb{marshalledDbConfig},
 		EnvironmentId: developmentEnv.Model.ID,
+		Config:        postgres.Jsonb{marshalledDbConfig},
 	}
-	db.Create(&extensionSpec)
+
+	db.FirstOrInit(&extensionSpec, extensionSpec)
+	db.Save(&extensionSpec)
 
 	// load balancer
 	lbConfig := []map[string]interface{}{
@@ -500,10 +503,12 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesloadbalancers",
 		Name:          "Load Balancer",
 		Component:     "LoadBalancer",
-		Config:        postgres.Jsonb{marshalledLbConfig},
 		EnvironmentId: productionEnv.Model.ID,
+		Config:        postgres.Jsonb{marshalledLbConfig},
 	}
-	db.Create(&extensionSpec)
+
+	db.FirstOrInit(&extensionSpec, extensionSpec)
+	db.Save(&extensionSpec)
 
 	lbConfig = []map[string]interface{}{
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfigDev.Model.ID.String()},
@@ -523,10 +528,13 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesloadbalancers",
 		Name:          "Load Balancer",
 		Component:     "LoadBalancer",
-		Config:        postgres.Jsonb{marshalledLbConfig},
 		EnvironmentId: developmentEnv.Model.ID,
+		Config:        postgres.Jsonb{marshalledLbConfig},
 	}
-	db.Create(&extensionSpec)
+
+	db.FirstOrInit(&extensionSpec, extensionSpec)
+	// extensionSpec.Config = postgres.Jsonb{marshalledDbConfig}
+	db.Save(&extensionSpec)
 
 	// kubernetes
 	kubeConfigSpec := []map[string]interface{}{
@@ -545,10 +553,12 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesdeployments",
 		Name:          "Kubernetes",
 		Component:     "",
-		Config:        postgres.Jsonb{marshalledKubeConfig},
 		EnvironmentId: productionEnv.Model.ID,
+		Config:        postgres.Jsonb{marshalledKubeConfig},
 	}
-	db.Create(&extensionSpec)
+
+	db.FirstOrInit(&extensionSpec, extensionSpec)
+	db.Save(&extensionSpec)
 
 	kubeConfigSpec = []map[string]interface{}{
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfigDev.Model.ID.String()},
@@ -566,10 +576,12 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesdeployments",
 		Name:          "Kubernetes",
 		Component:     "",
-		Config:        postgres.Jsonb{marshalledKubeConfig},
 		EnvironmentId: developmentEnv.Model.ID,
+		Config:        postgres.Jsonb{marshalledKubeConfig},
 	}
-	db.Create(&extensionSpec)
+
+	db.FirstOrInit(&extensionSpec, extensionSpec)
+	db.Save(&extensionSpec)
 
 	defer db.Close()
 }

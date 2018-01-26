@@ -156,7 +156,7 @@ type Release struct {
 	HeadFeatureID uuid.UUID `json:"headFeatureId" gorm:"type:uuid"`
 	TailFeature   Feature
 	TailFeatureID uuid.UUID             `json:"tailFeatureId" gorm:"type:uuid"`
-	Secrets       []EnvironmentVariable `json:"secrets"`
+	Secrets       []EnvironmentVariable `json:"secrets" gorm:"type:boolean"`
 	Services      []Service             `json:"services"`
 	Artifacts     postgres.Jsonb        `json:"artifacts" gorm:"type:jsonb;not null"`
 	Finished      time.Time
