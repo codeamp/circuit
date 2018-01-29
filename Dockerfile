@@ -10,7 +10,7 @@ RUN go get -u github.com/jteeuwen/go-bindata/...
 RUN mkdir -p assets/
 RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema/schema.graphql
 RUN go build -i -o /go/bin/codeamp-circuit .
-
-COPY --from=0 /go/bin/codeamp-circuit /usr/local/bin/codeamp-circuit
+RUN ls -la /go/bin/
+RUN cp /go/bin/codeamp-circuit /usr/local/bin/codeamp-circuit
 RUN apk --no-cache add docker git
 

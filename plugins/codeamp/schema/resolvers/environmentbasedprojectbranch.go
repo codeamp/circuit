@@ -35,7 +35,8 @@ func (r *Resolver) CreateEnvironmentBasedProjectBranch(ctx context.Context, args
 
 	var existingEnvProjectBranch models.EnvironmentBasedProjectBranch
 
-	if r.db.Where("git_branch = ?", args.EnvironmentBasedProjectBranch.GitBranch).Find(&existingEnvProjectBranch).RecordNotFound() {
+	if r.db.Where("git_branch = ? and project_id = ? and environment_id = ?", args.EnvironmentBasedProjectBranch.GitBranch, 
+		args.EnvironmentBasedProjectBranch.ProjectId, args.EnvironmentBasedProjectBranch.EnvironmentId).Find(&existingEnvProjectBranch).RecordNotFound() {
 		environment := models.Environment{}
 		project := models.Project{}
 
