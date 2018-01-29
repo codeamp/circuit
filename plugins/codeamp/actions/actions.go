@@ -53,7 +53,7 @@ func (x *Actions) GitSync(project *models.Project) {
 
 	// get branches of entire environments
 	envProjectBranches := []models.EnvironmentBasedProjectBranch{}
-	if x.db.Find(&envProjectBranches).RecordNotFound() {
+	if x.db.Where("project_id = ?", project.Model.ID.String()).Find(&envProjectBranches).RecordNotFound() {
 		log.Info("no env project branches found")
 		gitSync := plugins.GitSync{
 			Action: plugins.GetAction("update"),
