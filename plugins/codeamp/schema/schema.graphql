@@ -197,6 +197,7 @@ interface Project {
   services: [Service]!
   environmentVariables: [EnvironmentVariable]!
   extensions: [Extension]!
+  environmentBasedProjectBranch: EnvironmentBasedProjectBranch
   created: Time!
 }
 

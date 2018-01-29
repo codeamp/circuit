@@ -9,7 +9,7 @@ redis:
 plugins:
   codeamp:
     workers: 1
-    oidc_uri: http://192.168.12.35:5556/dex
+    oidc_uri: http://localhost:5556/dex
     postgres:
       host: "postgres"
       port: "5432"
@@ -25,6 +25,10 @@ plugins:
     workers: 1
   kubernetesdeployments:
     workers: 1
+  kubernetesloadbalancers:
+    workers: 1    
+  route53:
+    workers: 1    
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"

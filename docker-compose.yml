@@ -16,23 +16,23 @@ services:
       - ./bootstrap/postgres:/docker-entrypoint-initdb.d
     networks:
       - codeamp
-  dex:
-    container_name: circuit_dex
-    image: dex
-    build: https://github.com/codeamp/dex-infrastructure.git
-    command: serve /etc/dex/dex.dev.yaml
-    ports:
-      - "${DOCKER_COMPOSE_DEX_PORT}:5556"
-    depends_on:
-      - postgres
-    volumes:
-      - ./configs:/etc/dex
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - codeamp 
+  # dex:
+  #   container_name: circuit_dex
+  #   image: dex
+  #   build: https://github.com/codeamp/dex-infrastructure.git
+  #   command: serve /etc/dex/dex.dev.yaml
+  #   ports:
+  #     - "${DOCKER_COMPOSE_DEX_PORT}:5556"
+  #   depends_on:
+  #     - postgres
+  #   volumes:
+  #     - ./configs:/etc/dex
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   networks:
+  #     - codeamp 
   circuit:
     image: circuit
-    command: sh -c "mkdir -p assets & /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema/schema.graphql & reflex -c reflex.conf"
+    command: sh -c "/usr/local/bin/dex serve configs/dex.yaml & mkdir -p assets & /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema/schema.graphql & reflex -c reflex.conf"
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -40,14 +40,15 @@ services:
         pull: 1
     ports:
       - "${DOCKER_COMPOSE_CIRCUIT_PORT}:3011"
+      - "${DOCKER_COMPOSE_DEX_PORT}:5556"
     volumes:
       - .:/go/src/github.com/codeamp/circuit
       - /var/run/docker.sock:/var/run/docker.sock
       - ./credentials:/etc/secrets
+      - ./:/etc/dex
     depends_on:
       - postgres
       - redis
-      - dex
     networks:
       - codeamp
 networks:

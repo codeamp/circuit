@@ -313,11 +313,23 @@ func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*Environm
 func (r *ProjectResolver) Extensions(ctx context.Context) ([]*ExtensionResolver, error) {
 	var rows []models.Extension
 	var results []*ExtensionResolver
-	r.db.Where("project_id = ? and environment_id = ?", r.Project.ID, r.Environment.Model.ID).Find(&rows)
+	r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
 	for _, extension := range rows {
 		results = append(results, &ExtensionResolver{db: r.db, Extension: extension})
 	}
 	return results, nil
+}
+
+func (r *ProjectResolver) EnvironmentBasedProjectBranch(ctx context.Context) (*EnvironmentBasedProjectBranchResolver, error) {
+	var branch models.EnvironmentBasedProjectBranch
+	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&branch).RecordNotFound() {
+		log.InfoWithFields("No env based project branch", log.Fields{
+			"environment_id": r.Environment.Model.ID,
+			"project_id": r.Project.Model.ID,
+		})
+		return nil, nil
+	}
+	return &EnvironmentBasedProjectBranchResolver{db: r.db, EnvironmentBasedProjectBranch: branch }, nil
 }
 
 func (r *ProjectResolver) Created() graphql.Time {

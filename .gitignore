@@ -38,3 +38,5 @@ rm.sh
 credentials/*
 
 assets/*
+configs/dex.dev.yml
+configs/*.dev.yml
