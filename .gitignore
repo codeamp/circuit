@@ -39,3 +39,4 @@ credentials/*
 
 assets/*
 configs/*.dev.yml
+dbdata/*
