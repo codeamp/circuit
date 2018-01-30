@@ -10,6 +10,7 @@ plugins:
   codeamp:
     workers: 1
     oidc_uri: http://localhost:5556/dex
+    oidc_client_id: example-app
     postgres:
       host: "postgres"
       port: "5432"
