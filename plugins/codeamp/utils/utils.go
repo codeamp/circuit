@@ -151,7 +151,7 @@ func AuthMiddleware(next http.Handler, db *gorm.DB) http.Handler {
 		}
 
 		// Create an ID token parser, but only trust ID tokens issued to "example-app"
-		idTokenVerifier := provider.Verifier(&oidc.Config{ClientID: "example-app"})
+		idTokenVerifier := provider.Verifier(&oidc.Config{ClientID: viper.GetString("plugins.codeamp.oidc_client_id")})
 
 		idToken, err := idTokenVerifier.Verify(ctx, bearerToken)
 		if err != nil {
