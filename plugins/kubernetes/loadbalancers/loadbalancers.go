@@ -344,11 +344,30 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	log.Println("doDeleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.Extension)
-	configPrefix := utils.GetFormValuePrefix(e, "KUBERNETESLOADBALANCERS_")
-	kubeconfig, err := utils.GetFormValue(payload.Config, configPrefix, "KUBECONFIG")
+	configPrefix := "KUBERNETESLOADBALANCERS_"
+	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Config, configPrefix)
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+		return nil
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
+
+	if err != nil {
+		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
+		log.Println(failMessage)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+		return err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
+		log.Println(failMessage)
+		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return nil
 	}
 
@@ -366,18 +385,6 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		return nil
 	}
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig.(string))
-	if err != nil {
-		fmt.Printf("ERROR '%s' while building kubernetes api client config.  Aborting!", err)
-		return nil
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Println("Error getting cluster config.  Aborting!")
-		return nil
-	}
 
 	coreInterface := clientset.Core()
 	namespace := utils.GenNamespaceName(payload.Environment, projectSlug)
