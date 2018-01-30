@@ -14,22 +14,9 @@ services:
       - "${DOCKER_COMPOSE_POSTGRES_PORT}:5432"
     volumes:
       - ./bootstrap/postgres:/docker-entrypoint-initdb.d
+      - ./dbdata:/var/lib/postgresql/data
     networks:
       - codeamp
-  # dex:
-  #   container_name: circuit_dex
-  #   image: dex
-  #   build: https://github.com/codeamp/dex-infrastructure.git
-  #   command: serve /etc/dex/dex.dev.yaml
-  #   ports:
-  #     - "${DOCKER_COMPOSE_DEX_PORT}:5556"
-  #   depends_on:
-  #     - postgres
-  #   volumes:
-  #     - ./configs:/etc/dex
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   networks:
-  #     - codeamp 
   circuit:
     image: circuit
     command: sh -c "/usr/local/bin/dex serve configs/dex.yml & reflex -c reflex.conf"

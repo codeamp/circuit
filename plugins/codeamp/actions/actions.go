@@ -72,7 +72,7 @@ func (x *Actions) GitSync(project *models.Project) {
 			From: hash,
 		}
 
-		x.events <- transistor.NewEvent(gitSync, nil)		
+		x.events <- transistor.NewEvent(gitSync, nil)
 	} else {
 		for _, envProjectBranch := range envProjectBranches {
 			gitSync := plugins.GitSync{
@@ -312,7 +312,7 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	// get all branches relevant for the projec
 	branch := "master"
 	envProjectBranch := models.EnvironmentBasedProjectBranch{}
-	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
 		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
@@ -429,6 +429,169 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 }
 
 func (x *Actions) ExtensionDeleted(extension *models.Extension) {
+	project := models.Project{}
+	extensionSpec := models.ExtensionSpec{}
+	environment := models.Environment{}
+
+	if x.db.Where("id = ?", extension.ProjectId).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	if x.db.Where("id = ?", extension.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+		log.InfoWithFields("extensionSpec not found", log.Fields{
+			"extension": extension,
+		})
+	}
+
+	if x.db.Where("id = ?", extension.EnvironmentId).First(&environment).RecordNotFound() {
+		log.InfoWithFields("env not found", log.Fields{
+			"id": extension.EnvironmentId,
+		})
+	}
+
+	unmarshalledConfig := make(map[string]interface{})
+	err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	formValues, err := utils.GetFilledFormValues(unmarshalledConfig, extensionSpec.Key, x.db)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	services := []models.Service{}
+	if x.db.Where("project_id = ?", extension.ProjectId).Find(&services).RecordNotFound() {
+		log.InfoWithFields("no services found for this project", log.Fields{
+			"extension": extension.ProjectId,
+		})
+	}
+
+	// get env vars in project and admin and insert into secrets
+	secrets := []plugins.Secret{}
+	adminEnvVars := []models.EnvironmentVariable{}
+	if x.db.Where("scope = ?", "global").Find(&adminEnvVars).RecordNotFound() {
+		log.InfoWithFields("no global admin env vars", log.Fields{})
+	}
+	for _, val := range adminEnvVars {
+		evValue := models.EnvironmentVariableValue{}
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
+			log.InfoWithFields("envvar value not found", log.Fields{
+				"id": val.Model.ID.String(),
+			})
+		} else {
+			secrets = append(secrets, plugins.Secret{
+				Key:   val.Key,
+				Value: evValue.Value,
+				Type:  val.Type,
+			})
+		}
+	}
+
+	projectEnvVars := []models.EnvironmentVariable{}
+	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
+		log.InfoWithFields("no project env vars found", log.Fields{})
+	}
+	for _, val := range projectEnvVars {
+		evValue := models.EnvironmentVariableValue{}
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
+			log.InfoWithFields("envvar value not found", log.Fields{
+				"id": val.Model.ID.String(),
+			})
+		} else {
+			secrets = append(secrets, plugins.Secret{
+				Key:   val.Key,
+				Value: evValue.Value,
+				Type:  val.Type,
+			})
+		}
+	}
+
+	// get all branches relevant for the projec
+	branch := "master"
+	envProjectBranch := models.EnvironmentBasedProjectBranch{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
+		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = envProjectBranch.GitBranch
+	}
+
+	pluginServices := []plugins.Service{}
+	for _, service := range services {
+		spec := models.ServiceSpec{}
+		if x.db.Where("id = ?", service.ServiceSpecId).First(&spec).RecordNotFound() {
+			log.InfoWithFields("servicespec not found", log.Fields{
+				"id": service.ServiceSpecId,
+			})
+			return
+		}
+
+		listeners := []models.ContainerPort{}
+		if x.db.Where("service_id = ?", service.Model.ID).Find(&listeners).RecordNotFound() {
+			log.InfoWithFields("container ports not found", log.Fields{
+				"service_id": service.Model.ID,
+			})
+			return
+		}
+
+		pluginListeners := []plugins.Listener{}
+		for _, listener := range listeners {
+			intPort, _ := strconv.Atoi(listener.Port)
+			pluginListeners = append(pluginListeners, plugins.Listener{
+				Port:     int32(intPort),
+				Protocol: listener.Protocol,
+			})
+		}
+
+		intTerminationGracePeriod, _ := strconv.Atoi(spec.TerminationGracePeriod)
+		intReplicas, _ := strconv.Atoi(service.Count)
+		pluginServices = append(pluginServices, plugins.Service{
+			Id:        service.Model.ID.String(),
+			Command:   service.Command,
+			Name:      service.Name,
+			Listeners: pluginListeners,
+			State:     plugins.GetState("waiting"),
+			Spec: plugins.ServiceSpec{
+				Id:                            spec.Model.ID.String(),
+				CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
+				CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
+				MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
+				MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
+				TerminationGracePeriodSeconds: int64(intTerminationGracePeriod),
+			},
+			Type:     string(service.Type),
+			Replicas: int64(intReplicas),
+		})
+	}
+
+	eventExtension := plugins.Extension{
+		Id:           extension.Model.ID.String(),
+		Action:       plugins.GetAction("destroy"),
+		Slug:         extensionSpec.Key,
+		State:        plugins.GetState("waiting"),
+		StateMessage: "onDestroy",
+		Config:       formValues,
+		Artifacts:    map[string]string{},
+		Environment:  environment.Name,
+		Project: plugins.Project{
+			Id: project.Model.ID.String(),
+			Git: plugins.Git{
+				Url:           project.GitUrl,
+				Protocol:      project.GitProtocol,
+				Branch:        branch,
+				RsaPrivateKey: project.RsaPrivateKey,
+				RsaPublicKey:  project.RsaPublicKey,
+			},
+			Services:   pluginServices,
+			Secrets:    secrets,
+			Repository: project.Repository,
+		},
+	}
+
+	x.events <- transistor.NewEvent(eventExtension, nil)
 }
 
 func (x *Actions) ExtensionInitCompleted(extension *models.Extension) {
@@ -637,12 +800,12 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 	// get all branches relevant for the projec
 	branch := "master"
 	envProjectBranch := models.EnvironmentBasedProjectBranch{}
-	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
 		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
 		branch = envProjectBranch.GitBranch
-	}		
+	}
 
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
@@ -920,12 +1083,12 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 	// get all branches relevant for the projec
 	branch := "master"
 	envProjectBranch := models.EnvironmentBasedProjectBranch{}
-	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), 
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
 		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
 		branch = envProjectBranch.GitBranch
-	}		
+	}
 
 	pluginServices := []plugins.Service{}
 	for _, service := range services {
