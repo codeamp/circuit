@@ -1,7 +1,5 @@
 up:
-	docker-compose up -d redis postgres
-	docker-compose up circuit
-
+	docker-compose up
 build:
 	docker-compose build --pull circuit
 
