@@ -538,7 +538,7 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 		Action:       plugins.GetAction("update"),
 		Slug:         extensionSpec.Key,
 		State:        plugins.GetState("waiting"),
-		StateMessage: "onCreate",
+		StateMessage: "onUpdate",
 		Config:       formValues,
 		Artifacts:    map[string]string{},
 		Environment:  environment.Name,

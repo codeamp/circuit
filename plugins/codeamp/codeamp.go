@@ -198,6 +198,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
+		IsSecret:      true,
 	}
 	db.FirstOrInit(&awsSecretKey, awsSecretKey)
 	db.Save(&awsSecretKey)
@@ -214,6 +215,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: developmentEnv.Model.ID,
+		IsSecret:      true,
 	}
 	db.FirstOrInit(&awsSecretKeyDev, awsSecretKeyDev)
 	db.Save(&awsSecretKeyDev)
@@ -398,6 +400,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
+		IsSecret:      true,
 	}
 	db.FirstOrInit(&dockerPass, dockerPass)
 	db.Save(&dockerPass)
@@ -415,6 +418,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "env",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: developmentEnv.Model.ID,
+		IsSecret:      true,
 	}
 	db.FirstOrInit(&dockerPassDev, dockerPassDev)
 	db.Save(&dockerPassDev)
@@ -497,6 +501,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "file",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: developmentEnv.Model.ID,
+		IsSecret:      true,
 	}
 	db.FirstOrInit(&certificateAuthorityDev, certificateAuthorityDev)
 	db.Save(&certificateAuthorityDev)
@@ -513,6 +518,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "file",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
+		IsSecret:      true,
 	}
 	db.FirstOrInit(&certificateAuthorityProd, certificateAuthorityProd)
 	db.Save(&certificateAuthorityProd)
@@ -529,6 +535,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "file",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: developmentEnv.Model.ID,
+		IsSecret:      true,
 	}
 
 	db.FirstOrInit(&clientKeyDev, clientKeyDev)
@@ -546,6 +553,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "file",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
+		IsSecret:      true,
 	}
 	db.FirstOrInit(&clientKeyProd, clientKeyProd)
 	db.Save(&clientKeyProd)
@@ -562,6 +570,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "file",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: developmentEnv.Model.ID,
+		IsSecret:      true,
 	}
 
 	db.FirstOrInit(&clientCertDev, clientCertDev)
@@ -579,6 +588,7 @@ func (x *CodeAmp) Migrate() {
 		Type:          "file",
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
+		IsSecret:      true,
 	}
 
 	db.FirstOrInit(&clientCertProd, clientCertProd)
