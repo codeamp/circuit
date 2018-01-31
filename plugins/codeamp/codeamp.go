@@ -232,8 +232,8 @@ func (x *CodeAmp) Migrate() {
 		Scope:         models.GetEnvironmentVariableScope("extension"),
 		EnvironmentId: productionEnv.Model.ID,
 	}
-	db.FirstOrInit(&productionEnv, productionEnv)
-	db.Save(&productionEnv)
+	db.FirstOrInit(&awsAccessKey, awsAccessKey)
+	db.Save(&awsAccessKey)
 	eValue = models.EnvironmentVariableValue{
 		EnvironmentVariableId: awsAccessKey.Model.ID,
 		UserId:                user.Model.ID,
@@ -324,6 +324,108 @@ func (x *CodeAmp) Migrate() {
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
+	// docker user
+	dockerUser := models.EnvironmentVariable{
+		Key:           "DOCKER_USER",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.FirstOrInit(&dockerUser, dockerUser)
+	db.Save(&dockerUser)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: dockerUser.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	// docker user
+	dockerUserDev := models.EnvironmentVariable{
+		Key:           "DOCKER_USER",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+	db.FirstOrInit(&dockerUserDev, dockerUserDev)
+	db.Save(&dockerUserDev)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: dockerUserDev.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	// docker email
+	dockerEmail := models.EnvironmentVariable{
+		Key:           "DOCKER_EMAIL",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.FirstOrInit(&dockerEmail, dockerEmail)
+	db.Save(&dockerEmail)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: dockerEmail.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	// docker email
+	dockerEmailDev := models.EnvironmentVariable{
+		Key:           "DOCKER_EMAIL",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+	db.FirstOrInit(&dockerEmailDev, dockerEmailDev)
+	db.Save(&dockerEmailDev)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: dockerEmailDev.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	// docker pass
+	dockerPass := models.EnvironmentVariable{
+		Key:           "DOCKER_PASS",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.FirstOrInit(&dockerPass, dockerPass)
+	db.Save(&dockerPass)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: dockerPass.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	// docker pass
+	dockerPassDev := models.EnvironmentVariable{
+		Key:           "DOCKER_PASS",
+		Type:          "env",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+	db.FirstOrInit(&dockerPassDev, dockerPassDev)
+	db.Save(&dockerPassDev)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: dockerPassDev.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
 	// s3 bucket
 	s3Bucket := models.EnvironmentVariable{
 		Key:           "S3_BUCKET",
@@ -390,6 +492,105 @@ func (x *CodeAmp) Migrate() {
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
+	certificateAuthorityDev := models.EnvironmentVariable{
+		Key:           "CERTIFICATE_AUTHORITY",
+		Type:          "file",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+	db.FirstOrInit(&certificateAuthorityDev, certificateAuthorityDev)
+	db.Save(&certificateAuthorityDev)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: certificateAuthorityDev.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	certificateAuthorityProd := models.EnvironmentVariable{
+		Key:           "CERTIFICATE_AUTHORITY",
+		Type:          "file",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.FirstOrInit(&certificateAuthorityProd, certificateAuthorityProd)
+	db.Save(&certificateAuthorityProd)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: certificateAuthorityProd.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	clientKeyDev := models.EnvironmentVariable{
+		Key:           "CLIENT_KEY",
+		Type:          "file",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+
+	db.FirstOrInit(&clientKeyDev, clientKeyDev)
+	db.Save(&clientKeyDev)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: clientKeyDev.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	clientKeyProd := models.EnvironmentVariable{
+		Key:           "CLIENT_KEY",
+		Type:          "file",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+	db.FirstOrInit(&clientKeyProd, clientKeyProd)
+	db.Save(&clientKeyProd)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: clientKeyProd.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	clientCertDev := models.EnvironmentVariable{
+		Key:           "CLIENT_CERTIFICATE",
+		Type:          "file",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: developmentEnv.Model.ID,
+	}
+
+	db.FirstOrInit(&clientCertDev, clientCertDev)
+	db.Save(&clientCertDev)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: clientCertDev.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
+	clientCertProd := models.EnvironmentVariable{
+		Key:           "CLIENT_CERTIFICATE",
+		Type:          "file",
+		Scope:         models.GetEnvironmentVariableScope("extension"),
+		EnvironmentId: productionEnv.Model.ID,
+	}
+
+	db.FirstOrInit(&clientCertProd, clientCertProd)
+	db.Save(&clientCertProd)
+	eValue = models.EnvironmentVariableValue{
+		EnvironmentVariableId: clientCertProd.Model.ID,
+		UserId:                user.Model.ID,
+		Value:                 "",
+	}
+	db.FirstOrInit(&eValue, eValue)
+	db.Save(&eValue)
+
 	// kubeconfig
 	kubeConfig := models.EnvironmentVariable{
 		Key:           "KUBECONFIG",
@@ -441,9 +642,9 @@ func (x *CodeAmp) Migrate() {
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfig.Model.ID.String()},
 		map[string]interface{}{"key": "ORG", "value": dockerOrg.Model.ID.String()},
 		map[string]interface{}{"key": "HOST", "value": dockerHost.Model.ID.String()},
-		map[string]interface{}{"key": "USER", "value": ""},
-		map[string]interface{}{"key": "EMAIL", "value": ""},
-		map[string]interface{}{"key": "PASSWORD", "value": ""},
+		map[string]interface{}{"key": "USER", "value": dockerUser.Model.ID.String()},
+		map[string]interface{}{"key": "EMAIL", "value": dockerEmail.Model.ID.String()},
+		map[string]interface{}{"key": "PASSWORD", "value": dockerPass.Model.ID.String()},
 	}
 	marshalledDbConfig, err := json.Marshal(dbConfig)
 	if err != nil {
@@ -464,9 +665,9 @@ func (x *CodeAmp) Migrate() {
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfigDev.Model.ID.String()},
 		map[string]interface{}{"key": "ORG", "value": dockerOrgDev.Model.ID.String()},
 		map[string]interface{}{"key": "HOST", "value": dockerHostDev.Model.ID.String()},
-		map[string]interface{}{"key": "USER", "value": ""},
-		map[string]interface{}{"key": "EMAIL", "value": ""},
-		map[string]interface{}{"key": "PASSWORD", "value": ""},
+		map[string]interface{}{"key": "USER", "value": dockerUserDev.Model.ID.String()},
+		map[string]interface{}{"key": "EMAIL", "value": dockerEmailDev.Model.ID.String()},
+		map[string]interface{}{"key": "PASSWORD", "value": dockerPassDev.Model.ID.String()},
 	}
 	marshalledDbConfig, err = json.Marshal(dbConfig)
 	if err != nil {
@@ -492,7 +693,10 @@ func (x *CodeAmp) Migrate() {
 		map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": hostedZoneId.Model.ID.String()},
 		map[string]interface{}{"key": "HOSTED_ZONE_NAME", "value": hostedZone.Model.ID.String()},
 		map[string]interface{}{"key": "AWS_ACCESS_KEY_ID", "value": awsAccessKey.Model.ID.String()},
-		map[string]interface{}{"key": "AWS_SECRET_KEY", "value": awsAccessKey.Model.ID.String()},
+		map[string]interface{}{"key": "AWS_SECRET_KEY", "value": awsSecretKey.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_CERTIFICATE", "value": clientCertProd.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_KEY", "value": clientKeyProd.Model.ID.String()},
+		map[string]interface{}{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthorityProd.Model.ID.String()},
 	}
 	marshalledLbConfig, err := json.Marshal(lbConfig)
 	if err != nil {
@@ -517,7 +721,10 @@ func (x *CodeAmp) Migrate() {
 		map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": hostedZoneIdDev.Model.ID.String()},
 		map[string]interface{}{"key": "HOSTED_ZONE_NAME", "value": hostedZoneDev.Model.ID.String()},
 		map[string]interface{}{"key": "AWS_ACCESS_KEY_ID", "value": awsAccessKeyDev.Model.ID.String()},
-		map[string]interface{}{"key": "AWS_SECRET_KEY", "value": awsAccessKeyDev.Model.ID.String()},
+		map[string]interface{}{"key": "AWS_SECRET_KEY", "value": awsSecretKeyDev.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_CERTIFICATE", "value": clientCertDev.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_KEY", "value": clientKeyDev.Model.ID.String()},
+		map[string]interface{}{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthorityDev.Model.ID.String()},
 	}
 	marshalledLbConfig, err = json.Marshal(lbConfig)
 	if err != nil {
@@ -538,10 +745,9 @@ func (x *CodeAmp) Migrate() {
 	// kubernetes
 	kubeConfigSpec := []map[string]interface{}{
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfig.Model.ID.String()},
-		map[string]interface{}{"key": "USER", "value": ""},
-		map[string]interface{}{"key": "PASSWORD", "value": ""},
-		map[string]interface{}{"key": "EMAIL", "value": ""},
-		map[string]interface{}{"key": "HOST", "value": dockerHost.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_CERTIFICATE", "value": clientCertProd.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_KEY", "value": clientKeyProd.Model.ID.String()},
+		map[string]interface{}{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthorityProd.Model.ID.String()},
 	}
 	marshalledKubeConfig, err := json.Marshal(kubeConfigSpec)
 	if err != nil {
@@ -561,10 +767,9 @@ func (x *CodeAmp) Migrate() {
 
 	kubeConfigSpec = []map[string]interface{}{
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfigDev.Model.ID.String()},
-		map[string]interface{}{"key": "USER", "value": ""},
-		map[string]interface{}{"key": "PASSWORD", "value": ""},
-		map[string]interface{}{"key": "EMAIL", "value": ""},
-		map[string]interface{}{"key": "HOST", "value": dockerHostDev.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_CERTIFICATE", "value": clientCertDev.Model.ID.String()},
+		map[string]interface{}{"key": "CLIENT_KEY", "value": clientKeyDev.Model.ID.String()},
+		map[string]interface{}{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthorityDev.Model.ID.String()},
 	}
 	marshalledKubeConfig, err = json.Marshal(kubeConfigSpec)
 	if err != nil {
