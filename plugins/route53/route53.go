@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	awssession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/codeamp/transistor"
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/transistor"
 
 	log "github.com/codeamp/logger"
 )
@@ -63,14 +63,14 @@ func (x *Route53) Process(e transistor.Event) error {
 		err = x.updateRoute53(e)
 	}
 
-
 	if err != nil {
-		event.State = plugins.GetState("failed")
-		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: Route53", err.Error(), event.State)
-		log.Debug(event.StateMessage)
-		event := e.NewEvent(event, err)
-		x.events <- event
-		return err
+		failMessage := fmt.Sprintf("%v (Action: %v, Step: Route53", err.Error(), event.State)
+		failedEvent := e.Payload.(plugins.Extension)
+		failedEvent.Action = plugins.GetAction("status")
+		failedEvent.State = plugins.GetState("failed")
+		failedEvent.StateMessage = failMessage
+		x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", failMessage))
+		return nil
 	}
 
 	return nil
@@ -78,17 +78,17 @@ func (x *Route53) Process(e transistor.Event) error {
 
 func (x *Route53) sendRoute53Response(e transistor.Event, state plugins.State, failureMessage string, lbPayload plugins.Extension) {
 	event := e.NewEvent(plugins.Extension{
-		Action: plugins.GetAction("create"),
+		Action:       plugins.GetAction("create"),
 		State:        state,
-		Slug: "route53",
+		Slug:         "route53",
 		StateMessage: failureMessage,
 		Artifacts: map[string]string{
-			"DNS": lbPayload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
+			"DNS":       lbPayload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
 			"SUBDOMAIN": lbPayload.Config["KUBERNETESLOADBALANCERS_SUBDOMAIN"].(string),
-			"FQDN": lbPayload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string),
+			"FQDN":      lbPayload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string),
 		},
-		Environment:  lbPayload.Environment,		
-		Project:      lbPayload.Project,
+		Environment: lbPayload.Environment,
+		Project:     lbPayload.Project,
 	}, nil)
 
 	x.events <- event
@@ -116,7 +116,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 
 		// Wait for DNS from the ELB to settle, abort if it does not resolve in initial_wait
 		// Trying to be conservative with these since we don't want to update Route53 before the new ELB dns record is available
-		
+
 		// time.Sleep(time.Second * 300) // TODO: replace initial_wait_seconds
 
 		// Query the DNS until it resolves or timeouts
@@ -221,30 +221,28 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			failedEvent.Action = plugins.GetAction("status")
 			failedEvent.StateMessage = failMessage
 
-			x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", failMessage))			
-			// x.sendRoute53Response(e, plugins.GetState("failed"), failMessage, payload)
+			x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", failMessage))
 			return nil
 		}
 		log.Info(fmt.Sprintf("Route53 record UPSERTed for %s: %s", route53Name, payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string)))
-		
 
 		// TODO: create aws manager that managers route53 and klb
 		// on behalf of klb, we send a klb event complete from route53
-		lbEventPayload := plugins.Extension {
-			Action: plugins.GetAction("status"),
-			Slug: "kubernetesloadbalancers",
-			State: plugins.GetState("complete"),
+		lbEventPayload := plugins.Extension{
+			Action:       plugins.GetAction("status"),
+			Slug:         "kubernetesloadbalancers",
+			State:        plugins.GetState("complete"),
 			StateMessage: "route53 cname created!",
-			Config: e.Payload.(plugins.Extension).Config,
+			Config:       e.Payload.(plugins.Extension).Config,
 			Artifacts: map[string]string{
-				"DNS": payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
+				"DNS":       payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
 				"SUBDOMAIN": payload.Config["KUBERNETESLOADBALANCERS_NAME"].(string),
-				"FQDN": payload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string),
+				"FQDN":      payload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string),
 			},
-			Environment:  payload.Environment,		
-			Project:      payload.Project,
+			Environment: payload.Environment,
+			Project:     payload.Project,
 		}
-		
+
 		x.events <- e.NewEvent(lbEventPayload, err)
 	}
 
