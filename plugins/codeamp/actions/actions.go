@@ -228,6 +228,103 @@ func (x *Actions) EnvironmentVariableDeleted(envVar *models.EnvironmentVariable)
 func (x *Actions) EnvironmentVariableUpdated(envVar *models.EnvironmentVariable) {
 }
 
+func (x *Actions) GetSecrets(project models.Project) ([]plugins.Secret, error) {
+	secrets := []plugins.Secret{}
+	adminEnvVars := []models.EnvironmentVariable{}
+	if x.db.Where("scope = ?", "global").Find(&adminEnvVars).RecordNotFound() {
+		log.InfoWithFields("no global admin env vars", log.Fields{})
+	}
+	for _, val := range adminEnvVars {
+		evValue := models.EnvironmentVariableValue{}
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
+			log.InfoWithFields("envvar value not found", log.Fields{
+				"id": val.Model.ID.String(),
+			})
+		} else {
+			secrets = append(secrets, plugins.Secret{
+				Key:   val.Key,
+				Value: evValue.Value,
+				Type:  val.Type,
+			})
+		}
+	}
+
+	projectEnvVars := []models.EnvironmentVariable{}
+	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
+		log.InfoWithFields("no project env vars found", log.Fields{})
+	}
+	for _, val := range projectEnvVars {
+		evValue := models.EnvironmentVariableValue{}
+		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
+			log.InfoWithFields("envvar value not found", log.Fields{
+				"id": val.Model.ID.String(),
+			})
+		} else {
+			secrets = append(secrets, plugins.Secret{
+				Key:   val.Key,
+				Value: evValue.Value,
+				Type:  val.Type,
+			})
+		}
+	}
+	return secrets, nil
+}
+
+func (x *Actions) GetSecretsAndServicesFromSnapshot(release *models.Release) ([]plugins.Secret, []plugins.Service, error) {
+	secrets := []plugins.Secret{}
+	unmarshalledSnapshot := map[string]interface{}{}
+	err := json.Unmarshal(release.Snapshot.RawMessage, &unmarshalledSnapshot)
+	if err != nil {
+		log.Info(err.Error())
+		return nil, nil , err
+	}
+
+	for _, envvar := range unmarshalledSnapshot["environmentVariables"].([]interface{}) {
+		key := envvar.(map[string]interface{})["key"].(string)
+		val := envvar.(map[string]interface{})["value"].(string)
+		evType := plugins.GetType(envvar.(map[string]interface{})["type"].(string))
+
+		secrets = append(secrets, plugins.Secret{
+			Key: key,
+			Value: val,
+			Type: evType,
+		})
+	}
+
+	pluginServices := []plugins.Service{}
+	for _, service := range unmarshalledSnapshot["services"].([]interface{}) {
+		pluginListeners := []plugins.Listener{}
+		for _, listener := range service.(map[string]interface{})["container_ports"].([]interface{}) {
+			intPort, _ := strconv.Atoi(listener.(map[string]interface{})["port"].(string))
+			pluginListeners = append(pluginListeners, plugins.Listener{
+				Port:     int32(intPort),
+				Protocol: listener.(map[string]interface{})["protocol"].(string),
+			})
+		}
+
+		intTerminationGracePeriod, _ := strconv.Atoi(service.(map[string]interface{})["service_spec"].(map[string]interface{})["termination_grace_period"].(string))
+		intReplicas, _ := strconv.Atoi(service.(map[string]interface{})["count"].(string))
+		pluginServices = append(pluginServices, plugins.Service{
+			Id:        service.(map[string]interface{})["id"].(string),
+			Command:   service.(map[string]interface{})["command"].(string),
+			Name:      service.(map[string]interface{})["name"].(string),
+			Listeners: pluginListeners,
+			State:     plugins.GetState("waiting"),
+			Spec: plugins.ServiceSpec{
+				Id:                            service.(map[string]interface{})["service_spec"].(map[string]interface{})["id"].(string),
+				CpuRequest:                    fmt.Sprintf("%sm", service.(map[string]interface{})["service_spec"].(map[string]interface{})["cpu_request"].(string)),
+				CpuLimit:                      fmt.Sprintf("%sm", service.(map[string]interface{})["service_spec"].(map[string]interface{})["cpu_limit"].(string)),
+				MemoryRequest:                 fmt.Sprintf("%sMi", service.(map[string]interface{})["service_spec"].(map[string]interface{})["memory_request"].(string)),
+				MemoryLimit:                   fmt.Sprintf("%sMi", service.(map[string]interface{})["service_spec"].(map[string]interface{})["memory_limit"].(string)),
+				TerminationGracePeriodSeconds: int64(intTerminationGracePeriod),
+			},
+			Type:     string(service.(map[string]interface{})["type"].(string)),
+			Replicas: int64(intReplicas),
+		})
+	}	
+	return secrets, pluginServices, nil
+}
+
 func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	project := models.Project{}
 	extensionSpec := models.ExtensionSpec{}
@@ -270,43 +367,9 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 	}
 
 	// get env vars in project and admin and insert into secrets
-	secrets := []plugins.Secret{}
-	adminEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope = ?", "global").Find(&adminEnvVars).RecordNotFound() {
-		log.InfoWithFields("no global admin env vars", log.Fields{})
-	}
-	for _, val := range adminEnvVars {
-		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
-			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Model.ID.String(),
-			})
-		} else {
-			secrets = append(secrets, plugins.Secret{
-				Key:   val.Key,
-				Value: evValue.Value,
-				Type:  val.Type,
-			})
-		}
-	}
-
-	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
-		log.InfoWithFields("no project env vars found", log.Fields{})
-	}
-	for _, val := range projectEnvVars {
-		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
-			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Model.ID.String(),
-			})
-		} else {
-			secrets = append(secrets, plugins.Secret{
-				Key:   val.Key,
-				Value: evValue.Value,
-				Type:  val.Type,
-			})
-		}
+	secrets, err := x.GetSecrets(project)
+	if err != nil {
+		log.Info(err.Error())
 	}
 
 	// get all branches relevant for the projec
@@ -435,51 +498,16 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 		})
 	}
 
-	// get env vars in project and admin and insert into secrets
-	secrets := []plugins.Secret{}
-	adminEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope = ?", "global").Find(&adminEnvVars).RecordNotFound() {
-		log.InfoWithFields("no global admin env vars", log.Fields{})
-	}
-	for _, val := range adminEnvVars {
-		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
-			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Model.ID.String(),
-			})
-		} else {
-			secrets = append(secrets, plugins.Secret{
-				Key:   val.Key,
-				Value: evValue.Value,
-				Type:  val.Type,
-			})
-		}
-	}
-
-	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
-		log.InfoWithFields("no project env vars found", log.Fields{})
-	}
-	for _, val := range projectEnvVars {
-		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
-			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Model.ID.String(),
-			})
-		} else {
-			secrets = append(secrets, plugins.Secret{
-				Key:   val.Key,
-				Value: evValue.Value,
-				Type:  val.Type,
-			})
-		}
+	secrets, err := x.GetSecrets(project)
+	if err != nil {
+		log.Info(err.Error())
+		return
 	}
 
 	// get all branches relevant for the projec
 	branch := "master"
 	envProjectBranch := models.EnvironmentBasedProjectBranch{}
-	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
-		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
 		branch = envProjectBranch.GitBranch
@@ -765,6 +793,7 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 		}
 	}
 
+
 	if done {
 		switch re.Type {
 		case plugins.GetType("workflow"):
@@ -865,44 +894,11 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		})
 	}
 
-	// get env vars in project and admin and insert into secrets
-	secrets := []plugins.Secret{}
-	adminEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope in ?", "global").Find(&adminEnvVars).RecordNotFound() {
-		log.InfoWithFields("no global admin env vars", log.Fields{})
-	}
-	for _, val := range adminEnvVars {
-		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
-			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Model.ID.String(),
-			})
-		} else {
-			secrets = append(secrets, plugins.Secret{
-				Key:   val.Key,
-				Value: evValue.Value,
-				Type:  val.Type,
-			})
-		}
-	}
-
-	projectEnvVars := []models.EnvironmentVariable{}
-	if x.db.Where("scope = ? and project_id = ?", "project", project.Model.ID.String()).Find(&projectEnvVars).RecordNotFound() {
-		log.InfoWithFields("no project env vars found", log.Fields{})
-	}
-	for _, val := range projectEnvVars {
-		evValue := models.EnvironmentVariableValue{}
-		if x.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
-			log.InfoWithFields("envvar value not found", log.Fields{
-				"id": val.Model.ID.String(),
-			})
-		} else {
-			secrets = append(secrets, plugins.Secret{
-				Key:   val.Key,
-				Value: evValue.Value,
-				Type:  val.Type,
-			})
-		}
+	// get secrets from release snapshot env vars
+	secrets, pluginServices, err := x.GetSecretsAndServicesFromSnapshot(release)
+	if err != nil {
+		log.Info(err.Error())
+		return
 	}
 
 	headFeature := models.Feature{}
@@ -939,53 +935,6 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		branch = envProjectBranch.GitBranch
 	}
 
-	pluginServices := []plugins.Service{}
-	for _, service := range services {
-		spec := models.ServiceSpec{}
-		if x.db.Where("id = ?", service.ServiceSpecId).First(&spec).RecordNotFound() {
-			log.InfoWithFields("servicespec not found", log.Fields{
-				"id": service.ServiceSpecId,
-			})
-			return
-		}
-
-		listeners := []models.ContainerPort{}
-		if x.db.Where("service_id = ?", service.Model.ID).Find(&listeners).RecordNotFound() {
-			log.InfoWithFields("container ports not found", log.Fields{
-				"service_id": service.Model.ID,
-			})
-			return
-		}
-
-		pluginListeners := []plugins.Listener{}
-		for _, listener := range listeners {
-			intPort, _ := strconv.Atoi(listener.Port)
-			pluginListeners = append(pluginListeners, plugins.Listener{
-				Port:     int32(intPort),
-				Protocol: listener.Protocol,
-			})
-		}
-
-		intTerminationGracePeriod, _ := strconv.Atoi(spec.TerminationGracePeriod)
-		intReplicas, _ := strconv.Atoi(service.Count)
-		pluginServices = append(pluginServices, plugins.Service{
-			Id:        service.Model.ID.String(),
-			Command:   service.Command,
-			Name:      service.Name,
-			Listeners: pluginListeners,
-			State:     plugins.GetState("waiting"),
-			Spec: plugins.ServiceSpec{
-				Id:                            spec.Model.ID.String(),
-				CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
-				CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
-				MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
-				MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
-				TerminationGracePeriodSeconds: int64(intTerminationGracePeriod),
-			},
-			Type:     string(service.Type),
-			Replicas: int64(intReplicas),
-		})
-	}
 	releaseEvent := plugins.Release{
 		Action:       plugins.GetAction("create"),
 		State:        plugins.GetState("waiting"),
@@ -1128,20 +1077,8 @@ func (x *Actions) DeploymentExtensionsCompleted(release *models.Release) {
 					"state":        plugins.GetState("complete"),
 				})
 			}
-
-			// for k, v := range releaseExtension.Artifacts {
-			// 	key := fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpec.Key), strings.ToUpper(k))
-			// 	releaseExtensionArtifacts[key] = *v
-			// }
 		}
 	}
-
-	// persist deployment artifacts
-	// for k, v := range releaseExtensionArtifacts {
-	// 	release.Artifacts[k] = &v
-	// }
-
-	x.db.Save(release)
 
 	x.ReleaseCompleted(release)
 }
@@ -1222,51 +1159,10 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		branch = envProjectBranch.GitBranch
 	}
 
-	pluginServices := []plugins.Service{}
-	for _, service := range services {
-		spec := models.ServiceSpec{}
-		if x.db.Where("id = ?", service.ServiceSpecId).First(&spec).RecordNotFound() {
-			log.InfoWithFields("servicespec not found", log.Fields{
-				"id": service.ServiceSpecId,
-			})
-			return
-		}
-
-		listeners := []models.ContainerPort{}
-		if x.db.Where("service_id = ?", service.Model.ID).Find(&listeners).RecordNotFound() {
-			log.InfoWithFields("container ports not found", log.Fields{
-				"service_id": service.Model.ID,
-			})
-			return
-		}
-
-		pluginListeners := []plugins.Listener{}
-		for _, listener := range listeners {
-			intPort, _ := strconv.Atoi(listener.Port)
-			pluginListeners = append(pluginListeners, plugins.Listener{
-				Port:     int32(intPort),
-				Protocol: listener.Protocol,
-			})
-		}
-		intTerminationGracePeriod, _ := strconv.Atoi(spec.TerminationGracePeriod)
-		intReplicas, _ := strconv.Atoi(service.Count)
-		pluginServices = append(pluginServices, plugins.Service{
-			Id:        service.Model.ID.String(),
-			Command:   service.Command,
-			Name:      service.Name,
-			Listeners: pluginListeners,
-			State:     plugins.GetState("waiting"),
-			Spec: plugins.ServiceSpec{
-				Id:                            spec.Model.ID.String(),
-				CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
-				CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
-				MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
-				MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
-				TerminationGracePeriodSeconds: int64(intTerminationGracePeriod),
-			},
-			Type:     string(service.Type),
-			Replicas: int64(intReplicas),
-		})
+	secrets, pluginServices, err := x.GetSecretsAndServicesFromSnapshot(release)
+	if err != nil {
+		log.Info(err.Error())
+		return
 	}
 
 	releaseEvent := plugins.Release{
@@ -1300,6 +1196,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			Url:    project.GitUrl,
 			Branch: branch,
 		},
+		Secrets: secrets,
 	}
 	for _, extension := range projectExtensions {
 		extensionSpec := models.ExtensionSpec{}

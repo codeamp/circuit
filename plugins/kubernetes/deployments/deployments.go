@@ -39,6 +39,7 @@ func (x *Deployments) Subscribe() []string {
 	return []string{
 		"plugins.ReleaseExtension:create:kubernetesdeployments",
 		"plugins.Extension:create:kubernetesdeployments",
+		"plugins.Extension:update:kubernetesdeployments",
 	}
 }
 
@@ -48,7 +49,7 @@ func (x *Deployments) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	if e.Name == "plugins.Extension:create:kubernetesdeployments" {
+	if e.Name == "plugins.Extension:create:kubernetesdeployments" || e.Name == "plugins.Extension:update:kubernetesdeployments" {
 		var extensionEvent plugins.Extension
 		extensionEvent = e.Payload.(plugins.Extension)
 		extensionEvent.Action = plugins.GetAction("status")

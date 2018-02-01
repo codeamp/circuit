@@ -159,6 +159,7 @@ type Release struct {
 	Secrets       []EnvironmentVariable `json:"secrets" gorm:"type:boolean"`
 	Services      []Service             `json:"services"`
 	Artifacts     postgres.Jsonb        `json:"artifacts" gorm:"type:jsonb;not null"`
+	Snapshot     postgres.Jsonb        `json:"snapshot" gorm:"type:jsonb;"`
 	Finished      time.Time
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }

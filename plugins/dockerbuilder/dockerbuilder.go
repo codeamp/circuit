@@ -55,6 +55,7 @@ func (x *DockerBuilder) Subscribe() []string {
 		"plugins.ReleaseExtension:create:dockerbuilder",
 		"plugins.ReleaseExtension:update:dockerbuilder",
 		"plugins.Extension:create:dockerbuilder",
+		"plugins.Extension:update:dockerbuilder",
 	}
 }
 

@@ -1,6 +1,8 @@
 package resolvers
 
 import (
+	"encoding/json"
+	"github.com/jinzhu/gorm/dialects/postgres"
 	"context"
 	"fmt"
 
@@ -28,6 +30,35 @@ type ReleaseInput struct {
 	ProjectId     string
 	HeadFeatureId string
 	EnvironmentId string
+}
+
+func (r *Resolver) RollbackRelease(ctx context.Context, args *struct { ReleaseId graphql.ID }) (*ReleaseResolver, error) {
+	/*
+		Rollback's purpose is to deploy a feature with a previous configuration state of the project.
+		We find the corresponding release object, get the Snapshot var to get the configuration of the project at the moment
+		the release was created. We then create a new release object and insert the old release's info into the new release.
+	*/
+	release := models.Release{}
+	if r.db.Where("id = ?", string(args.ReleaseId)).Find(&release).RecordNotFound() {
+		errMsg := fmt.Sprintf("Could not find release with given id %s", string(args.ReleaseId))
+		log.Info(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+	// create new release object with snapshot from found release
+	newRelease := models.Release{
+		ProjectId:     release.ProjectId,
+		EnvironmentId: release.EnvironmentId,
+		UserID:        release.UserID,
+		HeadFeatureID: release.HeadFeatureID,
+		TailFeatureID: release.TailFeatureID,
+		State:         plugins.GetState("waiting"),
+		StateMessage:  "Release created and rolled back.",
+		Snapshot: release.Snapshot,
+	}
+	r.db.Create(&newRelease)
+	r.actions.ReleaseCreated(&release)		
+
+	return &ReleaseResolver{ db: r.db, Release: release }, nil
 }
 
 func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
@@ -78,6 +109,124 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	userId := uuid.FromStringOrNil(userIdString)
 
+	snapshot := map[string]interface{}{
+		"environmentVariables": []map[string]interface{}{},
+		"services": []map[string]interface{}{},
+	}
+	
+	// get all the env vars related to this release and store
+	projectEnvVars := []models.EnvironmentVariable{}
+	if r.db.Where("environment_id = ? and project_id = ? and scope = ?", args.Release.EnvironmentId, args.Release.ProjectId, "project").Find(&projectEnvVars).RecordNotFound() {
+		log.InfoWithFields("no project env vars found", log.Fields{
+			"environment_id": args.Release.EnvironmentId,
+			"project_id": args.Release.ProjectId,
+			"scope": "project",
+		})
+	}
+
+	for _, val := range projectEnvVars {
+		evValue := models.EnvironmentVariableValue{}
+		if r.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
+			log.InfoWithFields("envvar value not found", log.Fields{
+				"id": val.Model.ID.String(),
+			})
+		} else {
+			snapshot["environmentVariables"] = append(snapshot["environmentVariables"].([]map[string]interface{}), map[string]interface{}{
+				"value": evValue.Value,
+				"type": val.Type,
+				"key": val.Key,
+				"is_secret": val.IsSecret,
+			})
+		}
+	}
+
+	// get admin env vars
+	adminEnvVars := []models.EnvironmentVariable{}
+	if r.db.Where("scope = ?", "global").Find(&projectEnvVars).RecordNotFound() {
+		log.InfoWithFields("no admin env vars found", log.Fields{
+			"scope": "global",
+		})
+	}	
+	for _, val := range adminEnvVars {
+		evValue := models.EnvironmentVariableValue{}
+		if r.db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
+			log.InfoWithFields("envvar value not found", log.Fields{
+				"id": val.Model.ID.String(),
+			})
+		} else {
+			snapshot["environmentVariables"] = append(snapshot["environmentVariables"].([]map[string]interface{}), map[string]interface{}{
+				"value": evValue.Value,
+				"type": val.Type,
+				"key": val.Key,
+				"is_secret": val.IsSecret,
+			})
+		}
+	}	
+
+	// get all services
+	services := []models.Service{}	
+	if r.db.Where("project_id = ?", args.Release.ProjectId).Find(&services).RecordNotFound() {
+		log.InfoWithFields("no services found", log.Fields{
+			"project_id": args.Release.ProjectId,
+		})
+	}
+
+	env := models.Environment{}
+	if r.db.Where("id = ?", args.Release.EnvironmentId).Find(&env).RecordNotFound() {
+		log.InfoWithFields("no env found", log.Fields{
+			"id": args.Release.EnvironmentId,
+		})
+	}	
+
+	for _, service := range services {
+		serviceSpec := models.ServiceSpec{}
+		if r.db.Where("id = ?", service.ServiceSpecId).Find(&serviceSpec).RecordNotFound(){ 
+			log.InfoWithFields("no service spec found", log.Fields{
+				"id": service.ServiceSpecId,
+			})
+		}
+		serviceMap := map[string]interface{}{
+			"id": service.Model.ID.String(),
+			"service_spec": map[string]interface{}{
+				"id": serviceSpec.Model.ID.String(),
+				"name": serviceSpec.Name,
+				"cpu_request": serviceSpec.CpuRequest,
+				"cpu_limit": serviceSpec.CpuLimit,
+				"memory_request": serviceSpec.MemoryRequest,
+				"memory_limit": serviceSpec.MemoryLimit,
+				"termination_grace_period": serviceSpec.TerminationGracePeriod,
+			},
+			"container_ports": []map[string]interface{}{},
+			"command": service.Command,
+			"name": service.Name,
+			"type": service.Type,
+			"count": service.Count,
+			"environment": map[string]interface{}{
+				"name": env.Name,
+			},
+		}
+
+		listeners := []models.ContainerPort{}
+		if r.db.Where("service_id = ?", service.Model.ID).Find(&listeners).RecordNotFound() {
+			log.InfoWithFields("container ports not found", log.Fields{
+				"service_id": service.Model.ID,
+			})
+		}
+		for _, listener := range listeners {
+			serviceMap["container_ports"] = append(serviceMap["container_ports"].([]map[string]interface{}), map[string]interface{}{
+				"port": listener.Port,
+				"protocol": listener.Protocol,
+			})
+		}
+		snapshot["services"] = append(snapshot["services"].([]map[string]interface{}), serviceMap)
+	}
+
+	marshalledSnapshot, err := json.Marshal(snapshot)
+	if err != nil {
+		log.Info(err.Error())
+		return nil, err
+	}
+
 	release := models.Release{
 		ProjectId:     projectId,
 		EnvironmentId: environmentId,
@@ -86,6 +235,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		TailFeatureID: tailFeatureId,
 		State:         plugins.GetState("waiting"),
 		StateMessage:  "Release created",
+		Snapshot: postgres.Jsonb{marshalledSnapshot},
 	}
 
 	r.db.Create(&release)

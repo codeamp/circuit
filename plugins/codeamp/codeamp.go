@@ -1003,6 +1003,14 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	if e.Matches("plugins.ReleaseExtension:status") {
 		payload := e.Payload.(plugins.ReleaseExtension)
 		var releaseExtension models.ReleaseExtension
+		var release models.Release
+
+		if x.Db.Where("id = ?", payload.Release.Id).Find(&release).RecordNotFound() {
+			log.InfoWithFields("release", log.Fields{
+				"id": payload.Release.Id,
+			})
+			return nil
+		}		
 
 		if x.Db.Where("id = ?", payload.Id).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found", log.Fields{
@@ -1019,22 +1027,21 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		releaseExtension.State = payload.State
 		releaseExtension.StateMessage = payload.StateMessage
 		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
-		// releaseExtension.Artifacts = plugins.MapStringStringToHstore(payload.Artifacts)
 		x.Db.Save(&releaseExtension)
+
+		marshalledArtifacts, err := json.Marshal(payload.Release.Artifacts)
+		if err != nil {
+			log.InfoWithFields(err.Error(), log.Fields{})
+			return nil
+		}
+		release.Artifacts = postgres.Jsonb{marshalledArtifacts}
+		x.Db.Save(&release)
 
 		if payload.State == plugins.GetState("complete") {
 			x.Actions.ReleaseExtensionCompleted(&releaseExtension)
 		}
 
 		if payload.State == plugins.GetState("failed") {
-			var release models.Release
-
-			if x.Db.Where("id = ?", payload.Release.Id).Find(&release).RecordNotFound() {
-				log.InfoWithFields("release", log.Fields{
-					"id": payload.Release.Id,
-				})
-				return nil
-			}
 			release.State = plugins.GetState("failed")
 			release.StateMessage = payload.StateMessage
 			x.Db.Save(&release)
