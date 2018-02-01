@@ -19,12 +19,15 @@ services:
       - codeamp
   circuit:
     image: circuit
-    command: sh -c "/usr/local/bin/dex serve configs/dex.yml & reflex -c reflex.conf"
+    # command: sh -c "/usr/local/bin/dex serve configs/dex.yml & reflex -c reflex.conf"
+    command: ./start-circuit.sh
     build:
       context: .
       dockerfile: Dockerfile.dev
       args:
         pull: 1
+    environment:
+      DOCKER_COMPOSE_POSTGRES_PORT: ${DOCKER_COMPOSE_POSTGRES_PORT}
     ports:
       - "${DOCKER_COMPOSE_CIRCUIT_PORT}:3011"
       - "${DOCKER_COMPOSE_DEX_PORT}:5556"
