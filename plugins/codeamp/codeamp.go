@@ -967,7 +967,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			return nil
 		}
 
-		extension.State = plugins.GetState("complete")
+		extension.State = payload.State
 		extension.Artifacts = postgres.Jsonb{marshalledArtifacts}
 
 		x.Db.Save(&extension)
@@ -1010,7 +1010,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 				"id": payload.Release.Id,
 			})
 			return nil
-		}		
+		}
 
 		if x.Db.Where("id = ?", payload.Id).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found", log.Fields{

@@ -330,7 +330,8 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	// send event to codeamp to signal loadbalancers completion
 	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)
-	event.Payload.(plugins.Extension).Artifacts["ELBDNS"] = ELBDNS
+	event.Payload.(plugins.Extension).Artifacts["ELB_DNS"] = ELBDNS
+	event.Payload.(plugins.Extension).Artifacts["STATUS"] = "Waiting for Route53 DNS"
 	x.events <- event
 
 	// send route53 event
