@@ -192,6 +192,25 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	// reasoning is so this function can complete even if
 	// there's something wrong with the transistor
 	go r.actions.ProjectCreated(&project)
+
+	// Create git branch for env per env
+
+	environments := []models.Environment{}
+	if r.db.Find(&environments).RecordNotFound() {
+		log.InfoWithFields("Environment doesn't exist.", log.Fields{
+			"args": args,
+		})
+		return nil, fmt.Errorf("No environments initialized.")
+	}
+
+	for _, env := range environments {
+		r.db.Create(&models.EnvironmentBasedProjectBranch{
+			EnvironmentId: env.Model.ID,
+			ProjectId:     project.Model.ID,
+			GitBranch:     "master",
+		})
+	}
+
 	return &ProjectResolver{db: r.db, Project: project}, nil
 }
 
@@ -325,11 +344,11 @@ func (r *ProjectResolver) EnvironmentBasedProjectBranch(ctx context.Context) (*E
 	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&branch).RecordNotFound() {
 		log.InfoWithFields("No env based project branch", log.Fields{
 			"environment_id": r.Environment.Model.ID,
-			"project_id": r.Project.Model.ID,
+			"project_id":     r.Project.Model.ID,
 		})
 		return nil, nil
 	}
-	return &EnvironmentBasedProjectBranchResolver{db: r.db, EnvironmentBasedProjectBranch: branch }, nil
+	return &EnvironmentBasedProjectBranchResolver{db: r.db, EnvironmentBasedProjectBranch: branch}, nil
 }
 
 func (r *ProjectResolver) Created() graphql.Time {
