@@ -56,7 +56,7 @@ func (r *Resolver) RollbackRelease(ctx context.Context, args *struct { ReleaseId
 		Snapshot: release.Snapshot,
 	}
 	r.db.Create(&newRelease)
-	r.actions.ReleaseCreated(&release)		
+	r.actions.ReleaseCreated(&newRelease)		
 
 	return &ReleaseResolver{ db: r.db, Release: release }, nil
 }
