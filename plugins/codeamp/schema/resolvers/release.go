@@ -32,6 +32,35 @@ type ReleaseInput struct {
 	EnvironmentId string
 }
 
+func (r *Resolver) RollbackRelease(ctx context.Context, args *struct { ReleaseId graphql.ID }) (*ReleaseResolver, error) {
+	/*
+		Rollback's purpose is to deploy a feature with a previous configuration state of the project.
+		We find the corresponding release object, get the Snapshot var to get the configuration of the project at the moment
+		the release was created. We then create a new release object and insert the old release's info into the new release.
+	*/
+	release := models.Release{}
+	if r.db.Where("id = ?", string(args.ReleaseId)).Find(&release).RecordNotFound() {
+		errMsg := fmt.Sprintf("Could not find release with given id %s", string(args.ReleaseId))
+		log.Info(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+	// create new release object with snapshot from found release
+	newRelease := models.Release{
+		ProjectId:     release.ProjectId,
+		EnvironmentId: release.EnvironmentId,
+		UserID:        release.UserID,
+		HeadFeatureID: release.HeadFeatureID,
+		TailFeatureID: release.TailFeatureID,
+		State:         plugins.GetState("waiting"),
+		StateMessage:  "Release created and rolled back.",
+		Snapshot: release.Snapshot,
+	}
+	r.db.Create(&newRelease)
+	r.actions.ReleaseCreated(&release)		
+
+	return &ReleaseResolver{ db: r.db, Release: release }, nil
+}
+
 func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
 	var tailFeatureId uuid.UUID
 	var currentRelease models.Release

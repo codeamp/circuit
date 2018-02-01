@@ -53,6 +53,7 @@ type Mutation {
   updateProject(project: ProjectInput): Project
 
   createRelease(release: ReleaseInput): Release
+  rollbackRelease(releaseId: ID!): Release
 
   createService(service: ServiceInput): Service
   updateService(service: ServiceInput): Service
