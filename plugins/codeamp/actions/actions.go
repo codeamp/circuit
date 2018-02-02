@@ -40,6 +40,7 @@ func (x *Actions) HeartBeat(tick string) {
 func (x *Actions) GitSync(project *models.Project) {
 	var feature models.Feature
 	var release models.Release
+	var headFeature models.Feature
 	hash := ""
 
 	// Get latest release and deployed feature hash
@@ -48,7 +49,12 @@ func (x *Actions) GitSync(project *models.Project) {
 		x.db.Where("project_id = ?", project.ID).Order("created_at DESC").First(&feature)
 		hash = feature.Hash
 	} else {
-		hash = release.HeadFeature.Hash
+		if x.db.Where("id = ?", release.HeadFeatureID).Find(&headFeature).RecordNotFound() { 
+			log.InfoWithFields("can not find head feature", log.Fields{
+				"id": release.HeadFeatureID,
+			})
+		}
+		hash = headFeature.Hash
 	}
 
 	// get branches of entire environments
