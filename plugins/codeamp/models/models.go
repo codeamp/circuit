@@ -148,18 +148,13 @@ type Release struct {
 	Model         `json:",inline"`
 	State         plugins.State `json:"state"`
 	StateMessage  string        `json:"stateMessage"`
-	Project       Project
 	ProjectId     uuid.UUID `json:"projectId" gorm:"type:uuid"`
 	User          User
 	UserID        uuid.UUID `json:"userId" gorm:"type:uuid"`
-	HeadFeature   Feature
 	HeadFeatureID uuid.UUID `json:"headFeatureId" gorm:"type:uuid"`
-	TailFeature   Feature
 	TailFeatureID uuid.UUID             `json:"tailFeatureId" gorm:"type:uuid"`
-	Secrets       []EnvironmentVariable `json:"secrets" gorm:"type:boolean"`
-	Services      []Service             `json:"services"`
 	Artifacts     postgres.Jsonb        `json:"artifacts" gorm:"type:jsonb;not null"`
-	Snapshot     postgres.Jsonb        `json:"snapshot" gorm:"type:jsonb;"`
+	Snapshot      postgres.Jsonb        `json:"snapshot" gorm:"type:jsonb;"`
 	Finished      time.Time
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
