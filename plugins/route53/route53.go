@@ -148,7 +148,6 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			failedEvent.StateMessage = failMessage
 
 			x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", failMessage))
-			// x.sendRoute53Response(e, plugins.GetState("failed"), failMessage, payload)
 			return nil
 		}
 		fmt.Printf("DNS for %s resolved to: %s\n", payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string), strings.Join(dnsLookup, ","))
@@ -229,15 +228,16 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		// TODO: create aws manager that managers route53 and klb
 		// on behalf of klb, we send a klb event complete from route53
 		lbEventPayload := plugins.Extension{
+			Id:           e.Payload.(plugins.Extension).Id,
 			Action:       plugins.GetAction("status"),
 			Slug:         "kubernetesloadbalancers",
 			State:        plugins.GetState("complete"),
 			StateMessage: "route53 cname created!",
 			Config:       e.Payload.(plugins.Extension).Config,
 			Artifacts: map[string]string{
-				"DNS":       payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
+				"ELBDNS":    payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
 				"SUBDOMAIN": payload.Config["KUBERNETESLOADBALANCERS_NAME"].(string),
-				"FQDN":      payload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string),
+				"FQDN":      fmt.Sprintf("%s.%s", payload.Config["KUBERNETESLOADBALANCERS_NAME"].(string), payload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string)),
 			},
 			Environment: payload.Environment,
 			Project:     payload.Project,
