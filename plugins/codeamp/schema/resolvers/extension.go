@@ -1,10 +1,11 @@
 package resolvers
 
 import (
-	"github.com/jinzhu/gorm/dialects/postgres"
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/jinzhu/gorm/dialects/postgres"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -56,7 +57,7 @@ func (r *ExtensionResolver) Project(ctx context.Context) (*ProjectResolver, erro
 
 func (r *ExtensionResolver) ExtensionSpec(ctx context.Context) (*ExtensionSpecResolver, error) {
 	var extensionSpec models.ExtensionSpec
-	r.db.Model(r.Extension).Related(&extensionSpec)	
+	r.db.Model(r.Extension).Related(&extensionSpec)
 	return &ExtensionSpecResolver{db: r.db, ExtensionSpec: extensionSpec}, nil
 }
 
@@ -102,18 +103,16 @@ func (r *Resolver) CreateExtension(ctx context.Context, args *struct{ Extension 
 		return nil, errors.New("Could not parse EnvironmentId. Invalid format.")
 	}
 
-	// check if extension already exists with project
-	if r.db.Where("project_id = ? and extension_spec_id = ? and environment_id = ?", projectId, extensionSpecId, environmentId).Find(&extension).RecordNotFound() {
-		// make sure extension form spec values are valid
-		// if they are valid, create extension object
-		var extensionSpec models.ExtensionSpec
-		if r.db.Where("id = ?", extensionSpecId).Find(&extensionSpec).RecordNotFound() {
-			log.InfoWithFields("can't find corresponding extensionSpec", log.Fields{
-				"extension": args.Extension,
-			})
-			return nil, errors.New("Can't find corresponding extensionSpec.")
-		}
+	// get extensionspec
+	var extensionSpec models.ExtensionSpec
+	if r.db.Where("id = ?", extensionSpecId).Find(&extensionSpec).RecordNotFound() {
+		log.InfoWithFields("Could not find an extension spec while trying to CreateExtension", log.Fields{
+			"id": extensionSpecId,
+		})
+	}
 
+	// check if extension already exists with project
+	if extensionSpec.Type == plugins.GetType("once") || r.db.Where("project_id = ? and extension_spec_id = ? and environment_id = ?", projectId, extensionSpecId, environmentId).Find(&extension).RecordNotFound() {
 		extension = models.Extension{
 			ExtensionSpecId: extensionSpecId,
 			ProjectId:       projectId,

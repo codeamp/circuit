@@ -25,7 +25,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
 	"github.com/neelance/graphql-go/relay"
-	"github.com/satyakb/go-socket.io-redis"
+	redis "github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
 
@@ -953,51 +953,45 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	if e.Matches("plugins.Extension:status") {
 		payload := e.Payload.(plugins.Extension)
 		var extension models.Extension
-
 		if x.Db.Where("id = ?", payload.Id).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found", log.Fields{
 				"id": payload.Id,
 			})
-			return nil
+			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event becauseExtension not found given payload id: %s.", payload.Id))
 		}
 
-		marshalledArtifacts, err := json.Marshal(payload.Artifacts)
+		// get old artifacts and then merge with the payload.Artifacts
+		// this prevents data regressions upon extension failure events
+		// e.g. load balancer completes w/ Artifacts, but route53 fails with empty artifacts
+
+		mergedArtifacts := make(map[string]string)
+		err := json.Unmarshal(extension.Artifacts.RawMessage, &mergedArtifacts)
+		if err != nil {
+			log.Info(err.Error())
+			return err
+		}
+		if len(mergedArtifacts) > 0 {
+			for key, value := range payload.Artifacts {
+				mergedArtifacts[key] = value
+			}
+		} else {
+			mergedArtifacts = payload.Artifacts
+		}
+
+		marshalledArtifacts, err := json.Marshal(mergedArtifacts)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{})
-			return nil
+			return err
 		}
 
 		extension.State = payload.State
+		extension.StateMessage = payload.StateMessage
 		extension.Artifacts = postgres.Jsonb{marshalledArtifacts}
-
 		x.Db.Save(&extension)
 
 		if payload.State == plugins.GetState("complete") {
 			x.Actions.ExtensionInitCompleted(&extension)
 		}
-	}
-
-	if e.Matches("plugins.Extension:complete") {
-		payload := e.Payload.(plugins.Extension)
-		var extension models.Extension
-
-		if x.Db.Where("id = ?", payload.Id).Find(&extension).RecordNotFound() {
-			log.InfoWithFields("extension not found", log.Fields{
-				"id": payload.Id,
-			})
-			return nil
-		}
-
-		marshalledArtifacts, err := json.Marshal(payload.Artifacts)
-		if err != nil {
-			log.InfoWithFields(err.Error(), log.Fields{})
-			return nil
-		}
-
-		extension.State = plugins.GetState("complete")
-		extension.Artifacts = postgres.Jsonb{marshalledArtifacts}
-		x.Db.Save(&extension)
-		x.Actions.ExtensionInitCompleted(&extension)
 	}
 
 	if e.Matches("plugins.ReleaseExtension:status") {
@@ -1018,10 +1012,25 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			})
 			return nil
 		}
-		marshalledReArtifacts, err := json.Marshal(payload.Artifacts)
+
+		mergedArtifacts := make(map[string]string)
+		err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &mergedArtifacts)
+		if err != nil {
+			log.Info(err.Error())
+			return err
+		}
+		if len(mergedArtifacts) > 0 {
+			for key, value := range payload.Artifacts {
+				mergedArtifacts[key] = value
+			}
+		} else {
+			mergedArtifacts = payload.Artifacts
+		}
+
+		marshalledArtifacts, err := json.Marshal(mergedArtifacts)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{})
-			return nil
+			return err
 		}
 
 		releaseExtension.State = payload.State
