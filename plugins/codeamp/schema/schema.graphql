@@ -222,6 +222,7 @@ interface Extension {
   artifacts: Json!
   config: Json!
   state: String!
+  stateMessage: String!
   environment: Environment!
   created: Time!
 }

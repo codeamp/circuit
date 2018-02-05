@@ -65,6 +65,10 @@ func (r *ExtensionResolver) State() string {
 	return string(r.Extension.State)
 }
 
+func (r *ExtensionResolver) StateMessage() string {
+	return r.Extension.StateMessage
+}
+
 func (r *ExtensionResolver) Config(ctx context.Context) scalar.Json {
 	return scalar.Json{r.Extension.Config.RawMessage}
 }
