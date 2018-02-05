@@ -1027,7 +1027,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			mergedArtifacts = payload.Artifacts
 		}
 
-		marshalledArtifacts, err := json.Marshal(mergedArtifacts)
+		marshalledReArtifacts, err := json.Marshal(mergedArtifacts)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{})
 			return err
