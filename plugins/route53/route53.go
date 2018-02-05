@@ -234,8 +234,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			Project:     payload.Project,
 		}
 
-		newEvent := e.NewEvent(lbEventPayload, err)
-		x.events <- newEvent
+		x.events <- e.NewEvent(lbEventPayload, err)
 	}
 
 	return nil
