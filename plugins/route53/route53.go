@@ -235,7 +235,6 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		}
 
 		newEvent := e.NewEvent(lbEventPayload, err)
-		log.Info("EXTENSION EVENT BEING SENT", newEvent)
 		x.events <- newEvent
 	}
 

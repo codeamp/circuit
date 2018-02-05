@@ -1012,10 +1012,25 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			})
 			return nil
 		}
-		marshalledReArtifacts, err := json.Marshal(payload.Artifacts)
+
+		mergedArtifacts := make(map[string]string)
+		err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &mergedArtifacts)
+		if err != nil {
+			log.Info(err.Error())
+			return err
+		}
+		if len(mergedArtifacts) > 0 {
+			for key, value := range payload.Artifacts {
+				mergedArtifacts[key] = value
+			}
+		} else {
+			mergedArtifacts = payload.Artifacts
+		}
+
+		marshalledArtifacts, err := json.Marshal(mergedArtifacts)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{})
-			return nil
+			return err
 		}
 
 		releaseExtension.State = payload.State
