@@ -1027,7 +1027,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			mergedArtifacts = payload.Artifacts
 		}
 
-		marshalledArtifacts, err := json.Marshal(mergedArtifacts)
+		marshalledReArtifacts, err := json.Marshal(mergedArtifacts)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{})
 			return err
@@ -1035,7 +1035,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 
 		releaseExtension.State = payload.State
 		releaseExtension.StateMessage = payload.StateMessage
-		releaseExtension.Artifacts = postgres.Jsonb{marshalledArtifacts}
+		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		x.Db.Save(&releaseExtension)
 
 		marshalledArtifacts, err := json.Marshal(payload.Release.Artifacts)
