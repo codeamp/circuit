@@ -76,12 +76,12 @@ func (x *Route53) Process(e transistor.Event) error {
 	return nil
 }
 
-func (x *Route53) sendRoute53Response(e transistor.Event, state plugins.State, failureMessage string, lbPayload plugins.Extension) {
+func (x *Route53) sendRoute53Response(e transistor.Event, action plugins.Action, state plugins.State, stateMessage string, lbPayload plugins.Extension) {
 	event := e.NewEvent(plugins.Extension{
-		Action:       plugins.GetAction("create"),
+		Action:       action,
 		State:        state,
 		Slug:         "route53",
-		StateMessage: failureMessage,
+		StateMessage: stateMessage,
 		Artifacts: map[string]string{
 			"DNS":       lbPayload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
 			"SUBDOMAIN": lbPayload.Config["KUBERNETESLOADBALANCERS_SUBDOMAIN"].(string),
@@ -99,12 +99,12 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 	// Sanity checks
 	if payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string) == "" {
 		failMessage := fmt.Sprintf("DNS was blank for %s, skipping Route53.", payload.Project.Repository)
-		x.sendRoute53Response(e, plugins.GetState("failed"), failMessage, payload)
+		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
 		return nil
 	}
 	if payload.Config["KUBERNETESLOADBALANCERS_NAME"] == "" {
 		failMessage := fmt.Sprintf("Subdomain was blank for %s, skipping Route53.", payload.Project.Repository)
-		x.sendRoute53Response(e, plugins.GetState("failed"), failMessage, payload)
+		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
 	}
 	if plugins.GetType(payload.Config["KUBERNETESLOADBALANCERS_TYPE"].(string)) == plugins.GetType("internal") {
 		fmt.Printf("Internal service type ignored for %s", payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string))
@@ -142,12 +142,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			fmt.Println(failMessage + ".. Retrying in 10s")
 		}
 		if dnsValid == false {
-			failedEvent := e.Payload.(plugins.Extension)
-			failedEvent.Action = plugins.GetAction("status")
-			failedEvent.State = plugins.GetState("failed")
-			failedEvent.StateMessage = failMessage
-
-			x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", failMessage))
+			x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
 			return nil
 		}
 		fmt.Printf("DNS for %s resolved to: %s\n", payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string), strings.Join(dnsLookup, ","))
@@ -215,12 +210,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		_, err := client.ChangeResourceRecordSets(updateParams)
 		if err != nil {
 			failMessage := fmt.Sprintf("ERROR '%s' setting Route53 DNS for %s", err, route53Name)
-			failedEvent := e.Payload.(plugins.Extension)
-			failedEvent.State = plugins.GetState("failed")
-			failedEvent.Action = plugins.GetAction("status")
-			failedEvent.StateMessage = failMessage
-
-			x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", failMessage))
+			x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
 			return nil
 		}
 		log.Info(fmt.Sprintf("Route53 record UPSERTed for %s: %s", route53Name, payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string)))
@@ -235,15 +225,18 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			StateMessage: "route53 cname created!",
 			Config:       e.Payload.(plugins.Extension).Config,
 			Artifacts: map[string]string{
-				"ELBDNS":    payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
+				"ELB_DNS":   payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
 				"SUBDOMAIN": payload.Config["KUBERNETESLOADBALANCERS_NAME"].(string),
 				"FQDN":      fmt.Sprintf("%s.%s", payload.Config["KUBERNETESLOADBALANCERS_NAME"].(string), payload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string)),
+				"STATUS":    "Route53 completed",
 			},
 			Environment: payload.Environment,
 			Project:     payload.Project,
 		}
 
-		x.events <- e.NewEvent(lbEventPayload, err)
+		newEvent := e.NewEvent(lbEventPayload, err)
+		log.Info("EXTENSION EVENT BEING SENT", newEvent)
+		x.events <- newEvent
 	}
 
 	return nil

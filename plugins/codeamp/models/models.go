@@ -148,13 +148,13 @@ type Release struct {
 	Model         `json:",inline"`
 	State         plugins.State `json:"state"`
 	StateMessage  string        `json:"stateMessage"`
-	ProjectId     uuid.UUID `json:"projectId" gorm:"type:uuid"`
+	ProjectId     uuid.UUID     `json:"projectId" gorm:"type:uuid"`
 	User          User
-	UserID        uuid.UUID `json:"userId" gorm:"type:uuid"`
-	HeadFeatureID uuid.UUID `json:"headFeatureId" gorm:"type:uuid"`
-	TailFeatureID uuid.UUID             `json:"tailFeatureId" gorm:"type:uuid"`
-	Artifacts     postgres.Jsonb        `json:"artifacts" gorm:"type:jsonb;not null"`
-	Snapshot      postgres.Jsonb        `json:"snapshot" gorm:"type:jsonb;"`
+	UserID        uuid.UUID      `json:"userId" gorm:"type:uuid"`
+	HeadFeatureID uuid.UUID      `json:"headFeatureId" gorm:"type:uuid"`
+	TailFeatureID uuid.UUID      `json:"tailFeatureId" gorm:"type:uuid"`
+	Artifacts     postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
+	Snapshot      postgres.Jsonb `json:"snapshot" gorm:"type:jsonb;"`
 	Finished      time.Time
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
@@ -180,7 +180,8 @@ type Extension struct {
 	ProjectId       uuid.UUID      `json:"projectId" gorm:"type:uuid"`
 	ExtensionSpecId uuid.UUID      `json:"extensionSpecId" gorm:"type:uuid"`
 	State           plugins.State  `json:"state"`
-	Artifacts       postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"`
+	StateMessage    string         `json:"stateMessage"`
+	Artifacts       postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
 	Config          postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
 	EnvironmentId   uuid.UUID      `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
@@ -195,15 +196,6 @@ type ReleaseExtension struct {
 	State             plugins.State  `json:"state"`
 	StateMessage      string         `json:"stateMessage"`
 	Type              plugins.Type   `json:"type"`
-	Artifacts         postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"` // captured on workflow success/ fail
+	Artifacts         postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"` // captured on workflow success/ fail
 	Finished          time.Time
-}
-
-type ReleaseDeployment struct {
-	Model        `json:",inline"`
-	ReleaseId    uuid.UUID      `json:"releaseId" gorm:"type:uuid"`
-	State        plugins.State  `json:"state"`
-	StateMessage string         `json:"stateMessage"`
-	Artifacts    postgres.Jsonb `json:"artifacts" gorm:"type:jsonb;not null"` // captured on workflow success/ fail
-	Finished     time.Time
 }
