@@ -49,7 +49,7 @@ func (x *Actions) GitSync(project *models.Project) {
 		x.db.Where("project_id = ?", project.ID).Order("created_at DESC").First(&feature)
 		hash = feature.Hash
 	} else {
-		if x.db.Where("id = ?", release.HeadFeatureID).Find(&headFeature).RecordNotFound() { 
+		if x.db.Where("id = ?", release.HeadFeatureID).Find(&headFeature).RecordNotFound() {
 			log.InfoWithFields("can not find head feature", log.Fields{
 				"id": release.HeadFeatureID,
 			})
@@ -282,7 +282,7 @@ func (x *Actions) GetSecretsAndServicesFromSnapshot(release *models.Release) ([]
 	err := json.Unmarshal(release.Snapshot.RawMessage, &unmarshalledSnapshot)
 	if err != nil {
 		log.Info(err.Error())
-		return nil, nil , err
+		return nil, nil, err
 	}
 
 	for _, envvar := range unmarshalledSnapshot["environmentVariables"].([]interface{}) {
@@ -291,9 +291,9 @@ func (x *Actions) GetSecretsAndServicesFromSnapshot(release *models.Release) ([]
 		evType := plugins.GetType(envvar.(map[string]interface{})["type"].(string))
 
 		secrets = append(secrets, plugins.Secret{
-			Key: key,
+			Key:   key,
 			Value: val,
-			Type: evType,
+			Type:  evType,
 		})
 	}
 
@@ -327,7 +327,7 @@ func (x *Actions) GetSecretsAndServicesFromSnapshot(release *models.Release) ([]
 			Type:     string(service.(map[string]interface{})["type"].(string)),
 			Replicas: int64(intReplicas),
 		})
-	}	
+	}
 	return secrets, pluginServices, nil
 }
 
@@ -353,6 +353,11 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 			"id": extension.EnvironmentId,
 		})
 	}
+
+	x.events <- transistor.NewEvent(plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/extensions", project.Slug),
+		Payload: extension,
+	}, nil)
 
 	unmarshalledConfig := make(map[string]interface{})
 	err := json.Unmarshal(extension.Config.RawMessage, &unmarshalledConfig)
@@ -791,6 +796,11 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 		return
 	}
 
+	x.events <- transistor.NewEvent(plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/releases/reCompleted", project.Slug),
+		Payload: release,
+	}, nil)
+
 	// loop through and check if all release extensions are completed
 	done := true
 	for _, fre := range fellowReleaseExtensions {
@@ -798,7 +808,6 @@ func (x *Actions) ReleaseExtensionCompleted(re *models.ReleaseExtension) {
 			done = false
 		}
 	}
-
 
 	if done {
 		switch re.Type {
@@ -1255,4 +1264,10 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 			}, nil)
 		}
 	}
+
+	// send web socket message notifying release has been created
+	x.events <- transistor.NewEvent(plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/releases", project.Slug),
+		Payload: release,
+	}, nil)
 }

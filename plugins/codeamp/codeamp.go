@@ -933,6 +933,18 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	if e.Matches("plugins.GitCommit") {
 		payload := e.Payload.(plugins.GitCommit)
 		x.Actions.GitCommit(payload)
+
+		var project models.Project
+		if x.Db.Where("repository = ?", payload.Repository).Find(&project).RecordNotFound() {
+			log.InfoWithFields("project not found", log.Fields{
+				"repository": payload.Repository,
+			})
+		} else {
+			x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+				Event: fmt.Sprintf("projects/%s/features", project.Slug),
+			}, nil)
+		}
+
 	}
 
 	if e.Matches("plugins.GitBranch") {
@@ -953,11 +965,20 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	if e.Matches("plugins.Extension:status") {
 		payload := e.Payload.(plugins.Extension)
 		var extension models.Extension
+		var project models.Project
+
 		if x.Db.Where("id = ?", payload.Id).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found", log.Fields{
 				"id": payload.Id,
 			})
-			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event becauseExtension not found given payload id: %s.", payload.Id))
+			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event because Extension not found given payload id: %s.", payload.Id))
+		}
+
+		if x.Db.Where("id = ?", extension.ProjectId).Find(&project).RecordNotFound() {
+			log.InfoWithFields("project not found", log.Fields{
+				"id": extension.ProjectId,
+			})
+			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event because Project not found given payload id: %s.", extension.ProjectId))
 		}
 
 		// get old artifacts and then merge with the payload.Artifacts
@@ -988,6 +1009,11 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		extension.StateMessage = payload.StateMessage
 		extension.Artifacts = postgres.Jsonb{marshalledArtifacts}
 		x.Db.Save(&extension)
+
+		x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+			Event:   fmt.Sprintf("projects/%s/extensions", project.Slug),
+			Payload: extension,
+		}, nil)
 
 		if payload.State == plugins.GetState("complete") {
 			x.Actions.ExtensionInitCompleted(&extension)
