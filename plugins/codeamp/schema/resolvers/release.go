@@ -1,10 +1,11 @@
 package resolvers
 
 import (
-	"encoding/json"
-	"github.com/jinzhu/gorm/dialects/postgres"
 	"context"
+	"encoding/json"
 	"fmt"
+
+	"github.com/jinzhu/gorm/dialects/postgres"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -32,19 +33,19 @@ type ReleaseInput struct {
 	EnvironmentId string
 }
 
-func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interface{}, error){
+func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interface{}, error) {
 	snapshot := map[string]interface{}{
 		"environmentVariables": []map[string]interface{}{},
-		"services": []map[string]interface{}{},
+		"services":             []map[string]interface{}{},
 	}
-	
+
 	// get all the env vars related to this release and store
 	projectEnvVars := []models.EnvironmentVariable{}
 	if db.Where("environment_id = ? and project_id = ? and scope = ?", args.Release.EnvironmentId, args.Release.ProjectId, "project").Find(&projectEnvVars).RecordNotFound() {
 		log.InfoWithFields("no project env vars found", log.Fields{
 			"environment_id": args.Release.EnvironmentId,
-			"project_id": args.Release.ProjectId,
-			"scope": "project",
+			"project_id":     args.Release.ProjectId,
+			"scope":          "project",
 		})
 	}
 
@@ -56,9 +57,9 @@ func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interfa
 			})
 		} else {
 			snapshot["environmentVariables"] = append(snapshot["environmentVariables"].([]map[string]interface{}), map[string]interface{}{
-				"value": evValue.Value,
-				"type": val.Type,
-				"key": val.Key,
+				"value":     evValue.Value,
+				"type":      val.Type,
+				"key":       val.Key,
 				"is_secret": val.IsSecret,
 			})
 		}
@@ -70,7 +71,7 @@ func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interfa
 		log.InfoWithFields("no admin env vars found", log.Fields{
 			"scope": "global",
 		})
-	}	
+	}
 	for _, val := range adminEnvVars {
 		evValue := models.EnvironmentVariableValue{}
 		if db.Where("environment_variable_id = ?", val.Model.ID.String()).Order("created_at desc").First(&evValue).RecordNotFound() {
@@ -79,17 +80,17 @@ func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interfa
 			})
 		} else {
 			snapshot["environmentVariables"] = append(snapshot["environmentVariables"].([]map[string]interface{}), map[string]interface{}{
-				"value": evValue.Value,
-				"type": val.Type,
-				"key": val.Key,
+				"value":     evValue.Value,
+				"type":      val.Type,
+				"key":       val.Key,
 				"is_secret": val.IsSecret,
 			})
 		}
-	}	
+	}
 
 	// get all services
-	services := []models.Service{}	
-	if db.Where("project_id = ?", args.Release.ProjectId).Find(&services).RecordNotFound() {
+	services := []models.Service{}
+	if db.Where("project_id = ? and environment_id = ?", args.Release.ProjectId, args.Release.EnvironmentId).Find(&services).RecordNotFound() {
 		log.InfoWithFields("no services found", log.Fields{
 			"project_id": args.Release.ProjectId,
 		})
@@ -102,11 +103,11 @@ func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interfa
 			"id": args.Release.EnvironmentId,
 		})
 		return nil, fmt.Errorf("no env found")
-	}	
+	}
 
 	for _, service := range services {
 		serviceSpec := models.ServiceSpec{}
-		if db.Where("id = ?", service.ServiceSpecId).Find(&serviceSpec).RecordNotFound(){ 
+		if db.Where("id = ?", service.ServiceSpecId).Find(&serviceSpec).RecordNotFound() {
 			log.InfoWithFields("no service spec found", log.Fields{
 				"id": service.ServiceSpecId,
 			})
@@ -115,19 +116,19 @@ func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interfa
 		serviceMap := map[string]interface{}{
 			"id": service.Model.ID.String(),
 			"service_spec": map[string]interface{}{
-				"id": serviceSpec.Model.ID.String(),
-				"name": serviceSpec.Name,
-				"cpu_request": serviceSpec.CpuRequest,
-				"cpu_limit": serviceSpec.CpuLimit,
-				"memory_request": serviceSpec.MemoryRequest,
-				"memory_limit": serviceSpec.MemoryLimit,
+				"id":                       serviceSpec.Model.ID.String(),
+				"name":                     serviceSpec.Name,
+				"cpu_request":              serviceSpec.CpuRequest,
+				"cpu_limit":                serviceSpec.CpuLimit,
+				"memory_request":           serviceSpec.MemoryRequest,
+				"memory_limit":             serviceSpec.MemoryLimit,
 				"termination_grace_period": serviceSpec.TerminationGracePeriod,
 			},
 			"container_ports": []map[string]interface{}{},
-			"command": service.Command,
-			"name": service.Name,
-			"type": service.Type,
-			"count": service.Count,
+			"command":         service.Command,
+			"name":            service.Name,
+			"type":            service.Type,
+			"count":           service.Count,
 			"environment": map[string]interface{}{
 				"name": env.Name,
 			},
@@ -141,7 +142,7 @@ func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interfa
 		}
 		for _, listener := range listeners {
 			serviceMap["container_ports"] = append(serviceMap["container_ports"].([]map[string]interface{}), map[string]interface{}{
-				"port": listener.Port,
+				"port":     listener.Port,
 				"protocol": listener.Protocol,
 			})
 		}
@@ -150,7 +151,7 @@ func createSnapshot(db *gorm.DB, args *struct{ Release *ReleaseInput }) (interfa
 	return snapshot, nil
 }
 
-func (r *Resolver) RollbackRelease(ctx context.Context, args *struct { ReleaseId graphql.ID }) (*ReleaseResolver, error) {
+func (r *Resolver) RollbackRelease(ctx context.Context, args *struct{ ReleaseId graphql.ID }) (*ReleaseResolver, error) {
 	/*
 		Rollback's purpose is to deploy a feature with a previous configuration state of the project.
 		We find the corresponding release object, get the Snapshot var to get the configuration of the project at the moment
@@ -171,12 +172,12 @@ func (r *Resolver) RollbackRelease(ctx context.Context, args *struct { ReleaseId
 		TailFeatureID: release.TailFeatureID,
 		State:         plugins.GetState("waiting"),
 		StateMessage:  "Release created and rolled back.",
-		Snapshot: release.Snapshot,
+		Snapshot:      release.Snapshot,
 	}
 	r.db.Create(&newRelease)
-	r.actions.ReleaseCreated(&newRelease)		
+	r.actions.ReleaseCreated(&newRelease)
 
-	return &ReleaseResolver{ db: r.db, Release: release }, nil
+	return &ReleaseResolver{db: r.db, Release: release}, nil
 }
 
 func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
@@ -196,13 +197,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			if err != nil {
 				return &ReleaseResolver{}, err
 			}
-		
+
 			marshalledSnapshot, err := json.Marshal(snapshot)
 			if err != nil {
 				log.Info(err.Error())
 				return nil, err
 			}
-		
+
 			forkedRelease := models.Release{
 				ProjectId:     releaseFromId.ProjectId,
 				EnvironmentId: releaseFromId.EnvironmentId,
@@ -211,11 +212,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				TailFeatureID: releaseFromId.TailFeatureID,
 				State:         plugins.GetState("waiting"),
 				StateMessage:  "Release created",
-				Snapshot: postgres.Jsonb{marshalledSnapshot},
+				Snapshot:      postgres.Jsonb{marshalledSnapshot},
 			}
 			r.db.Create(&forkedRelease)
 			r.actions.ReleaseCreated(&forkedRelease)
-			return &ReleaseResolver{ db: r.db, Release: forkedRelease }, nil
+			return &ReleaseResolver{db: r.db, Release: forkedRelease}, nil
 		}
 	} else {
 		projectId, err := uuid.FromString(args.Release.ProjectId)
@@ -239,7 +240,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			})
 			return nil, fmt.Errorf("Couldn't parse environmentId")
 		}
-	
+
 		// the tail feature id is the current release's head feature id
 		if r.db.Where("state = ? and project_id = ? and environment_id = ?", plugins.GetState("complete"), args.Release.ProjectId, environmentId).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
 			// get first ever feature in project if current release doesn't exist yet
@@ -254,7 +255,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		} else {
 			tailFeatureId = currentRelease.HeadFeatureID
 		}
-	
+
 		userIdString, err := utils.CheckAuth(ctx, []string{})
 		if err != nil {
 			return &ReleaseResolver{}, err
@@ -265,13 +266,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		if err != nil {
 			return &ReleaseResolver{}, err
 		}
-	
+
 		marshalledSnapshot, err := json.Marshal(snapshot)
 		if err != nil {
 			log.Info(err.Error())
 			return nil, err
 		}
-	
+
 		release := models.Release{
 			ProjectId:     projectId,
 			EnvironmentId: environmentId,
@@ -280,13 +281,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			TailFeatureID: tailFeatureId,
 			State:         plugins.GetState("waiting"),
 			StateMessage:  "Release created",
-			Snapshot: postgres.Jsonb{marshalledSnapshot},
+			Snapshot:      postgres.Jsonb{marshalledSnapshot},
 		}
-	
+
 		r.db.Create(&release)
 		r.actions.ReleaseCreated(&release)
-	
-		return &ReleaseResolver{db: r.db, Release: release}, nil		
+
+		return &ReleaseResolver{db: r.db, Release: release}, nil
 	}
 }
 
