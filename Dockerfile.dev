@@ -5,7 +5,7 @@ COPY --from=0 /usr/local/bin/dex /usr/local/bin/dex
 
 ENV APP_PATH /go/src/github.com/codeamp/circuit
 
-RUN apk -U add alpine-sdk git gcc docker
+RUN apk -U add alpine-sdk git gcc docker openssh
 RUN go get github.com/cespare/reflex
 RUN go get -u github.com/jteeuwen/go-bindata/...
 

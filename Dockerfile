@@ -1,6 +1,6 @@
 FROM golang:alpine
 ENV APP_PATH /go/src/github.com/codeamp/circuit
-RUN apk -U add alpine-sdk git gcc
+RUN apk -U add alpine-sdk git gcc openssh
 
 RUN mkdir -p $APP_PATH
 WORKDIR $APP_PATH
