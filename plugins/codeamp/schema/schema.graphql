@@ -128,6 +128,7 @@ interface Service {
 interface Environment {
   id: ID!
   name: String!
+  color: String!
   created: Time!
 }
 
@@ -295,6 +296,7 @@ input ServiceSpecInput {
 input EnvironmentInput {
   id: String
   name: String!
+  color: String!
 }
 
 input EnvironmentVariableInput {

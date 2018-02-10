@@ -10,8 +10,9 @@ import (
 )
 
 type EnvironmentInput struct {
-	ID        *string
-	Name      string
+	ID    *string
+	Name  string
+	Color string
 }
 
 type EnvironmentResolver struct {
@@ -33,7 +34,8 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 	var existingEnv models.Environment
 	if r.db.Where("name = ?", args.Environment.Name).Find(&existingEnv).RecordNotFound() {
 		env := models.Environment{
-			Name:      args.Environment.Name,
+			Name:  args.Environment.Name,
+			Color: args.Environment.Color,
 		}
 
 		r.db.Create(&env)
@@ -52,6 +54,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
 	} else {
 		existingEnv.Name = args.Environment.Name
+		existingEnv.Color = args.Environment.Color
 
 		r.db.Save(&existingEnv)
 		r.actions.EnvironmentUpdated(&existingEnv)
@@ -77,6 +80,10 @@ func (r *EnvironmentResolver) ID() graphql.ID {
 
 func (r *EnvironmentResolver) Name(ctx context.Context) string {
 	return r.Environment.Name
+}
+
+func (r *EnvironmentResolver) Color(ctx context.Context) string {
+	return r.Environment.Color
 }
 
 func (r *EnvironmentResolver) Created() graphql.Time {
