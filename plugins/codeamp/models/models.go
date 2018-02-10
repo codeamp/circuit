@@ -33,6 +33,7 @@ type UserPermission struct {
 type Environment struct {
 	Model `json:",inline"`
 	Name  string `json:"name"`
+	Color string `json:"color"`
 }
 
 type EnvironmentVariableScope string
