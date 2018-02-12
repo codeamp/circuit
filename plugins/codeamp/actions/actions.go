@@ -983,6 +983,7 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 		Git: plugins.Git{
 			Url:    project.GitUrl,
 			Branch: branch,
+			RsaPrivateKey: project.RsaPrivateKey,
 		},
 		Secrets: secrets,
 	}
@@ -1210,6 +1211,7 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 		Git: plugins.Git{
 			Url:    project.GitUrl,
 			Branch: branch,
+			RsaPrivateKey: project.RsaPrivateKey,
 		},
 		Secrets: secrets,
 	}
