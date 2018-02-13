@@ -98,9 +98,12 @@ func (x *GitSync) branches(project plugins.Project, git plugins.Git) ([]plugins.
 	var err error
 	var output []byte
 
+	// split branch; replace slash with _ so nested dir is not createdA
+	serializedBranchName := strings.Replace(git.Branch, "/", "_")
+
 	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.gitsync.workdir"), project.Repository)
 	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
-	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), project.Repository, git.Branch)
+	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), project.Repository, serializedBranchName)
 
 	// Git Env
 	env := os.Environ()
@@ -167,9 +170,12 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	var err error
 	var output []byte
 
+	// split branch; replace slash with _ so nested dir is not createdA
+	serializedBranchName := strings.Replace(git.Branch, "/", "_")
+
 	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.gitsync.workdir"), project.Repository)
 	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
-	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), project.Repository, git.Branch)
+	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), project.Repository, serializedBranchName)
 
 	// Git Env
 	env := os.Environ()
