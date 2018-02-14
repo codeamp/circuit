@@ -204,7 +204,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					return nil
 				}
 				timeout += 1
-				time.Sleep(1 * time.Second)
+				time.Sleep(10 * time.Second)
 				if timeout >= TIMEOUT_LIMIT {
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
