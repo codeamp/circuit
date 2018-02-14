@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/extemporalgenome/slug"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/extemporalgenome/slug"
 
 	"github.com/spf13/viper"
 
@@ -179,7 +180,7 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	buildArgs := []docker.BuildArg{}
-	for _, secret := range event.Extension.Project.Secrets {
+	for _, secret := range event.Release.Secrets {
 		if secret.Type == plugins.GetType("build") {
 			ba := docker.BuildArg{
 				Name:  secret.Key,
