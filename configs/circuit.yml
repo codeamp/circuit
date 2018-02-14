@@ -28,6 +28,8 @@ plugins:
     workers: 1
   kubernetesloadbalancers:
     workers: 1    
+  githubstatus:
+    workers: 1
   route53:
     workers: 1    
   dockerbuilder:

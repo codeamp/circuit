@@ -1064,10 +1064,24 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		x.Db.Save(&releaseExtension)
 
-		marshalledArtifacts, err := json.Marshal(payload.Release.Artifacts)
+		mergedArtifacts = make(map[string]string)
+		err = json.Unmarshal(release.Artifacts.RawMessage, &mergedArtifacts)
+		if err != nil {
+			log.Info(err.Error())
+			return err
+		}
+		if len(mergedArtifacts) > 0 {
+			for key, value := range payload.Artifacts {
+				mergedArtifacts[key] = value
+			}
+		} else {
+			mergedArtifacts = payload.Artifacts
+		}
+
+		marshalledArtifacts, err := json.Marshal(mergedArtifacts)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{})
-			return nil
+			return err
 		}
 		release.Artifacts = postgres.Jsonb{marshalledArtifacts}
 		x.Db.Save(&release)

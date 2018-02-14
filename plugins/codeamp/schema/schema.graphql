@@ -173,6 +173,7 @@ interface Release {
   id: ID!
   project: Project
   user: User
+  artifacts: Json!
   headFeature: Feature!
   tailFeature: Feature!
   state: String!
