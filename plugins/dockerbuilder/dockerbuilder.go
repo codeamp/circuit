@@ -1,10 +1,10 @@
 package dockerbuilder
 
 import (
-	"github.com/extemporalgenome/slug"
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/extemporalgenome/slug"
 	"io"
 	"io/ioutil"
 	"os"
@@ -180,7 +180,7 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 
 	buildArgs := []docker.BuildArg{}
 	for _, secret := range event.Extension.Project.Secrets {
-		if secret.Type == plugins.GetType("build-arg") {
+		if secret.Type == plugins.GetType("build") {
 			ba := docker.BuildArg{
 				Name:  secret.Key,
 				Value: secret.Value,
