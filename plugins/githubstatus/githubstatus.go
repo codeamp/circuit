@@ -44,6 +44,7 @@ func (x *GithubStatus) Stop() {
 func (x *GithubStatus) Subscribe() []string {
 	return []string{
 		"plugins.Extension:create:githubstatus",
+		"plugins.Extension:update:githubstatus",
 		"plugins.ReleaseExtension:create:githubstatus",
 	}
 }
@@ -62,6 +63,14 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			responseEvent.State = plugins.GetState("complete")
 			responseEvent.Action = plugins.GetAction("status")
 			x.events <- e.NewEvent(responseEvent, nil)
+			return nil
+		case plugins.GetAction("update"):
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus E event: %s", e.Name), log.Fields{})
+			responseEvent := e.Payload.(plugins.Extension)
+			responseEvent.State = plugins.GetState("complete")
+			responseEvent.Action = plugins.GetAction("status")
+			x.events <- e.NewEvent(responseEvent, nil)
+			return nil
 		}
 	}
 
