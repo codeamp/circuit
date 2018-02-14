@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -49,6 +50,21 @@ func (x *GithubStatus) Subscribe() []string {
 	}
 }
 
+func isValidGithubCredentials(config map[string]interface{}) (bool, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/user"), nil)
+	if err != nil {
+		return false, err
+	}
+	req.SetBasicAuth(config["GITHUBSTATUS_USERNAME"].(string), config["GITHUBSTATUS_PERSONAL_ACCESS_TOKEN"].(string))
+	resp, _ := client.Do(req)
+	if resp.StatusCode == 200 {
+		return true, nil
+	} else {
+		return false, fmt.Errorf("Github credentials are not valid. Please check them and re-install.")
+	}
+}
+
 func (x *GithubStatus) Process(e transistor.Event) error {
 	log.InfoWithFields("Processing githubstatus event", log.Fields{
 		"event": e,
@@ -59,18 +75,37 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		switch event.Action {
 		case plugins.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus E event: %s", e.Name), log.Fields{})
-			responseEvent := e.Payload.(plugins.Extension)
-			responseEvent.State = plugins.GetState("complete")
-			responseEvent.Action = plugins.GetAction("status")
-			x.events <- e.NewEvent(responseEvent, nil)
-			return nil
+			if _, err := isValidGithubCredentials(event.Config); err == nil {
+				responseEvent := e.Payload.(plugins.Extension)
+				responseEvent.State = plugins.GetState("complete")
+				responseEvent.Action = plugins.GetAction("status")
+				responseEvent.StateMessage = "Successfully installed!"
+				x.events <- e.NewEvent(responseEvent, nil)
+				return nil
+			} else {
+				failedEvent := e.Payload.(plugins.Extension)
+				failedEvent.State = plugins.GetState("failed")
+				failedEvent.Action = plugins.GetAction("status")
+				failedEvent.StateMessage = err.Error()
+				x.events <- e.NewEvent(failedEvent, err)
+				return nil
+			}
 		case plugins.GetAction("update"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus E event: %s", e.Name), log.Fields{})
-			responseEvent := e.Payload.(plugins.Extension)
-			responseEvent.State = plugins.GetState("complete")
-			responseEvent.Action = plugins.GetAction("status")
-			x.events <- e.NewEvent(responseEvent, nil)
-			return nil
+			if _, err := isValidGithubCredentials(event.Config); err == nil {
+				responseEvent := e.Payload.(plugins.Extension)
+				responseEvent.State = plugins.GetState("complete")
+				responseEvent.Action = plugins.GetAction("status")
+				responseEvent.StateMessage = "Successfully updated!"
+				x.events <- e.NewEvent(responseEvent, nil)
+				return nil
+			} else {
+				failedEvent := e.Payload.(plugins.Extension)
+				failedEvent.State = plugins.GetState("failed")
+				failedEvent.Action = plugins.GetAction("status")
+				failedEvent.StateMessage = err.Error()
+				x.events <- e.NewEvent(failedEvent, err)
+				return nil
+			}
 		}
 	}
 
@@ -81,7 +116,15 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus RE event: %s", e.Name), log.Fields{})
 			// get status and check if complete
 			client := &http.Client{}
-			TIMEOUT_LIMIT := 10
+			TIMEOUT_LIMIT, err := strconv.Atoi(event.Extension.Config["GITHUBSTATUS_TIMEOUT_SECONDS"].(string))
+			if err != nil {
+				failedEvent := e.Payload.(plugins.Extension)
+				failedEvent.State = plugins.GetState("failed")
+				failedEvent.Action = plugins.GetAction("status")
+				failedEvent.StateMessage = err.Error()
+				x.events <- e.NewEvent(failedEvent, err)
+				return nil
+			}
 			timeout := 0
 
 			for {
