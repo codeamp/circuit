@@ -9,6 +9,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
@@ -356,6 +357,10 @@ func (r *ReleaseResolver) Environment(ctx context.Context) (*EnvironmentResolver
 		return nil, fmt.Errorf("Environment not found.")
 	}
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
+}
+
+func (r *ReleaseResolver) Artifacts() scalar.Json {
+	return scalar.Json{r.Release.Artifacts.RawMessage}
 }
 
 func (r *ReleaseResolver) Created() graphql.Time {
