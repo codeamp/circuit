@@ -359,8 +359,31 @@ func (r *ReleaseResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{db: r.db, Environment: environment}, nil
 }
 
-func (r *ReleaseResolver) Artifacts() scalar.Json {
-	return scalar.Json{r.Release.Artifacts.RawMessage}
+func (r *ReleaseResolver) Artifacts() (scalar.Json, error) {
+	artifactsWithEmptyValues := make(map[string]interface{})
+	artifacts := make(map[string]interface{})
+
+	err := json.Unmarshal(r.Release.Artifacts.RawMessage, &artifacts)
+	if err != nil {
+		log.InfoWithFields(err.Error(), log.Fields{
+			"input": r.Release.Artifacts.RawMessage,
+		})
+		return scalar.Json{}, err
+	}
+
+	for key, _ := range artifacts {
+		artifactsWithEmptyValues[key] = ""
+	}
+
+	marshalledArtifacts, err := json.Marshal(artifactsWithEmptyValues)
+	if err != nil {
+		log.InfoWithFields(err.Error(), log.Fields{
+			"input": artifactsWithEmptyValues,
+		})
+		return scalar.Json{}, err
+	}
+
+	return scalar.Json{json.RawMessage(marshalledArtifacts)}, nil
 }
 
 func (r *ReleaseResolver) Created() graphql.Time {
