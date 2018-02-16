@@ -326,7 +326,6 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	event.State = plugins.GetState("complete")
 	event.Artifacts["IMAGE"] = fullImagePath(event)
 	event.Artifacts["USER"] = event.Extension.Config["DOCKERBUILDER_USER"].(string)
-	event.Artifacts["PASSWORD"] = event.Extension.Config["DOCKERBUILDER_PASSWORD"].(string)
 	event.Artifacts["EMAIL"] = event.Extension.Config["DOCKERBUILDER_EMAIL"].(string)
 	event.Artifacts["HOST"] = event.Extension.Config["DOCKERBUILDER_HOST"].(string)
 	event.StateMessage = "Completed"
