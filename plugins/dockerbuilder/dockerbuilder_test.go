@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -50,17 +49,17 @@ func (suite *TestSuite) TestDockerBuilder() {
 	log.SetLogLevel(logrus.DebugLevel)
 
 	formValues := make(map[string]interface{})
-	formValues["USER"] = "test"
-	formValues["PASSWORD"] = "test"
-	formValues["EMAIL"] = "test@checkr.com"
-	formValues["HOST"] = "registry-testing.checkrhq-dev.net:5000"
-	formValues["ORG"] = "testorg"
+	formValues["DOCKERBUILDER_USER"] = "test"
+	formValues["DOCKERBUILDER_PASSWORD"] = "test"
+	formValues["DOCKERBUILDER_EMAIL"] = "test@checkr.com"
+	formValues["DOCKERBUILDER_HOST"] = "registry-testing.checkrhq-dev.net:5000"
+	formValues["DOCKERBUILDER_ORG"] = "testorg"
 
-	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
+	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc8"
 
 	dockerBuildEvent := plugins.ReleaseExtension{
 		Slug:   "dockerbuilder",
-		Action: plugins.Create,
+		Action: plugins.GetAction("create"),
 		State:  plugins.GetState("waiting"),
 		Release: plugins.Release{
 			Project: plugins.Project{
@@ -85,9 +84,9 @@ func (suite *TestSuite) TestDockerBuilder() {
 			Environment: "testing",
 		},
 		Extension: plugins.Extension{
-			Action:     plugins.Create,
-			Slug:       "dockerbuilder",
-			FormValues: formValues,
+			Action: plugins.GetAction("create"),
+			Slug:   "dockerbuilder",
+			Config: formValues,
 		},
 		Artifacts: make(map[string]string),
 	}
