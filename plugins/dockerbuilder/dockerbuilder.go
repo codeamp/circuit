@@ -62,6 +62,7 @@ func (x *DockerBuilder) Subscribe() []string {
 
 func (x *DockerBuilder) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
+
 	log.InfoWithFields("executing command", log.Fields{
 		"path": cmd.Path,
 		"args": strings.Join(cmd.Args, " "),
@@ -166,25 +167,19 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	dockerBuildIn := bytes.NewBuffer(nil)
-
 	dockerBuildErr := bytes.NewBuffer(nil)
-	errChan := make(chan error)
-	go func() {
-		io.Copy(dockerBuildErr, gitArchiveErr)
-		dockerBuildErrString := string(dockerBuildErr.Bytes())
-		if dockerBuildErrString == "fatal: not a tree object\n" {
-			errChan <- fmt.Errorf("Commit does not exist")
-		}
-	}()
-	err = <-errChan
-	if err != nil {
-		return err
-	}
 
+	io.Copy(dockerBuildErr, gitArchiveErr)
 	io.Copy(dockerBuildIn, gitArchiveOut)
 
 	err = gitArchive.Wait()
 	if err != nil {
+		if string(dockerBuildErr.Bytes()) != "" {
+			log.Debug(string(dockerBuildErr.Bytes()))
+			if string(dockerBuildErr.Bytes()) == "fatal: not a tree object\n" {
+				return errors.New("Commit not found in tree")
+			}
+		}
 		log.Debug(err)
 		return err
 	}
