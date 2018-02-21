@@ -179,9 +179,10 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 			if string(dockerBuildErr.Bytes()) == "fatal: not a tree object\n" {
 				return errors.New("Commit not found in tree")
 			}
+
 		}
 		log.Debug(err)
-		return err
+		return errors.New(err.Error() + "\n" + string(dockerBuildErr.Bytes()))
 	}
 
 	buildArgs := []docker.BuildArg{}
