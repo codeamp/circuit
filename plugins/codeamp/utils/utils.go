@@ -2,13 +2,16 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
@@ -21,11 +24,17 @@ import (
 )
 
 type Claims struct {
-	UserId     string   `json:"userId"`
-	Email      string   `json:"email"`
-	Verified   bool     `json:"email_verified"`
-	Groups     []string `json:"groups"`
-	TokenError string   `json:"tokenError"`
+	UserId      string   `json:"userId"`
+	Email       string   `json:"email"`
+	Verified    bool     `json:"email_verified"`
+	Groups      []string `json:"groups"`
+	Permissions []string `json:"permissions"`
+	TokenError  string   `json:"tokenError"`
+}
+
+type Cache struct {
+	UserId      uuid.UUID `json:"userId"`
+	Permissions []string  `json:"permissions"`
 }
 
 func HashPassword(password string) (string, error) {
@@ -128,7 +137,7 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func AuthMiddleware(next http.Handler, db *gorm.DB) http.Handler {
+func AuthMiddleware(next http.Handler, db *gorm.DB, redisClient *redis.Client) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims := Claims{}
 		authString := r.Header.Get("Authorization")
@@ -175,19 +184,43 @@ func AuthMiddleware(next http.Handler, db *gorm.DB) http.Handler {
 			return
 		}
 
-		user := models.User{}
-		if db.Where("email = ?", claims.Email).Find(&user).RecordNotFound() {
-			user.Email = claims.Email
-			db.Create(&user)
-
-			userPermission := models.UserPermission{
-				UserId: user.Model.ID,
-				Value:  "admin",
+		c, err := redisClient.Get(fmt.Sprintf("%s_%s", idToken.Nonce, claims.Email)).Result()
+		if err == redis.Nil {
+			user := models.User{}
+			if db.Where("email = ?", claims.Email).Find(&user).RecordNotFound() {
+				user.Email = claims.Email
+				db.Create(&user)
 			}
-			db.Create(&userPermission)
-		}
 
-		claims.UserId = user.ID.String()
+			db.Model(&user).Association("Permissions").Find(&user.Permissions)
+
+			var permissions []string
+			for _, permission := range user.Permissions {
+				permissions = append(permissions, permission.Value)
+			}
+
+			// Add user scope
+			permissions = append(permissions, fmt.Sprintf("user/%s", user.ID.String()))
+			claims.UserId = user.ID.String()
+			claims.Permissions = permissions
+
+			serializedClaims, err := json.Marshal(claims)
+			if err != nil {
+				log.Panic(err)
+			}
+
+			err = redisClient.Set(fmt.Sprintf("%s_%s", idToken.Nonce, claims.Email), serializedClaims, 24*time.Hour).Err()
+			if err != nil {
+				log.Panic(err)
+			}
+		} else if err != nil {
+			log.Panic(err)
+		} else {
+			err := json.Unmarshal([]byte(c), &claims)
+			if err != nil {
+				log.Panic(err)
+			}
+		}
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 	})
@@ -210,17 +243,19 @@ func CorsMiddleware(next http.Handler) http.Handler {
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 	claims := ctx.Value("jwt").(Claims)
 
-	return claims.UserId, nil
-
 	if claims.UserId == "" {
 		return "", errors.New(claims.TokenError)
+	}
+
+	if transistor.SliceContains("admin1", claims.Permissions) {
+		return claims.UserId, nil
 	}
 
 	if len(scopes) == 0 {
 		return claims.UserId, nil
 	} else {
 		for _, scope := range scopes {
-			if transistor.SliceContains(scope, claims.Groups) {
+			if transistor.SliceContains(scope, claims.Permissions) {
 				return claims.UserId, nil
 			}
 		}

@@ -1,6 +1,6 @@
 // +build !windows
 
-package idtools
+package idtools // import "github.com/docker/docker/pkg/idtools"
 
 import (
 	"fmt"
@@ -376,6 +376,20 @@ func TestLookupUserAndGroupThatDoesNotExist(t *testing.T) {
 
 	_, err = LookupGID(-1)
 	assert.Error(t, err)
+}
+
+// TestMkdirIsNotDir checks that mkdirAs() function (used by MkdirAll...)
+// returns a correct error in case a directory which it is about to create
+// already exists but is a file (rather than a directory).
+func TestMkdirIsNotDir(t *testing.T) {
+	file, err := ioutil.TempFile("", t.Name())
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.Remove(file.Name())
+
+	err = mkdirAs(file.Name(), 0755, 0, 0, false, false)
+	assert.EqualError(t, err, "mkdir "+file.Name()+": not a directory")
 }
 
 func RequiresRoot(t *testing.T) {

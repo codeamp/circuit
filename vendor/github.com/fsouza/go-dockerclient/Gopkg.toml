@@ -4,7 +4,7 @@
 
 [[constraint]]
   name = "github.com/docker/docker"
-  revision = "fe8aac6f5ae413a967adb0adad0b54abdfb825c4"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/docker/go-units"

@@ -19,8 +19,7 @@ services:
       - codeamp
   circuit:
     image: circuit
-    # command: sh -c "/usr/local/bin/dex serve configs/dex.yml & reflex -c reflex.conf"
-    command: ./start-circuit.sh
+    command: sh -c "/usr/local/bin/dex serve configs/dex.yml & reflex -c reflex.conf"
     build:
       context: .
       dockerfile: Dockerfile.dev

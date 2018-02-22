@@ -46,7 +46,7 @@ func SliceContains(name string, list []string) bool {
 }
 
 func MapPayload(name string, event *Event) error {
-	if typ, ok := ApiRegistry[name]; ok {
+	if typ, ok := EventRegistry[name]; ok {
 		d, _ := json.Marshal(event.Payload)
 		val := reflect.New(reflect.TypeOf(typ))
 		json.Unmarshal(d, val.Interface())
