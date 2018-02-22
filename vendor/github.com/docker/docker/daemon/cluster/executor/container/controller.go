@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
 	"fmt"
@@ -183,7 +183,7 @@ func (r *controller) Start(ctx context.Context) error {
 
 	for {
 		if err := r.adapter.start(ctx); err != nil {
-			if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
+			if _, ok := errors.Cause(err).(libnetwork.ErrNoSuchNetwork); ok {
 				// Retry network creation again if we
 				// failed because some of the networks
 				// were not found.
@@ -621,6 +621,8 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 			protocol = api.ProtocolTCP
 		case "udp":
 			protocol = api.ProtocolUDP
+		case "sctp":
+			protocol = api.ProtocolSCTP
 		default:
 			return nil, fmt.Errorf("invalid protocol: %s", parts[1])
 		}

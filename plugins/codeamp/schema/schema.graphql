@@ -34,9 +34,6 @@ type Query {
   # Retrieve all environment variables
   environmentVariables(): [EnvironmentVariable]!
 
-  # Retrieve all environment variables
-  environmentBasedProjectBranches(): [EnvironmentBasedProjectBranch]!  
-
   # Retrieve all extension specs
   extensionSpecs(): [ExtensionSpec]!
 
@@ -78,10 +75,6 @@ type Mutation {
   createExtension(extension: ExtensionInput): Extension
   updateExtension(extension: ExtensionInput): Extension
   deleteExtension(extension: ExtensionInput): Extension
-
-  createEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
-  updateEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
-  deleteEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
 }
 
 # User object
@@ -141,10 +134,9 @@ interface EnvironmentVariable {
   project: Project!
   user: User!
   type: String!
-  versions: [EnvironmentVariableValue]!
+  versions: [EnvironmentVariable]!
   environment: Environment!
   created: Time!
-  extension: Extension!
   isSecret: Boolean!
 }
 
@@ -200,7 +192,7 @@ interface Project {
   services: [Service]!
   environmentVariables: [EnvironmentVariable]!
   extensions: [Extension]!
-  environmentBasedProjectBranch: EnvironmentBasedProjectBranch
+  gitBranch: String!
   created: Time!
 }
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
@@ -204,7 +205,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 	}
 
 	for _, env := range environments {
-		r.db.Create(&models.EnvironmentBasedProjectBranch{
+		r.db.Create(&models.ProjectSettings{
 			EnvironmentId: env.Model.ID,
 			ProjectId:     project.Model.ID,
 			GitBranch:     "master",
@@ -274,20 +275,7 @@ func (r *ProjectResolver) Features(ctx context.Context) ([]*FeatureResolver, err
 	var rows []models.Feature
 	var results []*FeatureResolver
 
-	// get branch specific to the project and current environment
-	// if it is empty, simply use master
-	branch := "master"
-	var envBasedProjectBranch models.EnvironmentBasedProjectBranch
-	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&envBasedProjectBranch).RecordNotFound() {
-		log.InfoWithFields("could not find an env based project branch", log.Fields{
-			"project_id":     r.Project.Model.ID.String(),
-			"environment_id": r.Environment.Model.ID.String(),
-		})
-	} else {
-		branch = envBasedProjectBranch.GitBranch
-	}
-
-	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", branch)).Order("created desc").Find(&rows)
+	r.db.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch())).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{db: r.db, Feature: feature})
@@ -339,18 +327,16 @@ func (r *ProjectResolver) Extensions(ctx context.Context) ([]*ExtensionResolver,
 	return results, nil
 }
 
-func (r *ProjectResolver) EnvironmentBasedProjectBranch(ctx context.Context) (*EnvironmentBasedProjectBranchResolver, error) {
-	var branch models.EnvironmentBasedProjectBranch
-	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&branch).RecordNotFound() {
-		log.InfoWithFields("No env based project branch", log.Fields{
-			"environment_id": r.Environment.Model.ID,
-			"project_id":     r.Project.Model.ID,
-		})
-		return nil, nil
-	}
-	return &EnvironmentBasedProjectBranchResolver{db: r.db, EnvironmentBasedProjectBranch: branch}, nil
-}
-
 func (r *ProjectResolver) Created() graphql.Time {
 	return graphql.Time{Time: r.Project.Model.CreatedAt}
+}
+
+func (r *ProjectResolver) GitBranch() string {
+	var projectSettings models.ProjectSettings
+	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&projectSettings).RecordNotFound() {
+		return "master"
+	} else {
+		spew.Dump(projectSettings)
+		return projectSettings.GitBranch
+	}
 }

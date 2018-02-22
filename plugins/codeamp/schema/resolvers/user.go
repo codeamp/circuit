@@ -32,7 +32,7 @@ func (r *Resolver) User(ctx context.Context, args *struct{ ID *graphql.ID }) (*U
 	var err error
 	var userId string
 	var user models.User
-	if userId, err = utils.CheckAuth(ctx, []string{"admin", fmt.Sprintf("user:%s", args.ID)}); err != nil {
+	if userId, err = utils.CheckAuth(ctx, []string{fmt.Sprintf("user/%s", args.ID)}); err != nil {
 		return nil, err
 	}
 

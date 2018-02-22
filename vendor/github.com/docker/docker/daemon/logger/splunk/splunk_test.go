@@ -1,13 +1,17 @@
-package splunk
+package splunk // import "github.com/docker/docker/daemon/logger/splunk"
 
 import (
 	"compress/gzip"
+	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/gotestyourself/gotestyourself/env"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,6 +82,36 @@ func TestNewMissedToken(t *testing.T) {
 	if err.Error() != "splunk: splunk-token is expected" {
 		t.Fatal("Logger driver should fail when no required parameters specified")
 	}
+}
+
+func TestNewWithProxy(t *testing.T) {
+	proxy := "http://proxy.testing:8888"
+	reset := env.Patch(t, "HTTP_PROXY", proxy)
+	defer reset()
+
+	// must not be localhost
+	splunkURL := "http://example.com:12345"
+	logger, err := New(logger.Info{
+		Config: map[string]string{
+			splunkURLKey:              splunkURL,
+			splunkTokenKey:            "token",
+			splunkVerifyConnectionKey: "false",
+		},
+		ContainerID: "containeriid",
+	})
+	require.NoError(t, err)
+	splunkLogger := logger.(*splunkLoggerInline)
+
+	proxyFunc := splunkLogger.transport.Proxy
+	require.NotNil(t, proxyFunc)
+
+	req, err := http.NewRequest("GET", splunkURL, nil)
+	require.NoError(t, err)
+
+	proxyURL, err := proxyFunc(req)
+	require.NoError(t, err)
+	require.NotNil(t, proxyURL)
+	require.Equal(t, proxy, proxyURL.String())
 }
 
 // Test default settings
@@ -1062,7 +1096,7 @@ func TestSkipVerify(t *testing.T) {
 		t.Fatal("No messages should be accepted at this point")
 	}
 
-	hec.simulateServerError = false
+	hec.simulateErr(false)
 
 	for i := defaultStreamChannelSize * 2; i < defaultStreamChannelSize*4; i++ {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
@@ -1110,7 +1144,7 @@ func TestBufferMaximum(t *testing.T) {
 	}
 
 	hec := NewHTTPEventCollectorMock(t)
-	hec.simulateServerError = true
+	hec.simulateErr(true)
 	go hec.Serve()
 
 	info := logger.Info{
@@ -1306,5 +1340,50 @@ func TestCannotSendAfterClose(t *testing.T) {
 	err = hec.Close()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDeadlockOnBlockedEndpoint(t *testing.T) {
+	hec := NewHTTPEventCollectorMock(t)
+	go hec.Serve()
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:   hec.URL(),
+			splunkTokenKey: hec.token,
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+
+	l, err := New(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, unblock := context.WithCancel(context.Background())
+	hec.withBlock(ctx)
+	defer unblock()
+
+	batchSendTimeout = 1 * time.Second
+
+	if err := l.Log(&logger.Message{}); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		l.Close()
+		close(done)
+	}()
+
+	select {
+	case <-time.After(60 * time.Second):
+		buf := make([]byte, 1e6)
+		buf = buf[:runtime.Stack(buf, true)]
+		t.Logf("STACK DUMP: \n\n%s\n\n", string(buf))
+		t.Fatal("timeout waiting for close to finish")
+	case <-done:
 	}
 }

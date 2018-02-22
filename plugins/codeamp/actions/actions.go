@@ -58,9 +58,8 @@ func (x *Actions) GitSync(project *models.Project) {
 	}
 
 	// get branches of entire environments
-	envProjectBranches := []models.EnvironmentBasedProjectBranch{}
-	if x.db.Where("project_id = ?", project.Model.ID.String()).Find(&envProjectBranches).RecordNotFound() {
-		log.Info("no env project branches found")
+	projectSettingsCollection := []models.ProjectSettings{}
+	if x.db.Where("project_id = ?", project.Model.ID.String()).Find(&projectSettingsCollection).RecordNotFound() {
 		gitSync := plugins.GitSync{
 			Action: plugins.GetAction("update"),
 			State:  plugins.GetState("waiting"),
@@ -80,7 +79,7 @@ func (x *Actions) GitSync(project *models.Project) {
 
 		x.events <- transistor.NewEvent(gitSync, nil)
 	} else {
-		for _, envProjectBranch := range envProjectBranches {
+		for _, projectSettings := range projectSettingsCollection {
 			gitSync := plugins.GitSync{
 				Action: plugins.GetAction("update"),
 				State:  plugins.GetState("waiting"),
@@ -91,7 +90,7 @@ func (x *Actions) GitSync(project *models.Project) {
 				Git: plugins.Git{
 					Url:           project.GitUrl,
 					Protocol:      project.GitProtocol,
-					Branch:        envProjectBranch.GitBranch,
+					Branch:        projectSettings.GitBranch,
 					RsaPrivateKey: project.RsaPrivateKey,
 					RsaPublicKey:  project.RsaPublicKey,
 				},
@@ -133,31 +132,6 @@ func (x *Actions) GitCommit(commit plugins.GitCommit) {
 	}
 }
 
-func (x *Actions) GitBranch(branch plugins.GitBranch) {
-	project := models.Project{}
-	gitBranch := models.GitBranch{}
-
-	if x.db.Where("repository = ?", branch.Repository).First(&project).RecordNotFound() {
-		log.InfoWithFields("project not found", log.Fields{
-			"repository": branch.Repository,
-		})
-		return
-	}
-
-	if x.db.Where("project_id = ? and name = ?", project.ID, branch.Name).First(&gitBranch).RecordNotFound() {
-		gitBranch = models.GitBranch{
-			ProjectId: project.ID,
-			Name:      branch.Name,
-		}
-		x.db.Save(&gitBranch)
-	} else {
-		log.InfoWithFields("branch already exists", log.Fields{
-			"repository": branch.Repository,
-			"name":       branch.Name,
-		})
-	}
-}
-
 func (x *Actions) ProjectCreated(project *models.Project) {
 
 }
@@ -187,15 +161,6 @@ func (x *Actions) ServiceDeleted(service *models.Service) {
 			"service": service,
 		})
 	}
-}
-
-func (x *Actions) EnvironmentBasedProjectBranchCreated(service *models.EnvironmentBasedProjectBranch) {
-}
-
-func (x *Actions) EnvironmentBasedProjectBranchUpdated(service *models.EnvironmentBasedProjectBranch) {
-}
-
-func (x *Actions) EnvironmentBasedProjectBranchDeleted(service *models.EnvironmentBasedProjectBranch) {
 }
 
 func (x *Actions) ServiceSpecCreated(service *models.ServiceSpec) {
@@ -383,14 +348,15 @@ func (x *Actions) ExtensionCreated(extension *models.Extension) {
 		log.Info(err.Error())
 	}
 
-	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentBasedProjectBranch{}
+
+	// get all branches relevant for the project
+	projectSettings := models.ProjectSettings{}
 	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
-		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
-		branch = envProjectBranch.GitBranch
+		branch = projectSettings.GitBranch
 	}
 
 	pluginServices := []plugins.Service{}
@@ -517,11 +483,11 @@ func (x *Actions) ExtensionUpdated(extension *models.Extension) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentBasedProjectBranch{}
-	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+	projectSettings := models.ProjectSettings{}
+	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(), project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
-		branch = envProjectBranch.GitBranch
+		branch = projectSettings.GitBranch
 	}
 
 	pluginServices := []plugins.Service{}
@@ -682,12 +648,12 @@ func (x *Actions) ExtensionDeleted(extension *models.Extension) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentBasedProjectBranch{}
+	projectSettings := models.ProjectSettings{}
 	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
-		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
-		branch = envProjectBranch.GitBranch
+		branch = projectSettings.GitBranch
 	}
 
 	pluginServices := []plugins.Service{}
@@ -942,12 +908,12 @@ func (x *Actions) WorkflowExtensionsCompleted(release *models.Release) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentBasedProjectBranch{}
+	projectSettings := models.ProjectSettings{}
 	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
-		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
-		branch = envProjectBranch.GitBranch
+		branch = projectSettings.GitBranch
 	}
 
 	releaseEvent := plugins.Release{
@@ -1167,12 +1133,12 @@ func (x *Actions) ReleaseCreated(release *models.Release) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	envProjectBranch := models.EnvironmentBasedProjectBranch{}
+	projectSettings := models.ProjectSettings{}
 	if x.db.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
-		project.Model.ID.String()).First(&envProjectBranch).RecordNotFound() {
+		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
-		branch = envProjectBranch.GitBranch
+		branch = projectSettings.GitBranch
 	}
 
 	secrets, pluginServices, err := x.GetSecretsAndServicesFromSnapshot(release)
