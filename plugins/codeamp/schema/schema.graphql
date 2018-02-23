@@ -328,3 +328,9 @@ input ExtensionInput {
   config: Json!
   environmentId: String!
 }
+
+input UserPermissionsInput {
+  id: String
+  userId: String!
+  permissions: [String]!
+}

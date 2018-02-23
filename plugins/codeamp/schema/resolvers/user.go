@@ -15,6 +15,11 @@ type UserInput struct {
 	Password string
 }
 
+type UserPermissionsInput struct {
+	UserId string
+	Permissions []string
+}
+
 func (r *Resolver) CreateUser(args *struct{ User *UserInput }) *UserResolver {
 	passwordHash, _ := utils.HashPassword(args.User.Password)
 
@@ -26,6 +31,50 @@ func (r *Resolver) CreateUser(args *struct{ User *UserInput }) *UserResolver {
 	r.db.Create(&user)
 
 	return &UserResolver{db: r.db, User: user}
+}
+
+func (r *UserResolver) UpdateUserPermissions(args *struct{ UserPermissions *UserPermissionsInput}) (string, error) {
+	// Check that all the input params
+	// are valid and within the distinct set of permission values
+
+	// Query the set of permission values
+	// by getting all 'distinct' values from user_permissions table
+	var distinctUserPermissionSet []models.UserPermission{}
+	errorMessage := "Input parameters do not match distinct user permission scopes."
+	if r.db.Where("distinct").Find(&distinctUserPermissionSet).RecordNotFound() {
+		log.Info(errorMessage)
+		return nil, fmt.Errorf(errorMessage)
+	}
+
+	// Loop through and see if any of the input params
+	// don't match the given values
+	var found bool
+	for _, inputPermission := range args.UserPermissions.Permissions {
+		found = false
+		for _, distinctUserPermission := range distinctUserPermissionSet {
+			if inputPermission == distinctUserPermission {
+				found = true
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf(errorMessage)
+		}
+	}
+
+	// First, we delete all the user_permissions rows related to the user_id input
+	// Then, we create user_permissions rows for each of the Permissions inputs
+	var resp []models.UserPermission{}
+	r.db.Delete("user_id = ?", args.UserPermissions.UserId)
+	for _, inputPermission := range args.UserPermissions.Permissions {
+		userPermissionRow := models.UserPermission{
+			UserId: args.UserPermissions.UserId,
+			Value: inputPermission
+		}
+		r.db.Create(&userPermissionRow)
+		append(resp, userPermissionRow)
+	}
+
+	return resp, nil
 }
 
 func (r *Resolver) User(ctx context.Context, args *struct{ ID *graphql.ID }) (*UserResolver, error) {
