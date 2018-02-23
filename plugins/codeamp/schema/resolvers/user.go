@@ -6,7 +6,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
-	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -35,7 +34,7 @@ func (r *Resolver) CreateUser(args *struct{ User *UserInput }) *UserResolver {
 	return &UserResolver{db: r.db, User: user}
 }
 
-func (r *Resolver) UpdateUserPermissions(args *struct{ UserPermissions *UserPermissionsInput }) ([]string, error) {
+func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissions *UserPermissionsInput }) ([]string, error) {
 	invalidPermissionsErr := "Input parameters do not match distinct user permission scopes."
 	invalidUserIdErr := "User ID is not a valid UUID."
 
@@ -44,36 +43,44 @@ func (r *Resolver) UpdateUserPermissions(args *struct{ UserPermissions *UserPerm
 	if userId == uuid.Nil {
 		return nil, fmt.Errorf(invalidUserIdErr)
 	}
+
 	if r.db.Where("id = ?").Find(&models.User{}).RecordNotFound() {
 		return nil, fmt.Errorf(invalidUserIdErr)
 	}
+
 	// Check that all the input Permissions params
 	// are valid and within the distinct set of permission values
 	// Query the set of permission values
 	// by getting all 'distinct' values from user_permissions table
 	var distinctUserPermissionSet []models.UserPermission
-	if r.db.Select("DISTINCT(value)").Find(&distinctUserPermissionSet).RecordNotFound() {
-		log.Info(invalidPermissionsErr)
-		return nil, fmt.Errorf(invalidPermissionsErr)
-	}
+	var filteredPermissions []models.UserPermission // Permissions that the request user has the authority to delete
+	r.db.Select("DISTINCT(value)").Find(&distinctUserPermissionSet)
+
 	// Loop through and see if any of the input params
-	// don't match the given values
+	// don't match the given values. We also filter permissions by what the user
+	// making the request has access to
 	var found bool
 	for _, inputPermission := range args.UserPermissions.Permissions {
 		found = false
 		for _, distinctUserPermission := range distinctUserPermissionSet {
-			if inputPermission == distinctUserPermission.Value {
+			_, err := utils.CheckAuth(ctx, []string{"admin", distinctUserPermission.Value})
+			if inputPermission == distinctUserPermission.Value && err == nil {
 				found = true
+				filteredPermissions = append(filteredPermissions, distinctUserPermission)
 			}
 		}
+
 		if !found {
 			return nil, fmt.Errorf(invalidPermissionsErr)
 		}
+
 	}
+
 	// First, we delete all the user_permissions rows related to the user_id input
+	// that the request user has authority to modify
 	// Then, we create user_permissions rows for each of the Permissions inputs
+	r.db.Delete(&filteredPermissions)
 	var results []string
-	r.db.Delete("user_id = ?", args.UserPermissions.UserId)
 	for _, inputPermission := range args.UserPermissions.Permissions {
 		userPermissionRow := models.UserPermission{
 			UserId: userId,
@@ -82,6 +89,7 @@ func (r *Resolver) UpdateUserPermissions(args *struct{ UserPermissions *UserPerm
 		r.db.Create(&userPermissionRow)
 		results = append(results, userPermissionRow.Value)
 	}
+
 	return results, nil
 }
 
@@ -123,7 +131,6 @@ func (r *UserResolver) Permissions() []string {
 	r.db.Model(r.User).Association("Permissions").Find(&r.User.Permissions)
 
 	permissions = append(permissions, fmt.Sprintf("user:%s", r.User.Model.ID))
-
 	for _, permission := range r.User.Permissions {
 		permissions = append(permissions, permission.Value)
 	}
