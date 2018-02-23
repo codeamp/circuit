@@ -6,13 +6,20 @@ import (
 
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
+	uuid "github.com/satori/go.uuid"
 )
 
 type UserInput struct {
 	Email    string
 	Password string
+}
+
+type UserPermissionsInput struct {
+	UserId      string
+	Permissions []string
 }
 
 func (r *Resolver) CreateUser(args *struct{ User *UserInput }) *UserResolver {
@@ -26,6 +33,56 @@ func (r *Resolver) CreateUser(args *struct{ User *UserInput }) *UserResolver {
 	r.db.Create(&user)
 
 	return &UserResolver{db: r.db, User: user}
+}
+
+func (r *Resolver) UpdateUserPermissions(args *struct{ UserPermissions *UserPermissionsInput }) ([]string, error) {
+	invalidPermissionsErr := "Input parameters do not match distinct user permission scopes."
+	invalidUserIdErr := "User ID is not a valid UUID."
+
+	// Check if UserId input is valid
+	userId := uuid.FromStringOrNil(args.UserPermissions.UserId)
+	if userId == uuid.Nil {
+		return nil, fmt.Errorf(invalidUserIdErr)
+	}
+	if r.db.Where("id = ?").Find(&models.User{}).RecordNotFound() {
+		return nil, fmt.Errorf(invalidUserIdErr)
+	}
+	// Check that all the input Permissions params
+	// are valid and within the distinct set of permission values
+	// Query the set of permission values
+	// by getting all 'distinct' values from user_permissions table
+	var distinctUserPermissionSet []models.UserPermission
+	if r.db.Select("DISTINCT(value)").Find(&distinctUserPermissionSet).RecordNotFound() {
+		log.Info(invalidPermissionsErr)
+		return nil, fmt.Errorf(invalidPermissionsErr)
+	}
+	// Loop through and see if any of the input params
+	// don't match the given values
+	var found bool
+	for _, inputPermission := range args.UserPermissions.Permissions {
+		found = false
+		for _, distinctUserPermission := range distinctUserPermissionSet {
+			if inputPermission == distinctUserPermission.Value {
+				found = true
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf(invalidPermissionsErr)
+		}
+	}
+	// First, we delete all the user_permissions rows related to the user_id input
+	// Then, we create user_permissions rows for each of the Permissions inputs
+	var results []string
+	r.db.Delete("user_id = ?", args.UserPermissions.UserId)
+	for _, inputPermission := range args.UserPermissions.Permissions {
+		userPermissionRow := models.UserPermission{
+			UserId: userId,
+			Value:  inputPermission,
+		}
+		r.db.Create(&userPermissionRow)
+		results = append(results, userPermissionRow.Value)
+	}
+	return results, nil
 }
 
 func (r *Resolver) User(ctx context.Context, args *struct{ ID *graphql.ID }) (*UserResolver, error) {
