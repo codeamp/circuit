@@ -53,33 +53,37 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 	// Query the set of permission values
 	// by getting all 'distinct' values from user_permissions table
 	var distinctUserPermissionSet []models.UserPermission
-	var filteredPermissions []models.UserPermission // Permissions that the request user has the authority to delete
+	var filteredPermissions []string // Permissions that the request user has the authority to delete
 	r.db.Select("DISTINCT(value)").Find(&distinctUserPermissionSet)
 
 	// Loop through and see if any of the input params
 	// don't match the given values. We also filter permissions by what the user
 	// making the request has access to
-	var found bool
 	for _, inputPermission := range args.UserPermissions.Permissions {
-		found = false
+		matched := false
 		for _, distinctUserPermission := range distinctUserPermissionSet {
-			_, err := utils.CheckAuth(ctx, []string{"admin", distinctUserPermission.Value})
-			if inputPermission == distinctUserPermission.Value && err == nil {
-				found = true
-				filteredPermissions = append(filteredPermissions, distinctUserPermission)
+			if inputPermission == distinctUserPermission.Value {
+				if _, err := utils.CheckAuth(ctx, []string{distinctUserPermission.Value}); err == nil {
+					matched = true
+					filteredPermissions = append(filteredPermissions, distinctUserPermission.Value)
+				}
 			}
 		}
 
-		if !found {
+		if !matched {
 			return nil, fmt.Errorf(invalidPermissionsErr)
 		}
-
 	}
 
 	// First, we delete all the user_permissions rows related to the user_id input
 	// that the request user has authority to modify
 	// Then, we create user_permissions rows for each of the Permissions inputs
-	r.db.Delete(&filteredPermissions)
+	var userPermission models.UserPermission
+	for _, filteredPermission := range filteredPermissions {
+		// check if user has this permission
+		r.db.Where("user_id = ? and value = ?", userId, filteredPermission).Find(&userPermission)
+		r.db.Delete(&userPermission)
+	}
 	var results []string
 	for _, inputPermission := range args.UserPermissions.Permissions {
 		userPermissionRow := models.UserPermission{
