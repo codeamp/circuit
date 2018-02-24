@@ -3,11 +3,11 @@ package codeamp
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
@@ -18,6 +18,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
@@ -25,7 +26,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
 	"github.com/neelance/graphql-go/relay"
-	redis "github.com/satyakb/go-socket.io-redis"
+	sioredis "github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
 
@@ -42,6 +43,7 @@ type CodeAmp struct {
 	Actions        *actions.Actions
 	SocketIO       *socketio.Server
 	Db             *gorm.DB
+	Redis          *redis.Client
 }
 
 func NewCodeAmp() *CodeAmp {
@@ -62,14 +64,15 @@ func (x *CodeAmp) Migrate() {
 	}
 
 	db.LogMode(false)
+	db.Set("gorm:auto_preload", true)
 
 	db.AutoMigrate(
 		&models.User{},
 		&models.UserPermission{},
 		&models.Project{},
+		&models.ProjectSettings{},
 		&models.Release{},
 		&models.Feature{},
-		&models.GitBranch{},
 		&models.Service{},
 		&models.ContainerPort{},
 		&models.ServiceSpec{},
@@ -79,7 +82,6 @@ func (x *CodeAmp) Migrate() {
 		&models.EnvironmentVariableValue{},
 		&models.ReleaseExtension{},
 		&models.Environment{},
-		&models.EnvironmentBasedProjectBranch{},
 	)
 
 	hashedPassword, _ := utils.HashPassword("password")
@@ -112,17 +114,6 @@ func (x *CodeAmp) Migrate() {
 	}
 	db.FirstOrInit(&productionEnv, productionEnv)
 	db.Save(&productionEnv)
-
-	// loop through secrets
-	secretsContent, err := ioutil.ReadFile("./configs/secrets.json")
-	if err != nil {
-		log.Info("Could not read file ./configs/secrets.json")
-	}
-	secretsMap := make(map[string]interface{})
-	err = json.Unmarshal(secretsContent, &secretsMap)
-	if err != nil {
-		log.Info("Could not unmarshal config. Please look at your secrets to ensure valid JSON format.")
-	}
 
 	// hosted zone id
 	// hosted zone name
@@ -832,7 +823,7 @@ func (x *CodeAmp) Listen() {
 	_, filename, _, _ := runtime.Caller(0)
 	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
 	http.Handle("/", fs)
-	http.Handle("/query", utils.CorsMiddleware(utils.AuthMiddleware(&relay.Handler{Schema: x.Schema}, x.Db)))
+	http.Handle("/query", utils.CorsMiddleware(utils.AuthMiddleware(&relay.Handler{Schema: x.Schema}, x.Db, x.Redis)))
 
 	log.Info(fmt.Sprintf("running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
@@ -879,11 +870,27 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 		"host": host,
 		"port": port,
 	}
-	sio.SetAdaptor(redis.Redis(opts))
+	sio.SetAdaptor(sioredis.Redis(opts))
+
+	redisDb, err := strconv.Atoi(viper.GetString("redis.database"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     viper.GetString("redis.server"),
+		Password: viper.GetString("redis.password"),
+		DB:       redisDb,
+	})
+
+	if _, err := redisClient.Ping().Result(); err != nil {
+		log.Fatal(err)
+	}
 
 	x.SocketIO = sio
 	x.Actions = actions
 	x.Schema = parsedSchema
+	x.Redis = redisClient
 
 	// DEBUG
 	db.LogMode(false)
@@ -903,7 +910,6 @@ func (x *CodeAmp) Subscribe() []string {
 	return []string{
 		"plugins.GitPing",
 		"plugins.GitCommit",
-		"plugins.GitBranch",
 		"plugins.GitStatus",
 		"plugins.HeartBeat",
 		"plugins.WebsocketMsg",
@@ -945,11 +951,6 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 			}, nil)
 		}
 
-	}
-
-	if e.Matches("plugins.GitBranch") {
-		payload := e.Payload.(plugins.GitBranch)
-		x.Actions.GitBranch(payload)
 	}
 
 	if e.Matches("plugins.WebsocketMsg") {

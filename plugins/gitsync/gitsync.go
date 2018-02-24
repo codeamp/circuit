@@ -270,19 +270,19 @@ func (x *GitSync) Process(e transistor.Event) error {
 		return err
 	}
 
-	branches, err := x.branches(gitSyncEvent.Project, gitSyncEvent.Git)
-	if err != nil {
-		gitSyncEvent.State = plugins.GetState("failed")
-		gitSyncEvent.StateMessage = fmt.Sprintf("%v (Action: %v)", err.Error(), gitSyncEvent.State)
-		event := e.NewEvent(gitSyncEvent, err)
-		x.events <- event
-		return err
-	}
+	//branches, err := x.branches(gitSyncEvent.Project, gitSyncEvent.Git)
+	//if err != nil {
+	//	gitSyncEvent.State = plugins.GetState("failed")
+	//	gitSyncEvent.StateMessage = fmt.Sprintf("%v (Action: %v)", err.Error(), gitSyncEvent.State)
+	//	event := e.NewEvent(gitSyncEvent, err)
+	//	x.events <- event
+	//	return err
+	//}
 
-	for i := range branches {
-		branchEvent := e.NewEvent(branches[i], nil)
-		x.events <- branchEvent
-	}
+	//for i := range branches {
+	//	branchEvent := e.NewEvent(branches[i], nil)
+	//	x.events <- branchEvent
+	//}
 
 	for i := range commits {
 		c := commits[i]

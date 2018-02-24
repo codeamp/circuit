@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	log "github.com/codeamp/logger"
-
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
 
@@ -27,17 +25,16 @@ type EnvironmentVariableInput struct {
 }
 
 type EnvironmentVariableResolver struct {
-	db                  *gorm.DB
-	EnvironmentVariable models.EnvironmentVariable
+	db                       *gorm.DB
+	EnvironmentVariable      models.EnvironmentVariable
+	EnvironmentVariableValue models.EnvironmentVariableValue
 }
 
 func (r *Resolver) EnvironmentVariable(ctx context.Context, args *struct{ ID graphql.ID }) (*EnvironmentVariableResolver, error) {
 	envVar := models.EnvironmentVariable{}
-	if err := r.db.Where("id = ?", args.ID).First(&envVar).Error; err != nil {
-		return nil, err
-	}
+	envVarValue := models.EnvironmentVariableValue{}
 
-	return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
+	return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar, EnvironmentVariableValue: envVarValue}, nil
 }
 
 func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ EnvironmentVariable *EnvironmentVariableInput }) (*EnvironmentVariableResolver, error) {
@@ -92,7 +89,7 @@ func (r *Resolver) CreateEnvironmentVariable(ctx context.Context, args *struct{ 
 
 		r.actions.EnvironmentVariableCreated(&envVar)
 
-		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
+		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar, EnvironmentVariableValue: envVarValue}, nil
 	} else {
 		return nil, fmt.Errorf("CreateEnvironmentVariable: key already exists")
 	}
@@ -123,7 +120,7 @@ func (r *Resolver) UpdateEnvironmentVariable(ctx context.Context, args *struct{ 
 		r.db.Create(&envVarValue)
 		r.actions.EnvironmentVariableUpdated(&envVar)
 
-		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar}, nil
+		return &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: envVar, EnvironmentVariableValue: envVarValue}, nil
 	}
 }
 
@@ -162,23 +159,12 @@ func (r *EnvironmentVariableResolver) Environment(ctx context.Context) (*Environ
 	return &EnvironmentResolver{db: r.db, Environment: env}, nil
 }
 
-func (r *EnvironmentVariableResolver) Extension(ctx context.Context) (*ExtensionResolver, error) {
-	var extension models.Extension
-	r.db.Model(r.EnvironmentVariable).Related(&extension)
-	return &ExtensionResolver{db: r.db, Extension: extension}, nil
-}
-
 func (r *EnvironmentVariableResolver) Key() string {
 	return r.EnvironmentVariable.Key
 }
 
 func (r *EnvironmentVariableResolver) Value() string {
-	var envVarValue models.EnvironmentVariableValue
-	if r.EnvironmentVariable.IsSecret {
-		return ""
-	}
-	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").First(&envVarValue)
-	return envVarValue.Value
+	return r.EnvironmentVariableValue.Value
 }
 
 func (r *EnvironmentVariableResolver) Type() string {
@@ -194,39 +180,22 @@ func (r *EnvironmentVariableResolver) IsSecret() bool {
 }
 
 func (r *EnvironmentVariableResolver) User() (*UserResolver, error) {
-	var envVarValue models.EnvironmentVariableValue
 	var user models.User
-	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").First(&envVarValue)
-	r.db.Model(envVarValue).Related(&user)
+	r.db.Model(r.EnvironmentVariableValue).Related(&user)
 	return &UserResolver{db: r.db, User: user}, nil
 }
 
-func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*EnvironmentVariableValueResolver, error) {
-	if _, err := utils.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
+func (r *EnvironmentVariableResolver) Versions(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
 	var envVarValues []models.EnvironmentVariableValue
-	var envVarValueResolvers []*EnvironmentVariableValueResolver
+	var envVarResolvers []*EnvironmentVariableResolver
 
-	if r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").Find(&envVarValues).RecordNotFound() {
-		log.InfoWithFields("env var values not found", log.Fields{
-			"environment_variable_id": r.EnvironmentVariable.Model.ID,
-		})
-		return nil, fmt.Errorf("env var values not found")
+	r.db.Where("environment_variable_id = ?", r.EnvironmentVariable.Model.ID).Order("created_at desc").Find(&envVarValues)
+
+	for _, envVarValue := range envVarValues {
+		envVarResolvers = append(envVarResolvers, &EnvironmentVariableResolver{db: r.db, EnvironmentVariable: r.EnvironmentVariable, EnvironmentVariableValue: envVarValue})
 	}
 
-	// iter and return env var value resolvers
-	for _, evValue := range envVarValues {
-		if r.EnvironmentVariable.IsSecret {
-			evValue.Value = ""
-			envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: evValue})
-		} else {
-			envVarValueResolvers = append(envVarValueResolvers, &EnvironmentVariableValueResolver{db: r.db, EnvironmentVariableValue: evValue})
-		}
-	}
-
-	return envVarValueResolvers, nil
+	return envVarResolvers, nil
 }
 
 func (r *EnvironmentVariableResolver) Created() graphql.Time {

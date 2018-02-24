@@ -83,6 +83,43 @@ func (suite *TestUser) TearDownSuite() {
 	suite.db.Exec("delete from user_permissions;")
 }
 
+/*
+Test user permissions related resolvers:
+
+- First, we must test retrieval of all distinct user permissions filtered by your privilege
+- Second, we must test your ability to modify another user's permissions filtered by your privilege
+
+By "filtered by your privilege", if you have sub-admin as your highest privilege, then you can only
+modify privileges of that level or below to other users.
+
+*/
+func (suite *TestUser) TestGetSelfUserPermissions() {
+	suite.SetupDBAndContext()
+	stamp := strings.ToLower("TestGetSelfUserPermissions")
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+
+	suite.TearDownSuite()
+}
+
+func (suite *TestUser) TestUserPermissionsRetrieval() {
+	suite.SetupDBAndContext()
+	stamp := strings.ToLower("TestUserPermissionsRetrieval")
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+
+	suite.TearDownSuite()
+}
+
+func (suite *TestUser) TestUserPermissionsUpdateUser() {
+	suite.SetupDBAndContext()
+	stamp := strings.ToLower("TestUserPermissionsUpdateUser")
+
+	resolver := resolvers.NewResolver(suite.t.TestEvents, suite.db, suite.actions)
+
+	suite.TearDownSuite()
+}
+
 func (suite *TestUser) TestSuccessfulCreateUser() {
 	suite.SetupDBAndContext()
 	stamp := strings.ToLower("TestSuccessfulCreateUser")

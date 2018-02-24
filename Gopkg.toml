@@ -103,4 +103,8 @@
 
 [[constraint]]
   name = "k8s.io/client-go"
-  version = "v5.0.1"
+  version = "v6.0.0"
+
+[[constraint]]
+  name = "github.com/go-redis/redis"
+  version = "6.9.0"

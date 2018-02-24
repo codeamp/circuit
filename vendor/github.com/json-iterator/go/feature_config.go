@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"reflect"
-	"sync/atomic"
 	"unsafe"
 )
 
@@ -17,21 +16,11 @@ type Config struct {
 	EscapeHTML                    bool
 	SortMapKeys                   bool
 	UseNumber                     bool
+	DisallowUnknownFields         bool
 	TagKey                        string
+	OnlyTaggedField               bool
 	ValidateJsonRawMessage        bool
 	ObjectFieldMustBeSimpleString bool
-}
-
-type frozenConfig struct {
-	configBeforeFrozen            Config
-	sortMapKeys                   bool
-	indentionStep                 int
-	objectFieldMustBeSimpleString bool
-	decoderCache                  unsafe.Pointer
-	encoderCache                  unsafe.Pointer
-	extensions                    []Extension
-	streamPool                    chan *Stream
-	iteratorPool                  chan *Iterator
 }
 
 // API the public interface of this package.
@@ -48,6 +37,7 @@ type API interface {
 	NewEncoder(writer io.Writer) *Encoder
 	NewDecoder(reader io.Reader) *Decoder
 	Valid(data []byte) bool
+	RegisterExtension(extension Extension)
 }
 
 // ConfigDefault the default API
@@ -71,30 +61,40 @@ var ConfigFastest = Config{
 
 // Froze forge API from config
 func (cfg Config) Froze() API {
-	// TODO: cache frozen config
-	frozenConfig := &frozenConfig{
+	api := &frozenConfig{
 		sortMapKeys:                   cfg.SortMapKeys,
 		indentionStep:                 cfg.IndentionStep,
 		objectFieldMustBeSimpleString: cfg.ObjectFieldMustBeSimpleString,
+		onlyTaggedField:               cfg.OnlyTaggedField,
+		disallowUnknownFields:         cfg.DisallowUnknownFields,
 		streamPool:                    make(chan *Stream, 16),
 		iteratorPool:                  make(chan *Iterator, 16),
 	}
-	atomic.StorePointer(&frozenConfig.decoderCache, unsafe.Pointer(&map[string]ValDecoder{}))
-	atomic.StorePointer(&frozenConfig.encoderCache, unsafe.Pointer(&map[string]ValEncoder{}))
+	api.initCache()
 	if cfg.MarshalFloatWith6Digits {
-		frozenConfig.marshalFloatWith6Digits()
+		api.marshalFloatWith6Digits()
 	}
 	if cfg.EscapeHTML {
-		frozenConfig.escapeHTML()
+		api.escapeHTML()
 	}
 	if cfg.UseNumber {
-		frozenConfig.useNumber()
+		api.useNumber()
 	}
 	if cfg.ValidateJsonRawMessage {
-		frozenConfig.validateJsonRawMessage()
+		api.validateJsonRawMessage()
 	}
-	frozenConfig.configBeforeFrozen = cfg
-	return frozenConfig
+	api.configBeforeFrozen = cfg
+	return api
+}
+
+func (cfg Config) frozeWithCacheReuse() *frozenConfig {
+	api := getFrozenConfigFromCache(cfg)
+	if api != nil {
+		return api
+	}
+	api = cfg.Froze().(*frozenConfig)
+	addFrozenConfigToCache(cfg, api)
+	return api
 }
 
 func (cfg *frozenConfig) validateJsonRawMessage() {
@@ -132,7 +132,7 @@ func (cfg *frozenConfig) getTagKey() string {
 	return tagKey
 }
 
-func (cfg *frozenConfig) registerExtension(extension Extension) {
+func (cfg *frozenConfig) RegisterExtension(extension Extension) {
 	cfg.extensions = append(cfg.extensions, extension)
 }
 
@@ -194,46 +194,6 @@ func (cfg *frozenConfig) escapeHTML() {
 	cfg.addEncoderToCache(reflect.TypeOf((*string)(nil)).Elem(), &htmlEscapedStringEncoder{})
 }
 
-func (cfg *frozenConfig) addDecoderToCache(cacheKey reflect.Type, decoder ValDecoder) {
-	done := false
-	for !done {
-		ptr := atomic.LoadPointer(&cfg.decoderCache)
-		cache := *(*map[reflect.Type]ValDecoder)(ptr)
-		copied := map[reflect.Type]ValDecoder{}
-		for k, v := range cache {
-			copied[k] = v
-		}
-		copied[cacheKey] = decoder
-		done = atomic.CompareAndSwapPointer(&cfg.decoderCache, ptr, unsafe.Pointer(&copied))
-	}
-}
-
-func (cfg *frozenConfig) addEncoderToCache(cacheKey reflect.Type, encoder ValEncoder) {
-	done := false
-	for !done {
-		ptr := atomic.LoadPointer(&cfg.encoderCache)
-		cache := *(*map[reflect.Type]ValEncoder)(ptr)
-		copied := map[reflect.Type]ValEncoder{}
-		for k, v := range cache {
-			copied[k] = v
-		}
-		copied[cacheKey] = encoder
-		done = atomic.CompareAndSwapPointer(&cfg.encoderCache, ptr, unsafe.Pointer(&copied))
-	}
-}
-
-func (cfg *frozenConfig) getDecoderFromCache(cacheKey reflect.Type) ValDecoder {
-	ptr := atomic.LoadPointer(&cfg.decoderCache)
-	cache := *(*map[reflect.Type]ValDecoder)(ptr)
-	return cache[cacheKey]
-}
-
-func (cfg *frozenConfig) getEncoderFromCache(cacheKey reflect.Type) ValEncoder {
-	ptr := atomic.LoadPointer(&cfg.encoderCache)
-	cache := *(*map[reflect.Type]ValEncoder)(ptr)
-	return cache[cacheKey]
-}
-
 func (cfg *frozenConfig) cleanDecoders() {
 	typeDecoders = map[string]ValDecoder{}
 	fieldDecoders = map[string]ValDecoder{}
@@ -280,7 +240,7 @@ func (cfg *frozenConfig) MarshalIndent(v interface{}, prefix, indent string) ([]
 	}
 	newCfg := cfg.configBeforeFrozen
 	newCfg.IndentionStep = len(indent)
-	return newCfg.Froze().Marshal(v)
+	return newCfg.frozeWithCacheReuse().Marshal(v)
 }
 
 func (cfg *frozenConfig) UnmarshalFromString(str string, v interface{}) error {

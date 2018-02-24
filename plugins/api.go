@@ -9,17 +9,17 @@ import (
 )
 
 func init() {
-	transistor.RegisterApi(Project{})
-	transistor.RegisterApi(GitCommit{})
-	transistor.RegisterApi(GitBranch{})
-	transistor.RegisterApi(GitStatus{})
-	transistor.RegisterApi(GitSync{})
-	transistor.RegisterApi(WebsocketMsg{})
-	transistor.RegisterApi(HeartBeat{})
-	transistor.RegisterApi(Project{})
-	transistor.RegisterApi(Extension{})
-	transistor.RegisterApi(Release{})
-	transistor.RegisterApi(ReleaseExtension{})
+	transistor.RegisterEvent(Project{})
+	transistor.RegisterEvent(GitCommit{})
+	transistor.RegisterEvent(GitBranch{})
+	transistor.RegisterEvent(GitStatus{})
+	transistor.RegisterEvent(GitSync{})
+	transistor.RegisterEvent(WebsocketMsg{})
+	transistor.RegisterEvent(HeartBeat{})
+	transistor.RegisterEvent(Project{})
+	transistor.RegisterEvent(Extension{})
+	transistor.RegisterEvent(Release{})
+	transistor.RegisterEvent(ReleaseExtension{})
 }
 
 type State string

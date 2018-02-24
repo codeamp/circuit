@@ -131,14 +131,7 @@ type Feature struct {
 	Created    time.Time `json:"created"`
 }
 
-type GitBranch struct {
-	Model     `json:"inline"`
-	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	Name      string    `json:"name"`
-}
-
-// This branch is tied to an environment and project
-type EnvironmentBasedProjectBranch struct {
+type ProjectSettings struct {
 	Model         `json:"inline"`
 	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 	ProjectId     uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`

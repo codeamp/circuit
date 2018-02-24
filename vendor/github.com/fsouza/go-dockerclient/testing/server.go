@@ -547,10 +547,10 @@ func (s *DockerServer) renameContainer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	copy := *container
-	copy.Name = r.URL.Query().Get("name")
 	s.cMut.Lock()
 	defer s.cMut.Unlock()
+	copy := *container
+	copy.Name = r.URL.Query().Get("name")
 	if s.containers[index].ID == copy.ID {
 		s.containers[index] = &copy
 	}
@@ -566,6 +566,8 @@ func (s *DockerServer) inspectContainer(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	s.cMut.RLock()
+	defer s.cMut.RUnlock()
 	json.NewEncoder(w).Encode(container)
 }
 
@@ -640,6 +642,8 @@ func (s *DockerServer) topContainer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	s.cMut.RLock()
+	defer s.cMut.RUnlock()
 	if !container.State.Running {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Container %s is not running", id)
@@ -787,11 +791,13 @@ func (s *DockerServer) attachContainer(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 	outStream := stdcopy.NewStdWriter(conn, stdcopy.Stdout)
+	s.cMut.RLock()
 	if container.State.Running {
 		fmt.Fprintf(outStream, "Container is running\n")
 	} else {
 		fmt.Fprintf(outStream, "Container is not running\n")
 	}
+	s.cMut.RUnlock()
 	fmt.Fprintln(outStream, "What happened?")
 	fmt.Fprintln(outStream, "Something happened")
 	wg.Wait()
@@ -816,16 +822,18 @@ func (s *DockerServer) waitContainer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	var exitCode int
 	for {
 		time.Sleep(1e6)
 		s.cMut.RLock()
 		if !container.State.Running {
+			exitCode = container.State.ExitCode
 			s.cMut.RUnlock()
 			break
 		}
 		s.cMut.RUnlock()
 	}
-	result := map[string]int{"StatusCode": container.State.ExitCode}
+	result := map[string]int{"StatusCode": exitCode}
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -919,11 +927,13 @@ func (s *DockerServer) logContainer(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/vnd.docker.raw-stream")
 	w.WriteHeader(http.StatusOK)
+	s.cMut.RLock()
 	if container.State.Running {
 		fmt.Fprintf(w, "Container is running\n")
 	} else {
 		fmt.Fprintf(w, "Container is not running\n")
 	}
+	s.cMut.RUnlock()
 	fmt.Fprintln(w, "What happened?")
 	fmt.Fprintln(w, "Something happened")
 	if r.URL.Query().Get("follow") == "1" {
@@ -1021,13 +1031,11 @@ func (s *DockerServer) pushImage(w http.ResponseWriter, r *http.Request) {
 
 func (s *DockerServer) tagImage(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	s.iMut.RLock()
-	if _, ok := s.imgIDs[name]; !ok {
-		s.iMut.RUnlock()
+	id, err := s.findImage(name)
+	if err != nil {
 		http.Error(w, "No such image", http.StatusNotFound)
 		return
 	}
-	s.iMut.RUnlock()
 	s.iMut.Lock()
 	defer s.iMut.Unlock()
 	newRepo := r.URL.Query().Get("repo")
@@ -1035,7 +1043,7 @@ func (s *DockerServer) tagImage(w http.ResponseWriter, r *http.Request) {
 	if newTag != "" {
 		newRepo += ":" + newTag
 	}
-	s.imgIDs[newRepo] = s.imgIDs[name]
+	s.imgIDs[newRepo] = id
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -1075,13 +1083,14 @@ func (s *DockerServer) inspectImage(w http.ResponseWriter, r *http.Request) {
 	s.iMut.RLock()
 	defer s.iMut.RUnlock()
 	if id, ok := s.imgIDs[name]; ok {
-		for _, img := range s.images {
-			if img.ID == id {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(img)
-				return
-			}
+		name = id
+	}
+	for _, img := range s.images {
+		if img.ID == name {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(img)
+			return
 		}
 	}
 	http.Error(w, "not found", http.StatusNotFound)
@@ -1148,7 +1157,9 @@ func (s *DockerServer) createExecContainer(w http.ResponseWriter, r *http.Reques
 	}
 
 	execID := s.generateID()
+	s.cMut.Lock()
 	container.ExecIDs = append(container.ExecIDs, execID)
+	s.cMut.Unlock()
 
 	exec := docker.ExecInspect{
 		ID:          execID,
