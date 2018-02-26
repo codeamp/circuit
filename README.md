@@ -7,9 +7,7 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 
 1. `git clone https://github.com/codeamp/circuit.git`
 2. `cp configs/circuit.yml configs/circuit.dev.yml`
-3. `go get -u github.com/jteeuwen/go-bindata/...`
-4. `$GOPATH/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema/schema.graphql`
-5. `make up`
+3. `make build && make up`
 
 
 ## Testing
