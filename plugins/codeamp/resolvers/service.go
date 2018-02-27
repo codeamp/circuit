@@ -19,6 +19,8 @@ type Service struct {
 	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
 	// ServiceSpecId
 	ServiceSpecId uuid.UUID `bson:"serviceSpecId" json:"serviceSpecId" gorm:"type:uuid"`
+	// ServiceSpec
+	ServiceSpec `json:"serviceSpec" gorm:"-"`
 	// Command
 	Command string `json:"command"`
 	// Name

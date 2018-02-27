@@ -1,6 +1,7 @@
 package codeamp_resolvers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -152,7 +153,11 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 }
 
 // EnvironmentVariables
-func (r *ProjectResolver) EnvironmentVariables() ([]*EnvironmentVariableResolver, error) {
+func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+	if _, err := CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
 	var rows []EnvironmentVariable
 	var results []*EnvironmentVariableResolver
 

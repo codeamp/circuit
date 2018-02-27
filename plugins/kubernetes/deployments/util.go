@@ -10,7 +10,6 @@ import (
 
 	ca_log "github.com/codeamp/logger"
 
-	ca_utils "github.com/codeamp/circuit/plugins/codeamp/utils"
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -277,7 +276,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
-	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Extension.Config, "KUBERNETESDEPLOYMENTS_")
+	kubeconfig, err := utils.SetupKubeConfig(payload.Extension.Config, "KUBERNETESDEPLOYMENTS_")
 	if err != nil {
 		ca_log.Info(err.Error())
 		return err

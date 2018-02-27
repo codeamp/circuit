@@ -2,10 +2,13 @@ package kubernetesutils
 
 import (
 	"fmt"
-	"log"
+	"io/ioutil"
+	"os"
 
 	"github.com/codeamp/circuit/plugins"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +61,7 @@ func CreateNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Int
 	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
 		if errors.IsNotFound(nameGetErr) {
-			log.Printf("Namespace %s does not yet exist, creating.", namespace)
+			log.Info("Namespace %s does not yet exist, creating.", namespace)
 			namespaceParams := &v1.Namespace{
 				TypeMeta: meta_v1.TypeMeta{
 					Kind:       "Namespace",
@@ -70,14 +73,75 @@ func CreateNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Int
 			}
 			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
 			if createNamespaceErr != nil {
-				log.Printf("Error '%s' creating namespace %s", createNamespaceErr, namespace)
+				log.Info("Error '%s' creating namespace %s", createNamespaceErr, namespace)
 				return createNamespaceErr
 			}
-			log.Printf("Namespace created: %s", namespace)
+			log.Info("Namespace created: %s", namespace)
 		} else {
-			log.Printf("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr)
+			log.Info("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr)
 			return nameGetErr
 		}
 	}
 	return nil
+}
+
+func GetTempDir() (string, error) {
+	for {
+		filePath := fmt.Sprintf("/tmp/%s", uuid.NewV1().String())
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			log.Info("directory does not exist")
+			// create the file
+			err = os.MkdirAll(filePath, os.ModeDir)
+			if err != nil {
+				log.Info(err.Error())
+				return "", err
+			}
+			return filePath, nil
+		}
+	}
+}
+
+func SetupKubeConfig(config map[string]interface{}, key string) (string, error) {
+	randomDirectory, err := GetTempDir()
+	if err != nil {
+		log.Info(err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(config[fmt.Sprintf("%sKUBECONFIG", key)].(string)), 0644)
+	if err != nil {
+		log.Info(err.Error())
+		return "", err
+	}
+
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+	log.Info("Using kubeconfig file: %s", fmt.Sprintf("%s/kubeconfig", randomDirectory))
+
+	// generate client cert, client key
+	// certificate authority
+	err = ioutil.WriteFile(fmt.Sprintf("%s/admin.pem", randomDirectory),
+		[]byte(config[fmt.Sprintf("%sCLIENT_CERTIFICATE", key)].(string)), 0644)
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
+		[]byte(config[fmt.Sprintf("%sCLIENT_KEY", key)].(string)), 0644)
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
+		[]byte(config[fmt.Sprintf("%sCERTIFICATE_AUTHORITY", key)].(string)), 0644)
+	if err != nil {
+		log.Info("ERROR: %s", err.Error())
+		return "", err
+	}
+
+	return fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
 }

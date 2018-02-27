@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bitstributor/core/plugins/api/utils"
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
@@ -33,12 +32,14 @@ type Release struct {
 	TailFeatureID uuid.UUID `json:"tailFeatureId" gorm:"type:uuid"`
 	// Artifacts
 	Artifacts postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
-	// Snapshot
-	Snapshot postgres.Jsonb `json:"snapshot" gorm:"type:jsonb;"`
+	// Services
+	Services postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
+	// EnvironmentVariables
+	EnvironmentVariables postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
+	// Environment
+	Environment postgres.Jsonb `json:"environment" gorm:"type:jsonb;"`
 	// FinishedAt
 	FinishedAt time.Time
-	// EnvironmentId
-	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
 }
 
 // ReleaseResolver resolver for Release
@@ -75,7 +76,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 	artifacts := make(map[string]interface{})
 
 	isAdmin := false
-	if _, err := utils.CheckAuth(ctx, []string{"admin"}); err == nil {
+	if _, err := CheckAuth(ctx, []string{"admin"}); err == nil {
 		isAdmin = true
 	}
 

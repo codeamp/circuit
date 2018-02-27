@@ -11,7 +11,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/codeamp/circuit/plugins"
-	ca_utils "github.com/codeamp/circuit/plugins/codeamp/utils"
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -107,7 +106,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	s3AccessLogs := payload.Config[configPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
 	lbType := plugins.GetType(payload.Config[configPrefix+"TYPE"].(string))
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Config, configPrefix)
+	kubeconfig, err := utils.SetupKubeConfig(payload.Config, configPrefix)
 	if err != nil {
 		log.Info(err.Error())
 		return err
@@ -346,7 +345,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.Extension)
 	configPrefix := "KUBERNETESLOADBALANCERS_"
-	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Config, configPrefix)
+	kubeconfig, err := utils.SetupKubeConfig(payload.Config, configPrefix)
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
