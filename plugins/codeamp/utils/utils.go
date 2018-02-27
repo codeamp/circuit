@@ -14,7 +14,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp/models"
+	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	oidc "github.com/coreos/go-oidc"
@@ -112,7 +112,7 @@ func GetFilledFormValues(configWithEnvVarIds map[string]interface{}, extensionSp
 		// check if val is UUID. If so, query in environment variables for id
 		valId := uuid.FromStringOrNil(val["value"].(string))
 		if valId != uuid.Nil {
-			envVar := models.EnvironmentVariableValue{}
+			envVar := resolvers.EnvironmentVariableValue{}
 
 			if db.Where("environment_variable_id = ?", valId).Order("created_at desc").First(&envVar).RecordNotFound() {
 				log.InfoWithFields("envvarvalue not found", log.Fields{
@@ -186,7 +186,7 @@ func AuthMiddleware(next http.Handler, db *gorm.DB, redisClient *redis.Client) h
 
 		c, err := redisClient.Get(fmt.Sprintf("%s_%s", idToken.Nonce, claims.Email)).Result()
 		if err == redis.Nil {
-			user := models.User{}
+			user := resolvers.User{}
 			if db.Where("email = ?", claims.Email).Find(&user).RecordNotFound() {
 				user.Email = claims.Email
 				db.Create(&user)
@@ -247,7 +247,7 @@ func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 		return "", errors.New(claims.TokenError)
 	}
 
-	if transistor.SliceContains("admin1", claims.Permissions) {
+	if transistor.SliceContains("admin", claims.Permissions) {
 		return claims.UserId, nil
 	}
 
@@ -259,7 +259,7 @@ func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 				return claims.UserId, nil
 			}
 		}
-		return "", errors.New("you dont have permission to access this resource")
+		return claims.UserId, errors.New("you dont have permission to access this resource")
 	}
 
 	return claims.UserId, nil

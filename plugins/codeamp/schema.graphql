@@ -1,93 +1,99 @@
 scalar Time
-scalar Json
+scalar JSON
 
 schema {
   query: Query
   mutation: Mutation
 }
 
-# The query type, represents all of the entry points into our object graph
+# Query
 type Query {
-  # Retrieve single user by ID
+  # User
   user(id: ID): User
-  # Retrieve all users
+  # Users
   users(): [User]!
-  # Retrieve single project by ID
+  # Project
   project(id: ID, slug: String, name: String, environmentId: String): Project
-  # Retrieve all projects
+  # Projects
   projects(): [Project]!
-  # Retrieve all features
+  # Features
   features(): [Feature]!
-
-  # Retrieve all services
+  # Services
   services(): [Service]!
-
-  # Retrieve all service specs
+  # Service specs
   serviceSpecs(): [ServiceSpec]!
-
-  # Retrieve all releases
+  # Releases
   releases(): [Release]!
-
-  # Retrieve all environments
+  # Environments
   environments(): [Environment]!
-
-  # Retrieve all environment variables
+  # Environment variables
   environmentVariables(): [EnvironmentVariable]!
-
-  # Retrieve all extension specs
+  # Extension spec
   extensionSpecs(): [ExtensionSpec]!
-
-  # Retrieve all extensions
+  # Extensions
   extensions(): [Extension]!
-
-  # Retrieve all release extensions
+  # Release extensions
   releaseExtensions(): [ReleaseExtension]!
 }
 
-# The mutation type, represents all updates we can make to our data
+# Mutation
 type Mutation {
+  # Create project
   createProject(project: ProjectInput): Project
+  # Update project
   updateProject(project: ProjectInput): Project
-
+  # Create release
   createRelease(release: ReleaseInput): Release
+  # Rollback release
   rollbackRelease(releaseId: ID!): Release
-
+  # Create service
   createService(service: ServiceInput): Service
+  # Update Service
   updateService(service: ServiceInput): Service
+  # Delete service
   deleteService(service: ServiceInput): Service
-
+  # Create service spec
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
+  # Update service spec
   updateServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
+  # Delete service spec
   deleteServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
-
+  # Create environment
   createEnvironment(environment: EnvironmentInput): Environment
+  # Update environment
   updateEnvironment(environment: EnvironmentInput): Environment
+  # Delete environment
   deleteEnvironment(environment: EnvironmentInput): Environment
-
+  # Create environment variable
   createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  # Update environment variable
   updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  # Delete environment variable 
   deleteEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
-
+  # Create extension spec
   createExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
+  # Update extension spec
   updateExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
+  # Delete extension spec
   deleteExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
-
+  # Create extension
   createExtension(extension: ExtensionInput): Extension
+  # Update extension
   updateExtension(extension: ExtensionInput): Extension
+  # Delete extesion
   deleteExtension(extension: ExtensionInput): Extension
 }
 
-# User object
-interface User {
+# User
+type User {
   id: ID!
   email: String!
   permissions: [String!]!
   created: Time!
 }
 
-
-# Feature object
-interface Feature {
+# Feature
+type Feature {
   id: ID!
   project: Project!
   message: String!
@@ -98,35 +104,30 @@ interface Feature {
   created: Time!
 }
 
-interface ContainerPort {
+# Service
+type Service {
   id: ID!
-  protocol: String!
-  port: String!
-}
-
-interface Service {
-  id: ID!
-  project: Project
+  project: Project!
   command: String!
   name: String!
   serviceSpec: ServiceSpec!
   count: String!
-  containerPorts: [ContainerPort]!
+  ports: [JSON]!
   environment: Environment!
   type: String!
   created: Time!
 }
 
-# Environment object
-interface Environment {
+# Environment
+type Environment {
   id: ID!
   name: String!
   color: String!
   created: Time!
 }
 
-# EnvironmentVariable object
-interface EnvironmentVariable {
+# Environment variable
+type EnvironmentVariable {
   id: ID!
   key: String!
   value: String!
@@ -140,16 +141,8 @@ interface EnvironmentVariable {
   isSecret: Boolean!
 }
 
-interface EnvironmentVariableValue {
-  id: ID!
-  value: String!
-  user: User!
-  environmentVariable: EnvironmentVariable!
-  created: Time!
-}
-
-# ServiceSpec object
-interface ServiceSpec {
+# Service spec
+type ServiceSpec {
   id: ID!
   name: String!
   cpuRequest: String!
@@ -160,12 +153,12 @@ interface ServiceSpec {
   created: Time!
 }
 
-# Release object
-interface Release {
+# Release
+type Release {
   id: ID!
-  project: Project
-  user: User
-  artifacts: Json!
+  project: Project!
+  user: User!
+  artifacts: JSON!
   headFeature: Feature!
   tailFeature: Feature!
   state: String!
@@ -175,8 +168,8 @@ interface Release {
   created: Time!
 }
 
-# Project object
-interface Project {
+# Project
+type Project {
   id: ID!
   name: String!
   slug: String!
@@ -196,33 +189,33 @@ interface Project {
   created: Time!
 }
 
-# ExtensionSpec object
-interface ExtensionSpec {
+# Extension spec
+type ExtensionSpec {
   id: ID!
   name: String!
   component: String!
   type: String!
   key: String!
   environment: Environment!
-  config: Json!
+  config: JSON!
   created: Time!
 }
 
-# Extension object
-interface Extension {
+# Extension
+type Extension {
   id: ID!
   project: Project!
   extensionSpec: ExtensionSpec!
-  artifacts: Json!
-  config: Json!
+  artifacts: JSON!
+  config: JSON!
   state: String!
   stateMessage: String!
   environment: Environment!
   created: Time!
 }
 
-# ReleaseExtension object
-interface ReleaseExtension {
+# Release extension
+type ReleaseExtension {
   id: ID!
   release: Release!
   extension: Extension!
@@ -231,19 +224,12 @@ interface ReleaseExtension {
   state: String!
   type: String!
   stateMessage: String!
-  artifacts: Json!
-  finished: Time
+  artifacts: JSON!
+  finished: Time!
   created: Time!
 }
 
-interface EnvironmentBasedProjectBranch {
-  id: ID!
-  environment: Environment!
-  project: Project!
-  gitBranch: String! 
-}
-
-# ProjectInput object and all fields needed for creating new Project
+# Project input
 input ProjectInput {
   id: String
   gitProtocol: String!
@@ -252,6 +238,7 @@ input ProjectInput {
   environmentId: String!
 }
 
+# Release input
 input ReleaseInput {
   id: String
   headFeatureId: String!
@@ -259,6 +246,7 @@ input ReleaseInput {
   environmentId: String!
 }
 
+# Service input
 input ServiceInput {
   id: String
   projectId: String!
@@ -266,16 +254,18 @@ input ServiceInput {
   name: String!
   serviceSpecId: String!
   count: String!
-  containerPorts: [ContainerPortInput!]
+  ports: [ServicePortInput!]
   type: String!
   environmentId: String!
 }
 
-input ContainerPortInput {
+# Container port input
+input ServicePortInput {
   port: String!
   protocol: String!
 }
 
+# Service spec input
 input ServiceSpecInput {
   id: String
   name: String!
@@ -286,12 +276,14 @@ input ServiceSpecInput {
   terminationGracePeriod: String!
 }
 
+# Environment input
 input EnvironmentInput {
   id: String
   name: String!
   color: String!
 }
 
+# Environment variable input
 input EnvironmentVariableInput {
   id: String
   key: String!
@@ -303,28 +295,22 @@ input EnvironmentVariableInput {
   isSecret: Boolean!
 }
 
-input EnvironmentBasedProjectBranchInput {
-  id: String
-  environmentId: String!
-  projectId: String!
-  gitBranch: String! 
-}
-
+# Extension spec input
 input ExtensionSpecInput {
   id: String
   name: String!
   key: String!
   component: String!
   environmentId: String!
-  config: Json!
+  config: JSON!
   type: String!
-  key: String!
 }
 
+# Extension input
 input ExtensionInput {
   id: String,
   projectId: String!,
   extensionSpecId: String!,
-  config: Json!
+  config: JSON!
   environmentId: String!
 }
