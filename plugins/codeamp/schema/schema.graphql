@@ -78,10 +78,6 @@ type Mutation {
   createExtension(extension: ExtensionInput): Extension
   updateExtension(extension: ExtensionInput): Extension
   deleteExtension(extension: ExtensionInput): Extension
-  
-  createEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
-  updateEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
-  deleteEnvironmentBasedProjectBranch(environmentBasedProjectBranch: EnvironmentBasedProjectBranchInput): EnvironmentBasedProjectBranch
 
   updateUserPermissions(userPermissions: UserPermissionsInput): [String!]!
 }
@@ -244,18 +240,12 @@ interface ReleaseExtension {
   created: Time!
 }
 
-interface EnvironmentBasedProjectBranch {
-  id: ID!
-  environment: Environment!
-  project: Project!
-  gitBranch: String! 
-}
-
 # ProjectInput object and all fields needed for creating new Project
 input ProjectInput {
   id: String
   gitProtocol: String!
   gitUrl: String!
+  gitBranch: String
   bookmarked: Boolean
   environmentId: String!
 }
@@ -309,13 +299,6 @@ input EnvironmentVariableInput {
   projectId: String
   environmentId: String!
   isSecret: Boolean!
-}
-
-input EnvironmentBasedProjectBranchInput {
-  id: String
-  environmentId: String!
-  projectId: String!
-  gitBranch: String! 
 }
 
 input ExtensionSpecInput {

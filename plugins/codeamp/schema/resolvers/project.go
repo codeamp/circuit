@@ -9,12 +9,9 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
-	"github.com/codeamp/transistor"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -24,6 +21,7 @@ import (
 type ProjectInput struct {
 	ID            *string
 	GitProtocol   string
+	GitBranch     *string
 	GitUrl        string
 	Bookmarked    *bool
 	EnvironmentId string
@@ -65,29 +63,49 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 }
 
 func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
-
-	var project models.Project
-
 	if args.Project.ID == nil {
 		return nil, fmt.Errorf("Missing argument id")
 	}
 
-	projectId, err := uuid.FromString(*args.Project.ID)
-	if err != nil {
-		log.InfoWithFields("Could not convert argument id", log.Fields{
-			"id":  args.Project.ID,
-			"err": err,
-		})
-		return nil, fmt.Errorf("Invalid argument id")
-	}
-
-	if r.db.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
+	var project *models.Project
+	if r.db.Where("id = ?", args.Project.ID).First(project).RecordNotFound() {
 		log.InfoWithFields("Project not found", log.Fields{
 			"id": args.Project.ID,
 		})
 		return nil, fmt.Errorf("Project not found.")
 	}
 
+	project, err := r.cleanRepoInfo(args)
+	if err != nil {
+		return nil, err
+	}
+
+	r.db.Save(project)
+	return &ProjectResolver{db: r.db, Project: *project}, nil
+}
+
+/*
+ResetProject removes all project-related objects as well as
+updating the project's GitUrl if the user has selected a different
+Repository Type
+*/
+func (r *Resolver) ResetProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
+	project, err := r.cleanRepoInfo(args)
+	if err != nil {
+		return nil, err
+	}
+
+	r.db.Save(project)
+
+	// Cascade delete all features and releases related to old git url
+	r.db.Where("project_id = ?", project.ID).Delete(models.Feature{})
+	r.db.Where("project_id = ?", project.ID).Delete(models.Release{})
+
+	return &ProjectResolver{db: r.db, Project: *project}, nil
+}
+
+func (r *Resolver) cleanRepoInfo(args *struct{ Project *ProjectInput }) (*models.Project, error) {
+	var project models.Project
 	protocol := "HTTPS"
 	switch args.Project.GitProtocol {
 	case "private", "PRIVATE", "ssh", "SSH":
@@ -99,62 +117,23 @@ func (r *Resolver) UpdateProject(args *struct{ Project *ProjectInput }) (*Projec
 	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
 	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
 
-	project.GitUrl = args.Project.GitUrl
-
-	// Check if project already exists with same name
-	if r.db.Unscoped().Where("id != ? and repository = ?", projectId, repository).First(&models.Project{}).RecordNotFound() == false {
-		return nil, fmt.Errorf("Project with repository name already exists.")
-	}
 	project.GitUrl = args.Project.GitUrl
 	project.GitProtocol = protocol
 	project.Repository = repository
 	project.Name = repository
 	project.Slug = slug.Slug(repository)
-	r.db.Save(&project)
-
-	// Cascade delete all features and releases related to old git url
-	r.db.Where("project_id = ?", project.ID).Delete(models.Feature{})
-	r.db.Where("project_id = ?", project.ID).Delete(models.Release{})
-	return &ProjectResolver{db: r.db, Project: project}, nil
+	return &project, nil
 }
 
 func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
-	protocol := "HTTPS"
-	switch args.Project.GitProtocol {
-	case "private", "PRIVATE", "ssh", "SSH":
-		protocol = "SSH"
-	case "public", "PUBLIC", "https", "HTTPS":
-		protocol = "HTTPS"
+	project, err := r.cleanRepoInfo(args)
+	if err != nil {
+		return nil, err
 	}
-
-	var project models.Project
 
 	// Check if project already exists with same name
-	existingProject := models.Project{}
-
-	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
-	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
-	if r.db.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
-		log.InfoWithFields("[+] Project not found", log.Fields{
-			"repository": repository,
-		})
-	} else {
-		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
-	}
-
-	project = models.Project{
-		GitProtocol: protocol,
-		GitUrl:      args.Project.GitUrl,
-		Secret:      transistor.RandomString(30),
-	}
-
-	project.Name = repository
-	project.Repository = repository
-	project.Slug = slug.Slug(repository)
-
-	deletedProject := models.Project{}
-	if err := r.db.Unscoped().Where("repository = ?", repository).First(&deletedProject).Error; err != nil {
-		project.Model.ID = deletedProject.Model.ID
+	if r.db.Where("repository = ?", project.Repository).First(&models.Project{}).RecordNotFound() == false {
+		return nil, fmt.Errorf("Project with repository name already exists.")
 	}
 
 	// priv *rsa.PrivateKey;
@@ -186,16 +165,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 
 	project.RsaPrivateKey = string(pem.EncodeToMemory(&priv_blk))
 	project.RsaPublicKey = string(ssh.MarshalAuthorizedKey(pub))
-
 	r.db.Create(&project)
-
-	// consult with saso about this:
-	// reasoning is so this function can complete even if
-	// there's something wrong with the transistor
-	go r.actions.ProjectCreated(&project)
-
-	// Create git branch for env per env
-
 	environments := []models.Environment{}
 	if r.db.Find(&environments).RecordNotFound() {
 		log.InfoWithFields("Environment doesn't exist.", log.Fields{
@@ -212,7 +182,7 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 		})
 	}
 
-	return &ProjectResolver{db: r.db, Project: project}, nil
+	return &ProjectResolver{db: r.db, Project: *project, Environment: environments[0]}, nil
 }
 
 type ProjectResolver struct {
@@ -334,9 +304,16 @@ func (r *ProjectResolver) Created() graphql.Time {
 func (r *ProjectResolver) GitBranch() string {
 	var projectSettings models.ProjectSettings
 	if r.db.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&projectSettings).RecordNotFound() {
-		return "master"
+		// if no project settings is found, we should create an
+		// entry for its environment with default settings .e.g branch => "master"
+		defaultProjectSettings := models.ProjectSettings{
+			EnvironmentId: r.Environment.Model.ID,
+			ProjectId:     r.Project.Model.ID,
+			GitBranch:     "master",
+		}
+		r.db.Create(&defaultProjectSettings)
+		return defaultProjectSettings.GitBranch
 	} else {
-		spew.Dump(projectSettings)
 		return projectSettings.GitBranch
 	}
 }
