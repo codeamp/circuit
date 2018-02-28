@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	oidc "github.com/coreos/go-oidc"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-redis/redis"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
@@ -96,7 +98,7 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		c, err := resolver.Redis.Get(fmt.Sprintf("%s_%s", idToken.Nonce, claims.Email)).Result()
+		c, err := resolver.Redis.Get(fmt.Sprintf("%s_%s_1", idToken.Nonce, claims.Email)).Result()
 		if err == redis.Nil {
 			user := User{}
 			if resolver.DB.Where("email = ?", claims.Email).Find(&user).RecordNotFound() {
@@ -167,8 +169,22 @@ func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 		return claims.UserID, nil
 	} else {
 		for _, scope := range scopes {
-			if transistor.SliceContains(scope, claims.Permissions) {
-				return claims.UserID, nil
+			level := 0
+			levels := strings.Count(scope, "/")
+
+			if levels > 0 {
+				for level < levels {
+					if transistor.SliceContains(scope, claims.Permissions) {
+						return claims.UserID, nil
+					}
+					scope = scope[0:strings.LastIndexByte(scope, '/')]
+					level += 1
+				}
+			} else {
+				spew.Dump(scope)
+				if transistor.SliceContains(scope, claims.Permissions) {
+					return claims.UserID, nil
+				}
 			}
 		}
 		return claims.UserID, errors.New("you dont have permission to access this resource")

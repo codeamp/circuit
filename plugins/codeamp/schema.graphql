@@ -34,6 +34,8 @@ type Query {
   extensions(): [Extension]!
   # Release extensions
   releaseExtensions(): [ReleaseExtension]!
+  # Permissions
+  permissions(): JSON!
 }
 
 # Mutation
@@ -311,4 +313,16 @@ input ExtensionInput {
   extensionSpecID: String!,
   config: JSON!
   environmentID: String!
+}
+
+# UserPermission input
+input UserPermissionsInput {
+  userID: String!
+  permissions: [UserPermissionInput!]!
+}
+
+# UserPermission input
+input UserPermissionInput {
+  value: String!
+  grant: Boolean!
 }

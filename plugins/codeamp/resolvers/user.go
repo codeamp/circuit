@@ -2,7 +2,6 @@ package codeamp_resolvers
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -50,8 +49,6 @@ func (r *UserResolver) Permissions() []string {
 	var permissions []string
 
 	r.DB.Model(r.User).Association("Permissions").Find(&r.User.Permissions)
-
-	permissions = append(permissions, fmt.Sprintf("user:%s", r.User.Model.ID))
 
 	for _, permission := range r.User.Permissions {
 		permissions = append(permissions, permission.Value)

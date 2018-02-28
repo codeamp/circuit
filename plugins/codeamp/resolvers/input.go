@@ -78,6 +78,8 @@ type ProjectInput struct {
 	GitProtocol string `json:"gitProtocol"`
 	// GitUrl
 	GitUrl string `json:"gitUrl"`
+	// GitBranch
+	GitBranch *string `json:"gitBranch"`
 	// Bookmarked
 	Bookmarked *bool `json:"bookmarked"`
 	// EnvironmentID
@@ -134,4 +136,16 @@ type ServiceSpecInput struct {
 	MemoryLimit string `json:"memoryLimit"`
 	// TerminationGracePeriod
 	TerminationGracePeriod string `json:"terminationGracePeriod"`
+}
+
+// UserPermissionsInput
+type UserPermissionsInput struct {
+	UserID      string            `json:"userID"`
+	Permissions []PermissionInput `json:"permissions"`
+}
+
+// PermissionInput
+type PermissionInput struct {
+	Value string `json:"value"`
+	Grant bool   `json:"grant"`
 }

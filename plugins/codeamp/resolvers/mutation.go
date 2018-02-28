@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -22,7 +23,7 @@ import (
 )
 
 // CreateProject Create project
-func (r *Resolver) CreateProject(args *struct {
+func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	Project *ProjectInput
 }) (*ProjectResolver, error) {
 	var project Project
@@ -112,6 +113,17 @@ func (r *Resolver) CreateProject(args *struct {
 		})
 	}
 
+	if userId, err := CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	} else {
+		// Create user permission for project
+		userPermission := UserPermission{
+			UserID: uuid.FromStringOrNil(userId),
+			Value:  fmt.Sprintf("user/%s", project.Repository),
+		}
+		r.DB.Create(&userPermission)
+	}
+
 	return &ProjectResolver{DB: r.DB, Project: project}, nil
 }
 
@@ -125,15 +137,6 @@ func (r *Resolver) UpdateProject(args *struct {
 		return nil, fmt.Errorf("Missing argument id")
 	}
 
-	projectID, err := uuid.FromString(*args.Project.ID)
-	if err != nil {
-		log.InfoWithFields("Could not convert argument id", log.Fields{
-			"id":  args.Project.ID,
-			"err": err,
-		})
-		return nil, fmt.Errorf("Invalid argument id")
-	}
-
 	if r.DB.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
 		log.InfoWithFields("Project not found", log.Fields{
 			"id": args.Project.ID,
@@ -141,29 +144,29 @@ func (r *Resolver) UpdateProject(args *struct {
 		return nil, fmt.Errorf("Project not found.")
 	}
 
-	protocol := "HTTPS"
 	switch args.Project.GitProtocol {
 	case "private", "PRIVATE", "ssh", "SSH":
-		protocol = "SSH"
+		project.GitProtocol = "SSH"
+		if strings.HasPrefix(project.GitUrl, "http") {
+			project.GitUrl = fmt.Sprintf("git@%s:%s.git", strings.Split(strings.Split(project.GitUrl, "://")[1], "/")[0], project.Repository)
+		}
 	case "public", "PUBLIC", "https", "HTTPS":
-		protocol = "HTTPS"
+		project.GitProtocol = "HTTPS"
+		if strings.HasPrefix(project.GitUrl, "git@") {
+			project.GitUrl = fmt.Sprintf("https://%s/%s.git", strings.Split(strings.Split(project.GitUrl, "@")[1], ":")[0], project.Repository)
+		}
 	}
 
-	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
-	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
-
-	project.GitUrl = args.Project.GitUrl
-
-	// Check if project already exists with same name
-	if r.DB.Unscoped().Where("id != ? and repository = ?", projectID, repository).First(&Project{}).RecordNotFound() == false {
-		return nil, fmt.Errorf("Project with repository name already exists.")
+	if args.Project.GitBranch != nil {
+		var projectSettings ProjectSettings
+		if r.DB.Where("environment_id = ? and project_id = ?", args.Project.EnvironmentID, args.Project.ID).First(&projectSettings).RecordNotFound() {
+			log.InfoWithFields("Project settings not found", log.Fields{})
+		} else {
+			projectSettings.GitBranch = *args.Project.GitBranch
+			r.DB.Save(&projectSettings)
+		}
 	}
 
-	project.GitUrl = args.Project.GitUrl
-	project.GitProtocol = protocol
-	project.Repository = repository
-	project.Name = repository
-	project.Slug = slug.Slug(repository)
 	r.DB.Save(&project)
 
 	return &ProjectResolver{DB: r.DB, Project: project}, nil
@@ -1012,4 +1015,35 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 	//r.ExtensionDeleted(&extension)
 
 	return &ExtensionResolver{DB: r.DB, Extension: extension}, nil
+}
+
+// UpdateUserPermissions
+func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissionsInput *UserPermissionsInput }) ([]string, error) {
+	var err error
+	var results []string
+
+	if r.DB.Where("id = ?", args.UserPermissionsInput.UserID).Find(User{}).RecordNotFound() {
+		return nil, errors.New("User not found")
+	}
+
+	for _, permission := range args.UserPermissionsInput.Permissions {
+		if _, err = CheckAuth(ctx, []string{permission.Value}); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, permission := range args.UserPermissionsInput.Permissions {
+		if permission.Grant == true {
+			userPermission := UserPermission{
+				UserID: uuid.FromStringOrNil(args.UserPermissionsInput.UserID),
+				Value:  permission.Value,
+			}
+			r.DB.Where(userPermission).FirstOrCreate(&userPermission)
+			results = append(results, permission.Value)
+		} else {
+			r.DB.Where("user_id = ? AND value = ?", args.UserPermissionsInput.UserID, permission.Value).Delete(UserPermission{})
+		}
+	}
+
+	return results, nil
 }

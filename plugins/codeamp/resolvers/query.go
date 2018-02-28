@@ -2,6 +2,7 @@ package codeamp_resolvers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	log "github.com/codeamp/logger"
@@ -254,4 +255,27 @@ func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionRe
 	}
 
 	return results, nil
+}
+
+// Permissions
+func (r *Resolver) Permissions(ctx context.Context) (JSON, error) {
+	var rows []UserPermission
+	var results = make(map[string]bool)
+
+	r.DB.Select("DISTINCT(value)").Find(&rows)
+
+	for _, userPermission := range rows {
+		if _, err := CheckAuth(ctx, []string{userPermission.Value}); err != nil {
+			results[userPermission.Value] = false
+		} else {
+			results[userPermission.Value] = true
+		}
+	}
+
+	bytes, err := json.Marshal(results)
+	if err != nil {
+		return JSON{}, err
+	}
+
+	return JSON{bytes}, nil
 }
