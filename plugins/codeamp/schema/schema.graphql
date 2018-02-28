@@ -322,5 +322,5 @@ input ExtensionInput {
 
 input UserPermissionsInput {
   userId: String!,
-  permissions: [String!]!,
+  permissions: [Json!]!,
 }
