@@ -9,7 +9,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/models"
 	"github.com/codeamp/circuit/plugins/codeamp/schema/scalar"
 	"github.com/codeamp/circuit/plugins/codeamp/utils"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
@@ -118,9 +117,7 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 	userPermission := models.UserPermission{}
 	for _, filteredPermission := range filteredPermissions {
 		// check if user has this permission
-		spew.Dump(userId, filteredPermission)
 		r.db.Where("user_id = ? and value = ?", userId, filteredPermission).Find(&userPermission)
-		spew.Dump(userPermission)
 		r.db.Delete(&userPermission)
 	}
 	var results []string
