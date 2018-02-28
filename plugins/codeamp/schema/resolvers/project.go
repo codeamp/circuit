@@ -9,9 +9,11 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/models"
+	"github.com/codeamp/circuit/plugins/codeamp/utils"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
@@ -125,7 +127,7 @@ func (r *Resolver) cleanRepoInfo(args *struct{ Project *ProjectInput }) (*models
 	return &project, nil
 }
 
-func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
+func (r *Resolver) CreateProject(ctx context.Context, args *struct{ Project *ProjectInput }) (*ProjectResolver, error) {
 	project, err := r.cleanRepoInfo(args)
 	if err != nil {
 		return nil, err
@@ -181,6 +183,15 @@ func (r *Resolver) CreateProject(args *struct{ Project *ProjectInput }) (*Projec
 			GitBranch:     "master",
 		})
 	}
+
+	requestUserId, _ := utils.CheckAuth(ctx, []string{})
+	// Create user permission for project permissions.
+	// Creator is owner in this case
+	userPermissionRow := models.UserPermission{
+		UserId: uuid.FromStringOrNil(requestUserId),
+		Value:  fmt.Sprintf("user/owner/%s", project.Repository),
+	}
+	r.db.Create(&userPermissionRow)
 
 	return &ProjectResolver{db: r.db, Project: *project, Environment: environments[0]}, nil
 }
