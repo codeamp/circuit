@@ -23,3 +23,21 @@ func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 
 	return results, nil
 }
+
+func (r *Resolver) Permissions(ctx context.Context) ([]string, error) {
+	var rows []models.UserPermission
+	var results []string
+
+	r.db.Select("DISTINCT(value)").Find(&rows)
+
+	for _, distinctUserPermission := range rows {
+		// Check if user doing the query has access to view the permission
+		if _, err := utils.CheckAuth(ctx, []string{distinctUserPermission.Value}); err != nil {
+			return nil, err
+		}
+
+		results = append(results, distinctUserPermission.Value)
+	}
+
+	return results, nil
+}

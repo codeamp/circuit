@@ -42,6 +42,9 @@ type Query {
 
   # Retrieve all release extensions
   releaseExtensions(): [ReleaseExtension]!
+
+  # Retrieve all distinct user permissions
+  permissions(): [String!]!
 }
 
 # The mutation type, represents all updates we can make to our data
@@ -75,6 +78,8 @@ type Mutation {
   createExtension(extension: ExtensionInput): Extension
   updateExtension(extension: ExtensionInput): Extension
   deleteExtension(extension: ExtensionInput): Extension
+
+  updateUserPermissions(userPermissions: UserPermissionsInput): [String!]!
 }
 
 # User object
@@ -84,7 +89,6 @@ interface User {
   permissions: [String!]!
   created: Time!
 }
-
 
 # Feature object
 interface Feature {
@@ -236,18 +240,12 @@ interface ReleaseExtension {
   created: Time!
 }
 
-interface EnvironmentBasedProjectBranch {
-  id: ID!
-  environment: Environment!
-  project: Project!
-  gitBranch: String! 
-}
-
 # ProjectInput object and all fields needed for creating new Project
 input ProjectInput {
   id: String
   gitProtocol: String!
   gitUrl: String!
+  gitBranch: String
   bookmarked: Boolean
   environmentId: String!
 }
@@ -303,13 +301,6 @@ input EnvironmentVariableInput {
   isSecret: Boolean!
 }
 
-input EnvironmentBasedProjectBranchInput {
-  id: String
-  environmentId: String!
-  projectId: String!
-  gitBranch: String! 
-}
-
 input ExtensionSpecInput {
   id: String
   name: String!
@@ -327,4 +318,9 @@ input ExtensionInput {
   extensionSpecId: String!,
   config: Json!
   environmentId: String!
+}
+
+input UserPermissionsInput {
+  userId: String!,
+  permissions: [Json!]!,
 }
