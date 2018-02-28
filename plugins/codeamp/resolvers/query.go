@@ -13,22 +13,22 @@ import (
 func (r *Resolver) User(ctx context.Context, args *struct {
 	ID *graphql.ID
 }) (*UserResolver, error) {
-	var userId string
+	var userID string
 	var err error
 	var user User
 
 	if args.ID != nil {
-		userId = string(*args.ID)
+		userID = string(*args.ID)
 	} else {
 		claims := ctx.Value("jwt").(Claims)
-		userId = claims.UserId
+		userID = claims.UserID
 	}
 
-	if _, err = CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userId)}); err != nil {
+	if _, err = CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userID)}); err != nil {
 		return nil, err
 	}
 
-	if err = r.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+	if err = r.DB.Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -58,7 +58,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	ID            *graphql.ID
 	Slug          *string
 	Name          *string
-	EnvironmentId *string
+	EnvironmentID *string
 }) (*ProjectResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	var query *gorm.DB
 
 	// get environment
-	if r.DB.Where("id = ?", *args.EnvironmentId).Find(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", *args.EnvironmentID).Find(&environment).RecordNotFound() {
 		log.InfoWithFields("Environment doesn't exist.", log.Fields{
 			"args": args,
 		})
@@ -190,19 +190,19 @@ func (r *Resolver) Environments(ctx context.Context) ([]*EnvironmentResolver, er
 	return results, nil
 }
 
-func (r *Resolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil, err
 	}
 
-	var rows []EnvironmentVariable
-	var results []*EnvironmentVariableResolver
+	var rows []Secret
+	var results []*SecretResolver
 
 	r.DB.Where("scope != ?", "project").Order("created_at desc").Find(&rows)
-	for _, envVar := range rows {
-		var envVarValue EnvironmentVariableValue
-		r.DB.Where("environment_variable_id = ?", envVar.Model.ID).Order("created_at desc").First(&envVarValue)
-		results = append(results, &EnvironmentVariableResolver{DB: r.DB, EnvironmentVariable: envVar, EnvironmentVariableValue: envVarValue})
+	for _, secret := range rows {
+		var secretValue SecretValue
+		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
+		results = append(results, &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue})
 	}
 
 	return results, nil

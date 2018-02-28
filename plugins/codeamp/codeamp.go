@@ -75,8 +75,8 @@ func (x *CodeAmp) Migrate() {
 		&resolvers.ServiceSpec{},
 		&resolvers.ExtensionSpec{},
 		&resolvers.Extension{},
-		&resolvers.EnvironmentVariable{},
-		&resolvers.EnvironmentVariableValue{},
+		&resolvers.Secret{},
+		&resolvers.SecretValue{},
 		&resolvers.ReleaseExtension{},
 		&resolvers.Environment{},
 	)
@@ -97,7 +97,7 @@ func (x *CodeAmp) Migrate() {
 	db.Save(&user)
 
 	userPermission := resolvers.UserPermission{
-		UserId: user.Model.ID,
+		UserID: user.Model.ID,
 		Value:  "admin",
 	}
 	db.FirstOrInit(&userPermission, userPermission)
@@ -117,510 +117,510 @@ func (x *CodeAmp) Migrate() {
 
 	// hosted zone id
 	// hosted zone name
-	hostedZoneId := resolvers.EnvironmentVariable{
+	hostedZoneID := resolvers.Secret{
 		Key:           "HOSTED_ZONE_ID",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
-	db.FirstOrInit(&hostedZoneId, hostedZoneId)
-	db.Save(&hostedZoneId)
+	db.FirstOrInit(&hostedZoneID, hostedZoneID)
+	db.Save(&hostedZoneID)
 
-	eValue := resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: hostedZoneId.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue := resolvers.SecretValue{
+		SecretID: hostedZoneID.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	hostedZoneIdDev := resolvers.EnvironmentVariable{
+	hostedZoneIDDev := resolvers.Secret{
 		Key:           "HOSTED_ZONE_ID",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
-	db.FirstOrInit(&hostedZoneIdDev, hostedZoneIdDev)
-	db.Save(&hostedZoneIdDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: hostedZoneIdDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	db.FirstOrInit(&hostedZoneIDDev, hostedZoneIDDev)
+	db.Save(&hostedZoneIDDev)
+	eValue = resolvers.SecretValue{
+		SecretID: hostedZoneIDDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// hosted zone name
-	hostedZone := resolvers.EnvironmentVariable{
+	hostedZone := resolvers.Secret{
 		Key:           "HOSTED_ZONE_NAME",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&hostedZone, hostedZone)
 	db.Save(&hostedZone)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: hostedZone.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: hostedZone.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	hostedZoneDev := resolvers.EnvironmentVariable{
+	hostedZoneDev := resolvers.Secret{
 		Key:           "HOSTED_ZONE_NAME",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&hostedZoneDev, hostedZoneDev)
 	db.Save(&hostedZoneDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: hostedZoneDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: hostedZoneDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// aws secret key
-	awsSecretKey := resolvers.EnvironmentVariable{
+	awsSecretKey := resolvers.Secret{
 		Key:           "AWS_SECRET_KEY",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 		IsSecret:      true,
 	}
 	db.FirstOrInit(&awsSecretKey, awsSecretKey)
 	db.Save(&awsSecretKey)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: awsSecretKey.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: awsSecretKey.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	awsSecretKeyDev := resolvers.EnvironmentVariable{
+	awsSecretKeyDev := resolvers.Secret{
 		Key:           "AWS_SECRET_KEY",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 		IsSecret:      true,
 	}
 	db.FirstOrInit(&awsSecretKeyDev, awsSecretKeyDev)
 	db.Save(&awsSecretKeyDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: awsSecretKeyDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: awsSecretKeyDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// aws access key
-	awsAccessKey := resolvers.EnvironmentVariable{
+	awsAccessKey := resolvers.Secret{
 		Key:           "AWS_ACCESS_KEY_ID",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&awsAccessKey, awsAccessKey)
 	db.Save(&awsAccessKey)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: awsAccessKey.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: awsAccessKey.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	awsAccessKeyDev := resolvers.EnvironmentVariable{
+	awsAccessKeyDev := resolvers.Secret{
 		Key:           "AWS_ACCESS_KEY_ID",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&awsAccessKeyDev, awsAccessKeyDev)
 	db.Save(&awsAccessKeyDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: awsAccessKeyDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: awsAccessKeyDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker org
-	dockerOrg := resolvers.EnvironmentVariable{
+	dockerOrg := resolvers.Secret{
 		Key:           "DOCKER_ORG",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerOrg, dockerOrg)
 	db.Save(&dockerOrg)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerOrg.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerOrg.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	dockerOrgDev := resolvers.EnvironmentVariable{
+	dockerOrgDev := resolvers.Secret{
 		Key:           "DOCKER_ORG",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerOrgDev, dockerOrgDev)
 	db.Save(&dockerOrgDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerOrgDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerOrgDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker host
-	dockerHost := resolvers.EnvironmentVariable{
+	dockerHost := resolvers.Secret{
 		Key:           "DOCKER_HOST",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerHost, dockerHost)
 	db.Save(&dockerHost)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerHost.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerHost.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	dockerHostDev := resolvers.EnvironmentVariable{
+	dockerHostDev := resolvers.Secret{
 		Key:           "DOCKER_HOST",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerHostDev, dockerHostDev)
 	db.Save(&dockerHostDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerHostDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerHostDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker user
-	dockerUser := resolvers.EnvironmentVariable{
+	dockerUser := resolvers.Secret{
 		Key:           "DOCKER_USER",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerUser, dockerUser)
 	db.Save(&dockerUser)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerUser.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerUser.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker user
-	dockerUserDev := resolvers.EnvironmentVariable{
+	dockerUserDev := resolvers.Secret{
 		Key:           "DOCKER_USER",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerUserDev, dockerUserDev)
 	db.Save(&dockerUserDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerUserDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerUserDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker email
-	dockerEmail := resolvers.EnvironmentVariable{
+	dockerEmail := resolvers.Secret{
 		Key:           "DOCKER_EMAIL",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerEmail, dockerEmail)
 	db.Save(&dockerEmail)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerEmail.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerEmail.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker email
-	dockerEmailDev := resolvers.EnvironmentVariable{
+	dockerEmailDev := resolvers.Secret{
 		Key:           "DOCKER_EMAIL",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&dockerEmailDev, dockerEmailDev)
 	db.Save(&dockerEmailDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerEmailDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerEmailDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker pass
-	dockerPass := resolvers.EnvironmentVariable{
+	dockerPass := resolvers.Secret{
 		Key:           "DOCKER_PASS",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 		IsSecret:      true,
 	}
 	db.FirstOrInit(&dockerPass, dockerPass)
 	db.Save(&dockerPass)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerPass.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerPass.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// docker pass
-	dockerPassDev := resolvers.EnvironmentVariable{
+	dockerPassDev := resolvers.Secret{
 		Key:           "DOCKER_PASS",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 		IsSecret:      true,
 	}
 	db.FirstOrInit(&dockerPassDev, dockerPassDev)
 	db.Save(&dockerPassDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: dockerPassDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: dockerPassDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// s3 bucket
-	s3Bucket := resolvers.EnvironmentVariable{
+	s3Bucket := resolvers.Secret{
 		Key:           "S3_BUCKET",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&s3Bucket, s3Bucket)
 	db.Save(&s3Bucket)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: s3Bucket.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: s3Bucket.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	s3BucketDev := resolvers.EnvironmentVariable{
+	s3BucketDev := resolvers.Secret{
 		Key:           "S3_BUCKET",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&s3BucketDev, s3BucketDev)
 	db.Save(&s3BucketDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: s3BucketDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: s3BucketDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// ssl arn
-	sslArn := resolvers.EnvironmentVariable{
+	sslArn := resolvers.Secret{
 		Key:           "SSL_ARN",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&sslArn, sslArn)
 	db.Save(&sslArn)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: sslArn.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: sslArn.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	sslArnDev := resolvers.EnvironmentVariable{
+	sslArnDev := resolvers.Secret{
 		Key:           "SSL_ARN",
 		Type:          "env",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&sslArnDev, sslArnDev)
 	db.Save(&sslArnDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: sslArnDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: sslArnDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	certificateAuthorityDev := resolvers.EnvironmentVariable{
+	certificateAuthorityDev := resolvers.Secret{
 		Key:           "CERTIFICATE_AUTHORITY",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 		IsSecret:      true,
 	}
 	db.FirstOrInit(&certificateAuthorityDev, certificateAuthorityDev)
 	db.Save(&certificateAuthorityDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: certificateAuthorityDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: certificateAuthorityDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	certificateAuthorityProd := resolvers.EnvironmentVariable{
+	certificateAuthorityProd := resolvers.Secret{
 		Key:           "CERTIFICATE_AUTHORITY",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 		IsSecret:      true,
 	}
 	db.FirstOrInit(&certificateAuthorityProd, certificateAuthorityProd)
 	db.Save(&certificateAuthorityProd)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: certificateAuthorityProd.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: certificateAuthorityProd.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	clientKeyDev := resolvers.EnvironmentVariable{
+	clientKeyDev := resolvers.Secret{
 		Key:           "CLIENT_KEY",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 		IsSecret:      true,
 	}
 
 	db.FirstOrInit(&clientKeyDev, clientKeyDev)
 	db.Save(&clientKeyDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: clientKeyDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: clientKeyDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	clientKeyProd := resolvers.EnvironmentVariable{
+	clientKeyProd := resolvers.Secret{
 		Key:           "CLIENT_KEY",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 		IsSecret:      true,
 	}
 	db.FirstOrInit(&clientKeyProd, clientKeyProd)
 	db.Save(&clientKeyProd)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: clientKeyProd.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: clientKeyProd.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	clientCertDev := resolvers.EnvironmentVariable{
+	clientCertDev := resolvers.Secret{
 		Key:           "CLIENT_CERTIFICATE",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 		IsSecret:      true,
 	}
 
 	db.FirstOrInit(&clientCertDev, clientCertDev)
 	db.Save(&clientCertDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: clientCertDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: clientCertDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	clientCertProd := resolvers.EnvironmentVariable{
+	clientCertProd := resolvers.Secret{
 		Key:           "CLIENT_CERTIFICATE",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 		IsSecret:      true,
 	}
 
 	db.FirstOrInit(&clientCertProd, clientCertProd)
 	db.Save(&clientCertProd)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: clientCertProd.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: clientCertProd.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
 	// kubeconfig
-	kubeConfig := resolvers.EnvironmentVariable{
+	kubeConfig := resolvers.Secret{
 		Key:           "KUBECONFIG",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: productionEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: productionEnv.Model.ID,
 	}
 	db.FirstOrInit(&kubeConfig, kubeConfig)
 	db.Save(&kubeConfig)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: kubeConfig.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: kubeConfig.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
 
-	kubeConfigDev := resolvers.EnvironmentVariable{
+	kubeConfigDev := resolvers.Secret{
 		Key:           "KUBECONFIG",
 		Type:          "file",
-		Scope:         resolvers.GetEnvironmentVariableScope("extension"),
-		EnvironmentId: developmentEnv.Model.ID,
+		Scope:         resolvers.GetSecretScope("extension"),
+		EnvironmentID: developmentEnv.Model.ID,
 	}
 	db.FirstOrInit(&kubeConfigDev, kubeConfigDev)
 	db.Save(&kubeConfigDev)
-	eValue = resolvers.EnvironmentVariableValue{
-		EnvironmentVariableId: kubeConfigDev.Model.ID,
-		UserId:                user.Model.ID,
-		Value:                 "",
+	eValue = resolvers.SecretValue{
+		SecretID: kubeConfigDev.Model.ID,
+		UserID:   user.Model.ID,
+		Value:    "",
 	}
 	db.FirstOrInit(&eValue, eValue)
 	db.Save(&eValue)
@@ -656,7 +656,7 @@ func (x *CodeAmp) Migrate() {
 		Key:           "dockerbuilder",
 		Name:          "Docker Builder",
 		Component:     "",
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentID: productionEnv.Model.ID,
 		Config:        postgres.Jsonb{marshalledDbConfig},
 	}
 	db.FirstOrInit(&extensionSpec, extensionSpec)
@@ -679,7 +679,7 @@ func (x *CodeAmp) Migrate() {
 		Key:           "dockerbuilder",
 		Name:          "Docker Builder",
 		Component:     "",
-		EnvironmentId: developmentEnv.Model.ID,
+		EnvironmentID: developmentEnv.Model.ID,
 		Config:        postgres.Jsonb{marshalledDbConfig},
 	}
 
@@ -691,7 +691,7 @@ func (x *CodeAmp) Migrate() {
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfig.Model.ID.String()},
 		map[string]interface{}{"key": "SSL_CERT_ARN", "value": sslArn.Model.ID.String()},
 		map[string]interface{}{"key": "ACCESS_LOG_S3_BUCKET", "value": s3Bucket.Model.ID.String()},
-		map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": hostedZoneId.Model.ID.String()},
+		map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": hostedZoneID.Model.ID.String()},
 		map[string]interface{}{"key": "HOSTED_ZONE_NAME", "value": hostedZone.Model.ID.String()},
 		map[string]interface{}{"key": "AWS_ACCESS_KEY_ID", "value": awsAccessKey.Model.ID.String()},
 		map[string]interface{}{"key": "AWS_SECRET_KEY", "value": awsSecretKey.Model.ID.String()},
@@ -708,7 +708,7 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesloadbalancers",
 		Name:          "Load Balancer",
 		Component:     "LoadBalancer",
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentID: productionEnv.Model.ID,
 		Config:        postgres.Jsonb{marshalledLbConfig},
 	}
 
@@ -719,7 +719,7 @@ func (x *CodeAmp) Migrate() {
 		map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfigDev.Model.ID.String()},
 		map[string]interface{}{"key": "SSL_CERT_ARN", "value": sslArnDev.Model.ID.String()},
 		map[string]interface{}{"key": "ACCESS_LOG_S3_BUCKET", "value": s3BucketDev.Model.ID.String()},
-		map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": hostedZoneIdDev.Model.ID.String()},
+		map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": hostedZoneIDDev.Model.ID.String()},
 		map[string]interface{}{"key": "HOSTED_ZONE_NAME", "value": hostedZoneDev.Model.ID.String()},
 		map[string]interface{}{"key": "AWS_ACCESS_KEY_ID", "value": awsAccessKeyDev.Model.ID.String()},
 		map[string]interface{}{"key": "AWS_SECRET_KEY", "value": awsSecretKeyDev.Model.ID.String()},
@@ -736,7 +736,7 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesloadbalancers",
 		Name:          "Load Balancer",
 		Component:     "LoadBalancer",
-		EnvironmentId: developmentEnv.Model.ID,
+		EnvironmentID: developmentEnv.Model.ID,
 		Config:        postgres.Jsonb{marshalledLbConfig},
 	}
 
@@ -759,7 +759,7 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesdeployments",
 		Name:          "Kubernetes",
 		Component:     "",
-		EnvironmentId: productionEnv.Model.ID,
+		EnvironmentID: productionEnv.Model.ID,
 		Config:        postgres.Jsonb{marshalledKubeConfig},
 	}
 
@@ -781,7 +781,7 @@ func (x *CodeAmp) Migrate() {
 		Key:           "kubernetesdeployments",
 		Name:          "Kubernetes",
 		Component:     "",
-		EnvironmentId: developmentEnv.Model.ID,
+		EnvironmentID: developmentEnv.Model.ID,
 		Config:        postgres.Jsonb{marshalledKubeConfig},
 	}
 
@@ -966,7 +966,7 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 
 	if x.DB.Where("project_id = ? AND hash = ?", project.ID, payload.Hash).First(&feature).RecordNotFound() {
 		feature = resolvers.Feature{
-			ProjectId:  project.ID,
+			ProjectID:  project.ID,
 			Message:    payload.Message,
 			User:       payload.User,
 			Hash:       payload.Hash,
@@ -1007,18 +1007,18 @@ func (x *CodeAmp) ExtensionEventHandler(e transistor.Event) error {
 	var project resolvers.Project
 
 	if e.Matches("plugins.Extension:status") {
-		if x.DB.Where("id = ?", payload.Id).Find(&extension).RecordNotFound() {
+		if x.DB.Where("id = ?", payload.ID).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found", log.Fields{
-				"id": payload.Id,
+				"id": payload.ID,
 			})
-			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event because Extension not found given payload id: %s.", payload.Id))
+			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event because Extension not found given payload id: %s.", payload.ID))
 		}
 
-		if x.DB.Where("id = ?", extension.ProjectId).Find(&project).RecordNotFound() {
+		if x.DB.Where("id = ?", extension.ProjectID).Find(&project).RecordNotFound() {
 			log.InfoWithFields("project not found", log.Fields{
-				"id": extension.ProjectId,
+				"id": extension.ProjectID,
 			})
-			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event because Project not found given payload id: %s.", extension.ProjectId))
+			return fmt.Errorf(fmt.Sprintf("Could not handle Extension status event because Project not found given payload id: %s.", extension.ProjectID))
 		}
 
 		// get old artifacts and then merge with the payload.Artifacts
@@ -1070,16 +1070,16 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	var release resolvers.Release
 
 	if e.Matches("plugins.ReleaseExtension:status") {
-		if x.DB.Where("id = ?", payload.Release.Id).Find(&release).RecordNotFound() {
+		if x.DB.Where("id = ?", payload.Release.ID).Find(&release).RecordNotFound() {
 			log.InfoWithFields("release", log.Fields{
-				"id": payload.Release.Id,
+				"id": payload.Release.ID,
 			})
 			return nil
 		}
 
-		if x.DB.Where("id = ?", payload.Id).Find(&releaseExtension).RecordNotFound() {
+		if x.DB.Where("id = ?", payload.ID).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found", log.Fields{
-				"id": payload.Id,
+				"id": payload.ID,
 			})
 			return nil
 		}
@@ -1172,7 +1172,7 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 			Action: plugins.GetAction("update"),
 			State:  plugins.GetState("waiting"),
 			Project: plugins.Project{
-				Id:         project.Model.ID.String(),
+				ID:         project.Model.ID.String(),
 				Repository: project.Repository,
 			},
 			Git: plugins.Git{
@@ -1192,7 +1192,7 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 				Action: plugins.GetAction("update"),
 				State:  plugins.GetState("waiting"),
 				Project: plugins.Project{
-					Id:         project.Model.ID.String(),
+					ID:         project.Model.ID.String(),
 					Repository: project.Repository,
 				},
 				Git: plugins.Git{
@@ -1217,21 +1217,21 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *resolvers.ReleaseExtension) {
 	release := resolvers.Release{}
 	releaseExtensions := []resolvers.ReleaseExtension{}
 
-	if x.DB.Where("id = ?", re.ReleaseId).First(&release).RecordNotFound() {
+	if x.DB.Where("id = ?", re.ReleaseID).First(&release).RecordNotFound() {
 		log.InfoWithFields("release not found", log.Fields{
 			"releaseExtension": re,
 		})
 		return
 	}
 
-	if x.DB.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"release": release,
 		})
 		return
 	}
 
-	if x.DB.Where("release_id = ?", re.ReleaseId).Find(&releaseExtensions).RecordNotFound() {
+	if x.DB.Where("release_id = ?", re.ReleaseID).Find(&releaseExtensions).RecordNotFound() {
 		log.InfoWithFields("release extensions not found", log.Fields{
 			"releaseExtension": re,
 		})
@@ -1267,7 +1267,7 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 	aggregateReleaseExtensionArtifacts := make(map[string]interface{})
 	found := false
 
-	if x.DB.Where("project_id = ? and environment_id = ?", release.ProjectId, release.EnvironmentId).Find(&depExtensions).RecordNotFound() {
+	if x.DB.Where("project_id = ? and environment_id = ?", release.ProjectID, release.EnvironmentID).Find(&depExtensions).RecordNotFound() {
 		log.InfoWithFields("deployment extensions not found", log.Fields{
 			"release": release,
 		})
@@ -1276,7 +1276,7 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 
 	for _, de := range depExtensions {
 		var extensionSpec resolvers.ExtensionSpec
-		if x.DB.Where("id = ?", de.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+		if x.DB.Where("id = ?", de.ExtensionSpecID).First(&extensionSpec).RecordNotFound() {
 			log.InfoWithFields("extension spec not found", log.Fields{
 				"extension spec": de,
 			})
@@ -1322,24 +1322,17 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 
 	project := resolvers.Project{}
 
-	if x.DB.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"release": release,
 		})
 	}
 
 	services := []resolvers.Service{}
-	if x.DB.Where("project_id = ?", release.ProjectId).Find(&services).RecordNotFound() {
+	if x.DB.Where("project_id = ?", release.ProjectID).Find(&services).RecordNotFound() {
 		log.InfoWithFields("no services found for this project", log.Fields{
 			"release": release,
 		})
-	}
-
-	// get secrets from release snapshot env vars
-	secrets, pluginServices, err := x.GetSecretsAndServicesFromSnapshot(release)
-	if err != nil {
-		log.Info(err.Error())
-		return
 	}
 
 	headFeature := resolvers.Feature{}
@@ -1359,9 +1352,9 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 	}
 
 	environment := resolvers.Environment{}
-	if x.DB.Where("id = ?", release.EnvironmentId).First(&environment).RecordNotFound() {
+	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"id": release.EnvironmentId,
+			"id": release.EnvironmentID,
 		})
 		return
 	}
@@ -1381,9 +1374,9 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 		State:        plugins.GetState("waiting"),
 		Environment:  environment.Name,
 		StateMessage: "create release event",
-		Id:           release.Model.ID.String(),
+		ID:           release.Model.ID.String(),
 		HeadFeature: plugins.Feature{
-			Id:         headFeature.Model.ID.String(),
+			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,
 			ParentHash: headFeature.ParentHash,
 			User:       headFeature.User,
@@ -1391,7 +1384,7 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 			Created:    headFeature.Created,
 		},
 		TailFeature: plugins.Feature{
-			Id:         tailFeature.Model.ID.String(),
+			ID:         tailFeature.Model.ID.String(),
 			Hash:       tailFeature.Hash,
 			ParentHash: tailFeature.ParentHash,
 			User:       tailFeature.User,
@@ -1400,24 +1393,22 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 		},
 		User: "",
 		Project: plugins.Project{
-			Id:             project.Model.ID.String(),
+			ID:             project.Model.ID.String(),
 			Action:         plugins.GetAction("update"),
 			Repository:     project.Repository,
 			NotifyChannels: []string{}, // not sure what channels can be notified with this
-			Services:       pluginServices,
 		},
 		Git: plugins.Git{
 			Url:           project.GitUrl,
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
-		Secrets: secrets,
 	}
 	releaseExtensionEvents := []plugins.ReleaseExtension{}
 
 	for _, extension := range depExtensions {
 		extensionSpec := resolvers.ExtensionSpec{}
-		if x.DB.Where("id= ?", extension.ExtensionSpecId).Find(&extensionSpec).RecordNotFound() {
+		if x.DB.Where("id= ?", extension.ExtensionSpecID).Find(&extensionSpec).RecordNotFound() {
 			log.InfoWithFields("extension spec not found", log.Fields{
 				"extension": extension,
 			})
@@ -1439,11 +1430,11 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 
 			// create ReleaseExtension
 			releaseExtension := resolvers.ReleaseExtension{
-				ReleaseId:         release.Model.ID,
+				ReleaseID:         release.Model.ID,
 				FeatureHash:       "",
 				ServicesSignature: "",
 				SecretsSignature:  "",
-				ExtensionId:       extension.Model.ID,
+				ExtensionID:       extension.Model.ID,
 				State:             plugins.GetState("waiting"),
 				Type:              plugins.GetType("deployment"),
 				StateMessage:      "initialized",
@@ -1463,13 +1454,13 @@ func (x *CodeAmp) WorkflowExtensionsCompleted(release *resolvers.Release) {
 			}
 
 			extensionEvent := plugins.Extension{
-				Id:     extension.Model.ID.String(),
+				ID:     extension.Model.ID.String(),
 				Config: formValues,
 				// Artifacts: plugins.HstoreToMapStringString(extension.Artifacts),
 			}
 
 			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
-				Id:           releaseExtension.Model.ID.String(),
+				ID:           releaseExtension.Model.ID.String(),
 				Action:       plugins.GetAction("create"),
 				Slug:         extensionSpec.Key,
 				State:        releaseExtension.State,
@@ -1494,7 +1485,7 @@ func (x *CodeAmp) DeploymentExtensionsCompleted(release *resolvers.Release) {
 	depExtensions := []resolvers.Extension{}
 	// releaseExtensionArtifacts := map[string]string{}
 
-	if x.DB.Where("project_id = ?", release.ProjectId).Find(&depExtensions).RecordNotFound() {
+	if x.DB.Where("project_id = ?", release.ProjectID).Find(&depExtensions).RecordNotFound() {
 		log.InfoWithFields("deployment extensions not found", log.Fields{
 			"release": release,
 		})
@@ -1503,9 +1494,9 @@ func (x *CodeAmp) DeploymentExtensionsCompleted(release *resolvers.Release) {
 
 	for _, de := range depExtensions {
 		var extensionSpec resolvers.ExtensionSpec
-		if x.DB.Where("id = ?", de.ExtensionSpecId).First(&extensionSpec).RecordNotFound() {
+		if x.DB.Where("id = ?", de.ExtensionSpecID).First(&extensionSpec).RecordNotFound() {
 			log.InfoWithFields("extension spec not found", log.Fields{
-				"id": de.ExtensionSpecId,
+				"id": de.ExtensionSpecID,
 			})
 		}
 
@@ -1527,7 +1518,7 @@ func (x *CodeAmp) DeploymentExtensionsCompleted(release *resolvers.Release) {
 
 func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 	project := resolvers.Project{}
-	if x.DB.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"release": release,
 		})
@@ -1543,7 +1534,7 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 	project := resolvers.Project{}
 
-	if x.DB.Where("id = ?", release.ProjectId).First(&project).RecordNotFound() {
+	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"release": release,
 		})
@@ -1552,18 +1543,18 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 
 	// loop through extensions and send ReleaseWorkflow events
 	projectExtensions := []resolvers.Extension{}
-	if x.DB.Where("project_id = ? and environment_id = ?", release.ProjectId, release.EnvironmentId).Find(&projectExtensions).RecordNotFound() {
+	if x.DB.Where("project_id = ? and environment_id = ?", release.ProjectID, release.EnvironmentID).Find(&projectExtensions).RecordNotFound() {
 		log.InfoWithFields("project has no extensions", log.Fields{
-			"project_id":     release.ProjectId,
-			"environment_id": release.EnvironmentId,
+			"project_id":     release.ProjectID,
+			"environment_id": release.EnvironmentID,
 		})
 	}
 
 	services := []resolvers.Service{}
-	if x.DB.Where("project_id = ? and environment_id = ?", release.ProjectId, release.EnvironmentId).Find(&services).RecordNotFound() {
+	if x.DB.Where("project_id = ? and environment_id = ?", release.ProjectID, release.EnvironmentID).Find(&services).RecordNotFound() {
 		log.InfoWithFields("project has no services", log.Fields{
-			"project_id":     release.ProjectId,
-			"environment_id": release.EnvironmentId,
+			"project_id":     release.ProjectID,
+			"environment_id": release.EnvironmentID,
 		})
 	}
 
@@ -1584,9 +1575,9 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 	}
 
 	environment := resolvers.Environment{}
-	if x.DB.Where("id = ?", release.EnvironmentId).First(&environment).RecordNotFound() {
+	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"id": release.EnvironmentId,
+			"id": release.EnvironmentID,
 		})
 		return
 	}
@@ -1601,19 +1592,13 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		branch = projectSettings.GitBranch
 	}
 
-	secrets, pluginServices, err := x.GetSecretsAndServicesFromSnapshot(release)
-	if err != nil {
-		log.Info(err.Error())
-		return
-	}
-
 	releaseEvent := plugins.Release{
-		Id:          release.Model.ID.String(),
+		ID:          release.Model.ID.String(),
 		Action:      plugins.GetAction("create"),
 		State:       plugins.GetState("waiting"),
 		Environment: environment.Name,
 		HeadFeature: plugins.Feature{
-			Id:         headFeature.Model.ID.String(),
+			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,
 			ParentHash: headFeature.ParentHash,
 			User:       headFeature.User,
@@ -1621,7 +1606,7 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 			Created:    headFeature.Created,
 		},
 		TailFeature: plugins.Feature{
-			Id:         tailFeature.Model.ID.String(),
+			ID:         tailFeature.Model.ID.String(),
 			Hash:       tailFeature.Hash,
 			ParentHash: tailFeature.ParentHash,
 			User:       tailFeature.User,
@@ -1630,22 +1615,20 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		},
 		User: release.User.Email,
 		Project: plugins.Project{
-			Id:         project.Model.ID.String(),
+			ID:         project.Model.ID.String(),
 			Repository: project.Repository,
-			Services:   pluginServices,
 		},
 		Git: plugins.Git{
 			Url:           project.GitUrl,
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
-		Secrets: secrets,
 	}
 	for _, extension := range projectExtensions {
 		extensionSpec := resolvers.ExtensionSpec{}
-		if x.DB.Where("id= ?", extension.ExtensionSpecId).Find(&extensionSpec).RecordNotFound() {
+		if x.DB.Where("id= ?", extension.ExtensionSpecID).Find(&extensionSpec).RecordNotFound() {
 			log.InfoWithFields("extension spec not found", log.Fields{
-				"id": extension.ExtensionSpecId,
+				"id": extension.ExtensionSpecID,
 			})
 		}
 
@@ -1653,11 +1636,11 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		if plugins.Type(extensionSpec.Type) == plugins.GetType("workflow") {
 			// create ReleaseExtension
 			releaseExtension := resolvers.ReleaseExtension{
-				ReleaseId:         release.Model.ID,
+				ReleaseID:         release.Model.ID,
 				FeatureHash:       "",
 				ServicesSignature: "",
 				SecretsSignature:  "",
-				ExtensionId:       extension.Model.ID,
+				ExtensionID:       extension.Model.ID,
 				State:             plugins.GetState("waiting"),
 				Type:              plugins.GetType("workflow"),
 			}
@@ -1677,12 +1660,12 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 			}
 
 			extensionEvent := plugins.Extension{
-				Id:     extension.Model.ID.String(),
+				ID:     extension.Model.ID.String(),
 				Config: formValues,
 				// Artifacts:  plugins.HstoreToMapStringString(extension.Artifacts),
 			}
 			x.Events <- transistor.NewEvent(plugins.ReleaseExtension{
-				Id:        releaseExtension.Model.ID.String(),
+				ID:        releaseExtension.Model.ID.String(),
 				Action:    plugins.GetAction("create"),
 				Slug:      extensionSpec.Key,
 				State:     releaseExtension.State,
@@ -1701,85 +1684,30 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 }
 
 /* fills in Config by querying config ids and getting the actual value */
-func (x *CodeAmp) GetFilledFormValues(configWithEnvVarIds map[string]interface{}, extensionSpecKey string, db *gorm.DB) (map[string]interface{}, error) {
+func (x *CodeAmp) GetFilledFormValues(configWithEnvVarIDs map[string]interface{}, extensionSpecKey string, db *gorm.DB) (map[string]interface{}, error) {
 	formValues := make(map[string]interface{})
 	// iter through custom + config and add to formvalues interface
-	for _, val := range configWithEnvVarIds["config"].([]interface{}) {
+	for _, val := range configWithEnvVarIDs["config"].([]interface{}) {
 		val := val.(map[string]interface{})
 		// check if val is UUID. If so, query in environment variables for id
-		valId := uuid.FromStringOrNil(val["value"].(string))
-		if valId != uuid.Nil {
-			envVar := resolvers.EnvironmentVariableValue{}
+		valID := uuid.FromStringOrNil(val["value"].(string))
+		if valID != uuid.Nil {
+			secret := resolvers.SecretValue{}
 
-			if db.Where("environment_variable_id = ?", valId).Order("created_at desc").First(&envVar).RecordNotFound() {
+			if db.Where("secret_id = ?", valID).Order("created_at desc").First(&secret).RecordNotFound() {
 				log.InfoWithFields("envvarvalue not found", log.Fields{
-					"environment_variable_id": valId,
+					"secret_id": valID,
 				})
 			}
-			formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(val["key"].(string)))] = envVar.Value
+			formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(val["key"].(string)))] = secret.Value
 		} else {
 			formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
 		}
 	}
 
-	for key, val := range configWithEnvVarIds["custom"].(map[string]interface{}) {
+	for key, val := range configWithEnvVarIDs["custom"].(map[string]interface{}) {
 		// check if val is UUID. If so, query in environment variables for id
 		formValues[fmt.Sprintf("%s_%s", strings.ToUpper(extensionSpecKey), strings.ToUpper(key))] = val
 	}
 	return formValues, nil
-}
-
-func (x *CodeAmp) GetSecretsAndServicesFromSnapshot(release *resolvers.Release) ([]plugins.Secret, []plugins.Service, error) {
-	secrets := []plugins.Secret{}
-	unmarshalledSnapshot := map[string]interface{}{}
-	err := json.Unmarshal(release.Snapshot.RawMessage, &unmarshalledSnapshot)
-	if err != nil {
-		log.Info(err.Error())
-		return nil, nil, err
-	}
-
-	for _, envvar := range unmarshalledSnapshot["environmentVariables"].([]interface{}) {
-		key := envvar.(map[string]interface{})["key"].(string)
-		val := envvar.(map[string]interface{})["value"].(string)
-		evType := plugins.GetType(envvar.(map[string]interface{})["type"].(string))
-
-		secrets = append(secrets, plugins.Secret{
-			Key:   key,
-			Value: val,
-			Type:  evType,
-		})
-	}
-
-	pluginServices := []plugins.Service{}
-	for _, service := range unmarshalledSnapshot["services"].([]interface{}) {
-		pluginListeners := []plugins.Listener{}
-		for _, listener := range service.(map[string]interface{})["container_ports"].([]interface{}) {
-			intPort, _ := strconv.Atoi(listener.(map[string]interface{})["port"].(string))
-			pluginListeners = append(pluginListeners, plugins.Listener{
-				Port:     int32(intPort),
-				Protocol: listener.(map[string]interface{})["protocol"].(string),
-			})
-		}
-
-		intTerminationGracePeriod, _ := strconv.Atoi(service.(map[string]interface{})["service_spec"].(map[string]interface{})["termination_grace_period"].(string))
-		intReplicas, _ := strconv.Atoi(service.(map[string]interface{})["count"].(string))
-		pluginServices = append(pluginServices, plugins.Service{
-			Id:        service.(map[string]interface{})["id"].(string),
-			Command:   service.(map[string]interface{})["command"].(string),
-			Name:      service.(map[string]interface{})["name"].(string),
-			Listeners: pluginListeners,
-			State:     plugins.GetState("waiting"),
-			Spec: plugins.ServiceSpec{
-				Id:                            service.(map[string]interface{})["service_spec"].(map[string]interface{})["id"].(string),
-				CpuRequest:                    fmt.Sprintf("%sm", service.(map[string]interface{})["service_spec"].(map[string]interface{})["cpu_request"].(string)),
-				CpuLimit:                      fmt.Sprintf("%sm", service.(map[string]interface{})["service_spec"].(map[string]interface{})["cpu_limit"].(string)),
-				MemoryRequest:                 fmt.Sprintf("%sMi", service.(map[string]interface{})["service_spec"].(map[string]interface{})["memory_request"].(string)),
-				MemoryLimit:                   fmt.Sprintf("%sMi", service.(map[string]interface{})["service_spec"].(map[string]interface{})["memory_limit"].(string)),
-				TerminationGracePeriodSeconds: int64(intTerminationGracePeriod),
-			},
-			Type:     string(service.(map[string]interface{})["type"].(string)),
-			Replicas: int64(intReplicas),
-		})
-	}
-	return secrets, pluginServices, nil
 }

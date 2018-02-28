@@ -16,16 +16,16 @@ import (
 // ReleaseExtension
 type ReleaseExtension struct {
 	Model `json:",inline"`
-	// ReleaseId
-	ReleaseId uuid.UUID `json:"releaseId" gorm:"type:uuid"`
+	// ReleaseID
+	ReleaseID uuid.UUID `json:"releaseID" gorm:"type:uuid"`
 	// FetureHash
 	FeatureHash string `json:"featureHash"`
 	// ServicesSignature
-	ServicesSignature string `json:"servicesSignature"` // services config snapshot
+	ServicesSignature string `json:"servicesSignature"`
 	// SecretsSignature
-	SecretsSignature string `json:"secretsSignature"` // build args + artifacts
-	// ExtensionId
-	ExtensionId uuid.UUID `json:"extensionId" gorm:"type:uuid"`
+	SecretsSignature string `json:"secretsSignature"`
+	// ExtensionID
+	ExtensionID uuid.UUID `json:"extensionID" gorm:"type:uuid"`
 	// State
 	State plugins.State `json:"state"`
 	// StateMessage
@@ -53,9 +53,9 @@ func (r *ReleaseExtensionResolver) ID() graphql.ID {
 func (r *ReleaseExtensionResolver) Release() (*ReleaseResolver, error) {
 	release := Release{}
 
-	if r.DB.Where("id = ?", r.ReleaseExtension.ReleaseId.String()).Find(&release).RecordNotFound() {
+	if r.DB.Where("id = ?", r.ReleaseExtension.ReleaseID.String()).Find(&release).RecordNotFound() {
 		log.InfoWithFields("extension not found", log.Fields{
-			"id": r.ReleaseExtension.ReleaseId.String(),
+			"id": r.ReleaseExtension.ReleaseID.String(),
 		})
 		return &ReleaseResolver{DB: r.DB, Release: release}, fmt.Errorf("Couldn't find release")
 	}
@@ -67,9 +67,9 @@ func (r *ReleaseExtensionResolver) Release() (*ReleaseResolver, error) {
 func (r *ReleaseExtensionResolver) Extension() (*ExtensionResolver, error) {
 	extension := Extension{}
 
-	if r.DB.Where("id = ?", r.ReleaseExtension.ExtensionId).Find(&extension).RecordNotFound() {
+	if r.DB.Where("id = ?", r.ReleaseExtension.ExtensionID).Find(&extension).RecordNotFound() {
 		log.InfoWithFields("extension not found", log.Fields{
-			"id": r.ReleaseExtension.ExtensionId,
+			"id": r.ReleaseExtension.ExtensionID,
 		})
 		return &ExtensionResolver{DB: r.DB, Extension: extension}, fmt.Errorf("Couldn't find extension")
 	}

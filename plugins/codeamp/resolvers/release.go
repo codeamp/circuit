@@ -20,24 +20,26 @@ type Release struct {
 	State plugins.State `json:"state"`
 	// StateMessage
 	StateMessage string `json:"stateMessage"`
-	// ProjectId
-	ProjectId uuid.UUID `json:"projectId" gorm:"type:uuid"`
+	// ProjectID
+	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
 	// User
 	User User
-	// UserId
-	UserID uuid.UUID `json:"userId" gorm:"type:uuid"`
-	// HeadFeatureId
-	HeadFeatureID uuid.UUID `json:"headFeatureId" gorm:"type:uuid"`
-	// TailFeatureId
-	TailFeatureID uuid.UUID `json:"tailFeatureId" gorm:"type:uuid"`
+	// UserID
+	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
+	// HeadFeatureID
+	HeadFeatureID uuid.UUID `json:"headFeatureID" gorm:"type:uuid"`
+	// TailFeatureID
+	TailFeatureID uuid.UUID `json:"tailFeatureID" gorm:"type:uuid"`
 	// Artifacts
 	Artifacts postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
 	// Services
 	Services postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
-	// EnvironmentVariables
-	EnvironmentVariables postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
-	// Environment
-	Environment postgres.Jsonb `json:"environment" gorm:"type:jsonb;"`
+	// Secrets
+	Secrets postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
+	// Extensions
+	Extensions postgres.Jsonb `json:"extensions" gorm:"type:jsonb;"`
+	// EnvironmentID
+	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// FinishedAt
 	FinishedAt time.Time
 }
@@ -147,9 +149,9 @@ func (r *ReleaseResolver) StateMessage() string {
 // Environment
 func (r *ReleaseResolver) Environment() (*EnvironmentResolver, error) {
 	var environment Environment
-	if r.DB.Where("id = ?", r.Release.EnvironmentId).First(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", r.Release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"releaseId": r.Release.Model.ID,
+			"releaseID": r.Release.Model.ID,
 		})
 		return nil, fmt.Errorf("Environment not found.")
 	}

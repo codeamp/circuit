@@ -218,7 +218,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		// TODO: create aws manager that managers route53 and klb
 		// on behalf of klb, we send a klb event complete from route53
 		lbEventPayload := plugins.Extension{
-			Id:           e.Payload.(plugins.Extension).Id,
+			ID:           e.Payload.(plugins.Extension).ID,
 			Action:       plugins.GetAction("status"),
 			Slug:         "kubernetesloadbalancers",
 			State:        plugins.GetState("complete"),

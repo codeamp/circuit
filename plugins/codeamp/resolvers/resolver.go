@@ -41,7 +41,7 @@ type Model struct {
 
 //Claims
 type Claims struct {
-	UserId      string   `json:"userId"`
+	UserID      string   `json:"userID"`
 	Email       string   `json:"email"`
 	Verified    bool     `json:"email_verified"`
 	Groups      []string `json:"groups"`
@@ -113,7 +113,7 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 
 			// Add user scope
 			permissions = append(permissions, fmt.Sprintf("user/%s", user.ID.String()))
-			claims.UserId = user.ID.String()
+			claims.UserID = user.ID.String()
 			claims.Permissions = permissions
 
 			serializedClaims, err := json.Marshal(claims)
@@ -155,24 +155,24 @@ func CorsMiddleware(next http.Handler) http.Handler {
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 	claims := ctx.Value("jwt").(Claims)
 
-	if claims.UserId == "" {
+	if claims.UserID == "" {
 		return "", errors.New(claims.TokenError)
 	}
 
 	if transistor.SliceContains("admin", claims.Permissions) {
-		return claims.UserId, nil
+		return claims.UserID, nil
 	}
 
 	if len(scopes) == 0 {
-		return claims.UserId, nil
+		return claims.UserID, nil
 	} else {
 		for _, scope := range scopes {
 			if transistor.SliceContains(scope, claims.Permissions) {
-				return claims.UserId, nil
+				return claims.UserID, nil
 			}
 		}
-		return claims.UserId, errors.New("you dont have permission to access this resource")
+		return claims.UserID, errors.New("you dont have permission to access this resource")
 	}
 
-	return claims.UserId, nil
+	return claims.UserID, nil
 }

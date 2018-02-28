@@ -143,7 +143,7 @@ type GitSync struct {
 }
 
 type Feature struct {
-	Id         string    `json:"id"`
+	ID         string    `json:"id"`
 	Hash       string    `json:"hash"`
 	ParentHash string    `json:"parentHash"`
 	User       string    `json:"user"`
@@ -162,7 +162,7 @@ type ListenerPair struct {
 }
 
 type Service struct {
-	Id           string      `json:"id"`
+	ID           string      `json:"id"`
 	Action       Action      `json:"action"`
 	Name         string      `json:"name"`
 	Command      string      `json:"command"`
@@ -175,7 +175,7 @@ type Service struct {
 }
 
 type ServiceSpec struct {
-	Id                            string `json:"id"`
+	ID                            string `json:"id"`
 	CpuRequest                    string `json:"cpuRequest"`
 	CpuLimit                      string `json:"cpuLimit"`
 	MemoryRequest                 string `json:"memoryRequest"`
@@ -205,7 +205,7 @@ type WebsocketMsg struct {
 }
 
 type Extension struct {
-	Id           string                 `json:"id"`
+	ID           string                 `json:"id"`
 	Action       Action                 `json:"action"`
 	Slug         string                 `json:"slug"`
 	State        State                  `json:"state"`
@@ -217,7 +217,7 @@ type Extension struct {
 }
 
 type Release struct {
-	Id           string                 `json:"id"`
+	ID           string                 `json:"id"`
 	Action       Action                 `json:"action"`
 	State        State                  `json:"state"`
 	StateMessage string                 `json:"stateMessage"`
@@ -233,7 +233,7 @@ type Release struct {
 }
 
 type ReleaseExtension struct {
-	Id           string            `json:"id"`
+	ID           string            `json:"id"`
 	Action       Action            `json:"action"`
 	Slug         string            `json:"slug"`
 	Release      Release           `json:"release"`
@@ -244,7 +244,7 @@ type ReleaseExtension struct {
 }
 
 type Project struct {
-	Id             string            `json:"id"`
+	ID             string            `json:"id"`
 	Action         Action            `json:"action"`
 	State          State             `json:"state"`
 	StateMessage   string            `json:"stateMessage"`

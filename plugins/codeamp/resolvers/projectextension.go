@@ -15,10 +15,10 @@ import (
 // Extension
 type Extension struct {
 	Model `json:",inline"`
-	// ProjectId
-	ProjectId uuid.UUID `json:"projectId" gorm:"type:uuid"`
-	// ExtensionSpecId
-	ExtensionSpecId uuid.UUID `json:"extensionSpecId" gorm:"type:uuid"`
+	// ProjectID
+	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
+	// ExtensionSpecID
+	ExtensionSpecID uuid.UUID `json:"extensionSpecID" gorm:"type:uuid"`
 	// State
 	State plugins.State `json:"state"`
 	// StateMessage
@@ -27,8 +27,8 @@ type Extension struct {
 	Artifacts postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
 	// Config
 	Config postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
-	// EnvironmentId
-	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	// EnvironmentID
+	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 }
 
 // ExtensionResolver resolver for Extension
@@ -83,9 +83,9 @@ func (r *ExtensionResolver) StateMessage() string {
 // Environment
 func (r *ExtensionResolver) Environment() (*EnvironmentResolver, error) {
 	var environment Environment
-	if r.DB.Where("id = ?", r.Extension.EnvironmentId).First(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", r.Extension.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"id": r.Extension.EnvironmentId,
+			"id": r.Extension.EnvironmentID,
 		})
 		return nil, fmt.Errorf("Environment not found.")
 	}

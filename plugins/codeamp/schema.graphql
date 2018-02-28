@@ -13,7 +13,7 @@ type Query {
   # Users
   users(): [User]!
   # Project
-  project(id: ID, slug: String, name: String, environmentId: String): Project
+  project(id: ID, slug: String, name: String, environmentID: String): Project
   # Projects
   projects(): [Project]!
   # Features
@@ -27,7 +27,7 @@ type Query {
   # Environments
   environments(): [Environment]!
   # Environment variables
-  environmentVariables(): [EnvironmentVariable]!
+  secrets(): [Secret]!
   # Extension spec
   extensionSpecs(): [ExtensionSpec]!
   # Extensions
@@ -44,8 +44,6 @@ type Mutation {
   updateProject(project: ProjectInput): Project
   # Create release
   createRelease(release: ReleaseInput): Release
-  # Rollback release
-  rollbackRelease(releaseId: ID!): Release
   # Create service
   createService(service: ServiceInput): Service
   # Update Service
@@ -65,11 +63,11 @@ type Mutation {
   # Delete environment
   deleteEnvironment(environment: EnvironmentInput): Environment
   # Create environment variable
-  createEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  createSecret(secret: SecretInput): Secret
   # Update environment variable
-  updateEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  updateSecret(secret: SecretInput): Secret
   # Delete environment variable 
-  deleteEnvironmentVariable(environmentVariable: EnvironmentVariableInput): EnvironmentVariable
+  deleteSecret(secret: SecretInput): Secret
   # Create extension spec
   createExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
   # Update extension spec
@@ -127,7 +125,7 @@ type Environment {
 }
 
 # Environment variable
-type EnvironmentVariable {
+type Secret {
   id: ID!
   key: String!
   value: String!
@@ -135,7 +133,7 @@ type EnvironmentVariable {
   project: Project!
   user: User!
   type: String!
-  versions: [EnvironmentVariable]!
+  versions: [Secret]!
   environment: Environment!
   created: Time!
   isSecret: Boolean!
@@ -183,7 +181,7 @@ type Project {
   currentRelease: Release
   releases: [Release]!
   services: [Service]!
-  environmentVariables: [EnvironmentVariable]!
+  secrets: [Secret]!
   extensions: [Extension]!
   gitBranch: String!
   created: Time!
@@ -235,28 +233,28 @@ input ProjectInput {
   gitProtocol: String!
   gitUrl: String!
   bookmarked: Boolean
-  environmentId: String!
+  environmentID: String!
 }
 
 # Release input
 input ReleaseInput {
   id: String
-  headFeatureId: String!
-  projectId: String!
-  environmentId: String!
+  headFeatureID: String!
+  projectID: String!
+  environmentID: String!
 }
 
 # Service input
 input ServiceInput {
   id: String
-  projectId: String!
+  projectID: String!
   command: String!
   name: String!
-  serviceSpecId: String!
+  serviceSpecID: String!
   count: String!
   ports: [ServicePortInput!]
   type: String!
-  environmentId: String!
+  environmentID: String!
 }
 
 # Container port input
@@ -284,14 +282,14 @@ input EnvironmentInput {
 }
 
 # Environment variable input
-input EnvironmentVariableInput {
+input SecretInput {
   id: String
   key: String!
   value: String!
   type: String!
   scope: String!
-  projectId: String
-  environmentId: String!
+  projectID: String
+  environmentID: String!
   isSecret: Boolean!
 }
 
@@ -301,7 +299,7 @@ input ExtensionSpecInput {
   name: String!
   key: String!
   component: String!
-  environmentId: String!
+  environmentID: String!
   config: JSON!
   type: String!
 }
@@ -309,8 +307,8 @@ input ExtensionSpecInput {
 # Extension input
 input ExtensionInput {
   id: String,
-  projectId: String!,
-  extensionSpecId: String!,
+  projectID: String!,
+  extensionSpecID: String!,
   config: JSON!
-  environmentId: String!
+  environmentID: String!
 }

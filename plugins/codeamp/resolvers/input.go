@@ -18,8 +18,8 @@ type EnvironmentInput struct {
 	Color string `json:"color"`
 }
 
-// EnvironmentVariableInput
-type EnvironmentVariableInput struct {
+// SecretInput
+type SecretInput struct {
 	// ID
 	ID *string `json:"id"`
 	// Key
@@ -30,10 +30,10 @@ type EnvironmentVariableInput struct {
 	Type string `json:"type"`
 	// Scope
 	Scope string `json:"scope"`
-	// ProjectId
-	ProjectId *string `json:"projectId"`
-	// EnvironmentId
-	EnvironmentId string `json:"environmentId"`
+	// ProjectID
+	ProjectID *string `json:"projectID"`
+	// EnvironmentID
+	EnvironmentID string `json:"environmentID"`
 	// IsSecret
 	IsSecret bool `json:"isSecret"`
 }
@@ -42,14 +42,14 @@ type EnvironmentVariableInput struct {
 type ExtensionInput struct {
 	// ID
 	ID *string `json:"id"`
-	// ProjectId
-	ProjectId string `json:"projectId"`
-	// ExtensionSpecId
-	ExtensionSpecId string `json:"extensionSpecId"`
+	// ProjectID
+	ProjectID string `json:"projectID"`
+	// ExtensionSpecID
+	ExtensionSpecID string `json:"extensionSpecID"`
 	// Config
-	Config *JSON `json:"config"`
-	// EnvironmentId
-	EnvironmentId string `json:"environmentId"`
+	Config JSON `json:"config"`
+	// EnvironmentID
+	EnvironmentID string `json:"environmentID"`
 }
 
 // ExtensionSpecInput
@@ -62,10 +62,10 @@ type ExtensionSpecInput struct {
 	Key string `json:"key"`
 	// Component
 	Component string `json:"component"`
-	// EnvironmentId
-	EnvironmentId string `json:"environmentId"`
+	// EnvironmentID
+	EnvironmentID string `json:"environmentID"`
 	// Config
-	Config *JSON `json:"config"`
+	Config JSON `json:"config"`
 	// Type
 	Type string `json:"type"`
 }
@@ -80,42 +80,42 @@ type ProjectInput struct {
 	GitUrl string `json:"gitUrl"`
 	// Bookmarked
 	Bookmarked *bool `json:"bookmarked"`
-	// EnvironmentId
-	EnvironmentId string `json:"environmentId"`
+	// EnvironmentID
+	EnvironmentID string `json:"environmentID"`
 }
 
 // ReleaseInput
 type ReleaseInput struct {
 	// ID
 	ID *string `json:"id"`
-	// HeadFeatureId
-	HeadFeatureId string `json:"headFeatureId"`
-	// ProjectId
-	ProjectId string `json:"projectId"`
-	// EnvironmentId
-	EnvironmentId string `json:"environmentId"`
+	// HeadFeatureID
+	HeadFeatureID string `json:"headFeatureID"`
+	// ProjectID
+	ProjectID string `json:"projectID"`
+	// EnvironmentID
+	EnvironmentID string `json:"environmentID"`
 }
 
 // ServiceInput
 type ServiceInput struct {
 	// ID
 	ID *string `json:"id"`
-	// ProjectId
-	ProjectId string `json:"projectId"`
+	// ProjectID
+	ProjectID string `json:"projectID"`
 	// Command
 	Command string `json:"command"`
 	// Name
 	Name string `json:"name"`
-	// ServiceSpecId
-	ServiceSpecId string `json:"serviceSpecId"`
+	// ServiceSpecID
+	ServiceSpecID string `json:"serviceSpecID"`
 	// Count
 	Count string `json:"count"`
 	// ContainerPorts
 	Ports *[]ServicePortInput `json:"ports"`
 	// Type
 	Type string `json:"type"`
-	// EnvironmentId
-	EnvironmentId string `json:"environmentId"`
+	// EnvironmentID
+	EnvironmentID string `json:"environmentID"`
 }
 
 // ServiceSpecInput

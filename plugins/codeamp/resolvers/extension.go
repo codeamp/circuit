@@ -23,8 +23,8 @@ type ExtensionSpec struct {
 	Name string `json:"name"`
 	// Component
 	Component string `json:"component"`
-	// EnvironmentId
-	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	// EnvironmentID
+	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 	// Config
 	Config postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
 }
@@ -64,9 +64,9 @@ func (r *ExtensionSpecResolver) Key() string {
 func (r *ExtensionSpecResolver) Environment() (*EnvironmentResolver, error) {
 	environment := Environment{}
 
-	if r.DB.Where("id = ?", r.ExtensionSpec.EnvironmentId).First(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", r.ExtensionSpec.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"id": r.ExtensionSpec.EnvironmentId,
+			"id": r.ExtensionSpec.EnvironmentID,
 		})
 		return nil, fmt.Errorf("Environment not found.")
 	}

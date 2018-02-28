@@ -12,8 +12,8 @@ import (
 // Feature
 type Feature struct {
 	Model `json:",inline"`
-	// ProjectId
-	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	// ProjectID
+	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
 	// Message
 	Message string `json:"message"`
 	// User

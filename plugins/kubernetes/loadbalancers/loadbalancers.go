@@ -316,7 +316,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	route53Event := e
 	route53Event.Payload = plugins.Extension{
-		Id:           e.Payload.(plugins.Extension).Id,
+		ID:           e.Payload.(plugins.Extension).ID,
 		Action:       plugins.GetAction("create"),
 		Slug:         "route53",
 		State:        plugins.GetState("waiting"),

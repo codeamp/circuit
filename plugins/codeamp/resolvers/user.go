@@ -23,8 +23,8 @@ type User struct {
 // User permission
 type UserPermission struct {
 	Model `json:",inline"`
-	// UserId
-	UserId uuid.UUID `json:"userId" gorm:"type:uuid"`
+	// UserID
+	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
 	// Value
 	Value string `json:"value"`
 }

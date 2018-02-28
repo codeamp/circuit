@@ -36,10 +36,10 @@ type Project struct {
 // Project settings
 type ProjectSettings struct {
 	Model `json:"inline"`
-	// EnvironmentId
-	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
-	// ProjectId
-	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
+	// EnvironmentID
+	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	// ProjectID
+	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
 	// GitBranch
 	GitBranch string `json:"gitBranch"`
 }
@@ -152,18 +152,20 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 	return results
 }
 
-// EnvironmentVariables
-func (r *ProjectResolver) EnvironmentVariables(ctx context.Context) ([]*EnvironmentVariableResolver, error) {
+// Secrets
+func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []EnvironmentVariable
-	var results []*EnvironmentVariableResolver
+	var rows []Secret
+	var results []*SecretResolver
 
 	r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
-	for _, envVar := range rows {
-		results = append(results, &EnvironmentVariableResolver{DB: r.DB, EnvironmentVariable: envVar})
+	for _, secret := range rows {
+		var secretValue SecretValue
+		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
+		results = append(results, &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue})
 	}
 
 	return results, nil

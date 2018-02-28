@@ -15,12 +15,10 @@ import (
 // Service
 type Service struct {
 	Model `json:",inline"`
-	// ProjectId
-	ProjectId uuid.UUID `bson:"projectId" json:"projectId" gorm:"type:uuid"`
-	// ServiceSpecId
-	ServiceSpecId uuid.UUID `bson:"serviceSpecId" json:"serviceSpecId" gorm:"type:uuid"`
-	// ServiceSpec
-	ServiceSpec `json:"serviceSpec" gorm:"-"`
+	// ProjectID
+	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
+	// ServiceSpecID
+	ServiceSpecID uuid.UUID `bson:"serviceSpecID" json:"serviceSpecID" gorm:"type:uuid"`
 	// Command
 	Command string `json:"command"`
 	// Name
@@ -29,14 +27,16 @@ type Service struct {
 	Type plugins.Type `json:"type"`
 	// Count
 	Count string `json:"count"`
-	// EnvironmentId
-	EnvironmentId uuid.UUID `bson:"environmentId" json:"environmentId" gorm:"type:uuid"`
+	// Ports
+	Ports []ServicePort `json:"servicePorts"`
+	// EnvironmentID
+	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 }
 
 type ServicePort struct {
 	Model `json:-",inline"`
-	// ServiceId
-	ServiceId uuid.UUID `bson:"serviceId" json:"-" gorm:"type:uuid"`
+	// ServiceID
+	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
 	// Protocol
 	Protocol string `json:"protocol"`
 	// Port
@@ -109,7 +109,7 @@ func (r *ServiceResolver) Ports() ([]*JSON, error) {
 func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
 	var environment Environment
 
-	if r.DB.Where("id = ?", r.Service.EnvironmentId).First(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", r.Service.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
 			"service": r.Service,
 		})
