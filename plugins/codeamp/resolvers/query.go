@@ -262,7 +262,7 @@ func (r *Resolver) Permissions(ctx context.Context) (JSON, error) {
 	var rows []UserPermission
 	var results = make(map[string]bool)
 
-	r.DB.Select("DISTINCT(value)").Find(&rows)
+	r.DB.Unscoped().Select("DISTINCT(value)").Find(&rows)
 
 	for _, userPermission := range rows {
 		if _, err := CheckAuth(ctx, []string{userPermission.Value}); err != nil {

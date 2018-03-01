@@ -82,6 +82,8 @@ type Mutation {
   updateExtension(extension: ExtensionInput): Extension
   # Delete extesion
   deleteExtension(extension: ExtensionInput): Extension
+  # Update user permissions
+  updateUserPermissions(userPermissions: UserPermissionsInput): [String!]!
 }
 
 # User

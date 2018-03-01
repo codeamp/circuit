@@ -119,7 +119,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		// Create user permission for project
 		userPermission := UserPermission{
 			UserID: uuid.FromStringOrNil(userId),
-			Value:  fmt.Sprintf("user/%s", project.Repository),
+			Value:  fmt.Sprintf("projects/%s", project.Repository),
 		}
 		r.DB.Create(&userPermission)
 	}
@@ -1018,30 +1018,30 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 }
 
 // UpdateUserPermissions
-func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissionsInput *UserPermissionsInput }) ([]string, error) {
+func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissions *UserPermissionsInput }) ([]string, error) {
 	var err error
 	var results []string
 
-	if r.DB.Where("id = ?", args.UserPermissionsInput.UserID).Find(User{}).RecordNotFound() {
+	if r.DB.Where("id = ?", args.UserPermissions.UserID).Find(&User{}).RecordNotFound() {
 		return nil, errors.New("User not found")
 	}
 
-	for _, permission := range args.UserPermissionsInput.Permissions {
+	for _, permission := range args.UserPermissions.Permissions {
 		if _, err = CheckAuth(ctx, []string{permission.Value}); err != nil {
 			return nil, err
 		}
 	}
 
-	for _, permission := range args.UserPermissionsInput.Permissions {
+	for _, permission := range args.UserPermissions.Permissions {
 		if permission.Grant == true {
 			userPermission := UserPermission{
-				UserID: uuid.FromStringOrNil(args.UserPermissionsInput.UserID),
+				UserID: uuid.FromStringOrNil(args.UserPermissions.UserID),
 				Value:  permission.Value,
 			}
 			r.DB.Where(userPermission).FirstOrCreate(&userPermission)
 			results = append(results, permission.Value)
 		} else {
-			r.DB.Where("user_id = ? AND value = ?", args.UserPermissionsInput.UserID, permission.Value).Delete(UserPermission{})
+			r.DB.Where("user_id = ? AND value = ?", args.UserPermissions.UserID, permission.Value).Delete(&UserPermission{})
 		}
 	}
 
