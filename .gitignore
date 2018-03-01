@@ -38,5 +38,7 @@ rm.sh
 credentials/*
 
 configs/*.dev.yml
+configs/*.dev2.yml
 bootstrap/postgres/data/
 circuit
+dbdata/*

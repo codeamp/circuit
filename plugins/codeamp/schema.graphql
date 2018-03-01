@@ -81,7 +81,13 @@ type Mutation {
   # Update extension
   updateProjectExtension(projectExtension: ProjectExtensionInput): ProjectExtension
   # Delete extesion
+<<<<<<< HEAD
+  deleteExtension(extension: ExtensionInput): Extension
+  # Update user permissions
+  updateUserPermissions(userPermissions: UserPermissionsInput): [String!]!
+=======
   deleteProjectExtension(projectExtension: ProjectExtensionInput): ProjectExtension
+>>>>>>> becc22f9a7e4a92bea0a11a9aba3133059cc369a
 }
 
 # User
