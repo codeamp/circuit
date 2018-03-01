@@ -12,13 +12,13 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// Extension
-type Extension struct {
+// ProjectExtension
+type ProjectExtension struct {
 	Model `json:",inline"`
 	// ProjectID
 	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
-	// ExtensionSpecID
-	ExtensionSpecID uuid.UUID `json:"extensionSpecID" gorm:"type:uuid"`
+	// ExtensionID
+	ExtensionID uuid.UUID `json:"extID" gorm:"type:uuid"`
 	// State
 	State plugins.State `json:"state"`
 	// StateMessage
@@ -31,61 +31,61 @@ type Extension struct {
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 }
 
-// ExtensionResolver resolver for Extension
-type ExtensionResolver struct {
-	Extension
+// ProjectExtensionResolver resolver for ProjectExtension
+type ProjectExtensionResolver struct {
+	ProjectExtension
 	DB *gorm.DB
 }
 
 // ID
-func (r *ExtensionResolver) ID() graphql.ID {
-	return graphql.ID(r.Extension.Model.ID.String())
+func (r *ProjectExtensionResolver) ID() graphql.ID {
+	return graphql.ID(r.ProjectExtension.Model.ID.String())
 }
 
 // Project
-func (r *ExtensionResolver) Project() *ProjectResolver {
+func (r *ProjectExtensionResolver) Project() *ProjectResolver {
 	var project Project
 
-	r.DB.Model(r.Extension).Related(&project)
+	r.DB.Model(r.ProjectExtension).Related(&project)
 
 	return &ProjectResolver{DB: r.DB, Project: project}
 }
 
-// ExtensionSpec
-func (r *ExtensionResolver) ExtensionSpec() *ExtensionSpecResolver {
-	var extensionSpec ExtensionSpec
+// Extension
+func (r *ProjectExtensionResolver) Extension() *ExtensionResolver {
+	var ext Extension
 
-	r.DB.Model(r.Extension).Related(&extensionSpec)
+	r.DB.Model(r.ProjectExtension).Related(&ext)
 
-	return &ExtensionSpecResolver{DB: r.DB, ExtensionSpec: extensionSpec}
+	return &ExtensionResolver{DB: r.DB, Extension: ext}
 }
 
 // Artifacts
-func (r *ExtensionResolver) Artifacts() JSON {
-	return JSON{r.Extension.Artifacts.RawMessage}
+func (r *ProjectExtensionResolver) Artifacts() JSON {
+	return JSON{r.ProjectExtension.Artifacts.RawMessage}
 }
 
 // Config
-func (r *ExtensionResolver) Config() JSON {
-	return JSON{r.Extension.Config.RawMessage}
+func (r *ProjectExtensionResolver) Config() JSON {
+	return JSON{r.ProjectExtension.Config.RawMessage}
 }
 
 // State
-func (r *ExtensionResolver) State() string {
-	return string(r.Extension.State)
+func (r *ProjectExtensionResolver) State() string {
+	return string(r.ProjectExtension.State)
 }
 
 // StateMessage
-func (r *ExtensionResolver) StateMessage() string {
-	return r.Extension.StateMessage
+func (r *ProjectExtensionResolver) StateMessage() string {
+	return r.ProjectExtension.StateMessage
 }
 
 // Environment
-func (r *ExtensionResolver) Environment() (*EnvironmentResolver, error) {
+func (r *ProjectExtensionResolver) Environment() (*EnvironmentResolver, error) {
 	var environment Environment
-	if r.DB.Where("id = ?", r.Extension.EnvironmentID).First(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", r.ProjectExtension.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"id": r.Extension.EnvironmentID,
+			"id": r.ProjectExtension.EnvironmentID,
 		})
 		return nil, fmt.Errorf("Environment not found.")
 	}
@@ -93,14 +93,14 @@ func (r *ExtensionResolver) Environment() (*EnvironmentResolver, error) {
 }
 
 // Created
-func (r *ExtensionResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.Extension.Model.CreatedAt}
+func (r *ProjectExtensionResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.ProjectExtension.Model.CreatedAt}
 }
 
-func (r *ExtensionResolver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&r.Extension)
+func (r *ProjectExtensionResolver) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&r.ProjectExtension)
 }
 
-func (r *ExtensionResolver) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &r.Extension)
+func (r *ProjectExtensionResolver) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &r.ProjectExtension)
 }

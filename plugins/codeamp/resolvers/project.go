@@ -171,14 +171,14 @@ func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error
 	return results, nil
 }
 
-// Extensions
-func (r *ProjectResolver) Extensions() ([]*ExtensionResolver, error) {
-	var rows []Extension
-	var results []*ExtensionResolver
+// ProjectExtensions
+func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
+	var rows []ProjectExtension
+	var results []*ProjectExtensionResolver
 
 	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
 	for _, extension := range rows {
-		results = append(results, &ExtensionResolver{DB: r.DB, Extension: extension})
+		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
 	}
 
 	return results, nil

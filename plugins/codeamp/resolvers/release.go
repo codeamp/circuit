@@ -36,8 +36,8 @@ type Release struct {
 	Services postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
 	// Secrets
 	Secrets postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
-	// Extensions
-	Extensions postgres.Jsonb `json:"extensions" gorm:"type:jsonb;"`
+	// ProjectExtensions
+	ProjectExtensions postgres.Jsonb `json:"extensions" gorm:"type:jsonb;"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// FinishedAt

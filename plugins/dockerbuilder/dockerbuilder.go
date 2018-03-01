@@ -55,8 +55,8 @@ func (x *DockerBuilder) Subscribe() []string {
 	return []string{
 		"plugins.ReleaseExtension:create:dockerbuilder",
 		"plugins.ReleaseExtension:update:dockerbuilder",
-		"plugins.Extension:create:dockerbuilder",
-		"plugins.Extension:update:dockerbuilder",
+		"plugins.ProjectExtension:create:dockerbuilder",
+		"plugins.ProjectExtension:update:dockerbuilder",
 	}
 }
 
@@ -224,9 +224,9 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 		Tag:          imageTagGen(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Extension.Config["DOCKERBUILDER_USER"].(string),
-		Password: event.Extension.Config["DOCKERBUILDER_PASSWORD"].(string),
-		Email:    event.Extension.Config["DOCKERBUILDER_EMAIL"].(string),
+		Username: event.Config["DOCKERBUILDER_USER"].(string),
+		Password: event.Config["DOCKERBUILDER_PASSWORD"].(string),
+		Email:    event.Config["DOCKERBUILDER_EMAIL"].(string),
 	})
 	if err != nil {
 		return err
@@ -249,9 +249,9 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 		Tag:          imageTagLatest(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Extension.Config["DOCKERBUILDER_USER"].(string),
-		Password: event.Extension.Config["DOCKERBUILDER_PASSWORD"].(string),
-		Email:    event.Extension.Config["DOCKERBUILDER_EMAIL"].(string),
+		Username: event.Config["DOCKERBUILDER_USER"].(string),
+		Password: event.Config["DOCKERBUILDER_PASSWORD"].(string),
+		Email:    event.Config["DOCKERBUILDER_EMAIL"].(string),
 	})
 	if err != nil {
 		return err
@@ -261,18 +261,18 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
-	if e.Name == "plugins.Extension:create:dockerbuilder" {
-		var extensionEvent plugins.Extension
-		extensionEvent = e.Payload.(plugins.Extension)
+	if e.Name == "plugins.ProjectExtension:create:dockerbuilder" {
+		var extensionEvent plugins.ProjectExtension
+		extensionEvent = e.Payload.(plugins.ProjectExtension)
 		extensionEvent.Action = plugins.GetAction("status")
 		extensionEvent.State = plugins.GetState("complete")
 		x.events <- e.NewEvent(extensionEvent, nil)
 		return nil
 	}
 
-	if e.Name == "plugins.Extension:update:dockerbuilder" {
-		var extensionEvent plugins.Extension
-		extensionEvent = e.Payload.(plugins.Extension)
+	if e.Name == "plugins.ProjectExtension:update:dockerbuilder" {
+		var extensionEvent plugins.ProjectExtension
+		extensionEvent = e.Payload.(plugins.ProjectExtension)
 		extensionEvent.Action = plugins.GetAction("status")
 		extensionEvent.State = plugins.GetState("complete")
 		x.events <- e.NewEvent(extensionEvent, nil)
@@ -325,10 +325,10 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 	event.State = plugins.GetState("complete")
 	event.Artifacts["IMAGE"] = fullImagePath(event)
-	event.Artifacts["USER"] = event.Extension.Config["DOCKERBUILDER_USER"].(string)
-	event.Artifacts["PASSWORD"] = event.Extension.Config["DOCKERBUILDER_PASSWORD"].(string)
-	event.Artifacts["EMAIL"] = event.Extension.Config["DOCKERBUILDER_EMAIL"].(string)
-	event.Artifacts["HOST"] = event.Extension.Config["DOCKERBUILDER_HOST"].(string)
+	event.Artifacts["USER"] = event.Config["DOCKERBUILDER_USER"].(string)
+	event.Artifacts["PASSWORD"] = event.Config["DOCKERBUILDER_PASSWORD"].(string)
+	event.Artifacts["EMAIL"] = event.Config["DOCKERBUILDER_EMAIL"].(string)
+	event.Artifacts["HOST"] = event.Config["DOCKERBUILDER_HOST"].(string)
 	event.StateMessage = "Completed"
 	// event.BuildLog = buildlog.String()
 	x.events <- e.NewEvent(event, nil)
@@ -349,8 +349,8 @@ func imageTagLatest(event plugins.ReleaseExtension) string {
 
 // rengerate image path name
 func imagePathGen(event plugins.ReleaseExtension) string {
-	registryHost := event.Extension.Config["DOCKERBUILDER_HOST"]
-	registryOrg := event.Extension.Config["DOCKERBUILDER_ORG"]
+	registryHost := event.Config["DOCKERBUILDER_HOST"]
+	registryOrg := event.Config["DOCKERBUILDER_ORG"]
 	return (fmt.Sprintf("%s/%s/%s", registryHost, registryOrg, slug.Slug(event.Release.Project.Repository)))
 }
 

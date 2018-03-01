@@ -24,8 +24,8 @@ type ReleaseExtension struct {
 	ServicesSignature string `json:"servicesSignature"`
 	// SecretsSignature
 	SecretsSignature string `json:"secretsSignature"`
-	// ExtensionID
-	ExtensionID uuid.UUID `json:"extensionID" gorm:"type:uuid"`
+	// ProjectExtensionID
+	ProjectExtensionID uuid.UUID `json:"extensionID" gorm:"type:uuid"`
 	// State
 	State plugins.State `json:"state"`
 	// StateMessage
@@ -63,18 +63,18 @@ func (r *ReleaseExtensionResolver) Release() (*ReleaseResolver, error) {
 	return &ReleaseResolver{DB: r.DB, Release: release}, nil
 }
 
-// Extension
-func (r *ReleaseExtensionResolver) Extension() (*ExtensionResolver, error) {
-	extension := Extension{}
+// ProjectExtension
+func (r *ReleaseExtensionResolver) Extension() (*ProjectExtensionResolver, error) {
+	extension := ProjectExtension{}
 
-	if r.DB.Where("id = ?", r.ReleaseExtension.ExtensionID).Find(&extension).RecordNotFound() {
+	if r.DB.Where("id = ?", r.ReleaseExtension.ProjectExtensionID).Find(&extension).RecordNotFound() {
 		log.InfoWithFields("extension not found", log.Fields{
-			"id": r.ReleaseExtension.ExtensionID,
+			"id": r.ReleaseExtension.ProjectExtensionID,
 		})
-		return &ExtensionResolver{DB: r.DB, Extension: extension}, fmt.Errorf("Couldn't find extension")
+		return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension}, fmt.Errorf("Couldn't find extension")
 	}
 
-	return &ExtensionResolver{DB: r.DB, Extension: extension}, nil
+	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension}, nil
 }
 
 // ServicesSignature

@@ -7,7 +7,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -84,7 +83,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 			},
 			Environment: "testing",
 		},
-		Extension: plugins.Extension{
+		ProjectExtension: plugins.ProjectExtension{
 			Action:     plugins.Create,
 			Slug:       "dockerbuilder",
 			FormValues: formValues,

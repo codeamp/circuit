@@ -24,7 +24,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 	formValues["DOCKERBUILDER_HOST"] = "test"
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
-	artifacts := make(map[string]string)
+	artifacts := make(map[string]interface{})
 	artifacts["IMAGE"] = "dev-registry.checkrhq.net/checkr/checkr-deploy-test:latest"
 
 	releaseEvent := plugins.Release{
@@ -72,15 +72,10 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 	}
 
 	releaseExtensionEvent := plugins.ReleaseExtension{
-		Slug:    "kubernetesdeployments",
-		Action:  plugins.Create,
-		State:   plugins.GetState("waiting"),
-		Release: releaseEvent,
-		Extension: plugins.Extension{
-			Action:     plugins.Create,
-			Slug:       "kubernetesdeployments",
-			FormValues: formValues,
-		},
+		Slug:      "kubernetesdeployments",
+		Action:    plugins.GetAction("create"),
+		State:     plugins.GetState("waiting"),
+		Release:   releaseEvent,
 		Artifacts: artifacts,
 	}
 

@@ -8,7 +8,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/kubernetes/loadbalancers/testdata"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -43,7 +42,7 @@ func (suite *TestSuite) SetupSuite() {
 
 	// Test teardown of any existing LBs
 	suite.transistor.Events <- transistor.NewEvent(testdata.LBDataForTCP(plugins.Destroy, plugins.Office), nil)
-	_ = suite.transistor.GetTestEvent("plugins.Extension:status", 60)
+	_ = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 60)
 	// suite.agent.Events <- testdata.TearDownLBHTTPS(plugins.Internal)
 	// _ = suite.agent.GetTestEvent("plugins.LoadBalancer:status", 60)
 	// suite.agent.Events <- testdata.TearDownLBTCP(plugins.External)
@@ -57,13 +56,13 @@ func (suite *TestSuite) TestLBTCPOffice() {
 	payload := testdata.LBDataForTCP(plugins.Update, plugins.Office)
 	suite.transistor.Events <- transistor.NewEvent(payload, nil)
 
-	e = suite.transistor.GetTestEvent("plugins.Extension:status", 120)
-	assert.Equal(suite.T(), string(plugins.Complete), string(e.Payload.(plugins.Extension).State))
+	e = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 120)
+	assert.Equal(suite.T(), string(plugins.Complete), string(e.Payload.(plugins.ProjectExtension).State))
 
 	payload = testdata.LBDataForTCP(plugins.Destroy, plugins.Office)
 	suite.transistor.Events <- transistor.NewEvent(payload, nil)
-	e = suite.transistor.GetTestEvent("plugins.Extension:status", 120)
-	assert.Equal(suite.T(), string(plugins.Deleted), string(e.Payload.(plugins.Extension).State))
+	e = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 120)
+	assert.Equal(suite.T(), string(plugins.Deleted), string(e.Payload.(plugins.ProjectExtension).State))
 
 }
 
