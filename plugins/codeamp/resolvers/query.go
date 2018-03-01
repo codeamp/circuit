@@ -209,22 +209,6 @@ func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	return results, nil
 }
 
-func (r *Resolver) ExtensionSpecs(ctx context.Context) ([]*ExtensionSpecResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []ExtensionSpec
-	var results []*ExtensionSpecResolver
-
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, extensionSpec := range rows {
-		results = append(results, &ExtensionSpecResolver{DB: r.DB, ExtensionSpec: extensionSpec})
-	}
-
-	return results, nil
-}
-
 func (r *Resolver) Extensions(ctx context.Context) ([]*ExtensionResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
@@ -234,8 +218,24 @@ func (r *Resolver) Extensions(ctx context.Context) ([]*ExtensionResolver, error)
 	var results []*ExtensionResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
+	for _, ext := range rows {
+		results = append(results, &ExtensionResolver{DB: r.DB, Extension: ext})
+	}
+
+	return results, nil
+}
+
+func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionResolver, error) {
+	if _, err := CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
+	var rows []ProjectExtension
+	var results []*ProjectExtensionResolver
+
+	r.DB.Order("created_at desc").Find(&rows)
 	for _, extension := range rows {
-		results = append(results, &ExtensionResolver{DB: r.DB, Extension: extension})
+		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
 	}
 
 	return results, nil

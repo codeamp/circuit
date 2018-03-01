@@ -28,10 +28,10 @@ type Query {
   environments(): [Environment]!
   # Environment variables
   secrets(): [Secret]!
-  # Extension spec
-  extensionSpecs(): [ExtensionSpec]!
-  # Extensions
+  # ProjectExtension spec
   extensions(): [Extension]!
+  # ProjectExtensions
+  projectExtensions(): [ProjectExtension]!
   # Release extensions
   releaseExtensions(): [ReleaseExtension]!
   # Permissions
@@ -71,17 +71,17 @@ type Mutation {
   # Delete environment variable 
   deleteSecret(secret: SecretInput): Secret
   # Create extension spec
-  createExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
-  # Update extension spec
-  updateExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
-  # Delete extension spec
-  deleteExtensionSpec(extensionSpec: ExtensionSpecInput): ExtensionSpec
-  # Create extension
   createExtension(extension: ExtensionInput): Extension
-  # Update extension
+  # Update extension spec
   updateExtension(extension: ExtensionInput): Extension
-  # Delete extesion
+  # Delete extension spec
   deleteExtension(extension: ExtensionInput): Extension
+  # Create extension
+  createProjectExtension(projectExtension: ProjectExtensionInput): ProjectExtension
+  # Update extension
+  updateProjectExtension(projectExtension: ProjectExtensionInput): ProjectExtension
+  # Delete extesion
+  deleteProjectExtension(projectExtension: ProjectExtensionInput): ProjectExtension
 }
 
 # User
@@ -184,13 +184,13 @@ type Project {
   releases: [Release]!
   services: [Service]!
   secrets: [Secret]!
-  extensions: [Extension]!
+  extensions: [ProjectExtension]!
   gitBranch: String!
   created: Time!
 }
 
-# Extension spec
-type ExtensionSpec {
+# ProjectExtension spec
+type Extension {
   id: ID!
   name: String!
   component: String!
@@ -201,11 +201,11 @@ type ExtensionSpec {
   created: Time!
 }
 
-# Extension
-type Extension {
+# ProjectExtension
+type ProjectExtension {
   id: ID!
   project: Project!
-  extensionSpec: ExtensionSpec!
+  extension: Extension!
   artifacts: JSON!
   config: JSON!
   state: String!
@@ -218,7 +218,7 @@ type Extension {
 type ReleaseExtension {
   id: ID!
   release: Release!
-  extension: Extension!
+  extension: ProjectExtension!
   servicesSignature: String!
   secretsSignature: String!
   state: String!
@@ -295,8 +295,8 @@ input SecretInput {
   isSecret: Boolean!
 }
 
-# Extension spec input
-input ExtensionSpecInput {
+# ProjectExtension spec input
+input ExtensionInput {
   id: String
   name: String!
   key: String!
@@ -306,11 +306,11 @@ input ExtensionSpecInput {
   type: String!
 }
 
-# Extension input
-input ExtensionInput {
+# ProjectExtension input
+input ProjectExtensionInput {
   id: String,
   projectID: String!,
-  extensionSpecID: String!,
+  extensionID: String!,
   config: JSON!
   environmentID: String!
 }

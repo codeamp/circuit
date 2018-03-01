@@ -38,22 +38,22 @@ type SecretInput struct {
 	IsSecret bool `json:"isSecret"`
 }
 
-// ExtensionInput
-type ExtensionInput struct {
+// ProjectExtensionInput
+type ProjectExtensionInput struct {
 	// ID
 	ID *string `json:"id"`
 	// ProjectID
 	ProjectID string `json:"projectID"`
-	// ExtensionSpecID
-	ExtensionSpecID string `json:"extensionSpecID"`
+	// ExtensionID
+	ExtensionID string `json:"extID"`
 	// Config
 	Config JSON `json:"config"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
 }
 
-// ExtensionSpecInput
-type ExtensionSpecInput struct {
+// ExtensionInput
+type ExtensionInput struct {
 	// ID
 	ID *string `json:"id"`
 	// Name

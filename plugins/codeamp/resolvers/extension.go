@@ -12,8 +12,8 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// Extension spec
-type ExtensionSpec struct {
+// ProjectExtension spec
+type Extension struct {
 	Model `json:",inline"`
 	// Type
 	Type plugins.Type `json:"type"`
@@ -29,44 +29,44 @@ type ExtensionSpec struct {
 	Config postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
 }
 
-// ExtensionSpecResolver resolver for ExtensionSpec
-type ExtensionSpecResolver struct {
-	ExtensionSpec
+// ExtensionResolver resolver for Extension
+type ExtensionResolver struct {
+	Extension
 	DB *gorm.DB
 }
 
 // ID
-func (r *ExtensionSpecResolver) ID() graphql.ID {
-	return graphql.ID(r.ExtensionSpec.Model.ID.String())
+func (r *ExtensionResolver) ID() graphql.ID {
+	return graphql.ID(r.Extension.Model.ID.String())
 }
 
 // Name
-func (r *ExtensionSpecResolver) Name() string {
-	return r.ExtensionSpec.Name
+func (r *ExtensionResolver) Name() string {
+	return r.Extension.Name
 }
 
 // Component
-func (r *ExtensionSpecResolver) Component() string {
-	return r.ExtensionSpec.Component
+func (r *ExtensionResolver) Component() string {
+	return r.Extension.Component
 }
 
 // Type
-func (r *ExtensionSpecResolver) Type() string {
-	return string(r.ExtensionSpec.Type)
+func (r *ExtensionResolver) Type() string {
+	return string(r.Extension.Type)
 }
 
 // Key
-func (r *ExtensionSpecResolver) Key() string {
-	return r.ExtensionSpec.Key
+func (r *ExtensionResolver) Key() string {
+	return r.Extension.Key
 }
 
 // Environment
-func (r *ExtensionSpecResolver) Environment() (*EnvironmentResolver, error) {
+func (r *ExtensionResolver) Environment() (*EnvironmentResolver, error) {
 	environment := Environment{}
 
-	if r.DB.Where("id = ?", r.ExtensionSpec.EnvironmentID).First(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", r.Extension.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
-			"id": r.ExtensionSpec.EnvironmentID,
+			"id": r.Extension.EnvironmentID,
 		})
 		return nil, fmt.Errorf("Environment not found.")
 	}
@@ -75,19 +75,19 @@ func (r *ExtensionSpecResolver) Environment() (*EnvironmentResolver, error) {
 }
 
 // Config
-func (r *ExtensionSpecResolver) Config() JSON {
-	return JSON{r.ExtensionSpec.Config.RawMessage}
+func (r *ExtensionResolver) Config() JSON {
+	return JSON{r.Extension.Config.RawMessage}
 }
 
 // Created
-func (r *ExtensionSpecResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.ExtensionSpec.Model.CreatedAt}
+func (r *ExtensionResolver) Created() graphql.Time {
+	return graphql.Time{Time: r.Extension.Model.CreatedAt}
 }
 
-func (r *ExtensionSpecResolver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&r.ExtensionSpec)
+func (r *ExtensionResolver) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&r.Extension)
 }
 
-func (r *ExtensionSpecResolver) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &r.ExtensionSpec)
+func (r *ExtensionResolver) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &r.Extension)
 }

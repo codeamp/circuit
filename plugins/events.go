@@ -11,14 +11,11 @@ import (
 func init() {
 	transistor.RegisterEvent(Project{})
 	transistor.RegisterEvent(GitCommit{})
-	transistor.RegisterEvent(GitBranch{})
-	transistor.RegisterEvent(GitStatus{})
 	transistor.RegisterEvent(GitSync{})
 	transistor.RegisterEvent(WebsocketMsg{})
 	transistor.RegisterEvent(HeartBeat{})
-	transistor.RegisterEvent(Project{})
-	transistor.RegisterEvent(Extension{})
 	transistor.RegisterEvent(Release{})
+	transistor.RegisterEvent(ProjectExtension{})
 	transistor.RegisterEvent(ReleaseExtension{})
 }
 
@@ -83,6 +80,7 @@ type Action string
 func GetAction(s string) Action {
 	actions := []string{
 		"create",
+		"run",
 		"update",
 		"destroy",
 		"rollback",
@@ -118,19 +116,6 @@ type GitCommit struct {
 	Hash       string    `json:"hash"`
 	ParentHash string    `json:"parentHash"`
 	Created    time.Time `json:"created"`
-}
-
-type GitBranch struct {
-	Repository string `json:"repository"`
-	Name       string `json:"repository"`
-}
-
-type GitStatus struct {
-	Repository string `json:"repository"`
-	User       string `json:"user"`
-	Hash       string `json:"hash"`
-	State      string `json:"state"`
-	Context    string `json:"context"`
 }
 
 type GitSync struct {
@@ -189,7 +174,7 @@ type Secret struct {
 	Type  Type   `json:"type"`
 }
 
-type Arg struct {
+type Artifact struct {
 	Key   string `json:"key"`
 	Value string `json:"value" role:"secret"`
 }
@@ -204,16 +189,31 @@ type WebsocketMsg struct {
 	Payload interface{} `json:"data"`
 }
 
-type Extension struct {
+type ReleaseExtension struct {
 	ID           string                 `json:"id"`
 	Action       Action                 `json:"action"`
 	Slug         string                 `json:"slug"`
 	State        State                  `json:"state"`
 	StateMessage string                 `json:"stateMessage"`
-	Config       map[string]interface{} `json:"config"`
-	Artifacts    map[string]string      `json:"artifacts"`
-	Environment  string                 `json:"environment"`
 	Project      Project                `json:"project"`
+	Release      Release                `json:"release"`
+	Secrets      map[string]string      `json:"secrets"`
+	Config       map[string]interface{} `json:"config"`
+	Artifacts    map[string]interface{} `json:"artifacts"`
+	Environment  string                 `json:"environment"`
+}
+
+type ProjectExtension struct {
+	ID           string                 `json:"id"`
+	Action       Action                 `json:"action"`
+	Slug         string                 `json:"slug"`
+	State        State                  `json:"state"`
+	StateMessage string                 `json:"stateMessage"`
+	Project      Project                `json:"project"`
+	Secrets      map[string]string      `json:"secrets"`
+	Config       map[string]interface{} `json:"config"`
+	Artifacts    map[string]interface{} `json:"artifacts"`
+	Environment  string                 `json:"environment"`
 }
 
 type Release struct {
@@ -227,31 +227,13 @@ type Release struct {
 	User         string                 `json:"user"`
 	TailFeature  Feature                `json:"tailFeature"`
 	Services     []Service              `json:"services"`
-	Secrets      []Secret               `json:"secrets"` // secrets = build args + artifacts
+	Secrets      []Secret               `json:"secrets"`
 	Artifacts    map[string]interface{} `json:"artifacts"`
 	Environment  string                 `json:"environment"`
 }
 
-type ReleaseExtension struct {
-	ID           string            `json:"id"`
-	Action       Action            `json:"action"`
-	Slug         string            `json:"slug"`
-	Release      Release           `json:"release"`
-	Extension    Extension         `json:"extension"`
-	Artifacts    map[string]string `json:"artifacts"`
-	State        State             `json:"state"`
-	StateMessage string            `json:"stateMessage"`
-}
-
 type Project struct {
-	ID             string            `json:"id"`
-	Action         Action            `json:"action"`
-	State          State             `json:"state"`
-	StateMessage   string            `json:"stateMessage"`
-	Git            Git               `json:"git"`
-	Services       []Service         `json:"services"`
-	Secrets        []Secret          `json:"secrets"` // secrets = build args + artifacts
-	Artifacts      map[string]string `json:"artifacts"`
-	Repository     string            `json:"repository"`
-	NotifyChannels []string          `json:"notifyChannels,omitempty"`
+	ID         string `json:"id"`
+	Slug       string `json:"slug"`
+	Repository string `json:"repository"`
 }

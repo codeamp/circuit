@@ -16,7 +16,7 @@ import (
 )
 
 func GetFormValuePrefix(e transistor.Event, fallbackPrefix string) string {
-	formValues := e.Payload.(plugins.Extension).Config
+	formValues := e.Payload.(plugins.ProjectExtension).Config
 
 	prefix := formValues["EXTENSION_PREFIX"]
 	if prefix == nil {
@@ -35,8 +35,8 @@ func GetFormValue(form map[string]interface{}, prefix string, key string) (inter
 	return value, nil
 }
 
-func CreateExtensionEvent(e transistor.Event, action plugins.Action, state plugins.State, msg string, err error) transistor.Event {
-	payload := e.Payload.(plugins.Extension)
+func CreateProjectExtensionEvent(e transistor.Event, action plugins.Action, state plugins.State, msg string, err error) transistor.Event {
+	payload := e.Payload.(plugins.ProjectExtension)
 	payload.State = state
 	payload.Action = action
 	payload.StateMessage = msg

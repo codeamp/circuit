@@ -8,21 +8,21 @@ import (
 	"github.com/codeamp/circuit/plugins/kubernetes/loadbalancers"
 )
 
-func GetCreateExtension() plugins.Extension {
-	d := GetBasicExtension()
+func GetCreateProjectExtension() plugins.ProjectExtension {
+	d := GetBasicProjectExtension()
 	d.Action = plugins.Create
 	d.State = plugins.Waiting
 	return d
 }
 
-func GetDestroyExtension() plugins.Extension {
-	d := GetBasicExtension()
+func GetDestroyProjectExtension() plugins.ProjectExtension {
+	d := GetBasicProjectExtension()
 	d.Action = plugins.Destroy
 	d.State = plugins.Waiting
 	return d
 }
 
-func GetBasicExtension() plugins.Extension {
+func GetBasicProjectExtension() plugins.ProjectExtension {
 	var kubeconfig string
 	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
 		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
@@ -38,7 +38,7 @@ func GetBasicExtension() plugins.Extension {
 		formPrefix + "KUBECONFIG":           kubeconfig,
 	}
 
-	extensionEvent := plugins.Extension{
+	extensionEvent := plugins.ProjectExtension{
 		Slug:        "kubernetesloadbalancers",
 		Environment: "testing",
 		Action:      plugins.Create,
@@ -56,7 +56,7 @@ func GetBasicExtension() plugins.Extension {
 	return extensionEvent
 }
 
-func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.Extension {
+func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.ProjectExtension {
 	var kubeconfig string
 	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
 		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
@@ -90,7 +90,7 @@ func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.Extension {
 		},
 	}
 
-	lbe := plugins.Extension{
+	lbe := plugins.ProjectExtension{
 		Slug:        "kubernetesloadbalancers",
 		Action:      action,
 		Environment: "testing",
