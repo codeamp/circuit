@@ -167,16 +167,22 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	dockerBuildIn := bytes.NewBuffer(nil)
-	go func() {
-		io.Copy(os.Stderr, gitArchiveErr)
-	}()
+	dockerBuildErr := bytes.NewBuffer(nil)
 
+	io.Copy(dockerBuildErr, gitArchiveErr)
 	io.Copy(dockerBuildIn, gitArchiveOut)
 
 	err = gitArchive.Wait()
 	if err != nil {
+		if string(dockerBuildErr.Bytes()) != "" {
+			log.Debug(string(dockerBuildErr.Bytes()))
+			if string(dockerBuildErr.Bytes()) == "fatal: not a tree object\n" {
+				return errors.New("Commit not found in tree")
+			}
+
+		}
 		log.Debug(err)
-		return err
+		return errors.New(err.Error() + "\n" + string(dockerBuildErr.Bytes()))
 	}
 
 	buildArgs := []docker.BuildArg{}
