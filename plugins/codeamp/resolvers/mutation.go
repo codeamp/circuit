@@ -478,7 +478,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				Slug:      ext.Key,
 				State:     releaseExtension.State,
 				Release:   releaseEvent,
-				Secrets:   map[string]string{},
 				Config:    map[string]interface{}{},
 				Artifacts: map[string]interface{}{},
 			}, nil)

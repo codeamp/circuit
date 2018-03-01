@@ -1382,11 +1382,6 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 				log.Info(err.Error())
 			}
 
-			secrets, err := x.ExtractSecrets(unmarshalledConfig, ext.Key, x.DB)
-			if err != nil {
-				log.Info(err.Error())
-			}
-
 			config, err := x.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
 			if err != nil {
 				log.Info(err.Error())
@@ -1397,7 +1392,6 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 				Action:       plugins.GetAction("create"),
 				Slug:         ext.Key,
 				State:        releaseExtension.State,
-				Secrets:      secrets,
 				Config:       config,
 				Artifacts:    map[string]interface{}{},
 				Release:      releaseEvent,
@@ -1588,11 +1582,6 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 				log.Info(err.Error())
 			}
 
-			secrets, err := x.ExtractSecrets(unmarshalledConfig, ext.Key, x.DB)
-			if err != nil {
-				log.Info(err.Error())
-			}
-
 			config, err := x.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
 			if err != nil {
 				log.Info(err.Error())
@@ -1604,7 +1593,6 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 				Slug:      ext.Key,
 				State:     releaseExtension.State,
 				Release:   releaseEvent,
-				Secrets:   secrets,
 				Config:    config,
 				Artifacts: map[string]interface{}{},
 			}, nil)
@@ -1618,8 +1606,9 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 	}, nil)
 }
 
-func (x *CodeAmp) ExtractSecrets(config map[string]interface{}, extKey string, db *gorm.DB) (map[string]string, error) {
-	secrets := make(map[string]string)
+/* fills in Config by querying config ids and getting the actual value */
+func (x *CodeAmp) ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (map[string]interface{}, error) {
+	c := make(map[string]interface{})
 
 	for _, val := range config["config"].([]interface{}) {
 		val := val.(map[string]interface{})
@@ -1632,18 +1621,11 @@ func (x *CodeAmp) ExtractSecrets(config map[string]interface{}, extKey string, d
 					"secret_id": secretID,
 				})
 			}
-			secrets[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = secret.Value
+			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = secret.Value
 		} else {
-			secrets[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
+			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
 		}
 	}
-
-	return secrets, nil
-}
-
-/* fills in Config by querying config ids and getting the actual value */
-func (x *CodeAmp) ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (map[string]interface{}, error) {
-	c := make(map[string]interface{})
 
 	for key, val := range config["custom"].(map[string]interface{}) {
 		c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))] = val

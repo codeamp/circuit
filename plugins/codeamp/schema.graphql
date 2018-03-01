@@ -189,7 +189,7 @@ type Project {
   created: Time!
 }
 
-# ProjectExtension spec
+# Extension spec
 type Extension {
   id: ID!
   name: String!

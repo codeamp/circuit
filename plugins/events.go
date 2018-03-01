@@ -174,11 +174,6 @@ type Secret struct {
 	Type  Type   `json:"type"`
 }
 
-type Artifact struct {
-	Key   string `json:"key"`
-	Value string `json:"value" role:"secret"`
-}
-
 type HeartBeat struct {
 	Tick string `json:"tick"`
 }
@@ -197,7 +192,6 @@ type ReleaseExtension struct {
 	StateMessage string                 `json:"stateMessage"`
 	Project      Project                `json:"project"`
 	Release      Release                `json:"release"`
-	Secrets      map[string]string      `json:"secrets"`
 	Config       map[string]interface{} `json:"config"`
 	Artifacts    map[string]interface{} `json:"artifacts"`
 	Environment  string                 `json:"environment"`
@@ -210,7 +204,6 @@ type ProjectExtension struct {
 	State        State                  `json:"state"`
 	StateMessage string                 `json:"stateMessage"`
 	Project      Project                `json:"project"`
-	Secrets      map[string]string      `json:"secrets"`
 	Config       map[string]interface{} `json:"config"`
 	Artifacts    map[string]interface{} `json:"artifacts"`
 	Environment  string                 `json:"environment"`
