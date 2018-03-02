@@ -712,12 +712,19 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
 		return nil, fmt.Errorf("DeleteEnv: couldn't find environment: %s", *args.Environment.ID)
 	} else {
-		existingEnv.Name = args.Environment.Name
-		r.DB.Delete(&existingEnv)
+		// Only delete env. if no child services exist, else return err
+		childServices := []Service{}
+		if r.DB.Where("environment_id = ?", args.Environment.ID).Find(&childServices).RecordNotFound() {
+			existingEnv.Name = args.Environment.Name
 
-		//r.EnvironmentDeleted(&existingEnv)
+			r.DB.Delete(&existingEnv)
 
-		return &EnvironmentResolver{DB: r.DB, Environment: existingEnv}, nil
+			//r.EnvironmentDeleted(&existingEnv)
+
+			return &EnvironmentResolver{DB: r.DB, Environment: existingEnv}, nil
+		} else {
+			return nil, fmt.Errorf("Delete all project-services in environment before deleting environment.")
+		}
 	}
 }
 
@@ -892,7 +899,7 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 	}
 
 	// delete all extensions using extension spec
-	if r.DB.Where("extension_spec_id = ?", extID).Find(&extensions).RecordNotFound() {
+	if r.DB.Where("extension_id = ?", extID).Find(&extensions).RecordNotFound() {
 		log.InfoWithFields("no extensions using this extension spec", log.Fields{
 			"extension spec": ext,
 		})
@@ -945,7 +952,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	}
 
 	// check if extension already exists with project
-	if ext.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_spec_id = ? and environment_id = ?", projectID, extID, environmentID).Find(&extension).RecordNotFound() {
+	if ext.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", projectID, extID, environmentID).Find(&extension).RecordNotFound() {
 		extension = ProjectExtension{
 			ExtensionID:   extID,
 			ProjectID:     projectID,
