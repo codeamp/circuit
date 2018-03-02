@@ -925,7 +925,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	methodName := fmt.Sprintf("%sEventHandler", strings.Split(e.PayloadModel, ".")[1])
 
 	if _, ok := reflect.TypeOf(x).MethodByName(methodName); ok {
-		fmt.Println(reflect.ValueOf(x).MethodByName(methodName).Call([]reflect.Value{reflect.ValueOf(e)}))
+		reflect.ValueOf(x).MethodByName(methodName).Call([]reflect.Value{reflect.ValueOf(e)})
 	} else {
 		log.InfoWithFields("*EventHandler not implemented", log.Fields{
 			"event_name":    e.Name,
