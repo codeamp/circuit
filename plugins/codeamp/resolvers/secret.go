@@ -30,6 +30,15 @@ type Secret struct {
 	IsSecret bool `json:"isSecret"`
 }
 
+func (s *Secret) AfterFind(tx *gorm.DB) (err error) {
+	if s.Value == (SecretValue{}) {
+		var secretValue SecretValue
+		tx.Where("secret_id = ?", s.Model.ID).Order("created_at desc").FirstOrInit(&secretValue)
+		s.Value = secretValue
+	}
+	return
+}
+
 type SecretValue struct {
 	Model `json:",inline"`
 	// SecretID
@@ -79,7 +88,11 @@ func (r *SecretResolver) Key() string {
 
 // Value
 func (r *SecretResolver) Value() string {
-	return r.SecretValue.Value
+	if r.SecretValue != (SecretValue{}) {
+		return r.SecretValue.Value
+	} else {
+		return r.Secret.Value.Value
+	}
 }
 
 // Scope
