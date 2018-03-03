@@ -600,7 +600,6 @@ func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*Servic
 
 	// delete all container ports
 	// replace with current
-
 	for _, cp := range servicePorts {
 		r.DB.Delete(&cp)
 	}
@@ -655,21 +654,21 @@ func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 
 func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := ServiceSpec{}
-
-	serviceSpecID, err := uuid.FromString(*args.ServiceSpec.ID)
-	if err != nil {
-		return nil, fmt.Errorf("Missing argument id")
-	}
-
-	if r.DB.Where("id=?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
+	if r.DB.Where("id=?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {
 		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
+	} else {
+		services := []Service{}
+		r.DB.Where("service_spec_id = ?", serviceSpec.Model.ID).Find(&services)
+		if len(services) == 0 {
+			r.DB.Delete(&serviceSpec)
+
+			//r.ServiceSpecDeleted(&serviceSpec)
+
+			return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}, nil
+		} else {
+			return nil, fmt.Errorf("Delete all project-services using this service spec first.")
+		}
 	}
-
-	r.DB.Delete(serviceSpec)
-
-	//r.ServiceSpecDeleted(&serviceSpec)
-
-	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}, nil
 }
 
 func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
@@ -714,10 +713,23 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 	} else {
 		// Only delete env. if no child services exist, else return err
 		childServices := []Service{}
-		if r.DB.Where("environment_id = ?", args.Environment.ID).Find(&childServices).RecordNotFound() {
+		r.DB.Where("environment_id = ?", args.Environment.ID).Find(&childServices)
+		if len(childServices) == 0 {
 			existingEnv.Name = args.Environment.Name
+			secrets := []Secret{}
 
 			r.DB.Delete(&existingEnv)
+			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Find(&secrets)
+			for _, secret := range secrets {
+				r.DB.Delete(&secret)
+				r.DB.Where("secret_id = ?", secret.Model.ID).Delete(SecretValue{})
+			}
+
+			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(Release{})
+			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(ReleaseExtension{})
+			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(ProjectExtension{})
+			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(ProjectSettings{})
+			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(Extension{})
 
 			//r.EnvironmentDeleted(&existingEnv)
 
@@ -822,16 +834,21 @@ func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *Secre
 	if r.DB.Where("id = ?", args.Secret.ID).Find(&secret).RecordNotFound() {
 		return nil, fmt.Errorf("DeleteSecret: key doesn't exist.")
 	} else {
-		var rows []Secret
+		// check if any configs are using the secret
+		extensions := []Extension{}
+		r.DB.Where(`config @> '{"config": [{"value": "?"}]}'"`, secret.Model.ID.String()).Find(&extensions)
+		if len(extensions) == 0 {
+			versions := []SecretValue{}
 
-		r.DB.Where("project_id = ? and key = ? and environment_id = ?", secret.ProjectID, secret.Key, secret.EnvironmentID).Find(&rows)
-		for _, ev := range rows {
-			r.DB.Unscoped().Delete(&ev)
+			r.DB.Delete(&secret)
+			r.DB.Where("secret_id = ?", secret.Model.ID).Delete(&versions)
+
+			//r.SecretDeleted(&secret)
+
+			return &SecretResolver{DB: r.DB, Secret: secret}, nil
+		} else {
+			return nil, fmt.Errorf("Remove Config values from Extensions where Secret is used before deleting.")
 		}
-
-		//r.SecretDeleted(&secret)
-
-		return &SecretResolver{DB: r.DB, Secret: secret}, nil
 	}
 }
 
