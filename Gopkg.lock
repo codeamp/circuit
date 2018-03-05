@@ -451,6 +451,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "gopkg.in/gormigrate.v1"
+  packages = ["."]
+  revision = "21b0b93e8253d575d9185974835423f98d30158d"
+  version = "v1.2.0"
+
+[[projects]]
   name = "gopkg.in/inf.v0"
   packages = ["."]
   revision = "3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4"
@@ -489,6 +495,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f5c60bfc3849194fe8e51ceb72f813b3b0d00e39c9dbfeb2bf5c2650be7d4d73"
+  inputs-digest = "0599eb4d94815eb19baf0693e722a8a51e889b81616067509556b2b6dd07d2c0"
   solver-name = "gps-cdcl"
   solver-version = 1

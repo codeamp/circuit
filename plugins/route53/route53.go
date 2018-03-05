@@ -47,7 +47,7 @@ func (x *Route53) Stop() {
 
 func (x *Route53) Subscribe() []string {
 	return []string{
-		"plugins.Extension:create:route53",
+		"plugins.ProjectExtension:create:route53",
 	}
 }
 
@@ -55,7 +55,7 @@ func (x *Route53) Process(e transistor.Event) error {
 	log.InfoWithFields("Processing route53 event", log.Fields{
 		"event": e,
 	})
-	event := e.Payload.(plugins.Extension)
+	event := e.Payload.(plugins.ProjectExtension)
 	var err error
 	switch event.Action {
 	case plugins.GetAction("create"):
@@ -65,7 +65,7 @@ func (x *Route53) Process(e transistor.Event) error {
 
 	if err != nil {
 		failMessage := fmt.Sprintf("%v (Action: %v, Step: Route53", err.Error(), event.State)
-		failedEvent := e.Payload.(plugins.Extension)
+		failedEvent := e.Payload.(plugins.ProjectExtension)
 		failedEvent.Action = plugins.GetAction("status")
 		failedEvent.State = plugins.GetState("failed")
 		failedEvent.StateMessage = failMessage
@@ -76,13 +76,13 @@ func (x *Route53) Process(e transistor.Event) error {
 	return nil
 }
 
-func (x *Route53) sendRoute53Response(e transistor.Event, action plugins.Action, state plugins.State, stateMessage string, lbPayload plugins.Extension) {
-	event := e.NewEvent(plugins.Extension{
+func (x *Route53) sendRoute53Response(e transistor.Event, action plugins.Action, state plugins.State, stateMessage string, lbPayload plugins.ProjectExtension) {
+	event := e.NewEvent(plugins.ProjectExtension{
 		Action:       action,
 		State:        state,
 		Slug:         "route53",
 		StateMessage: stateMessage,
-		Artifacts: map[string]string{
+		Artifacts: map[string]interface{}{
 			"DNS":       lbPayload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
 			"SUBDOMAIN": lbPayload.Config["KUBERNETESLOADBALANCERS_SUBDOMAIN"].(string),
 			"FQDN":      lbPayload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string),
@@ -95,7 +95,7 @@ func (x *Route53) sendRoute53Response(e transistor.Event, action plugins.Action,
 }
 
 func (x *Route53) updateRoute53(e transistor.Event) error {
-	payload := e.Payload.(plugins.Extension)
+	payload := e.Payload.(plugins.ProjectExtension)
 	// Sanity checks
 	if payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string) == "" {
 		failMessage := fmt.Sprintf("DNS was blank for %s, skipping Route53.", payload.Project.Repository)
@@ -217,14 +217,14 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 
 		// TODO: create aws manager that managers route53 and klb
 		// on behalf of klb, we send a klb event complete from route53
-		lbEventPayload := plugins.Extension{
-			Id:           e.Payload.(plugins.Extension).Id,
+		lbEventPayload := plugins.ProjectExtension{
+			ID:           e.Payload.(plugins.ProjectExtension).ID,
 			Action:       plugins.GetAction("status"),
 			Slug:         "kubernetesloadbalancers",
 			State:        plugins.GetState("complete"),
 			StateMessage: "route53 cname created!",
-			Config:       e.Payload.(plugins.Extension).Config,
-			Artifacts: map[string]string{
+			Config:       e.Payload.(plugins.ProjectExtension).Config,
+			Artifacts: map[string]interface{}{
 				"ELB_DNS":   payload.Config["KUBERNETESLOADBALANCERS_ELBDNS"].(string),
 				"SUBDOMAIN": payload.Config["KUBERNETESLOADBALANCERS_NAME"].(string),
 				"FQDN":      fmt.Sprintf("%s.%s", payload.Config["KUBERNETESLOADBALANCERS_NAME"].(string), payload.Config["KUBERNETESLOADBALANCERS_HOSTED_ZONE_NAME"].(string)),

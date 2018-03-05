@@ -11,7 +11,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/codeamp/circuit/plugins"
-	ca_utils "github.com/codeamp/circuit/plugins/codeamp/utils"
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -51,9 +50,9 @@ func (x *LoadBalancers) Stop() {
 
 func (x *LoadBalancers) Subscribe() []string {
 	return []string{
-		"plugins.Extension:create:kubernetesloadbalancers",
-		"plugins.Extension:update:kubernetesloadbalancers",
-		"plugins.Extension:destroy:kubernetesloadbalancers",
+		"plugins.ProjectExtension:create:kubernetesloadbalancers",
+		"plugins.ProjectExtension:update:kubernetesloadbalancers",
+		"plugins.ProjectExtension:destroy:kubernetesloadbalancers",
 	}
 }
 
@@ -62,7 +61,7 @@ func (x *LoadBalancers) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	event := e.Payload.(plugins.Extension)
+	event := e.Payload.(plugins.ProjectExtension)
 
 	var err error
 	switch event.Action {
@@ -98,7 +97,7 @@ type ListenerPair struct {
 func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	log.Println("doLoadBalancer")
 
-	payload := e.Payload.(plugins.Extension)
+	payload := e.Payload.(plugins.ProjectExtension)
 	// configPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
 	configPrefix := "KUBERNETESLOADBALANCERS_"
 	svcName := payload.Config[configPrefix+"SERVICE"].(string)
@@ -107,7 +106,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	s3AccessLogs := payload.Config[configPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
 	lbType := plugins.GetType(payload.Config[configPrefix+"TYPE"].(string))
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Config, configPrefix)
+	kubeconfig, err := utils.SetupKubeConfig(payload.Config, configPrefix)
 	if err != nil {
 		log.Info(err.Error())
 		return err
@@ -120,7 +119,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
 		log.Println(failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return err
 	}
 
@@ -128,7 +127,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Println(failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return nil
 	}
 
@@ -141,7 +140,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	namespace := utils.GenNamespaceName(payload.Environment, projectSlug)
 	createNamespaceErr := utils.CreateNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), createNamespaceErr.Error(), err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), createNamespaceErr.Error(), err)
 		return nil
 	}
 
@@ -195,13 +194,13 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		}
 		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
 		if err != nil {
-			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 			return nil
 		}
 
 		intContainerPort, err := strconv.Atoi(p.(map[string]interface{})["containerPort"].(string))
 		if err != nil {
-			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 			return nil
 		}
 		convPort := intstr.IntOrString{
@@ -265,7 +264,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		_, err = service.Update(&serviceParams)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: failed to update service: %s", err.Error())
-			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
+			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 			return nil
 		}
 		fmt.Printf("Service updated: %s", lbName)
@@ -273,13 +272,13 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		_, err = service.Create(&serviceParams)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: failed to create service: %s", err.Error())
-			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
+			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 			return nil
 		}
 		fmt.Printf("Service created: %s", lbName)
 	default:
 		errMsg := fmt.Sprintf("Unexpected error: %s", err.Error())
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 		return nil
 	}
 
@@ -301,7 +300,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 				}
 				if timeout <= 0 {
 					failMessage := fmt.Sprintf("Error: timeout waiting for ELB DNS name for: %s", lbName)
-					x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+					x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 					return nil
 				}
 			}
@@ -312,26 +311,26 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		ELBDNS = fmt.Sprintf("%s.%s", lbName, utils.GenNamespaceName(payload.Environment, projectSlug))
 	}
 
-	route53Config := e.Payload.(plugins.Extension).Config
+	route53Config := e.Payload.(plugins.ProjectExtension).Config
 	route53Config["KUBERNETESLOADBALANCERS_ELBDNS"] = ELBDNS
 
 	route53Event := e
-	route53Event.Payload = plugins.Extension{
-		Id:           e.Payload.(plugins.Extension).Id,
+	route53Event.Payload = plugins.ProjectExtension{
+		ID:           e.Payload.(plugins.ProjectExtension).ID,
 		Action:       plugins.GetAction("create"),
 		Slug:         "route53",
 		State:        plugins.GetState("waiting"),
 		StateMessage: "",
 		Config:       route53Config,
-		Artifacts:    map[string]string{},
-		Environment:  e.Payload.(plugins.Extension).Environment,
-		Project:      e.Payload.(plugins.Extension).Project,
+		Artifacts:    map[string]interface{}{},
+		Environment:  e.Payload.(plugins.ProjectExtension).Environment,
+		Project:      e.Payload.(plugins.ProjectExtension).Project,
 	}
 
 	// send event to codeamp to signal loadbalancers completion
-	event := utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)
-	event.Payload.(plugins.Extension).Artifacts["ELB_DNS"] = ELBDNS
-	event.Payload.(plugins.Extension).Artifacts["STATUS"] = "Waiting for Route53 DNS"
+	event := utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)
+	event.Payload.(plugins.ProjectExtension).Artifacts["ELB_DNS"] = ELBDNS
+	event.Payload.(plugins.ProjectExtension).Artifacts["STATUS"] = "Waiting for Route53 DNS"
 	x.events <- event
 
 	// send route53 event
@@ -344,12 +343,12 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	log.Println("doDeleteLoadBalancer")
 	var err error
-	payload := e.Payload.(plugins.Extension)
+	payload := e.Payload.(plugins.ProjectExtension)
 	configPrefix := "KUBERNETESLOADBALANCERS_"
-	kubeconfig, err := ca_utils.SetupKubeConfig(payload.Config, configPrefix)
+	kubeconfig, err := utils.SetupKubeConfig(payload.Config, configPrefix)
 	if err != nil {
 		log.Debug(err)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
@@ -360,7 +359,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
 		log.Println(failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return err
 	}
 
@@ -368,21 +367,21 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Println(failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return nil
 	}
 
 	svcName, err := utils.GetFormValue(payload.Config, configPrefix, "SERVICE")
 	if err != nil {
 		log.Debug(err)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
 	lbName, err := utils.GetFormValue(payload.Config, configPrefix, "NAME")
 	if err != nil {
 		log.Debug(err)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
@@ -398,15 +397,15 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		if svcDeleteErr != nil {
 			failMessage := fmt.Sprintf("Error '%s' deleting service %s", svcDeleteErr, lbName)
 			fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)
-			x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 			return nil
 		}
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("deleted"), "", nil)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("deleted"), "", nil)
 	} else {
 		// Send failure message that we couldn't find the service to delete
 		failMessage := fmt.Sprintf("Error finding %s service: '%s'", lbName, svcGetErr)
 		fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)
-		x.events <- utils.CreateExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
+		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 	}
 	return nil
 }

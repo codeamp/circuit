@@ -108,3 +108,7 @@
 [[constraint]]
   name = "github.com/go-redis/redis"
   version = "6.9.0"
+
+[[constraint]]
+  name = "gopkg.in/gormigrate.v1"
+  version = "1.2.0"

@@ -44,8 +44,8 @@ func (x *GithubStatus) Stop() {
 
 func (x *GithubStatus) Subscribe() []string {
 	return []string{
-		"plugins.Extension:create:githubstatus",
-		"plugins.Extension:update:githubstatus",
+		"plugins.ProjectExtension:create:githubstatus",
+		"plugins.ProjectExtension:update:githubstatus",
 		"plugins.ReleaseExtension:create:githubstatus",
 	}
 }
@@ -70,20 +70,20 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	if e.Matches("plugins.Extension") {
-		event := e.Payload.(plugins.Extension)
+	if e.Matches("plugins.ProjectExtension") {
+		event := e.Payload.(plugins.ProjectExtension)
 		switch event.Action {
 		case plugins.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus E event: %s", e.Name), log.Fields{})
 			if _, err := isValidGithubCredentials(event.Config); err == nil {
-				responseEvent := e.Payload.(plugins.Extension)
+				responseEvent := e.Payload.(plugins.ProjectExtension)
 				responseEvent.State = plugins.GetState("complete")
 				responseEvent.Action = plugins.GetAction("status")
 				responseEvent.StateMessage = "Successfully installed!"
 				x.events <- e.NewEvent(responseEvent, nil)
 				return nil
 			} else {
-				failedEvent := e.Payload.(plugins.Extension)
+				failedEvent := e.Payload.(plugins.ProjectExtension)
 				failedEvent.State = plugins.GetState("failed")
 				failedEvent.Action = plugins.GetAction("status")
 				failedEvent.StateMessage = err.Error()
@@ -92,14 +92,14 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			}
 		case plugins.GetAction("update"):
 			if _, err := isValidGithubCredentials(event.Config); err == nil {
-				responseEvent := e.Payload.(plugins.Extension)
+				responseEvent := e.Payload.(plugins.ProjectExtension)
 				responseEvent.State = plugins.GetState("complete")
 				responseEvent.Action = plugins.GetAction("status")
 				responseEvent.StateMessage = "Successfully updated!"
 				x.events <- e.NewEvent(responseEvent, nil)
 				return nil
 			} else {
-				failedEvent := e.Payload.(plugins.Extension)
+				failedEvent := e.Payload.(plugins.ProjectExtension)
 				failedEvent.State = plugins.GetState("failed")
 				failedEvent.Action = plugins.GetAction("status")
 				failedEvent.StateMessage = err.Error()
@@ -116,9 +116,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus RE event: %s", e.Name), log.Fields{})
 			// get status and check if complete
 			client := &http.Client{}
-			TIMEOUT_LIMIT, err := strconv.Atoi(event.Extension.Config["GITHUBSTATUS_TIMEOUT_SECONDS"].(string))
+			TIMEOUT_LIMIT, err := strconv.Atoi(event.Config["GITHUBSTATUS_TIMEOUT_SECONDS"].(string))
 			if err != nil {
-				failedEvent := e.Payload.(plugins.Extension)
+				failedEvent := e.Payload.(plugins.ProjectExtension)
 				failedEvent.State = plugins.GetState("failed")
 				failedEvent.Action = plugins.GetAction("status")
 				failedEvent.StateMessage = err.Error()
@@ -138,7 +138,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					x.events <- e.NewEvent(failedEvent, err)
 					return nil
 				}
-				req.SetBasicAuth(event.Extension.Config["GITHUBSTATUS_USERNAME"].(string), event.Extension.Config["GITHUBSTATUS_PERSONAL_ACCESS_TOKEN"].(string))
+				req.SetBasicAuth(event.Config["GITHUBSTATUS_USERNAME"].(string), event.Config["GITHUBSTATUS_PERSONAL_ACCESS_TOKEN"].(string))
 
 				resp, _ := client.Do(req)
 				if resp.StatusCode == 200 {

@@ -14,7 +14,7 @@ services:
       - "${DOCKER_COMPOSE_POSTGRES_PORT}:5432"
     volumes:
       - ./bootstrap/postgres:/docker-entrypoint-initdb.d
-      - ./dbdata:/var/lib/postgresql/data
+      - ./bootstrap/postgres/data:/var/lib/postgresql/data
     networks:
       - codeamp
   circuit:
@@ -33,7 +33,6 @@ services:
     volumes:
       - .:/go/src/github.com/codeamp/circuit
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./credentials:/etc/secrets
       - ./:/etc/dex
     depends_on:
       - postgres

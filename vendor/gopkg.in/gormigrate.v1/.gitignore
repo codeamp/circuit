@@ -1,3 +1,4 @@
+# ---> Go
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
 *.a
@@ -23,22 +24,4 @@ _testmain.go
 *.test
 *.prof
 
-node_modules/
-.DS_Store
-dev.circuit.yml
-circuit.dev.yml
-server/secrets/*
-
-# Vim swap files
-*.sw*
-
-.vscode
-plugins/codeamp/schema/resolvers/experiments/
-rm.sh
-credentials/*
-
-configs/*.dev.yml
-configs/*.dev2.yml
-bootstrap/postgres/data/
-circuit
-dbdata/*
+*.sqlite3
