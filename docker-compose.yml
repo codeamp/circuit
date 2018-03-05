@@ -33,7 +33,6 @@ services:
     volumes:
       - .:/go/src/github.com/codeamp/circuit
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./credentials:/etc/secrets
       - ./:/etc/dex
     depends_on:
       - postgres
