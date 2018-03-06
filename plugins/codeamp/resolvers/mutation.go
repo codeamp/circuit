@@ -17,6 +17,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/extemporalgenome/slug"
+	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/ssh"
@@ -38,7 +39,6 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 
 	// Check if project already exists with same name
 	existingProject := Project{}
-
 	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
 	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
 	if r.DB.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
@@ -54,7 +54,6 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		GitUrl:      args.Project.GitUrl,
 		Secret:      transistor.RandomString(30),
 	}
-
 	project.Name = repository
 	project.Repository = repository
 	project.Slug = slug.Slug(repository)
@@ -177,10 +176,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	var project Project
 	var secrets []Secret
 	var services []Service
-	var extensions []ProjectExtension
+	var projectExtensions []ProjectExtension
 	var secretsJsonb postgres.Jsonb
 	var servicesJsonb postgres.Jsonb
-	var extensionsJsonb postgres.Jsonb
+	var projectExtensionsJsonb postgres.Jsonb
 
 	if args.Release.ID == nil {
 		projectSecrets := []Secret{}
@@ -229,19 +228,19 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 		servicesJsonb = postgres.Jsonb{servicesMarshaled}
 
-		if r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, plugins.GetState("complete")).Find(&extensions).RecordNotFound() {
+		if r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, plugins.GetState("complete")).Find(&projectExtensions).RecordNotFound() {
 			log.InfoWithFields("project has no extensions", log.Fields{
 				"project_id":     args.Release.ProjectID,
 				"environment_id": args.Release.EnvironmentID,
 			})
 		}
 
-		extensionsMarshaled, err := json.Marshal(extensions)
+		projectExtensionsMarshaled, err := json.Marshal(projectExtensions)
 		if err != nil {
 			return &ReleaseResolver{}, err
 		}
 
-		extensionsJsonb = postgres.Jsonb{extensionsMarshaled}
+		projectExtensionsJsonb = postgres.Jsonb{projectExtensionsMarshaled}
 	} else {
 		// Rollback
 		release := Release{}
@@ -255,7 +254,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 		secretsJsonb = release.Secrets
 		servicesJsonb = release.Services
-		extensionsJsonb = release.ProjectExtensions
+		projectExtensionsJsonb = release.ProjectExtensions
 	}
 
 	projectID, err := uuid.FromString(args.Release.ProjectID)
@@ -306,7 +305,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		StateMessage:      "Release created",
 		Secrets:           secretsJsonb,
 		Services:          servicesJsonb,
-		ProjectExtensions: extensionsJsonb,
+		ProjectExtensions: projectExtensionsJsonb,
 		Artifacts:         postgres.Jsonb{[]byte("{}")},
 	}
 
@@ -433,22 +432,33 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	r.Events <- transistor.NewEvent(releaseEvent, nil)
 
 	// Create/Emit Release ProjectExtensions
-	for _, extension := range extensions {
-		ext := Extension{}
-		if r.DB.Where("id= ?", extension.ExtensionID).Find(&ext).RecordNotFound() {
+	for _, projectExtension := range projectExtensions {
+		extension := Extension{}
+		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.ErrorWithFields("extension spec not found", log.Fields{
-				"id": extension.ExtensionID,
+				"id": projectExtension.ExtensionID,
 			})
 			return &ReleaseResolver{}, errors.New("extension spec not found")
 		}
 
-		if plugins.Type(ext.Type) == plugins.GetType("workflow") {
+		if plugins.Type(extension.Type) == plugins.GetType("workflow") {
 			var headFeature Feature
 			if r.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 				log.ErrorWithFields("head feature not found", log.Fields{
 					"id": release.HeadFeatureID,
 				})
 				return &ReleaseResolver{}, errors.New("head feature not found")
+			}
+
+			unmarshalledConfig := make(map[string]interface{})
+			err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
+			if err != nil {
+				log.Info(err.Error())
+			}
+
+			config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+			if err != nil {
+				log.Info(err.Error())
 			}
 
 			secretsSha1 := sha1.New()
@@ -459,15 +469,18 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			servicesSha1.Write(servicesJsonb.RawMessage)
 			servicesSig := servicesSha1.Sum(nil)
 
+			emptyArtifacts, _ := json.Marshal(map[string]string{})
+
 			// create ReleaseExtension
 			releaseExtension := ReleaseExtension{
 				ReleaseID:          release.Model.ID,
 				FeatureHash:        headFeature.Hash,
 				ServicesSignature:  fmt.Sprintf("%x", servicesSig),
 				SecretsSignature:   fmt.Sprintf("%x", secretsSig),
-				ProjectExtensionID: extension.Model.ID,
+				ProjectExtensionID: projectExtension.Model.ID,
 				State:              plugins.GetState("waiting"),
 				Type:               plugins.GetType("workflow"),
+				Artifacts:          postgres.Jsonb{emptyArtifacts}, // default is empty obj
 			}
 
 			r.DB.Create(&releaseExtension)
@@ -475,10 +488,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			r.Events <- transistor.NewEvent(plugins.ReleaseExtension{
 				ID:        releaseExtension.Model.ID.String(),
 				Action:    plugins.GetAction("create"),
-				Slug:      ext.Key,
+				Slug:      extension.Key,
 				State:     releaseExtension.State,
 				Release:   releaseEvent,
-				Config:    map[string]interface{}{},
+				Config:    config,
 				Artifacts: map[string]interface{}{},
 			}, nil)
 		}
@@ -868,7 +881,6 @@ func (r *Resolver) CreateExtension(args *struct{ Extension *ExtensionInput }) (*
 	}
 
 	r.DB.Create(&ext)
-
 	//r.ExtensionCreated(&ext)
 
 	return &ExtensionResolver{DB: r.DB, Extension: ext}, nil
@@ -934,55 +946,74 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 }
 
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
-	var extension ProjectExtension
+	var projectExtension ProjectExtension
 
-	extID, err := uuid.FromString(args.ProjectExtension.ExtensionID)
-	if err != nil {
-		log.InfoWithFields("couldn't parse ExtensionID", log.Fields{
-			"extension": args.ProjectExtension,
+	extension := Extension{}
+	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+		log.InfoWithFields("no extension found", log.Fields{
+			"id": args.ProjectExtension.ExtensionID,
 		})
-		return nil, errors.New("Could not parse ExtensionID. Invalid Format.")
+		return nil, errors.New("No extension found.")
 	}
 
-	projectID, err := uuid.FromString(args.ProjectExtension.ProjectID)
-	if err != nil {
-		log.InfoWithFields("couldn't parse ProjectID", log.Fields{
-			"extension": args.ProjectExtension,
+	project := Project{}
+	if r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).RecordNotFound() {
+		log.InfoWithFields("no project found", log.Fields{
+			"id": args.ProjectExtension.ProjectID,
 		})
-		return nil, errors.New("Could not parse ProjectID. Invalid format.")
+		return nil, errors.New("No project found.")
 	}
 
-	environmentID, err := uuid.FromString(args.ProjectExtension.EnvironmentID)
-	if err != nil {
-		log.InfoWithFields("couldn't parse EnvironmentID", log.Fields{
-			"extension": args.ProjectExtension,
+	env := Environment{}
+	if r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).RecordNotFound() {
+		log.InfoWithFields("no env found", log.Fields{
+			"id": args.ProjectExtension.EnvironmentID,
 		})
-		return nil, errors.New("Could not parse EnvironmentID. Invalid format.")
-	}
-
-	// get extensionspec
-	var ext Extension
-	if r.DB.Where("id = ?", extID).Find(&ext).RecordNotFound() {
-		log.InfoWithFields("Could not find an extension spec while trying to CreateProjectExtension", log.Fields{
-			"id": extID,
-		})
+		return nil, errors.New("No environment found.")
 	}
 
 	// check if extension already exists with project
-	if ext.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", projectID, extID, environmentID).Find(&extension).RecordNotFound() {
-		extension = ProjectExtension{
-			ExtensionID:   extID,
-			ProjectID:     projectID,
-			EnvironmentID: environmentID,
+	if extension.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
+		projectExtension = ProjectExtension{
+			ExtensionID:   extension.Model.ID,
+			ProjectID:     project.Model.ID,
+			EnvironmentID: env.Model.ID,
 			Config:        postgres.Jsonb{[]byte(args.ProjectExtension.Config.RawMessage)},
 			State:         plugins.GetState("waiting"),
 			Artifacts:     postgres.Jsonb{},
 		}
-		r.DB.Save(&extension)
+		r.DB.Save(&projectExtension)
 
-		//r.ProjectExtensionCreated(&extension)
+		unmarshalledConfig := make(map[string]interface{})
+		err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
+		if err != nil {
+			log.Info(err.Error())
+		}
 
-		return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension}, nil
+		config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+		if err != nil {
+			log.Info(err.Error())
+		}
+
+		projectExtensionEvent := plugins.ProjectExtension{
+			ID:           projectExtension.Model.ID.String(),
+			Action:       plugins.GetAction("create"),
+			Slug:         extension.Key,
+			State:        plugins.GetState("waiting"),
+			StateMessage: "installation started",
+			Project: plugins.Project{
+				ID:         project.Model.ID.String(),
+				Slug:       project.Slug,
+				Repository: project.Repository,
+			},
+			Config:      config,
+			Artifacts:   map[string]interface{}{},
+			Environment: env.Name,
+		}
+
+		r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+
+		return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 	}
 
 	return nil, errors.New("This extension is already installed in this project.")
@@ -1066,4 +1097,32 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 	}
 
 	return results, nil
+}
+
+/* fills in Config by querying config ids and getting the actual value */
+func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (map[string]interface{}, error) {
+	c := make(map[string]interface{})
+
+	for _, val := range config["config"].([]interface{}) {
+		val := val.(map[string]interface{})
+		// check if val is UUID. If so, query in environment variables for id
+		secretID := uuid.FromStringOrNil(val["value"].(string))
+		if secretID != uuid.Nil {
+			secret := SecretValue{}
+			if db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).RecordNotFound() {
+				log.InfoWithFields("secret not found", log.Fields{
+					"secret_id": secretID,
+				})
+			}
+			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = secret.Value
+		} else {
+			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
+		}
+	}
+
+	for key, val := range config["custom"].(map[string]interface{}) {
+		c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))] = val
+	}
+
+	return c, nil
 }
