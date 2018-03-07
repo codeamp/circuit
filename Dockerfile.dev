@@ -5,17 +5,14 @@ COPY --from=0 /usr/local/bin/dex /usr/local/bin/dex
 
 ENV APP_PATH /go/src/github.com/codeamp/circuit
 
-RUN apk -U add alpine-sdk git gcc docker openssh
+RUN apk -U add alpine-sdk git gcc openssh docker
 RUN go get github.com/cespare/reflex
 RUN go get -u github.com/jteeuwen/go-bindata/...
-
 RUN mkdir -p $APP_PATH
-WORKDIR $APP_PATH
 
+WORKDIR $APP_PATH
 COPY . $APP_PATH
 RUN mkdir -p assets/
 
-RUN rm -rf $GOPATH/pkg/
+RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema.graphql
 RUN go build -i -o /go/bin/codeamp-circuit .
-
-RUN cp /go/bin/codeamp-circuit /usr/local/bin/codeamp-circuit
