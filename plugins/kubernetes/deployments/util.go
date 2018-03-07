@@ -10,7 +10,6 @@ import (
 
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	ca_log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -419,7 +418,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	batchv1DepInterface := clientset.BatchV1()
 
 	// Validate we have some services to deploy
-	spew.Dump(reData.Release)
 	if len(reData.Release.Services) == 0 {
 		x.sendDDErrorResponse(e, reData.Release.Services, "ERROR: Zero services were found in the deploy message.")
 		return nil
