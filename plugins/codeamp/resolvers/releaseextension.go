@@ -67,7 +67,7 @@ func (r *ReleaseExtensionResolver) Release() (*ReleaseResolver, error) {
 func (r *ReleaseExtensionResolver) Extension() (*ProjectExtensionResolver, error) {
 	extension := ProjectExtension{}
 
-	if r.DB.Where("id = ?", r.ReleaseExtension.ProjectExtensionID).Find(&extension).RecordNotFound() {
+	if r.DB.Unscoped().Where("id = ?", r.ReleaseExtension.ProjectExtensionID).Find(&extension).RecordNotFound() {
 		log.InfoWithFields("extension not found", log.Fields{
 			"id": r.ReleaseExtension.ProjectExtensionID,
 		})

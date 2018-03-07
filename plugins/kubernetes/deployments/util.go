@@ -8,9 +8,8 @@ import (
 	"strings"
 	"time"
 
-	ca_log "github.com/codeamp/logger"
-
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
+	ca_log "github.com/codeamp/logger"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -420,8 +419,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	// Validate we have some services to deploy
 	if len(reData.Release.Services) == 0 {
-		failMessage := fmt.Sprintf("ERROR: Zero services were found in the deploy message.")
-		x.sendDDErrorResponse(e, reData.Release.Services, failMessage)
+		x.sendDDErrorResponse(e, reData.Release.Services, "ERROR: Zero services were found in the deploy message.")
 		return nil
 	}
 

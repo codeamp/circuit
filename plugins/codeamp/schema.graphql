@@ -236,6 +236,7 @@ input ProjectInput {
   id: String
   gitProtocol: String!
   gitUrl: String!
+  gitBranch: String
   bookmarked: Boolean
   environmentID: String!
 }

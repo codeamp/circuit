@@ -20,10 +20,10 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	graphql "github.com/neelance/graphql-go"
 	"github.com/neelance/graphql-go/relay"
-	uuid "github.com/satori/go.uuid"
 	sioredis "github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
@@ -316,11 +316,40 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 
 		releaseExtension.State = payload.State
 		releaseExtension.StateMessage = payload.StateMessage
-		//releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
+		marshalledReArtifacts, err := json.Marshal(payload.Artifacts)
+		if err != nil {
+			log.Info(err.Error(), log.Fields{})
+		}
+
+		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		x.DB.Save(&releaseExtension)
-		x.DB.Save(&release)
 
 		if payload.State == plugins.GetState("complete") {
+			// append release extension artifacts to Release
+			mergedArtifacts := make(map[string]interface{})
+			err = json.Unmarshal(release.Artifacts.RawMessage, &mergedArtifacts)
+			if err != nil {
+				log.Info(err.Error())
+				return err
+			}
+
+			if len(mergedArtifacts) > 0 {
+				for key, value := range payload.Artifacts {
+					mergedArtifacts[key] = value
+				}
+			} else {
+				mergedArtifacts = payload.Artifacts
+			}
+
+			marshalledArtifacts, err := json.Marshal(mergedArtifacts)
+			if err != nil {
+				log.InfoWithFields(err.Error(), log.Fields{})
+				return err
+			}
+
+			release.Artifacts = postgres.Jsonb{marshalledArtifacts}
+			x.DB.Save(&release)
+
 			x.ReleaseExtensionCompleted(&releaseExtension)
 		}
 
@@ -460,7 +489,6 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 		log.InfoWithFields("deployment extensions not found", log.Fields{
 			"release": release,
 		})
-		return
 	}
 
 	for _, de := range depProjectExtensions {
@@ -470,14 +498,14 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 				"extension spec": de,
 			})
 		}
-		if plugins.Type(ext.Type) == plugins.GetType("workflow") {
+		if ext.Type == plugins.GetType("workflow") {
 			releaseExtension := resolvers.ReleaseExtension{}
 
-			if x.DB.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, string(plugins.GetState("complete"))).Find(&releaseExtension).RecordNotFound() {
+			if x.DB.Where("release_id = ? AND project_extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, string(plugins.GetState("complete"))).Find(&releaseExtension).RecordNotFound() {
 				log.InfoWithFields("release extension not found", log.Fields{
-					"release_id":   release.Model.ID,
-					"extension_id": de.Model.ID,
-					"state":        plugins.GetState("complete"),
+					"release_id":           release.Model.ID,
+					"project_extension_id": de.Model.ID,
+					"state":                plugins.GetState("complete"),
 				})
 			}
 
@@ -495,31 +523,25 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 			}
 		}
 
-		if plugins.Type(ext.Type) == plugins.GetType("deployment") {
+		if ext.Type == plugins.GetType("deployment") {
 			found = true
 		}
 	}
 
 	// persist workflow artifacts
 	// release.Artifacts = plugins.MapStringStringToHstore(releaseExtensionArtifacts)
-	x.DB.Save(release)
+	// x.DB.Save(&release)
 
 	// if there are no deployment workflows, then release is complete
 	if !found {
 		x.ReleaseCompleted(release)
+		return
 	}
 
 	project := resolvers.Project{}
 
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
-			"release": release,
-		})
-	}
-
-	services := []resolvers.Service{}
-	if x.DB.Where("project_id = ?", release.ProjectID).Find(&services).RecordNotFound() {
-		log.InfoWithFields("no services found for this project", log.Fields{
 			"release": release,
 		})
 	}
@@ -558,14 +580,70 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 		branch = projectSettings.GitBranch
 	}
 
+	var secrets []resolvers.Secret
+	err := json.Unmarshal(release.Secrets.RawMessage, &secrets)
+	if err != nil {
+		log.Info(err.Error(), log.Fields{})
+		return
+	}
+
+	var services []resolvers.Service
+	err = json.Unmarshal(release.Services.RawMessage, &services)
+	if err != nil {
+		log.Info(err.Error(), log.Fields{})
+		return
+	}
+
+	var pluginServices []plugins.Service
+	for _, service := range services {
+		var spec resolvers.ServiceSpec
+		if x.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
+			log.InfoWithFields("servicespec not found", log.Fields{
+				"id": service.ServiceSpecID,
+			})
+			return
+		}
+
+		count, _ := strconv.ParseInt(service.Count, 10, 64)
+		terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
+
+		pluginServices = append(pluginServices, plugins.Service{
+			ID:        service.Model.ID.String(),
+			Action:    plugins.GetAction("create"),
+			State:     plugins.GetState("waiting"),
+			Name:      service.Name,
+			Command:   service.Command,
+			Listeners: []plugins.Listener{},
+			Replicas:  count,
+			Spec: plugins.ServiceSpec{
+				ID:                            spec.Model.ID.String(),
+				CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
+				CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
+				MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
+				MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
+				TerminationGracePeriodSeconds: terminationGracePeriod,
+			},
+			Type: string(service.Type),
+		})
+	}
+
+	var pluginSecrets []plugins.Secret
+	for _, secret := range secrets {
+		pluginSecrets = append(pluginSecrets, plugins.Secret{
+			Key:   secret.Key,
+			Value: secret.Value.Value,
+			Type:  secret.Type,
+		})
+	}
+
 	releaseEvent := plugins.Release{
 		Action:       plugins.GetAction("create"),
 		State:        plugins.GetState("waiting"),
 		Environment:  environment.Name,
+		Artifacts:    aggregateReleaseExtensionArtifacts,
 		StateMessage: "create release event",
 		ID:           release.Model.ID.String(),
 		HeadFeature: plugins.Feature{
-			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,
 			ParentHash: headFeature.ParentHash,
 			User:       headFeature.User,
@@ -591,6 +669,8 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
+		Secrets:  pluginSecrets,
+		Services: pluginServices,
 	}
 	releaseExtensionEvents := []plugins.ReleaseExtension{}
 
@@ -636,7 +716,7 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 				log.Info(err.Error())
 			}
 
-			config, err := x.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
+			config, err := resolvers.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
 			if err != nil {
 				log.Info(err.Error())
 			}
@@ -682,14 +762,14 @@ func (x *CodeAmp) DeploymentProjectExtensionsCompleted(release *resolvers.Releas
 			})
 		}
 
-		if plugins.Type(ext.Type) == plugins.GetType("deployment") {
+		if ext.Type == plugins.GetType("deployment") {
 			releaseExtension := resolvers.ReleaseExtension{}
 
-			if x.DB.Where("release_id = ? AND extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.GetState("complete")).Find(&releaseExtension).RecordNotFound() {
+			if x.DB.Where("release_id = ? AND project_extension_id = ? AND state = ?", release.Model.ID, de.Model.ID, plugins.GetState("complete")).Find(&releaseExtension).RecordNotFound() {
 				log.InfoWithFields("release extension not found", log.Fields{
-					"release_id":   release.Model.ID,
-					"extension_id": de.Model.ID,
-					"state":        plugins.GetState("complete"),
+					"release_id":           release.Model.ID,
+					"project_extension_id": de.Model.ID,
+					"state":                plugins.GetState("complete"),
 				})
 			}
 		}
@@ -708,7 +788,7 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 
 	// mark release as complete
 	release.State = plugins.GetState("complete")
-	release.StateMessage = "Release completed"
+	release.StateMessage = "Completed"
 
 	x.DB.Save(release)
 }
@@ -764,6 +844,13 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		return
 	}
 
+	unmarshalledArtifacts := make(map[string]interface{})
+	err := json.Unmarshal(release.Artifacts.RawMessage, &unmarshalledArtifacts)
+	if err != nil {
+		log.Info(err.Error(), log.Fields{})
+		return
+	}
+
 	// get all branches relevant for the projec
 	branch := "master"
 	projectSettings := resolvers.ProjectSettings{}
@@ -805,6 +892,7 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
+		Artifacts: unmarshalledArtifacts,
 	}
 	for _, extension := range projectExtensions {
 		ext := resolvers.Extension{}
@@ -836,7 +924,7 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 				log.Info(err.Error())
 			}
 
-			config, err := x.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
+			config, err := resolvers.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
 			if err != nil {
 				log.Info(err.Error())
 			}
@@ -858,32 +946,4 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		Event:   fmt.Sprintf("projects/%s/releases", project.Slug),
 		Payload: release,
 	}, nil)
-}
-
-/* fills in Config by querying config ids and getting the actual value */
-func (x *CodeAmp) ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (map[string]interface{}, error) {
-	c := make(map[string]interface{})
-
-	for _, val := range config["config"].([]interface{}) {
-		val := val.(map[string]interface{})
-		// check if val is UUID. If so, query in environment variables for id
-		secretID := uuid.FromStringOrNil(val["value"].(string))
-		if secretID != uuid.Nil {
-			secret := resolvers.SecretValue{}
-			if db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).RecordNotFound() {
-				log.InfoWithFields("secret not found", log.Fields{
-					"secret_id": secretID,
-				})
-			}
-			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = secret.Value
-		} else {
-			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
-		}
-	}
-
-	for key, val := range config["custom"].(map[string]interface{}) {
-		c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))] = val
-	}
-
-	return c, nil
 }
