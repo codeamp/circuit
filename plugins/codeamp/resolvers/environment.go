@@ -12,6 +12,8 @@ type Environment struct {
 	Model `json:",inline"`
 	// Name
 	Name string `json:"name"`
+	// Key
+	Key string `json:"key"`
 	// Color
 	Color string `json:"color"`
 }
@@ -35,6 +37,11 @@ func (r *EnvironmentResolver) Name() string {
 // Color
 func (r *EnvironmentResolver) Color() string {
 	return r.Environment.Color
+}
+
+// Key
+func (r *EnvironmentResolver) Key() string {
+	return r.Environment.Key
 }
 
 // Created

@@ -14,6 +14,8 @@ type EnvironmentInput struct {
 	ID *string `json:"id"`
 	// Name
 	Name string `json:"name"`
+	// Key
+	Key string `json:"key"`
 	// Color
 	Color string `json:"color"`
 }

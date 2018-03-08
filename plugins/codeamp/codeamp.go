@@ -639,7 +639,7 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 	releaseEvent := plugins.Release{
 		Action:       plugins.GetAction("create"),
 		State:        plugins.GetState("waiting"),
-		Environment:  environment.Name,
+		Environment:  environment.Key,
 		Artifacts:    aggregateReleaseExtensionArtifacts,
 		StateMessage: "create release event",
 		ID:           release.Model.ID.String(),
@@ -865,7 +865,7 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		ID:          release.Model.ID.String(),
 		Action:      plugins.GetAction("create"),
 		State:       plugins.GetState("waiting"),
-		Environment: environment.Name,
+		Environment: environment.Key,
 		HeadFeature: plugins.Feature{
 			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,
