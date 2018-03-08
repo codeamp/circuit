@@ -398,7 +398,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		ID:          release.Model.ID.String(),
 		Action:      plugins.GetAction("create"),
 		State:       plugins.GetState("waiting"),
-		Environment: environment.Name,
+		Environment: environment.Key,
 		HeadFeature: plugins.Feature{
 			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,
@@ -685,11 +685,11 @@ func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 }
 
 func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
-
 	var existingEnv Environment
 	if r.DB.Where("name = ?", args.Environment.Name).Find(&existingEnv).RecordNotFound() {
 		env := Environment{
 			Name:  args.Environment.Name,
+			Key:   args.Environment.Key,
 			Color: args.Environment.Color,
 		}
 

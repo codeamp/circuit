@@ -124,6 +124,7 @@ type Service {
 type Environment {
   id: ID!
   name: String!
+  key: String!
   color: String!
   created: Time!
 }
@@ -283,6 +284,7 @@ input ServiceSpecInput {
 input EnvironmentInput {
   id: String
   name: String!
+  key: String!
   color: String!
 }
 
