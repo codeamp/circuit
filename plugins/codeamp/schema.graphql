@@ -331,3 +331,16 @@ input UserPermissionInput {
   value: String!
   grant: Boolean!
 }
+
+# ProjectPermission input
+input ProjectPermissionInput {
+  projectID: String!
+  environmentID: String!
+  grant: Boolean!
+}
+
+# ProjectPermissionsInput
+input ProjectPermissionsInput {
+ projectID: String!
+ permissions: [ProjectPermissionInput!]!
+}
