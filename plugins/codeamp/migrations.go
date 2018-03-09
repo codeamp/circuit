@@ -336,6 +336,39 @@ func (x *CodeAmp) Migrate() {
 				return db.Delete(&resolvers.Extension{}).Error
 			},
 		},
+		// create ProjectPermissions
+		{
+			ID: "201803081647",
+			Migrate: func(tx *gorm.DB) error {
+				defaultEnv := resolvers.Environment{
+					Key: "development",
+				}
+				// if no environments called development exists, create one
+				if db.Find(&defaultEnv).RecordNotFound() {
+					defaultEnv.Name = "Development"
+					defaultEnv.Color = "red"
+					db.Create(defaultEnv)
+				}
+
+				// create default project permission for projects that don't have it
+				projects := []resolvers.Project{}
+
+				db.Find(&projects)
+
+				for _, project := range projects {
+					db.FirstOrCreate(&resolvers.ProjectPermission{
+						EnvironmentID: defaultEnv.Model.ID,
+						ProjectID:     project.Model.ID,
+					})
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				db.DropTable(&resolvers.ProjectPermission{})
+				return db.Delete(&resolvers.ProjectPermission{}).Error
+			},
+		},
 	})
 
 	if err = m.Migrate(); err != nil {

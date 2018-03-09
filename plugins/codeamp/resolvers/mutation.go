@@ -181,6 +181,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	var servicesJsonb postgres.Jsonb
 	var projectExtensionsJsonb postgres.Jsonb
 
+	// Check if project can create release in environment
+	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+		return nil, errors.New("Project not allowed to create release in given environment")
+	}
+
 	if args.Release.ID == nil {
 		projectSecrets := []Secret{}
 		// get all the env vars related to this release and store
@@ -502,6 +507,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 // CreateService Create service
 func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
+	// Check if project can create service in environment
+	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+		return nil, errors.New("Project not allowed to create service in given environment")
+	}
+
 	projectID, err := uuid.FromString(args.Service.ProjectID)
 	if err != nil {
 		return &ServiceResolver{}, err
@@ -760,6 +770,11 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *Secre
 	var secretScope SecretScope
 
 	if args.Secret.ProjectID != nil {
+		// Check if project can create secret
+		if r.DB.Where("environment_id = ? and project_id = ?", args.Secret.EnvironmentID, args.Secret.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+			return nil, errors.New("Project not allowed to create secret in given environment")
+		}
+
 		projectID = uuid.FromStringOrNil(*args.Secret.ProjectID)
 	}
 
@@ -948,6 +963,11 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension ProjectExtension
 
+	// Check if project can create project extension in environment
+	if r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+		return nil, errors.New("Project not allowed to install extensions in given environment")
+	}
+
 	extension := Extension{}
 	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
@@ -1093,6 +1113,38 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 			results = append(results, permission.Value)
 		} else {
 			r.DB.Where("user_id = ? AND value = ?", args.UserPermissions.UserID, permission.Value).Delete(&UserPermission{})
+		}
+	}
+
+	return results, nil
+}
+
+// UpdateProjectPermissions
+func (r *Resolver) UpdateProjectPermissions(ctx context.Context, args *struct{ ProjectPermissions *ProjectPermissionsInput }) ([]string, error) {
+	var results []string
+
+	project := Project{}
+	if r.DB.Where("id = ?", args.ProjectPermissions.ProjectID).Find(&project).RecordNotFound() {
+		return []string{}, errors.New("No project found with inputted projectID")
+	}
+
+	for _, permission := range args.ProjectPermissions.Permissions {
+		// Check if environment object exists
+		environment := Environment{}
+		if r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment).RecordNotFound() {
+			return []string{}, errors.New(fmt.Sprintf("No environment found for environmentID %s", permission.EnvironmentID))
+		}
+
+		if permission.Grant {
+			// Grant permission by adding ProjectPermission row
+			projectPermission := ProjectPermission{
+				EnvironmentID: environment.Model.ID,
+				ProjectID:     project.Model.ID,
+			}
+			r.DB.FirstOrCreate(&projectPermission)
+			results = append(results, environment.Model.ID.String())
+		} else {
+			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&ProjectPermission{})
 		}
 	}
 
