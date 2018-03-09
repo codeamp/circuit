@@ -84,6 +84,8 @@ type Mutation {
   deleteProjectExtension(projectExtension: ProjectExtensionInput): ProjectExtension
   # Update user permissions
   updateUserPermissions(userPermissions: UserPermissionsInput): [String!]!
+  # Update project permissions
+  updateProjectPermissions(projectPermissions: ProjectPermissionsInput): [String!]!
 }
 
 # User
@@ -189,6 +191,7 @@ type Project {
   secrets: [Secret]!
   extensions: [ProjectExtension]!
   gitBranch: String!
+  permissions: [String!]!
   created: Time!
 }
 
@@ -330,4 +333,16 @@ input UserPermissionsInput {
 input UserPermissionInput {
   value: String!
   grant: Boolean!
+}
+
+# ProjectPermission input
+input ProjectPermissionInput {
+  environmentID: String!
+  grant: Boolean!
+}
+
+# ProjectPermissionsInput
+input ProjectPermissionsInput {
+ projectID: String!
+ permissions: [ProjectPermissionInput!]!
 }

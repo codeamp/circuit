@@ -44,6 +44,15 @@ type ProjectSettings struct {
 	GitBranch string `json:"gitBranch"`
 }
 
+// ProjectPermission
+type ProjectPermission struct {
+	Model `json:"inline"`
+	// EnvironmentID
+	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	// ProjectID
+	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
+}
+
 // ProjectResolver resolver for Project
 type ProjectResolver struct {
 	Project
@@ -191,6 +200,20 @@ func (r *ProjectResolver) GitBranch() string {
 	} else {
 		return projectSettings.GitBranch
 	}
+}
+
+// Permissions
+func (r *ProjectResolver) Permissions() []string {
+	var permissions []ProjectPermission
+
+	r.DB.Where("project_id = ?", r.Project.ID).Find(&permissions)
+
+	results := []string{}
+	for _, permission := range permissions {
+		results = append(results, permission.EnvironmentID.String())
+	}
+
+	return results
 }
 
 // Created
