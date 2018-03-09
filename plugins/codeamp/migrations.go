@@ -366,6 +366,24 @@ func (x *CodeAmp) Migrate() {
 				return db.DropTable(&resolvers.ProjectPermission{}).Error
 			},
 		},
+		// add key attribute to environment
+		{
+			ID: "201803081103",
+			Migrate: func(tx *gorm.DB) error {
+				var environments []resolvers.Environment
+				db.Find(&environments)
+				for _, env := range environments {
+					if env.Key == "" {
+						env.Key = env.Name
+					}
+					db.Save(&env)
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return db.Model(&resolvers.Environment{}).DropColumn("key").Error
+			},
+		},
 	})
 
 	if err = m.Migrate(); err != nil {
