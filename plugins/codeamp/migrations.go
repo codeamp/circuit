@@ -365,8 +365,7 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				db.DropTable(&resolvers.ProjectPermission{})
-				return db.Delete(&resolvers.ProjectPermission{}).Error
+				return db.DropTable(&resolvers.ProjectPermission{}).Error
 			},
 		},
 	})
