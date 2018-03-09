@@ -45,7 +45,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 }
 
 /* Test successful project permissions update */
-func (suite *ProjectTestSuite) TestUpdateProjectPermisions() {
+func (suite *ProjectTestSuite) TestUpdateProjectPermissions() {
 	// setup
 	project := resolvers.Project{
 		Name:          "foo",
