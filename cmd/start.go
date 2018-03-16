@@ -20,6 +20,7 @@ var startCmd = &cobra.Command{
 			Server:         viper.GetString("redis.server"),
 			Database:       viper.GetString("redis.database"),
 			Pool:           viper.GetString("redis.pool"),
+			Password:       viper.GetString("redis.password"),
 			Process:        viper.GetString("redis.process"),
 			Queueing:       true,
 			Plugins:        viper.GetStringMap("plugins"),
