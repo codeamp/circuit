@@ -1141,7 +1141,7 @@ func (r *Resolver) UpdateProjectPermissions(ctx context.Context, args *struct{ P
 				EnvironmentID: environment.Model.ID,
 				ProjectID:     project.Model.ID,
 			}
-			r.DB.FirstOrCreate(&projectPermission)
+			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectPermission)
 			results = append(results, environment.Model.ID.String())
 		} else {
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&ProjectPermission{})
