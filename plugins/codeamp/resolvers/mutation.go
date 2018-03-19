@@ -733,9 +733,14 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 		if existingEnv.IsDefault {
 			var defaultEnvs []Environment
 			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
+			// Update IsDefault as long as the current is false or
+			// if there are more than 1 default env
 			if len(defaultEnvs) > 1 {
 				existingEnv.IsDefault = args.Environment.IsDefault
 			}
+		} else {
+			// If IsDefault is false, then no harm in updating
+			existingEnv.IsDefault = args.Environment.IsDefault
 		}
 
 		r.DB.Save(&existingEnv)
