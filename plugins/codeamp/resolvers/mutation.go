@@ -41,7 +41,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	existingProject := Project{}
 	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
 	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
-	if r.DB.Unscoped().Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
+	if r.DB.Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
 		log.InfoWithFields("[+] Project not found", log.Fields{
 			"repository": repository,
 		})
@@ -110,6 +110,13 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 			ProjectID:     project.Model.ID,
 			GitBranch:     "master",
 		})
+		// Create ProjectPermission rows for default envs
+		if env.IsDefault {
+			r.DB.Create(&ProjectPermission{
+				EnvironmentID: env.Model.ID,
+				ProjectID:     project.Model.ID,
+			})
+		}
 	}
 
 	if userId, err := CheckAuth(ctx, []string{}); err != nil {
@@ -696,11 +703,12 @@ func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 
 func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
 	var existingEnv Environment
-	if r.DB.Where("name = ?", args.Environment.Name).Find(&existingEnv).RecordNotFound() {
+	if r.DB.Where("key = ?", args.Environment.Key).Find(&existingEnv).RecordNotFound() {
 		env := Environment{
-			Name:  args.Environment.Name,
-			Key:   args.Environment.Key,
-			Color: args.Environment.Color,
+			Name:      args.Environment.Name,
+			Key:       args.Environment.Key,
+			IsDefault: args.Environment.IsDefault,
+			Color:     args.Environment.Color,
 		}
 
 		r.DB.Create(&env)
@@ -721,6 +729,15 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 		existingEnv.Name = args.Environment.Name
 		existingEnv.Color = args.Environment.Color
 
+		// Check if this is the only default env.
+		if existingEnv.IsDefault {
+			var defaultEnvs []Environment
+			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
+			if len(defaultEnvs) > 1 {
+				existingEnv.IsDefault = args.Environment.IsDefault
+			}
+		}
+
 		r.DB.Save(&existingEnv)
 
 		//r.EnvironmentUpdated(&existingEnv)
@@ -734,6 +751,15 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
 		return nil, fmt.Errorf("DeleteEnv: couldn't find environment: %s", *args.Environment.ID)
 	} else {
+		// if this is the only default env, do not delete
+		if existingEnv.IsDefault {
+			var defaultEnvs []Environment
+			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
+			if len(defaultEnvs) == 1 {
+				return nil, fmt.Errorf("Cannot delete since this is the only default env. Must be one at all times")
+			}
+		}
+
 		// Only delete env. if no child services exist, else return err
 		childServices := []Service{}
 		r.DB.Where("environment_id = ?", args.Environment.ID).Find(&childServices)

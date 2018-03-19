@@ -87,8 +87,9 @@ func (x *CodeAmp) Migrate() {
 
 				for _, name := range environments {
 					environment := resolvers.Environment{
-						Name:  name,
-						Color: "red",
+						Name:      name,
+						Color:     "red",
+						IsDefault: true,
 					}
 					db.Save(&environment)
 				}

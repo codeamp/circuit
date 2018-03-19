@@ -14,6 +14,8 @@ type Environment struct {
 	Name string `json:"name"`
 	// Key
 	Key string `json:"key"`
+	// Is Default
+	IsDefault bool `json:"isDefault"`
 	// Color
 	Color string `json:"color"`
 }
@@ -42,6 +44,11 @@ func (r *EnvironmentResolver) Color() string {
 // Key
 func (r *EnvironmentResolver) Key() string {
 	return r.Environment.Key
+}
+
+// Is Default
+func (r *EnvironmentResolver) IsDefault() bool {
+	return r.Environment.IsDefault
 }
 
 // Created

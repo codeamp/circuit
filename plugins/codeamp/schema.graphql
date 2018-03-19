@@ -127,6 +127,7 @@ type Environment {
   id: ID!
   name: String!
   key: String!
+  isDefault: Boolean!
   color: String!
   created: Time!
 }
@@ -288,6 +289,7 @@ input EnvironmentInput {
   id: String
   name: String!
   key: String!
+  isDefault: Boolean!
   color: String!
 }
 

@@ -12,7 +12,6 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	oidc "github.com/coreos/go-oidc"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-redis/redis"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
@@ -181,7 +180,6 @@ func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 					level += 1
 				}
 			} else {
-				spew.Dump(scope)
 				if transistor.SliceContains(scope, claims.Permissions) {
 					return claims.UserID, nil
 				}

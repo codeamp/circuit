@@ -16,6 +16,8 @@ type EnvironmentInput struct {
 	Name string `json:"name"`
 	// Key
 	Key string `json:"key"`
+	// IsDefault
+	IsDefault bool `json:"isDefault"`
 	// Color
 	Color string `json:"color"`
 }
