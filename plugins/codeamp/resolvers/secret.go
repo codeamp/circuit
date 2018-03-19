@@ -88,10 +88,6 @@ func (r *SecretResolver) Key() string {
 
 // Value
 func (r *SecretResolver) Value() string {
-	if r.Secret.IsSecret {
-		return ""
-	}
-
 	if r.SecretValue != (SecretValue{}) {
 		return r.SecretValue.Value
 	} else {
