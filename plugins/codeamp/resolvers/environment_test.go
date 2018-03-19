@@ -106,7 +106,7 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	suite.TearDownTest([]string{updateEnvResolver.Model.ID.String()})
 }
 
-func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateLastEnvironmentIsDefault() {
+func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
 	envInput := resolvers.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo",
