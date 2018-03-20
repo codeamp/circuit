@@ -422,8 +422,9 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	// Validate we have some services to deploy
 	if len(reData.Release.Services) == 0 {
-		x.sendDDErrorResponse(e, reData.Release.Services, "ERROR: Zero services were found in the deploy message.")
-		return fmt.Errorf("ERROR: Zero services were found in the deploy message.")
+		zeroServicesErr := fmt.Errorf("ERROR: Zero services were found in the deploy message.")
+		x.sendDDErrorResponse(e, reData.Release.Services, zeroServicesErr.Error())
+		return zeroServicesErr
 	}
 
 	// Codeflow docker building container requires docker socket.
