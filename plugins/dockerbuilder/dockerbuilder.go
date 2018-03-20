@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 
 	"github.com/spf13/viper"
@@ -262,7 +261,6 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
-	spew.Dump("PROCESSING DOCKER BUILDER EVENT", e.Payload)
 	if e.Name == "plugins.ProjectExtension:create:dockerbuilder" {
 		var extensionEvent plugins.ProjectExtension
 		extensionEvent = e.Payload.(plugins.ProjectExtension)
