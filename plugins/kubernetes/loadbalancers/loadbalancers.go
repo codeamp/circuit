@@ -59,7 +59,6 @@ func (x *LoadBalancers) Subscribe() []string {
 func (x *LoadBalancers) Process(e transistor.Event) error {
 	log.InfoWithFields("Processing load balancer event", log.Fields{
 		"event": e,
-		// If IsDefault is false, then no harm in updating
 	})
 
 	event := e.Payload.(plugins.ProjectExtension)
