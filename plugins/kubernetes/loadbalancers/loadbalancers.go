@@ -59,6 +59,7 @@ func (x *LoadBalancers) Subscribe() []string {
 func (x *LoadBalancers) Process(e transistor.Event) error {
 	log.InfoWithFields("Processing load balancer event", log.Fields{
 		"event": e,
+		// If IsDefault is false, then no harm in updating
 	})
 
 	event := e.Payload.(plugins.ProjectExtension)
@@ -74,6 +75,7 @@ func (x *LoadBalancers) Process(e transistor.Event) error {
 	}
 
 	if err != nil {
+		event.Action = plugins.GetAction("status")
 		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State)
 		log.Debug(event.StateMessage)
