@@ -40,15 +40,18 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 	db.AutoMigrate(
 		&resolvers.Environment{},
 	)
+	// clean, just in case
+	db.Delete(&resolvers.Environment{})
 	suite.Resolver = &resolvers.Resolver{DB: db}
 }
 
 /* Test successful env. creation */
 func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 	envInput := resolvers.EnvironmentInput{
-		Name:  "test",
-		Key:   "foo",
-		Color: "color",
+		Name:      "test",
+		Key:       "foo",
+		IsDefault: true,
+		Color:     "color",
 	}
 
 	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
@@ -57,6 +60,7 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 	}
 	assert.Equal(suite.T(), envResolver.Name(), "test")
 	assert.Equal(suite.T(), envResolver.Key(), "foo")
+	assert.Equal(suite.T(), envResolver.IsDefault(), true)
 	assert.Equal(suite.T(), envResolver.Color(), "color")
 	assert.NotEqual(suite.T(), envResolver.Color(), "wrongcolor")
 
@@ -66,9 +70,10 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 /* Test successful env. update */
 func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	envInput := resolvers.EnvironmentInput{
-		Name:  "test",
-		Key:   "foo",
-		Color: "color",
+		Name:      "test",
+		Key:       "foo",
+		IsDefault: true,
+		Color:     "color",
 	}
 
 	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
@@ -83,6 +88,8 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	envInput.Name = "test2"
 	// key SHOULD be ignored
 	envInput.Key = "diffkey"
+	// IsDefault SHOULD be ignored since it's the only default env
+	envInput.IsDefault = false
 
 	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
 	if err != nil {
@@ -93,9 +100,66 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	assert.Equal(suite.T(), updateEnvResolver.Name(), "test2")
 	assert.Equal(suite.T(), updateEnvResolver.Color(), "red")
 	assert.Equal(suite.T(), updateEnvResolver.Key(), "foo")
+	assert.Equal(suite.T(), updateEnvResolver.IsDefault(), true)
 	assert.NotEqual(suite.T(), updateEnvResolver.Name(), "diffkey")
 
 	suite.TearDownTest([]string{updateEnvResolver.Model.ID.String()})
+}
+
+func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
+	envInput := resolvers.EnvironmentInput{
+		Name:      "test",
+		Key:       "foo",
+		IsDefault: true,
+		Color:     "color",
+	}
+
+	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), envResolver.Key(), "foo")
+
+	envInput2 := resolvers.EnvironmentInput{
+		Name:      "test",
+		Key:       "foo2",
+		IsDefault: true,
+		Color:     "color",
+	}
+
+	envResolver2, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput2})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), envResolver2.IsDefault(), true)
+	assert.Equal(suite.T(), envResolver2.Key(), "foo2")
+
+	envInput.IsDefault = false
+	envId := envResolver.Model.ID.String()
+	envInput.ID = &envId
+
+	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), updateEnvResolver.IsDefault(), false)
+
+	// IsDefault SHOULD be ignored since it's the only default env left
+	envInput2.IsDefault = false
+	envId = envResolver2.Model.ID.String()
+	envInput2.ID = &envId
+
+	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput2})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), updateEnvResolver2.IsDefault(), true)
+
+	suite.TearDownTest([]string{envResolver.Model.ID.String(), envResolver2.Model.ID.String()})
 }
 
 func (suite *EnvironmentTestSuite) TearDownTest(ids []string) {
