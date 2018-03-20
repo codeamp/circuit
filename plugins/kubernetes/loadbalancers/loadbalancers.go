@@ -74,6 +74,7 @@ func (x *LoadBalancers) Process(e transistor.Event) error {
 	}
 
 	if err != nil {
+		event.Action = plugins.GetAction("status")
 		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State)
 		log.Debug(event.StateMessage)
