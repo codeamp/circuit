@@ -1024,6 +1024,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	}
 
 	// check if extension already exists with project
+	// ignore if the extension type is 'once' (installable many times)
 	if extension.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
 		projectExtension = ProjectExtension{
 			ExtensionID:   extension.Model.ID,
@@ -1033,6 +1034,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			State:         plugins.GetState("waiting"),
 			Artifacts:     postgres.Jsonb{},
 		}
+
 		r.DB.Save(&projectExtension)
 
 		unmarshalledConfig := make(map[string]interface{})
@@ -1071,33 +1073,109 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 }
 
 func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
-	var extension ProjectExtension
+	var projectExtension ProjectExtension
 
-	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&extension).RecordNotFound() {
+	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
 		return &ProjectExtensionResolver{}, nil
 	}
-	extension.Config = postgres.Jsonb{args.ProjectExtension.Config.RawMessage}
-	extension.State = plugins.GetState("waiting")
 
-	r.DB.Save(&extension)
+	extension := Extension{}
+	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+		log.InfoWithFields("no extension found", log.Fields{
+			"id": args.ProjectExtension.ExtensionID,
+		})
+		return nil, errors.New("No extension found.")
+	}
 
-	//r.ProjectExtensionUpdated(&extension)
+	project := Project{}
+	if r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).RecordNotFound() {
+		log.InfoWithFields("no project found", log.Fields{
+			"id": args.ProjectExtension.ProjectID,
+		})
+		return nil, errors.New("No project found.")
+	}
 
-	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension}, nil
+	env := Environment{}
+	if r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).RecordNotFound() {
+		log.InfoWithFields("no env found", log.Fields{
+			"id": args.ProjectExtension.EnvironmentID,
+		})
+		return nil, errors.New("No environment found.")
+	}
+
+	projectExtension.Config = postgres.Jsonb{args.ProjectExtension.Config.RawMessage}
+	projectExtension.State = plugins.GetState("waiting")
+
+	r.DB.Save(&projectExtension)
+
+	unmarshalledConfig := make(map[string]interface{})
+	err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	projectExtensionEvent := plugins.ProjectExtension{
+		ID:           projectExtension.Model.ID.String(),
+		Action:       plugins.GetAction("update"),
+		Slug:         extension.Key,
+		State:        plugins.GetState("waiting"),
+		StateMessage: "installation started",
+		Project: plugins.Project{
+			ID:         project.Model.ID.String(),
+			Slug:       project.Slug,
+			Repository: project.Repository,
+		},
+		Config:      config,
+		Artifacts:   map[string]interface{}{},
+		Environment: env.Name,
+	}
+
+	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+
+	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 }
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
-	var extension ProjectExtension
+	var projectExtension ProjectExtension
 	var res []ReleaseExtension
 
-	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&extension).RecordNotFound() {
+	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
 		return &ProjectExtensionResolver{}, nil
+	}
+
+	extension := Extension{}
+	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+		log.InfoWithFields("no extension found", log.Fields{
+			"id": args.ProjectExtension.ExtensionID,
+		})
+		return nil, errors.New("No extension found.")
+	}
+
+	project := Project{}
+	if r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).RecordNotFound() {
+		log.InfoWithFields("no project found", log.Fields{
+			"id": args.ProjectExtension.ProjectID,
+		})
+		return nil, errors.New("No project found.")
+	}
+
+	env := Environment{}
+	if r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).RecordNotFound() {
+		log.InfoWithFields("no env found", log.Fields{
+			"id": args.ProjectExtension.EnvironmentID,
+		})
+		return nil, errors.New("No environment found.")
 	}
 
 	// delete all release extension objects with extension id
@@ -1112,11 +1190,38 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 		r.DB.Delete(&re)
 	}
 
-	r.DB.Delete(&extension)
+	r.DB.Delete(&projectExtension)
 
-	//r.ProjectExtensionDeleted(&extension)
+	unmarshalledConfig := make(map[string]interface{})
+	err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
+	if err != nil {
+		log.Info(err.Error())
+	}
 
-	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension}, nil
+	config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	projectExtensionEvent := plugins.ProjectExtension{
+		ID:           projectExtension.Model.ID.String(),
+		Action:       plugins.GetAction("destroy"),
+		Slug:         extension.Key,
+		State:        plugins.GetState("waiting"),
+		StateMessage: "deleting extension",
+		Project: plugins.Project{
+			ID:         project.Model.ID.String(),
+			Slug:       project.Slug,
+			Repository: project.Repository,
+		},
+		Config:      config,
+		Artifacts:   map[string]interface{}{},
+		Environment: env.Name,
+	}
+
+	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+
+	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 }
 
 // UpdateUserPermissions
