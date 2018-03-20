@@ -277,6 +277,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	kubeconfig, err := utils.SetupKubeConfig(payload.Config, "KUBERNETESDEPLOYMENTS_")
 	if err != nil {
 		ca_log.Info(err.Error())
+		x.sendDDErrorResponse(e, reData.Release.Services, "failed writing kubeconfig")
 		return err
 	}
 
@@ -288,14 +289,16 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		config, err = clientcmd.BuildConfigFromFlags("", "")
 		if err != nil {
 			log.Printf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err)
-			return nil
+			x.sendDDErrorResponse(e, reData.Release.Services, "failed writing kubeconfig")
+			return err
 		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Println("Error getting cluster config.  Aborting!")
-		return nil
+		x.sendDDErrorResponse(e, reData.Release.Services, err.Error())
+		return err
 	}
 
 	x.sendDDInProgress(e, reData.Release.Services, "Deploy in-progress")
@@ -314,13 +317,13 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
 		x.sendDDErrorResponse(e, reData.Release.Services, createNamespaceErr.Error())
-		return nil
+		return createNamespaceErr
 	}
 
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, coreInterface, e)
 	if createDockerIOSecretErr != nil {
 		x.sendDDErrorResponse(e, reData.Release.Services, createDockerIOSecretErr.Error())
-		return nil
+		return createDockerIOSecretErr
 	}
 	// Create secrets for this deploy
 	var secretMap map[string]string
@@ -353,7 +356,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	if secErr != nil {
 		failMessage := fmt.Sprintf("Error '%s' creating secret %s", secErr, projectSlug)
 		x.sendDDErrorResponse(e, reData.Release.Services, failMessage)
-		return nil
+		return fmt.Errorf(failMessage)
 	}
 	secretName := secretResult.Name
 	log.Printf("Secrets created: %s", secretName)
@@ -420,7 +423,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	// Validate we have some services to deploy
 	if len(reData.Release.Services) == 0 {
 		x.sendDDErrorResponse(e, reData.Release.Services, "ERROR: Zero services were found in the deploy message.")
-		return nil
+		return fmt.Errorf("ERROR: Zero services were found in the deploy message.")
 	}
 
 	// Codeflow docker building container requires docker socket.
@@ -473,7 +476,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 					oneShotServices[index].State = plugins.GetState("failed")
 					oneShotServices[index].StateMessage = fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
 					x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
-					return nil
+					return fmt.Errorf(oneShotServices[index].StateMessage)
 				}
 			}
 
@@ -590,7 +593,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				oneShotServices[index].State = plugins.GetState("failed")
 				oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
 				x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
-				return nil
+				return fmt.Errorf(oneShotServices[index].StateMessage)
 			}
 
 			if job.Status.Active == int32(0) {
@@ -603,7 +606,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 					oneShotServices[index].State = plugins.GetState("failed")
 					oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
 					x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
-					return nil
+					return fmt.Errorf(oneShotServices[index].StateMessage)
 				}
 			}
 
@@ -620,7 +623,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 						oneShotServices[index].State = plugins.GetState("failed")
 						oneShotServices[index].StateMessage = fmt.Sprintf(message)
 						x.sendDDErrorResponse(e, oneShotServices, message)
-						return nil
+						return fmt.Errorf(message)
 					}
 				}
 			}
@@ -786,7 +789,8 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				deploymentServices[index].StateMessage = fmt.Sprintf("Error creating deployment: %s", myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
-				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError))
+				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
+				return myError
 			}
 		} else {
 			// Deployment exists, update deployment with new configuration
@@ -797,7 +801,8 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				deploymentServices[index].StateMessage = fmt.Sprintf("Failed to update deployment %s, with error: %s", deploymentName, myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
-				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError))
+				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
+				return myError
 			}
 		}
 
@@ -873,7 +878,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 									servicesPayload = setFailServices(deploymentServices)
 									log.Println(message)
 									x.sendDDErrorResponse(e, append(servicesPayload, oneShotServices...), message)
-									return nil
+									return fmt.Errorf(message)
 								}
 							}
 						}
@@ -890,7 +895,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				log.Printf(errMsg)
 				servicesPayload := setFailServices(deploymentServices)
 				x.sendDDErrorResponse(e, append(servicesPayload, oneShotServices...), errMsg)
-				return nil
+				return fmt.Errorf(errMsg)
 			}
 			time.Sleep(5 * time.Second)
 			curTime += 5
@@ -958,14 +963,14 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	repSets, repErr := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{})
 	if repErr != nil {
 		log.Printf("Error retrieving list of replicasets for %s", namespace)
-		return nil
+		return repErr
 	}
 
 	// Preload list of all pods
 	allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
 	if podErr != nil {
 		log.Printf("Error retrieving list of pods for %s", namespace)
-		return nil
+		return podErr
 	}
 
 	// Delete the deployments

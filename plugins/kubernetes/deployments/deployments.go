@@ -4,6 +4,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 )
 
 type Deployments struct {
@@ -65,6 +66,7 @@ func (x *Deployments) Process(e transistor.Event) error {
 	event.StateMessage = "Completed"
 
 	err := x.doDeploy(e)
+	spew.Dump(err)
 	if err != nil {
 		event.Action = plugins.GetAction("status")
 		event.State = plugins.GetState("failed")
