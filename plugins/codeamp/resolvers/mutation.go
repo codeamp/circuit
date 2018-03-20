@@ -1061,7 +1061,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			},
 			Config:      config,
 			Artifacts:   map[string]interface{}{},
-			Environment: env.Name,
+			Environment: env.Key,
 		}
 
 		r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
@@ -1135,7 +1135,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 		},
 		Config:      config,
 		Artifacts:   map[string]interface{}{},
-		Environment: env.Name,
+		Environment: env.Key,
 	}
 
 	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
@@ -1216,7 +1216,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 		},
 		Config:      config,
 		Artifacts:   map[string]interface{}{},
-		Environment: env.Name,
+		Environment: env.Key,
 	}
 
 	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
