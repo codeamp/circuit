@@ -1,6 +1,7 @@
 package codeamp_resolvers_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -39,9 +40,44 @@ func (suite *ProjectTestSuite) SetupTest() {
 	db.AutoMigrate(
 		&resolvers.Project{},
 		&resolvers.ProjectPermission{},
+		&resolvers.UserPermission{},
+		&resolvers.ProjectSettings{},
 		&resolvers.Environment{},
 	)
 	suite.Resolver = &resolvers.Resolver{DB: db}
+}
+
+func (suite *ProjectTestSuite) TestCreateProject() {
+	// setup
+	env := resolvers.Environment{
+		Name:      "dev",
+		Color:     "purple",
+		Key:       "dev",
+		IsDefault: true,
+	}
+	suite.Resolver.DB.Create(&env)
+
+	projectInput := resolvers.ProjectInput{
+		GitProtocol:   "HTTPS",
+		GitUrl:        "https://github.com/foo/goo.git",
+		EnvironmentID: env.Model.ID.String(),
+	}
+	authContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+		UserID:      "foo",
+		Email:       "foo@gmail.com",
+		Permissions: []string{"admin"},
+	})
+
+	createProjectResolver, err := suite.Resolver.CreateProject(authContext, &struct {
+		Project *resolvers.ProjectInput
+	}{Project: &projectInput})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	// assert permissions exist for dev env
+	assert.Equal(suite.T(), createProjectResolver.Permissions(), []string{env.Model.ID.String()})
+	suite.TearDownTest([]string{string(createProjectResolver.ID())})
 }
 
 /* Test successful project permissions update */
@@ -60,9 +96,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectPermissions() {
 	suite.Resolver.DB.Create(&project)
 
 	env := resolvers.Environment{
-		Name:  "dev",
-		Color: "purple",
-		Key:   "dev",
+		Name:      "dev",
+		Color:     "purple",
+		Key:       "dev",
+		IsDefault: true,
 	}
 	suite.Resolver.DB.Create(&env)
 
@@ -109,10 +146,15 @@ func (suite *ProjectTestSuite) TestUpdateProjectPermissions() {
 
 	assert.Equal(suite.T(), 0, len(projectPermissions))
 
-	suite.TearDownTest()
+	deleteIds := []string{project.Model.ID.String()}
+	for _, projectPermission := range projectPermissions {
+		deleteIds = append(deleteIds, projectPermission.Model.ID.String())
+	}
+
+	suite.TearDownTest(deleteIds)
 }
 
-func (suite *ProjectTestSuite) TearDownTest() {
+func (suite *ProjectTestSuite) TearDownTest(ids []string) {
 	suite.Resolver.DB.Delete(&resolvers.Project{})
 	suite.Resolver.DB.Delete(&resolvers.ProjectPermission{})
 	suite.Resolver.DB.Delete(&resolvers.Environment{})

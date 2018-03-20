@@ -385,6 +385,22 @@ func (x *CodeAmp) Migrate() {
 				return db.Model(&resolvers.Environment{}).DropColumn("key").Error
 			},
 		},
+		// add is_default attribute to environment
+		{
+			ID: "201803191507",
+			Migrate: func(tx *gorm.DB) error {
+				var environments []resolvers.Environment
+				db.Find(&environments)
+				for _, env := range environments {
+					env.IsDefault = true
+					db.Save(&env)
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return db.Model(&resolvers.Environment{}).DropColumn("is_default").Error
+			},
+		},
 	})
 
 	if err = m.Migrate(); err != nil {
