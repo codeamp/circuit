@@ -45,7 +45,7 @@ func (x *CodeAmp) Migrate() {
 		&resolvers.SecretValue{},
 		&resolvers.ReleaseExtension{},
 		&resolvers.Environment{},
-		&resolvers.ProjectPermission{},
+		&resolvers.ProjectEnvironment{},
 	)
 
 	m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
@@ -337,7 +337,7 @@ func (x *CodeAmp) Migrate() {
 				return db.Delete(&resolvers.Extension{}).Error
 			},
 		},
-		// create ProjectPermissions
+		// create ProjectEnvironments
 		{
 			ID: "201803081647",
 			Migrate: func(tx *gorm.DB) error {
@@ -355,7 +355,7 @@ func (x *CodeAmp) Migrate() {
 
 				for _, env := range envs {
 					for _, project := range projects {
-						db.FirstOrCreate(&resolvers.ProjectPermission{
+						db.FirstOrCreate(&resolvers.ProjectEnvironment{
 							EnvironmentID: env.Model.ID,
 							ProjectID:     project.Model.ID,
 						})
@@ -364,7 +364,7 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.DropTable(&resolvers.ProjectPermission{}).Error
+				return db.DropTable(&resolvers.ProjectEnvironment{}).Error
 			},
 		},
 		// add key attribute to environment

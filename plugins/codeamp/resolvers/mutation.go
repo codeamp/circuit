@@ -110,9 +110,9 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 			ProjectID:     project.Model.ID,
 			GitBranch:     "master",
 		})
-		// Create ProjectPermission rows for default envs
+		// Create ProjectEnvironment rows for default envs
 		if env.IsDefault {
-			r.DB.Create(&ProjectPermission{
+			r.DB.Create(&ProjectEnvironment{
 				EnvironmentID: env.Model.ID,
 				ProjectID:     project.Model.ID,
 			})
@@ -189,7 +189,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	var projectExtensionsJsonb postgres.Jsonb
 
 	// Check if project can create release in environment
-	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create release in given environment")
 	}
 
@@ -515,7 +515,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 // CreateService Create service
 func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
 	// Check if project can create service in environment
-	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create service in given environment")
 	}
 
@@ -745,8 +745,6 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 
 		r.DB.Save(&existingEnv)
 
-		//r.EnvironmentUpdated(&existingEnv)
-
 		return &EnvironmentResolver{DB: r.DB, Environment: existingEnv}, nil
 	}
 }
@@ -802,7 +800,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *Secre
 
 	if args.Secret.ProjectID != nil {
 		// Check if project can create secret
-		if r.DB.Where("environment_id = ? and project_id = ?", args.Secret.EnvironmentID, args.Secret.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+		if r.DB.Where("environment_id = ? and project_id = ?", args.Secret.EnvironmentID, args.Secret.ProjectID).Find(&ProjectEnvironment{}).RecordNotFound() {
 			return nil, errors.New("Project not allowed to create secret in given environment")
 		}
 
@@ -995,7 +993,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	var projectExtension ProjectExtension
 
 	// Check if project can create project extension in environment
-	if r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&ProjectPermission{}).RecordNotFound() {
+	if r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to install extensions in given environment")
 	}
 
@@ -1255,32 +1253,32 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 	return results, nil
 }
 
-// UpdateProjectPermissions
-func (r *Resolver) UpdateProjectPermissions(ctx context.Context, args *struct{ ProjectPermissions *ProjectPermissionsInput }) ([]string, error) {
-	var results []string
+// UpdateProjectEnvironments
+func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct{ ProjectEnvironments *ProjectEnvironmentsInput }) ([]*EnvironmentResolver, error) {
+	var results []*EnvironmentResolver
 
 	project := Project{}
-	if r.DB.Where("id = ?", args.ProjectPermissions.ProjectID).Find(&project).RecordNotFound() {
-		return []string{}, errors.New("No project found with inputted projectID")
+	if r.DB.Where("id = ?", args.ProjectEnvironments.ProjectID).Find(&project).RecordNotFound() {
+		return nil, errors.New("No project found with inputted projectID")
 	}
 
-	for _, permission := range args.ProjectPermissions.Permissions {
+	for _, permission := range args.ProjectEnvironments.Permissions {
 		// Check if environment object exists
 		environment := Environment{}
 		if r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment).RecordNotFound() {
-			return []string{}, errors.New(fmt.Sprintf("No environment found for environmentID %s", permission.EnvironmentID))
+			return nil, errors.New(fmt.Sprintf("No environment found for environmentID %s", permission.EnvironmentID))
 		}
 
 		if permission.Grant {
-			// Grant permission by adding ProjectPermission row
-			projectPermission := ProjectPermission{
+			// Grant permission by adding ProjectEnvironment row
+			projectEnvironment := ProjectEnvironment{
 				EnvironmentID: environment.Model.ID,
 				ProjectID:     project.Model.ID,
 			}
-			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectPermission)
-			results = append(results, environment.Model.ID.String())
+			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectEnvironment)
+			results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
 		} else {
-			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&ProjectPermission{})
+			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&ProjectEnvironment{})
 		}
 	}
 

@@ -154,14 +154,14 @@ type PermissionInput struct {
 	Grant bool   `json:"grant"`
 }
 
-// ProjectPermissionInput
-type ProjectPermissionInput struct {
+// ProjectEnvironmentInput
+type ProjectEnvironmentInput struct {
 	EnvironmentID string `json:"environmentID"`
 	Grant         bool   `json:"grant"`
 }
 
-// ProjectPermissionsInput
-type ProjectPermissionsInput struct {
-	ProjectID   string                   `json:"projectID"`
-	Permissions []ProjectPermissionInput `json:"permissions"`
+// ProjectEnvironmentsInput
+type ProjectEnvironmentsInput struct {
+	ProjectID   string                    `json:"projectID"`
+	Permissions []ProjectEnvironmentInput `json:"permissions"`
 }
