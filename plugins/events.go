@@ -181,7 +181,7 @@ type HeartBeat struct {
 type WebsocketMsg struct {
 	Channel string      `json:"channel"`
 	Event   string      `json:"event"`
-	Payload interface{} `json:"data"`
+	Payload interface{} `json:"data" role:"secret"`
 }
 
 type ReleaseExtension struct {
@@ -192,8 +192,8 @@ type ReleaseExtension struct {
 	StateMessage string                 `json:"stateMessage"`
 	Project      Project                `json:"project"`
 	Release      Release                `json:"release"`
-	Config       map[string]interface{} `json:"config"`
-	Artifacts    map[string]interface{} `json:"artifacts"`
+	Config       map[string]interface{} `json:"config" role:"secret"`
+	Artifacts    map[string]interface{} `json:"artifacts" role:"secret"`
 	Environment  string                 `json:"environment"`
 }
 
@@ -204,8 +204,8 @@ type ProjectExtension struct {
 	State        State                  `json:"state"`
 	StateMessage string                 `json:"stateMessage"`
 	Project      Project                `json:"project"`
-	Config       map[string]interface{} `json:"config"`
-	Artifacts    map[string]interface{} `json:"artifacts"`
+	Config       map[string]interface{} `json:"config" role:"secret"`
+	Artifacts    map[string]interface{} `json:"artifacts" role:"secret"`
 	Environment  string                 `json:"environment"`
 }
 
@@ -220,8 +220,8 @@ type Release struct {
 	User         string                 `json:"user"`
 	TailFeature  Feature                `json:"tailFeature"`
 	Services     []Service              `json:"services"`
-	Secrets      []Secret               `json:"secrets"`
-	Artifacts    map[string]interface{} `json:"artifacts"`
+	Secrets      []Secret               `json:"secrets" role:"secret"`
+	Artifacts    map[string]interface{} `json:"artifacts" role:"secret"`
 	Environment  string                 `json:"environment"`
 }
 
