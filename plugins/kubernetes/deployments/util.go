@@ -101,40 +101,38 @@ func secretifyDockerCred(e transistor.Event) (string, error) {
 	return jsonFilled, nil
 }
 
-func (x *Deployments) createDockerIOSecretIfNotExists(namespace string, coreInterface corev1.CoreV1Interface, e transistor.Event) error {
+func (x *Deployments) createDockerIOSecret(namespace string, coreInterface corev1.CoreV1Interface, e transistor.Event) error {
 	// Load up the docker-io secrets for image pull if not exists
 	_, dockerIOSecretErr := coreInterface.Secrets(namespace).Get("docker-io", meta_v1.GetOptions{})
 	if dockerIOSecretErr != nil {
-		if errors.IsNotFound(dockerIOSecretErr) {
-			log.Printf("docker-io secret not found for %s, creating.", namespace)
-			dockerCred, err := secretifyDockerCred(e)
-			if err != nil {
-				log.Printf("Error '%s' creating docker-io secret for %s.", err, namespace)
-				return err
-			}
-			secretMap := map[string]string{
-				".dockercfg": dockerCred,
-			}
-			_, createDockerIOSecretErr := coreInterface.Secrets(namespace).Create(&v1.Secret{
-				TypeMeta: meta_v1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
-				ObjectMeta: meta_v1.ObjectMeta{
-					Name:      "docker-io",
-					Namespace: namespace,
-				},
-				StringData: secretMap,
-				Type:       v1.SecretTypeDockercfg,
-			})
-			if createDockerIOSecretErr != nil {
-				log.Printf("Error '%s' creating docker-io secret for %s.", createDockerIOSecretErr, namespace)
-				return createDockerIOSecretErr
-			}
-		} else {
-			log.Printf("Error unhandled '%s' while attempting to lookup docker-io secret.", dockerIOSecretErr)
-			return dockerIOSecretErr
+		log.Printf("docker-io secret not found for %s, creating.", namespace)
+		dockerCred, err := secretifyDockerCred(e)
+		if err != nil {
+			log.Printf("Error '%s' creating docker-io secret for %s.", err, namespace)
+			return err
 		}
+		secretMap := map[string]string{
+			".dockercfg": dockerCred,
+		}
+		_, createDockerIOSecretErr := coreInterface.Secrets(namespace).Create(&v1.Secret{
+			TypeMeta: meta_v1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: meta_v1.ObjectMeta{
+				Name:      "docker-io",
+				Namespace: namespace,
+			},
+			StringData: secretMap,
+			Type:       v1.SecretTypeDockercfg,
+		})
+		if createDockerIOSecretErr != nil {
+			log.Printf("Error '%s' creating docker-io secret for %s.", createDockerIOSecretErr, namespace)
+			return createDockerIOSecretErr
+		}
+	} else {
+		log.Printf("Error unhandled '%s' while attempting to lookup docker-io secret.", dockerIOSecretErr)
+		return dockerIOSecretErr
 	}
 	return nil
 }
@@ -320,7 +318,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		return createNamespaceErr
 	}
 
-	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, coreInterface, e)
+	createDockerIOSecretErr := x.createDockerIOSecret(namespace, coreInterface, e)
 	if createDockerIOSecretErr != nil {
 		x.sendDDErrorResponse(e, reData.Release.Services, createDockerIOSecretErr.Error())
 		return createDockerIOSecretErr
