@@ -39,7 +39,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 	}
 	db.AutoMigrate(
 		&resolvers.Project{},
-		&resolvers.ProjectPermission{},
+		&resolvers.ProjectEnvironment{},
 		&resolvers.UserPermission{},
 		&resolvers.ProjectSettings{},
 		&resolvers.Environment{},
@@ -81,7 +81,7 @@ func (suite *ProjectTestSuite) TestCreateProject() {
 }
 
 /* Test successful project permissions update */
-func (suite *ProjectTestSuite) TestUpdateProjectPermissions() {
+func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	// setup
 	project := resolvers.Project{
 		Name:          "foo",
@@ -103,52 +103,52 @@ func (suite *ProjectTestSuite) TestUpdateProjectPermissions() {
 	}
 	suite.Resolver.DB.Create(&env)
 
-	projectPermissionsInput := resolvers.ProjectPermissionsInput{
+	projectEnvironmentsInput := resolvers.ProjectEnvironmentsInput{
 		ProjectID: project.Model.ID.String(),
-		Permissions: []resolvers.ProjectPermissionInput{
-			resolvers.ProjectPermissionInput{
+		Permissions: []resolvers.ProjectEnvironmentInput{
+			resolvers.ProjectEnvironmentInput{
 				EnvironmentID: env.Model.ID.String(),
 				Grant:         true,
 			},
 		},
 	}
 
-	updateProjectPermissionsResp, err := suite.Resolver.UpdateProjectPermissions(nil, &struct {
-		ProjectPermissions *resolvers.ProjectPermissionsInput
-	}{ProjectPermissions: &projectPermissionsInput})
+	updateProjectEnvironmentsResp, err := suite.Resolver.UpdateProjectEnvironments(nil, &struct {
+		ProjectEnvironments *resolvers.ProjectEnvironmentsInput
+	}{ProjectEnvironments: &projectEnvironmentsInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	// check if env is found in response
-	assert.Equal(suite.T(), 1, len(updateProjectPermissionsResp))
-	assert.Equal(suite.T(), env.Model.ID.String(), updateProjectPermissionsResp[0])
+	assert.Equal(suite.T(), 1, len(updateProjectEnvironmentsResp))
+	assert.Equal(suite.T(), env.Model.ID.String(), updateProjectEnvironmentsResp[0])
 
-	projectPermissions := []resolvers.ProjectPermission{}
-	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectPermissions)
+	projectEnvironments := []resolvers.ProjectEnvironment{}
+	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)
 
-	assert.Equal(suite.T(), 1, len(projectPermissions))
-	assert.Equal(suite.T(), env.Model.ID.String(), projectPermissions[0].EnvironmentID.String())
+	assert.Equal(suite.T(), 1, len(projectEnvironments))
+	assert.Equal(suite.T(), env.Model.ID.String(), projectEnvironments[0].EnvironmentID.String())
 
 	// take away access
-	projectPermissionsInput.Permissions[0].Grant = false
-	updateProjectPermissionsResp, err = suite.Resolver.UpdateProjectPermissions(nil, &struct {
-		ProjectPermissions *resolvers.ProjectPermissionsInput
-	}{ProjectPermissions: &projectPermissionsInput})
+	projectEnvironmentsInput.Permissions[0].Grant = false
+	updateProjectEnvironmentsResp, err = suite.Resolver.UpdateProjectEnvironments(nil, &struct {
+		ProjectEnvironments *resolvers.ProjectEnvironmentsInput
+	}{ProjectEnvironments: &projectEnvironmentsInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	assert.Equal(suite.T(), 0, len(updateProjectPermissionsResp))
+	assert.Equal(suite.T(), 0, len(updateProjectEnvironmentsResp))
 
-	projectPermissions = []resolvers.ProjectPermission{}
-	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectPermissions)
+	projectEnvironments = []resolvers.ProjectEnvironment{}
+	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)
 
-	assert.Equal(suite.T(), 0, len(projectPermissions))
+	assert.Equal(suite.T(), 0, len(projectEnvironments))
 
 	deleteIds := []string{project.Model.ID.String()}
-	for _, projectPermission := range projectPermissions {
-		deleteIds = append(deleteIds, projectPermission.Model.ID.String())
+	for _, projectEnvironment := range projectEnvironments {
+		deleteIds = append(deleteIds, projectEnvironment.Model.ID.String())
 	}
 
 	suite.TearDownTest(deleteIds)
@@ -156,7 +156,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectPermissions() {
 
 func (suite *ProjectTestSuite) TearDownTest(ids []string) {
 	suite.Resolver.DB.Delete(&resolvers.Project{})
-	suite.Resolver.DB.Delete(&resolvers.ProjectPermission{})
+	suite.Resolver.DB.Delete(&resolvers.ProjectEnvironment{})
 	suite.Resolver.DB.Delete(&resolvers.Environment{})
 }
 
