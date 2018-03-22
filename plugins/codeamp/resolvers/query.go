@@ -8,6 +8,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	graphql "github.com/neelance/graphql-go"
+	uuid "github.com/satori/go.uuid"
 )
 
 // User
@@ -69,14 +70,6 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	var environment Environment
 	var query *gorm.DB
 
-	// get environment
-	if r.DB.Where("id = ?", *args.EnvironmentID).Find(&environment).RecordNotFound() {
-		log.InfoWithFields("Environment doesn't exist.", log.Fields{
-			"args": args,
-		})
-		return nil, fmt.Errorf("Environment doesn't exist.")
-	}
-
 	if args.ID != nil {
 		query = r.DB.Where("id = ?", *args.ID)
 	} else if args.Slug != nil {
@@ -89,6 +82,32 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 
 	if err := query.First(&project).Error; err != nil {
 		return nil, err
+	}
+
+	if args.EnvironmentID == nil {
+		return nil, fmt.Errorf("Missing environment id")
+	}
+
+	environmentID, err := uuid.FromString(*args.EnvironmentID)
+	if err != nil {
+		return nil, fmt.Errorf("Environment ID should be of type uuid")
+	}
+
+	// check if project has permissions to requested environment
+	var permission ProjectEnvironment
+	if r.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
+		log.InfoWithFields("Environment not found", log.Fields{
+			"args": args,
+		})
+		return nil, fmt.Errorf("Environment not found")
+	}
+
+	// get environment
+	if r.DB.Where("id = ?", *args.EnvironmentID).Find(&environment).RecordNotFound() {
+		log.InfoWithFields("Environment not found", log.Fields{
+			"args": args,
+		})
+		return nil, fmt.Errorf("Environment not found")
 	}
 
 	return &ProjectResolver{DB: r.DB, Project: project, Environment: environment}, nil

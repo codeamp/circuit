@@ -19,6 +19,7 @@ import (
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
+	graphql "github.com/neelance/graphql-go"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/ssh"
 )
@@ -164,9 +165,22 @@ func (r *Resolver) UpdateProject(args *struct {
 	}
 
 	if args.Project.GitBranch != nil {
+		projectID, err := uuid.FromString(*args.Project.ID)
+		if err != nil {
+			return &ProjectResolver{}, fmt.Errorf("Couldn't parse project ID")
+		}
+
+		environmentID, err := uuid.FromString(args.Project.EnvironmentID)
+		if err != nil {
+			return &ProjectResolver{}, fmt.Errorf("Couldn't parse environment ID")
+		}
+
 		var projectSettings ProjectSettings
-		if r.DB.Where("environment_id = ? and project_id = ?", args.Project.EnvironmentID, args.Project.ID).First(&projectSettings).RecordNotFound() {
-			log.InfoWithFields("Project settings not found", log.Fields{})
+		if r.DB.Where("environment_id = ? and project_id = ?", environmentID, projectID).First(&projectSettings).RecordNotFound() {
+			projectSettings.EnvironmentID = environmentID
+			projectSettings.ProjectID = projectID
+			projectSettings.GitBranch = *args.Project.GitBranch
+			r.DB.Save(&projectSettings)
 		} else {
 			projectSettings.GitBranch = *args.Project.GitBranch
 			r.DB.Save(&projectSettings)
@@ -1283,6 +1297,37 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct{ 
 	}
 
 	return results, nil
+}
+
+func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql.ID }) (bool, error) {
+	var projectBookmark ProjectBookmark
+
+	_userID, err := CheckAuth(ctx, []string{})
+	if err != nil {
+		return false, err
+	}
+
+	userID, err := uuid.FromString(_userID)
+	if err != nil {
+		return false, err
+	}
+
+	projectID, err := uuid.FromString(string(args.ID))
+	if err != nil {
+		return false, err
+	}
+
+	if r.DB.Where("user_id = ? AND project_id = ?", userID, projectID).First(&projectBookmark).RecordNotFound() {
+		projectBookmark = ProjectBookmark{
+			UserID:    userID,
+			ProjectID: projectID,
+		}
+		r.DB.Save(&projectBookmark)
+		return true, nil
+	} else {
+		r.DB.Delete(&projectBookmark)
+		return false, nil
+	}
 }
 
 /* fills in Config by querying config ids and getting the actual value */

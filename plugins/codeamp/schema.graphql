@@ -86,6 +86,8 @@ type Mutation {
   updateUserPermissions(userPermissions: UserPermissionsInput): [String!]!
   # Update project environments
   updateProjectEnvironments(projectEnvironments: ProjectEnvironmentsInput): [Environment!]!
+  # Bookmark project
+  bookmarkProject(id: ID!): Boolean!
 }
 
 # User
@@ -193,6 +195,7 @@ type Project {
   extensions: [ProjectExtension]!
   gitBranch: String!
   environments: [Environment!]!
+  bookmarked: Boolean!
   created: Time!
 }
 
