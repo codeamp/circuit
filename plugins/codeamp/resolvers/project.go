@@ -37,9 +37,9 @@ type Project struct {
 type ProjectSettings struct {
 	Model `json:"inline"`
 	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// ProjectID
-	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
+	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
 	// GitBranch
 	GitBranch string `json:"gitBranch"`
 }
@@ -48,9 +48,18 @@ type ProjectSettings struct {
 type ProjectEnvironment struct {
 	Model `json:"inline"`
 	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// ProjectID
-	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
+	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
+}
+
+// ProjectEnvironment
+type ProjectBookmark struct {
+	Model `json:"inline"`
+	// UserID
+	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
+	// ProjectID
+	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
 }
 
 // ProjectResolver resolver for Project
@@ -215,6 +224,22 @@ func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	}
 
 	return results
+}
+
+// Bookmarked
+func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
+	var userID string
+	var err error
+
+	if userID, err = CheckAuth(ctx, []string{}); err != nil {
+		return false
+	}
+
+	if r.DB.Where("project_id = ? and user_id = ?", r.Project.Model.ID.String(), userID).First(&ProjectBookmark{}).RecordNotFound() {
+		return false
+	} else {
+		return true
+	}
 }
 
 // Created
