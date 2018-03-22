@@ -46,6 +46,7 @@ func (x *CodeAmp) Migrate() {
 		&resolvers.ReleaseExtension{},
 		&resolvers.Environment{},
 		&resolvers.ProjectEnvironment{},
+		&resolvers.ProjectBookmark{},
 	)
 
 	m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
