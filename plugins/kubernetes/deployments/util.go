@@ -105,7 +105,7 @@ func (x *Deployments) createDockerIOSecret(namespace string, coreInterface corev
 	// Load up the docker-io secrets for image pull if not exists
 	_, dockerIOSecretErr := coreInterface.Secrets(namespace).Get("docker-io", meta_v1.GetOptions{})
 	if dockerIOSecretErr != nil {
-		log.Printf("docker-io secret not found for %s, creating.", namespace)
+		log.Printf("creating docker-io secret.", namespace)
 		dockerCred, err := secretifyDockerCred(e)
 		if err != nil {
 			log.Printf("Error '%s' creating docker-io secret for %s.", err, namespace)
