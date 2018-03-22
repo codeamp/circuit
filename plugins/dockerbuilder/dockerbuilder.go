@@ -292,8 +292,8 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	// repoPath := fmt.Sprintf("%s/%s_%s", event.Release.Git.Workdir, event.Release.Project.Repository, event.Release.Git.Branch)
 	repoPath := fmt.Sprintf("%s", event.Release.Project.Repository)
 
-	buf := bytes.NewBuffer(nil)
-	buildlog := io.MultiWriter(buf, os.Stdout)
+	buildlogBuf := bytes.NewBuffer(nil)
+	buildlog := io.MultiWriter(buildlogBuf, os.Stdout)
 
 	err = x.bootstrap(repoPath, event)
 	if err != nil {
@@ -309,7 +309,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		log.Debug(err)
 		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
-		//event.BuildLog = buildlog.String()
+		event.Artifacts["BUILD_LOG"] = buildlogBuf.String()
 		x.events <- e.NewEvent(event, nil)
 		return err
 	}
@@ -319,7 +319,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		log.Debug(err)
 		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
-		// event.BuildLog = buildlog.String()
+		event.Artifacts["BUILD_LOG"] = buildlogBuf.String()
 		x.events <- e.NewEvent(event, nil)
 		return err
 	}
@@ -330,6 +330,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	event.Artifacts["PASSWORD"] = event.Config["DOCKERBUILDER_PASSWORD"].(string)
 	event.Artifacts["EMAIL"] = event.Config["DOCKERBUILDER_EMAIL"].(string)
 	event.Artifacts["HOST"] = event.Config["DOCKERBUILDER_HOST"].(string)
+	event.Artifacts["BUILD_LOG"] = buildlogBuf.String()
 	event.StateMessage = "Completed"
 	// event.BuildLog = buildlog.String()
 	x.events <- e.NewEvent(event, nil)
