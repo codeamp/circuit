@@ -1,6 +1,7 @@
 package transistor
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -21,11 +22,18 @@ type Event struct {
 	Error        error       `json:"error"`
 	CreatedAt    time.Time   `json:"createdAt"`
 	Caller       Caller      `json:"caller"`
+	Artifacts    []Artifact  `json:"artifacts"`
 }
 
 type Caller struct {
 	File       string `json:"file"`
 	LineNumber int    `json:"line_number"`
+}
+
+type Artifact struct {
+	Key    string      `json:"key"`
+	Value  interface{} `json:"value"`
+	Secret bool        `json:"secret"`
 }
 
 func name(payload interface{}) string {
@@ -126,4 +134,23 @@ func (e *Event) Matches(name string) bool {
 	})
 
 	return false
+}
+
+func (e *Event) AddArtifact(key string, value interface{}, secret bool) {
+	artifact := Artifact{
+		Key:    key,
+		Value:  value,
+		Secret: secret,
+	}
+	e.Artifacts = append(e.Artifacts, artifact)
+}
+
+func (e *Event) GetArtifact(key string) (Artifact, error) {
+	for _, artifact := range e.Artifacts {
+		if artifact.Key == key {
+			return artifact, nil
+		}
+	}
+
+	return Artifact{}, errors.New("Artifact not found")
 }

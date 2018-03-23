@@ -53,8 +53,8 @@
     "service/route53",
     "service/sts"
   ]
-  revision = "c0ea8ae46aeed5902eeebe10d0d5cdf54b258526"
-  version = "v1.13.19"
+  revision = "c8c4e0c0514d87f930c1342fef390db5329928b7"
+  version = "v1.13.20"
 
 [[projects]]
   name = "github.com/bitly/go-simplejson"
@@ -78,7 +78,7 @@
   branch = "master"
   name = "github.com/codeamp/transistor"
   packages = ["."]
-  revision = "d16e66c6916a4ebad2f5d1b6a026d2e56a084f83"
+  revision = "1feb2391f8dcc1c0ddf2b03258fd85c01bd9070b"
 
 [[projects]]
   branch = "master"
@@ -128,7 +128,7 @@
     "pkg/term",
     "pkg/term/windows"
   ]
-  revision = "2e3056128cc839b5fdee8edeb651f4ecc244db78"
+  revision = "5f17312653c3e4dc5474f86692b09f06262a1ebd"
 
 [[projects]]
   name = "github.com/docker/go-connections"
