@@ -721,32 +721,11 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 				log.Info(err.Error())
 			}
 
-			eventAction := plugins.GetAction("create")
-			eventState := plugins.GetState("waiting")
-			artifacts := map[string]interface{}{}
-
-			// check if the last release extension has the same
-			// ServicesSignature and SecretsSignature. If so,
-			// mark the action as completed before sending the event
-			lastReleaseExtension := resolvers.ReleaseExtension{}
-
-			x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature,
-				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension)
-
-			if lastReleaseExtension.Model.ID.String() != "" {
-				eventAction = plugins.GetAction("status")
-				eventState = lastReleaseExtension.State
-				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-				if err != nil {
-					log.Info(err.Error())
-				}
-			}
-
 			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
 				ID:           releaseExtension.Model.ID.String(),
-				Action:       eventAction,
+				Action:       plugins.GetAction("create"),
 				Slug:         ext.Key,
-				State:        eventState,
+				State:        releaseExtension.State,
 				Config:       config,
 				Artifacts:    map[string]interface{}{},
 				Release:      releaseEvent,
