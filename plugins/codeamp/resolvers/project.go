@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
-	"github.com/jinzhu/gorm"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -115,11 +116,29 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 // Features
-func (r *ProjectResolver) Features() []*FeatureResolver {
+func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
 	var rows []Feature
 	var results []*FeatureResolver
 
-	r.DB.Where("project_id = ? and ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch())).Order("created desc").Find(&rows)
+	created := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
+	showDeployed := false
+	if args.ShowDeployed != nil {
+		showDeployed = *args.ShowDeployed
+	}
+
+	if !showDeployed {
+		var currentRelease Release
+
+		if r.DB.Where("state = ? and project_id = ? and environment_id = ?", plugins.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
+
+		} else {
+			feature := Feature{}
+			r.DB.Where("id = ?", currentRelease.HeadFeatureID).First(&feature)
+			created = feature.Created
+		}
+	}
+
+	r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), created).Order("created desc").Find(&rows)
 
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})

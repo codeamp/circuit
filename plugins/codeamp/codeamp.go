@@ -19,11 +19,11 @@ import (
 	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
+	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/graph-gophers/graphql-go/relay"
 	sioredis "github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
