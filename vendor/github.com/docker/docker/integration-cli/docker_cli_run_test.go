@@ -294,7 +294,7 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 
-	cid1, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox", "top")
+	cid1, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 
 	// Check if default short-id alias is added automatically
@@ -302,7 +302,7 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	aliases := inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
 	c.Assert(aliases, checker.Contains, stringid.TruncateID(id))
 
-	cid2, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
+	cid2, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// Check if default short-id alias is added automatically
@@ -3140,75 +3140,6 @@ func (s *DockerSuite) TestRunNetworkFilesBindMountROFilesystem(c *check.C) {
 	}
 }
 
-func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
-	// Windows does not support this functionality
-	testRequires(c, DaemonIsLinux)
-	repoName := s.setupTrustedImage(c, "trusted-run")
-
-	// Try run
-	cli.Docker(cli.Args("run", repoName), trustedCmd).Assert(c, SuccessTagging)
-	cli.DockerCmd(c, "rmi", repoName)
-
-	// Try untrusted run to ensure we pushed the tag to the registry
-	cli.Docker(cli.Args("run", "--disable-content-trust=true", repoName), trustedCmd).Assert(c, SuccessDownloadedOnStderr)
-}
-
-func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
-	// Windows does not support this functionality
-	testRequires(c, DaemonIsLinux)
-	repoName := fmt.Sprintf("%v/dockercliuntrusted/runtest:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	cli.DockerCmd(c, "tag", "busybox", repoName)
-	cli.DockerCmd(c, "push", repoName)
-	cli.DockerCmd(c, "rmi", repoName)
-
-	// Try trusted run on untrusted tag
-	cli.Docker(cli.Args("run", repoName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 125,
-		Err:      "does not have trust data for",
-	})
-}
-
-func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
-	// Windows does not support this functionality
-	testRequires(c, DaemonIsLinux)
-	repoName := fmt.Sprintf("%v/dockerclievilrun/trusted:latest", privateRegistryURL)
-	evilLocalConfigDir, err := ioutil.TempDir("", "evilrun-local-config-dir")
-	if err != nil {
-		c.Fatalf("Failed to create local temp dir")
-	}
-
-	// tag the image and upload it to the private registry
-	cli.DockerCmd(c, "tag", "busybox", repoName)
-
-	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-	cli.DockerCmd(c, "rmi", repoName)
-
-	// Try run
-	cli.Docker(cli.Args("run", repoName), trustedCmd).Assert(c, SuccessTagging)
-	cli.DockerCmd(c, "rmi", repoName)
-
-	// Kill the notary server, start a new "evil" one.
-	s.not.Close()
-	s.not, err = newTestNotary(c)
-	if err != nil {
-		c.Fatalf("Restarting notary server failed.")
-	}
-
-	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
-	// tag an image and upload it to the private registry
-	cli.DockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
-
-	// Push up to the new server
-	cli.Docker(cli.Args("--config", evilLocalConfigDir, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	// Now, try running with the original client from this new trust server. This should fail because the new root is invalid.
-	cli.Docker(cli.Args("run", repoName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 125,
-		Err:      "could not rotate trust to a new trusted root",
-	})
-}
-
 func (s *DockerSuite) TestPtraceContainerProcsFromHost(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
@@ -4237,35 +4168,6 @@ func (s *DockerSuite) TestRunCredentialSpecWellFormed(c *check.C) {
 	dockerCmd(c, "run", `--security-opt=credentialspec=file://valid.json`, "busybox", "true")
 }
 
-// Windows specific test to ensure that a servicing app container is started
-// if necessary once a container exits. It does this by forcing a no-op
-// servicing event and verifying the event from Hyper-V-Compute
-func (s *DockerSuite) TestRunServicingContainer(c *check.C) {
-	testRequires(c, DaemonIsWindows, SameHostDaemon)
-
-	// This functionality does not exist in post-RS3 builds.
-	// Note we get the version number from the full build string, as Windows
-	// reports Windows 8 version 6.2 build 9200 from non-manifested binaries.
-	// Ref: https://msdn.microsoft.com/en-us/library/windows/desktop/ms724451(v=vs.85).aspx
-	v, err := kernel.GetKernelVersion()
-	c.Assert(err, checker.IsNil)
-	build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-	if build > 16299 {
-		c.Skip("Disabled on post-RS3 builds")
-	}
-
-	out := cli.DockerCmd(c, "run", "-d", testEnv.PlatformDefaults.BaseImage, "cmd", "/c", "mkdir c:\\programdata\\Microsoft\\Windows\\ContainerUpdates\\000_000_d99f45d0-ffc8-4af7-bd9c-ea6a62e035c9_200 && sc control cexecsvc 255").Combined()
-	containerID := strings.TrimSpace(out)
-	cli.WaitExited(c, containerID, 60*time.Second)
-
-	result := icmd.RunCommand("powershell", "echo", `(Get-WinEvent -ProviderName "Microsoft-Windows-Hyper-V-Compute" -FilterXPath 'Event[System[EventID=2010]]' -MaxEvents 1).Message`)
-	result.Assert(c, icmd.Success)
-	out2 := result.Combined()
-	c.Assert(out2, checker.Contains, `"Servicing":true`, check.Commentf("Servicing container does not appear to have been started: %s", out2))
-	c.Assert(out2, checker.Contains, `Windows Container (Servicing)`, check.Commentf("Didn't find 'Windows Container (Servicing): %s", out2))
-	c.Assert(out2, checker.Contains, containerID+"_servicing", check.Commentf("Didn't find '%s_servicing': %s", containerID+"_servicing", out2))
-}
-
 func (s *DockerSuite) TestRunDuplicateMount(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
@@ -4386,7 +4288,7 @@ func (s *DockerSuite) TestSlowStdinClosing(c *check.C) {
 		}()
 
 		select {
-		case <-time.After(15 * time.Second):
+		case <-time.After(30 * time.Second):
 			c.Fatal("running container timed out") // cleanup in teardown
 		case err := <-done:
 			c.Assert(err, checker.IsNil)

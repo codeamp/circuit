@@ -38,7 +38,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -311,6 +311,9 @@ func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error 
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetResourcePath(path string) (string, error) {
+	if container.BaseFS == nil {
+		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	}
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
 	r, e := container.BaseFS.ResolveScopedPath(path, false)
@@ -391,6 +394,8 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		container.LogPath = info.LogPath
 	}
 
 	l, err := initDriver(info)
@@ -973,11 +978,6 @@ func (container *Container) startLogging() error {
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l
-
-	// set LogPath field only for json-file logdriver
-	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
-		container.LogPath = jl.LogPath()
-	}
 
 	return nil
 }

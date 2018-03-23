@@ -1,21 +1,32 @@
 package test
 
 import (
-	"testing"
-	"reflect"
-	"fmt"
-	"github.com/google/gofuzz"
-	"strings"
-	"github.com/json-iterator/go"
-	"encoding/json"
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/gofuzz"
+	"github.com/json-iterator/go"
+	"reflect"
+	"strings"
+	"testing"
 )
 
 var testCases []interface{}
 var asymmetricTestCases [][2]interface{}
 
+type selectedSymmetricCase struct {
+	testCase interface{}
+}
+
 func Test_symmetric(t *testing.T) {
+	for _, testCase := range testCases {
+		selectedSymmetricCase, found := testCase.(selectedSymmetricCase)
+		if found {
+			testCases = []interface{}{selectedSymmetricCase.testCase}
+			break
+		}
+	}
 	for _, testCase := range testCases {
 		valType := reflect.TypeOf(testCase).Elem()
 		t.Run(valType.String(), func(t *testing.T) {

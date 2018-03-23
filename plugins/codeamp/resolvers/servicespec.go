@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/jinzhu/gorm"
-	graphql "github.com/neelance/graphql-go"
+	graphql "github.com/graph-gophers/graphql-go"
 )
 
 // ServiceSpec

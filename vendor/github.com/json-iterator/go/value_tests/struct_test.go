@@ -1,20 +1,26 @@
 package test
 
 import (
-	"time"
-	"encoding/json"
 	"bytes"
+	"encoding/json"
+	"time"
 )
 
 func init() {
 	var pString = func(val string) *string {
 		return &val
 	}
+	epoch := time.Unix(0, 0)
 	unmarshalCases = append(unmarshalCases, unmarshalCase{
 		ptr: (*struct {
 			Field interface{}
 		})(nil),
 		input: `{"Field": "hello"}`,
+	}, unmarshalCase{
+		ptr: (*struct {
+			Field interface{}
+		})(nil),
+		input: `{"Field": "hello"}       `,
 	}, unmarshalCase{
 		ptr: (*struct {
 			Field int `json:"field"`
@@ -83,19 +89,16 @@ func init() {
 		struct {
 			F *float64
 		}{},
-		// TODO: fix this
-		//struct {
-		//	*time.Time
-		//}{},
 		struct {
 			*time.Time
-		}{&time.Time{}},
+		}{&epoch},
 		struct {
 			*StructVarious
 		}{&StructVarious{}},
 		struct {
 			*StructVarious
-		}{},
+			Field int
+		}{nil, 10},
 		struct {
 			Field1 int
 			Field2 [1]*float64
@@ -173,7 +176,6 @@ type CacheItem struct {
 	Key    string `json:"key"`
 	MaxAge int    `json:"cacheAge"`
 }
-
 
 type orderA struct {
 	Field2 string
