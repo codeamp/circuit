@@ -650,7 +650,7 @@ func (scope *Scope) buildCondition(clause map[string]interface{}, include bool) 
 	buff := bytes.NewBuffer([]byte{})
 	i := 0
 	for _, s := range str {
-		if s == '?' {
+		if s == '?' && len(replacements) > i {
 			buff.WriteString(replacements[i])
 			i++
 		} else {
@@ -692,12 +692,12 @@ func (scope *Scope) buildSelectQuery(clause map[string]interface{}) (str string)
 
 	buff := bytes.NewBuffer([]byte{})
 	i := 0
-	for pos := range str {
+	for pos, char := range str {
 		if str[pos] == '?' {
 			buff.WriteString(replacements[i])
 			i++
 		} else {
-			buff.WriteByte(str[pos])
+			buff.WriteRune(char)
 		}
 	}
 

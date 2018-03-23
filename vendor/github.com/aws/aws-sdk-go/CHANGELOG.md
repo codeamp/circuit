@@ -1,3 +1,181 @@
+Release v1.13.19 (2018-03-22)
+===
+
+### Service Client Updates
+* `service/appstream`: Updates service API and documentation
+  * Feedback URL allows admins to provide a feedback link or a survey link for collecting user feedback while streaming sessions. When a feedback link is provided, streaming users will see a "Send Feedback" choice in their streaming session toolbar. On selecting this choice, user will be redirected to the link provided in a new browser tab. If a feedback link is not provided, users will not see the "Send Feedback" option.
+* `service/codebuild`: Updates service API and documentation
+  * Adding support for branch filtering when using webhooks with AWS CodeBuild.
+* `service/ecs`: Updates service API and documentation
+  * Amazon Elastic Container Service (ECS) now includes integrated Service Discovery using Route 53 Auto Naming. Customers can now specify a Route 53 Auto Naming service as part of an ECS service. ECS will register task IPs with Route 53, making them available via DNS in your VPC.
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+
+### SDK Bugs
+* `aws/endpoints`: Use service metadata for fallback signing name ([#1854](https://github.com/aws/aws-sdk-go/pull/1854))
+  * Updates the SDK's endpoint resolution to fallback deriving the service's signing name from the service's modeled metadata in addition the the endpoints modeled data.
+  * Fixes [#1850](https://github.com/aws/aws-sdk-go/issues/1850)
+Release v1.13.18 (2018-03-21)
+===
+
+### Service Client Updates
+* `service/serverlessrepo`: Updates service documentation
+
+Release v1.13.17 (2018-03-20)
+===
+
+### Service Client Updates
+* `service/ce`: Updates service API and documentation
+* `service/config`: Updates service API and documentation
+* `service/ecs`: Updates service API and documentation
+  * Amazon ECS users can now mount a temporary volume in memory in containers and specify the shared memory that a container can use through the use of docker's 'tmpfs' and 'shm-size' features respectively. These fields can be specified under linuxParameters in ContainerDefinition in the Task Definition Template.
+* `service/elasticbeanstalk`: Updates service documentation
+  * Documentation updates for the new Elastic Beanstalk API DescribeAccountAttributes.
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+* `service/events`: Updates service API and documentation
+  * Added SQS FIFO queue target support
+* `service/glue`: Updates service API and documentation
+  * API Updates for DevEndpoint: PublicKey is now optional for CreateDevEndpoint. The new DevEndpoint field PrivateAddress will be populated for DevEndpoints associated with a VPC.
+* `service/medialive`: Updates service API and documentation
+  * AWS Elemental MediaLive has added support for updating Inputs and Input Security Groups. You can update Input Security Groups at any time and it will update all channels using that Input Security Group. Inputs can be updated as long as they are not attached to a currently running channel.
+
+Release v1.13.16 (2018-03-16)
+===
+
+### Service Client Updates
+* `service/elasticbeanstalk`: Updates service API and documentation
+  * AWS Elastic Beanstalk is launching a new public API named DescribeAccountAttributes which allows customers to access account level attributes. In this release, the API will support quotas for resources such as applications, application versions, and environments.
+
+Release v1.13.15 (2018-03-15)
+===
+
+### Service Client Updates
+* `service/organizations`: Updates service API and documentation
+  * This release adds additional reason codes to improve clarity to exceptions that can occur.
+* `service/pinpoint`: Updates service API and documentation
+  * With this release, you can delete endpoints from your Amazon Pinpoint projects. Customers can now specify one of their leased dedicated long or short codes to send text messages.
+* `service/sagemaker`: Updates service API, documentation, and paginators
+  * This release provides support for ml.p3.xlarge instance types for notebook instances.  Lifecycle configuration is now available to customize your notebook instances on start; the configuration can be reused between multiple notebooks.  If a notebook instance is attached to a VPC you can now opt out of internet access that by default is provided by SageMaker.
+
+Release v1.13.14 (2018-03-14)
+===
+
+### Service Client Updates
+* `service/lightsail`: Updates service API and documentation
+  * Updates to existing Lightsail documentation
+
+Release v1.13.13 (2018-03-13)
+===
+
+### Service Client Updates
+* `service/servicediscovery`: Updates service API and documentation
+  * This release adds support for custom health checks, which let you check the health of resources that aren't accessible over the internet. For example, you can use a custom health check when the instance is in an Amazon VPC.
+
+Release v1.13.12 (2018-03-12)
+===
+
+### Service Client Updates
+* `service/cloudhsmv2`: Updates service API
+  * CreateCluster can now take both 8 and 17 character Subnet IDs. DeleteHsm can now take both 8 and 17 character ENI IDs.
+* `service/discovery`: Updates service API and documentation
+  * Documentation updates for discovery
+* `service/iot`: Updates service API and documentation
+  * We added new fields to the response of the following APIs. (1) describe-certificate: added new generationId, customerVersion fields (2) describe-ca-certificate: added new generationId, customerVersion and lastModifiedDate fields (3) get-policy: added generationId, creationDate and lastModifiedDate fields
+* `service/redshift`: Updates service API and documentation
+  * DescribeClusterSnapshotsMessage with ClusterExists flag returns snapshots of existing clusters. Else both existing and deleted cluster snapshots are returned
+
+Release v1.13.11 (2018-03-08)
+===
+
+### Service Client Updates
+* `service/AWSMigrationHub`: Updates service API and documentation
+* `service/ecs`: Updates service API and documentation
+  * Amazon Elastic Container Service (ECS) now supports container health checks. Customers can now specify a docker container health check command and parameters in their task definition. ECS will monitor, report and take scheduling action based on the health status.
+* `service/pinpoint`: Updates service API and documentation
+  * With this release, you can export endpoints from your Amazon Pinpoint projects. You can export a) all of the endpoints assigned to a project or b) the subset of endpoints assigned to a segment.
+* `service/rds`: Updates service documentation
+  * Documentation updates for RDS
+
+Release v1.13.10 (2018-03-07)
+===
+
+### Service Client Updates
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+* `service/medialive`: Updates service API and documentation
+  * Updates API to model required traits and minimum/maximum constraints.
+
+Release v1.13.9 (2018-03-06)
+===
+
+### Service Client Updates
+* `service/ecs`: Updates service documentation
+  * Documentation updates for Amazon ECS
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+
+Release v1.13.8 (2018-03-01)
+===
+
+### Service Client Updates
+* `service/ec2`: Updates service API and documentation
+  * Added support for modifying Placement Group association of instances via ModifyInstancePlacement API.
+* `service/events`: Updates service API and documentation
+  * Added BatchParameters to the PutTargets API
+* `service/servicecatalog`: Updates service API and documentation
+  * This release of ServiceCatalog adds the DeleteTagOption API.
+* `service/ssm`: Updates service API and documentation
+  * This Inventory release supports the status message details reported by the last sync for the resource data sync API.
+* `service/storagegateway`: Updates service API and documentation
+  * AWS Storage Gateway (File) support for two new file share attributes are added.           1. Users can specify the S3 Canned ACL to use for new objects created in the file share.         2. Users can create file shares for requester-pays buckets.
+
+Release v1.13.7 (2018-02-28)
+===
+
+### Service Client Updates
+* `service/application-autoscaling`: Updates service API and documentation
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+
+Release v1.13.6 (2018-02-27)
+===
+
+### Service Client Updates
+* `service/ecr`: Updates service documentation
+  * Documentation updates for Amazon ECR.
+
+Release v1.13.5 (2018-02-26)
+===
+
+### Service Client Updates
+* `service/route53`: Updates service API
+  * Added support for creating LBR rules using ap-northeast-3 region.
+* `service/sts`: Updates service API and documentation
+  * Increased SAMLAssertion parameter size from 50000 to 100000 for AWS Security Token Service AssumeRoleWithSAML API to allow customers to pass bigger SAML assertions
+
+Release v1.13.4 (2018-02-23)
+===
+
+### Service Client Updates
+* `service/appstream`: Updates service API and documentation
+  * This API update is to enable customers to copy their Amazon AppStream 2.0 images within and between AWS Regions
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+
+Release v1.13.3 (2018-02-22)
+===
+
+### Service Client Updates
+* `service/ce`: Updates service API and documentation
+* `service/elasticloadbalancingv2`: Updates service documentation
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+
+Release v1.13.2 (2018-02-21)
+===
+
+### Service Client Updates
+* `service/codecommit`: Updates service API and documentation
+  * This release adds an API for adding a file directly to an AWS CodeCommit repository without requiring a Git client.
+* `service/ec2`: Updates service API and documentation
+  * Adds support for tagging an EBS snapshot as part of the API call that creates the EBS snapshot
+* `aws/endpoints`: Updated Regions and Endpoints metadata.
+* `service/serverlessrepo`: Updates service API, documentation, and paginators
+
 Release v1.13.1 (2018-02-20)
 ===
 

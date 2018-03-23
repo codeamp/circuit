@@ -1,4 +1,4 @@
-package secret
+package secret // import "github.com/docker/docker/integration/secret"
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -26,7 +26,7 @@ func TestSecretInspect(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
@@ -34,12 +34,12 @@ func TestSecretInspect(t *testing.T) {
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	secret, _, err := client.SecretInspectWithRaw(context.Background(), secretID)
-	require.NoError(t, err)
-	assert.Equal(t, secret.Spec.Name, testName)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(secret.Spec.Name, testName))
 
 	secret, _, err = client.SecretInspectWithRaw(context.Background(), testName)
-	require.NoError(t, err)
-	assert.Equal(t, secretID, secretID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(secretID, secretID))
 }
 
 func TestSecretList(t *testing.T) {
@@ -49,7 +49,7 @@ func TestSecretList(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
@@ -75,8 +75,8 @@ func TestSecretList(t *testing.T) {
 
 	// test by `secret ls`
 	entries, err := client.SecretList(ctx, types.SecretListOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, names(entries), testNames)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(names(entries), testNames))
 
 	testCases := []struct {
 		filters  filters.Args
@@ -110,8 +110,8 @@ func TestSecretList(t *testing.T) {
 		entries, err = client.SecretList(ctx, types.SecretListOptions{
 			Filters: tc.filters,
 		})
-		require.NoError(t, err)
-		assert.Equal(t, names(entries), tc.expected)
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(names(entries), tc.expected))
 
 	}
 }
@@ -124,25 +124,24 @@ func createSecret(ctx context.Context, t *testing.T, client client.APIClient, na
 		},
 		Data: data,
 	})
-	require.NoError(t, err)
-	assert.NotEqual(t, secret.ID, "")
+	assert.NilError(t, err)
+	assert.Check(t, secret.ID != "")
 	return secret.ID
 }
 
-func TestSecretsCreate(t *testing.T) {
+func TestSecretsCreateAndDelete(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
 	testName := "test_secret"
-	createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
-	require.NoError(t, err)
+	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	// create an already existin secret, daemon should return a status code of 409
 	_, err = client.SecretCreate(ctx, swarmtypes.SecretSpec{
@@ -152,35 +151,30 @@ func TestSecretsCreate(t *testing.T) {
 		Data: []byte("TESTINGDATA"),
 	})
 	testutil.ErrorContains(t, err, "already exists")
-}
 
-func TestSecretsDelete(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	testName := "test_secret"
-	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
-	require.NoError(t, err)
-
-	insp, _, err := client.SecretInspectWithRaw(ctx, secretID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.ID, secretID)
-
+	// Ported from original TestSecretsDelete
 	err = client.SecretRemove(ctx, secretID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	_, _, err = client.SecretInspectWithRaw(ctx, secretID)
 	testutil.ErrorContains(t, err, "No such secret")
 
 	err = client.SecretRemove(ctx, "non-existin")
 	testutil.ErrorContains(t, err, "No such secret: non-existin")
+
+	// Ported from original TestSecretsCreteaWithLabels
+	testName = "test_secret_with_labels"
+	secretID = createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+	})
+
+	insp, _, err := client.SecretInspectWithRaw(ctx, secretID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Name, testName))
+	assert.Check(t, is.Equal(len(insp.Spec.Labels), 2))
+	assert.Check(t, is.Equal(insp.Spec.Labels["key1"], "value1"))
+	assert.Check(t, is.Equal(insp.Spec.Labels["key2"], "value2"))
 }
 
 func TestSecretsUpdate(t *testing.T) {
@@ -190,44 +184,44 @@ func TestSecretsUpdate(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
 	testName := "test_secret"
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err := client.SecretInspectWithRaw(ctx, secretID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.ID, secretID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.ID, secretID))
 
 	// test UpdateSecret with full ID
 	insp.Spec.Labels = map[string]string{"test": "test1"}
 	err = client.SecretUpdate(ctx, secretID, insp.Version, insp.Spec)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err = client.SecretInspectWithRaw(ctx, secretID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Labels["test"], "test1")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Labels["test"], "test1"))
 
 	// test UpdateSecret with full name
 	insp.Spec.Labels = map[string]string{"test": "test2"}
 	err = client.SecretUpdate(ctx, testName, insp.Version, insp.Spec)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err = client.SecretInspectWithRaw(ctx, secretID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Labels["test"], "test2")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Labels["test"], "test2"))
 
 	// test UpdateSecret with prefix ID
 	insp.Spec.Labels = map[string]string{"test": "test3"}
 	err = client.SecretUpdate(ctx, secretID[:1], insp.Version, insp.Spec)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err = client.SecretInspectWithRaw(ctx, secretID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Labels["test"], "test3")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Labels["test"], "test3"))
 
 	// test UpdateSecret in updating Data which is not supported in daemon
 	// this test will produce an error in func UpdateSecret
@@ -250,7 +244,7 @@ func TestTemplatedSecret(t *testing.T) {
 		Data: []byte("this is a secret"),
 	}
 	referencedSecret, err := client.SecretCreate(ctx, referencedSecretSpec)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	referencedConfigSpec := swarmtypes.ConfigSpec{
 		Annotations: swarmtypes.Annotations{
@@ -259,7 +253,7 @@ func TestTemplatedSecret(t *testing.T) {
 		Data: []byte("this is a config"),
 	}
 	referencedConfig, err := client.ConfigCreate(ctx, referencedConfigSpec)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	secretSpec := swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
@@ -274,7 +268,7 @@ func TestTemplatedSecret(t *testing.T) {
 	}
 
 	templatedSecret, err := client.SecretCreate(ctx, secretSpec)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithSecret(
@@ -352,8 +346,8 @@ func TestTemplatedSecret(t *testing.T) {
 func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
 	buf := bytes.NewBuffer(nil)
 	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
-	require.NoError(t, err)
-	assert.Contains(t, buf.String(), expect)
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(buf.String(), expect))
 }
 
 func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool) {

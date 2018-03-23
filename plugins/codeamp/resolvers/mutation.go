@@ -19,7 +19,7 @@ import (
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
-	graphql "github.com/neelance/graphql-go"
+	graphql "github.com/graph-gophers/graphql-go"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/ssh"
 )

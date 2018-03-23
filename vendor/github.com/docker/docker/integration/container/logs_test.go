@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // Regression test for #35370
@@ -20,14 +20,13 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	id := container.Run(t, ctx, client, container.WithCmd("sleep", "100000"))
-	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 
 	logs, err := client.ContainerLogs(ctx, id, types.ContainerLogsOptions{ShowStdout: true, Tail: "2"})
 	if logs != nil {
 		defer logs.Close()
 	}
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	_, err = stdcopy.StdCopy(ioutil.Discard, ioutil.Discard, logs)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 }
