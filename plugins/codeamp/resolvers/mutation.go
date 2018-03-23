@@ -511,14 +511,35 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 			r.DB.Create(&releaseExtension)
 
+			eventAction := plugins.GetAction("create")
+			eventState := plugins.GetState("waiting")
+			artifacts := map[string]interface{}{}
+
+			// check if the last release extension has the same
+			// ServicesSignature and SecretsSignature. If so,
+			// mark the action as completed before sending the event
+			lastReleaseExtension := ReleaseExtension{}
+
+			r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature,
+				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension)
+
+			if lastReleaseExtension.Model.ID.String() != "" {
+				eventAction = plugins.GetAction("status")
+				eventState = lastReleaseExtension.State
+				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+				if err != nil {
+					log.Info(err.Error())
+				}
+			}
+
 			r.Events <- transistor.NewEvent(plugins.ReleaseExtension{
 				ID:        releaseExtension.Model.ID.String(),
-				Action:    plugins.GetAction("create"),
+				Action:    eventAction,
 				Slug:      extension.Key,
-				State:     releaseExtension.State,
+				State:     eventState,
 				Release:   releaseEvent,
 				Config:    config,
-				Artifacts: map[string]interface{}{},
+				Artifacts: artifacts,
 			}, nil)
 		}
 	}
