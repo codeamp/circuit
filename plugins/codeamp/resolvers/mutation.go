@@ -514,23 +514,22 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			// ServicesSignature and SecretsSignature. If so,
 			// mark the action as completed before sending the event
 			lastReleaseExtension := ReleaseExtension{}
-			var eventAction plugins.Action
-			var eventState plugins.State
+
+			eventAction := plugins.GetAction("create")
+			eventState := plugins.GetState("waiting")
 			artifacts := make(map[string]interface{})
 
 			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature,
-				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
-				eventAction = plugins.GetAction("create")
-				eventState = plugins.GetState("waiting")
-			} else {
-				eventAction = plugins.GetAction("status")
-				eventState = lastReleaseExtension.State
-				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-				if err != nil {
-					log.Info(err.Error())
+				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
+				if lastReleaseExtension.State != plugins.GetState("waiting") && lastReleaseExtension.State != plugins.GetState("fetching") {
+					eventAction = plugins.GetAction("status")
+					eventState = lastReleaseExtension.State
+					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+					if err != nil {
+						log.Info(err.Error())
+					}
 				}
 			}
-
 			r.Events <- transistor.NewEvent(plugins.ReleaseExtension{
 				ID:        releaseExtension.Model.ID.String(),
 				Action:    eventAction,
