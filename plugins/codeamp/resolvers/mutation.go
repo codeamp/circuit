@@ -320,6 +320,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		return &ReleaseResolver{}, err
 	}
 
+	emptyArtifacts, _ := json.Marshal([]interface{}{})
+
 	// Create Release
 	release := Release{
 		ProjectID:         projectID,
@@ -332,7 +334,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		Secrets:           secretsJsonb,
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
-		Artifacts:         postgres.Jsonb{[]byte("{}")},
+		Artifacts:         postgres.Jsonb{emptyArtifacts},
 	}
 
 	r.DB.Create(&release)
@@ -495,7 +497,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			servicesSha1.Write(servicesJsonb.RawMessage)
 			servicesSig := servicesSha1.Sum(nil)
 
-			emptyArtifacts, _ := json.Marshal(map[string]string{})
+			emptyArtifacts, _ := json.Marshal([]interface{}{})
 
 			// create ReleaseExtension
 			releaseExtension := ReleaseExtension{
@@ -518,7 +520,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 			eventAction := plugins.GetAction("create")
 			eventState := plugins.GetState("waiting")
-			artifacts := make(map[string]interface{})
 
 			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
 				eventAction = plugins.GetAction("status")
@@ -531,9 +532,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 			ev := transistor.NewEvent(plugins.ReleaseExtension{
 				ID:      releaseExtension.Model.ID.String(),
-				Action:  plugins.GetAction("create"),
+				Action:  eventAction,
 				Slug:    extension.Key,
-				State:   releaseExtension.State,
+				State:   eventState,
 				Release: releaseEvent,
 			}, nil)
 

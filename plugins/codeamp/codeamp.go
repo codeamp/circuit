@@ -494,17 +494,14 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 			}
 
 			// put all releaseextension artifacts inside release artifacts
-			unmarshalledArtifacts := make(map[string]interface{})
+			var unmarshalledArtifacts []transistor.Artifact
 			err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &unmarshalledArtifacts)
 			if err != nil {
 				log.InfoWithFields(err.Error(), log.Fields{})
 				return
 			}
 
-			for k, v := range unmarshalledArtifacts {
-				var artifact transistor.Artifact
-				artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(ext.Key), strings.ToUpper(k))
-				artifact.Value = v
+			for _, artifact := range unmarshalledArtifacts {
 				artifacts = append(artifacts, artifact)
 			}
 		}

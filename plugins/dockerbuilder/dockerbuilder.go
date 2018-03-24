@@ -351,7 +351,31 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	event.State = plugins.GetState("complete")
 	event.StateMessage = "Completed"
 
+	user, err := x.event.GetArtifact("DOCKERBUILDER_USER")
+	if err != nil {
+		return err
+	}
+
+	password, err := x.event.GetArtifact("DOCKERBUILDER_PASSWORD")
+	if err != nil {
+		return err
+	}
+
+	email, err := x.event.GetArtifact("DOCKERBUILDER_EMAIL")
+	if err != nil {
+		return err
+	}
+
+	registryHost, err := x.event.GetArtifact("DOCKERBUILDER_HOST")
+	if err != nil {
+		log.Error(err)
+	}
+
 	ev := e.NewEvent(event, nil)
+	ev.AddArtifact("DOCKERBUILDER_USER", user.GetString(), user.Secret)
+	ev.AddArtifact("DOCKERBUILDER_PASSWORD", password.GetString(), password.Secret)
+	ev.AddArtifact("DOCKERBUILDER_EMAIL", email.GetString(), email.Secret)
+	ev.AddArtifact("DOCKERBUILDER_HOST", registryHost.GetString(), registryHost.Secret)
 	ev.AddArtifact("DOCKERBUILDER_IMAGE", fullImagePath(x.event), false)
 	ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
 	x.events <- ev

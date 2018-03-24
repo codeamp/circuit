@@ -8,9 +8,10 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
+	"github.com/codeamp/transistor"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
-	graphql "github.com/graph-gophers/graphql-go"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -75,7 +76,7 @@ func (r *ReleaseResolver) User() *UserResolver {
 
 // Artifacts
 func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
-	artifacts := make(map[string]interface{})
+	var artifacts []transistor.Artifact
 
 	isAdmin := false
 	if _, err := CheckAuth(ctx, []string{"admin"}); err == nil {
@@ -90,9 +91,9 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 		return JSON{}, err
 	}
 
-	for key, _ := range artifacts {
-		if !isAdmin {
-			artifacts[key] = ""
+	for i, artifact := range artifacts {
+		if !isAdmin && artifact.Secret {
+			artifacts[i].Value = ""
 		}
 	}
 
