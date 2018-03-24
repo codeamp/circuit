@@ -510,6 +510,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			}
 
 			r.DB.Create(&releaseExtension)
+
 			// check if the last release extension has the same
 			// ServicesSignature and SecretsSignature. If so,
 			// mark the action as completed before sending the event
@@ -519,28 +520,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			eventState := plugins.GetState("waiting")
 			artifacts := make(map[string]interface{})
 
-			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching"))).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
-				eventAction = plugins.GetAction("status")
-				eventState = lastReleaseExtension.State
-				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-				if err != nil {
-					log.Info(err.Error())
-				}
-			}
-
-			eventAction := plugins.GetAction("create")
-			eventState := plugins.GetState("waiting")
-			artifacts := map[string]interface{}{}
-
-			// check if the last release extension has the same
-			// ServicesSignature and SecretsSignature. If so,
-			// mark the action as completed before sending the event
-			lastReleaseExtension := ReleaseExtension{}
-
-			r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature,
-				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension)
-
-			if lastReleaseExtension.Model.ID.String() != "" {
+			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
 				eventAction = plugins.GetAction("status")
 				eventState = lastReleaseExtension.State
 				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
