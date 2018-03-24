@@ -187,7 +187,7 @@ type Project {
   gitProtocol: String!
   rsaPrivateKey: String!
   rsaPublicKey: String!
-  features: [Feature]!
+  features(showDeployed: Boolean): [Feature]!
   currentRelease: Release
   releases: [Release]!
   services: [Service]!
