@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -50,13 +49,13 @@ func (x *GithubStatus) Subscribe() []string {
 	}
 }
 
-func isValidGithubCredentials(config map[string]interface{}) (bool, error) {
+func isValidGithubCredentials(username string, token string) (bool, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/user"), nil)
 	if err != nil {
 		return false, err
 	}
-	req.SetBasicAuth(config["GITHUBSTATUS_USERNAME"].(string), config["GITHUBSTATUS_PERSONAL_ACCESS_TOKEN"].(string))
+	req.SetBasicAuth(username, token)
 	resp, _ := client.Do(req)
 	if resp.StatusCode == 200 {
 		return true, nil
@@ -70,12 +69,22 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		"event": e,
 	})
 
+	username, err := e.GetArtifact("GITHUBSTATUS_USERNAME")
+	if err != nil {
+		return err
+	}
+	token, err := e.GetArtifact("GITHUBSTATUS_PERSONAL_ACCESS_TOKEN")
+	if err != nil {
+		return err
+	}
+
 	if e.Matches("plugins.ProjectExtension") {
 		event := e.Payload.(plugins.ProjectExtension)
+
 		switch event.Action {
 		case plugins.GetAction("create"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus E event: %s", e.Name), log.Fields{})
-			if _, err := isValidGithubCredentials(event.Config); err == nil {
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus project extension event: %s", e.Name), log.Fields{})
+			if _, err := isValidGithubCredentials(username.GetString(), token.GetString()); err == nil {
 				responseEvent := e.Payload.(plugins.ProjectExtension)
 				responseEvent.State = plugins.GetState("complete")
 				responseEvent.Action = plugins.GetAction("status")
@@ -91,7 +100,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				return nil
 			}
 		case plugins.GetAction("update"):
-			if _, err := isValidGithubCredentials(event.Config); err == nil {
+			if _, err := isValidGithubCredentials(username.GetString(), token.GetString()); err == nil {
 				responseEvent := e.Payload.(plugins.ProjectExtension)
 				responseEvent.State = plugins.GetState("complete")
 				responseEvent.Action = plugins.GetAction("status")
@@ -113,10 +122,13 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		event := e.Payload.(plugins.ReleaseExtension)
 		switch event.Action {
 		case plugins.GetAction("create"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus RE event: %s", e.Name), log.Fields{})
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus release extension event: %s", e.Name), log.Fields{})
 			// get status and check if complete
 			client := &http.Client{}
-			TIMEOUT_LIMIT, err := strconv.Atoi(event.Config["GITHUBSTATUS_TIMEOUT_SECONDS"].(string))
+			timeoutLimit, err := e.GetArtifact("GITHUBSTATUS_TIMEOUT_SECONDS")
+			if err != nil {
+				return err
+			}
 			if err != nil {
 				failedEvent := e.Payload.(plugins.ProjectExtension)
 				failedEvent.State = plugins.GetState("failed")
@@ -138,7 +150,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					x.events <- e.NewEvent(failedEvent, err)
 					return nil
 				}
-				req.SetBasicAuth(event.Config["GITHUBSTATUS_USERNAME"].(string), event.Config["GITHUBSTATUS_PERSONAL_ACCESS_TOKEN"].(string))
+				req.SetBasicAuth(username.GetString(), token.GetString())
 
 				resp, _ := client.Do(req)
 				if resp.StatusCode == 200 {
@@ -190,8 +202,11 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 							responseEvent.State = plugins.GetState("failed")
 							responseEvent.Action = plugins.GetAction("status")
 							responseEvent.StateMessage = "One of the builds Failed."
-							responseEvent.Artifacts["FAILED_BUILDS"] = failedBuilds
-							x.events <- e.NewEvent(responseEvent, nil)
+
+							ev := e.NewEvent(responseEvent, nil)
+							ev.AddArtifact("FAILED_BUILDS", failedBuilds, false)
+							x.events <- ev
+
 							return nil
 						}
 					}
@@ -205,7 +220,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				}
 				timeout += 1
 				time.Sleep(10 * time.Second)
-				if timeout >= TIMEOUT_LIMIT {
+				if timeout >= timeoutLimit.GetInt() {
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
 					failedEvent.Action = plugins.GetAction("status")

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"time"
 
 	json "github.com/bww/go-json"
@@ -34,6 +35,23 @@ type Artifact struct {
 	Key    string      `json:"key"`
 	Value  interface{} `json:"value"`
 	Secret bool        `json:"secret"`
+}
+
+func (a *Artifact) GetString() string {
+	return a.Value.(string)
+}
+
+func (a *Artifact) GetInt() int {
+	i, err := strconv.Atoi(a.Value.(string))
+	if err != nil {
+		log.Error(err)
+	}
+
+	return i
+}
+
+func (a *Artifact) GetStringMap() map[string]interface{} {
+	return a.Value.(map[string]interface{})
 }
 
 func name(payload interface{}) string {
@@ -152,5 +170,5 @@ func (e *Event) GetArtifact(key string) (Artifact, error) {
 		}
 	}
 
-	return Artifact{}, errors.New("Artifact not found")
+	return Artifact{}, errors.New(fmt.Sprintf("Artifact %s not found", key))
 }

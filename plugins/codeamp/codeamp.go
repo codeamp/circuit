@@ -316,7 +316,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 
 		releaseExtension.State = payload.State
 		releaseExtension.StateMessage = payload.StateMessage
-		marshalledReArtifacts, err := json.Marshal(payload.Artifacts)
+		marshalledReArtifacts, err := json.Marshal(e.Artifacts)
 		if err != nil {
 			log.Info(err.Error(), log.Fields{})
 		}
@@ -325,23 +325,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		x.DB.Save(&releaseExtension)
 
 		if payload.State == plugins.GetState("complete") {
-			// append release extension artifacts to Release
-			mergedArtifacts := make(map[string]interface{})
-			err = json.Unmarshal(release.Artifacts.RawMessage, &mergedArtifacts)
-			if err != nil {
-				log.Info(err.Error())
-				return err
-			}
-
-			if len(mergedArtifacts) > 0 {
-				for key, value := range payload.Artifacts {
-					mergedArtifacts[key] = value
-				}
-			} else {
-				mergedArtifacts = payload.Artifacts
-			}
-
-			marshalledArtifacts, err := json.Marshal(mergedArtifacts)
+			marshalledArtifacts, err := json.Marshal(e.Artifacts)
 			if err != nil {
 				log.InfoWithFields(err.Error(), log.Fields{})
 				return err
@@ -482,7 +466,7 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *resolvers.ReleaseExtension) {
 func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release) {
 	// find all related deployment extensions
 	depProjectExtensions := []resolvers.ProjectExtension{}
-	aggregateReleaseExtensionArtifacts := make(map[string]interface{})
+	var artifacts []transistor.Artifact
 	found := false
 
 	if x.DB.Where("project_id = ? and environment_id = ?", release.ProjectID, release.EnvironmentID).Find(&depProjectExtensions).RecordNotFound() {
@@ -518,8 +502,10 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 			}
 
 			for k, v := range unmarshalledArtifacts {
-				key := fmt.Sprintf("%s_%s", strings.ToUpper(ext.Key), strings.ToUpper(k))
-				aggregateReleaseExtensionArtifacts[key] = v
+				var artifact transistor.Artifact
+				artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(ext.Key), strings.ToUpper(k))
+				artifact.Value = v
+				artifacts = append(artifacts, artifact)
 			}
 		}
 
@@ -527,10 +513,6 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 			found = true
 		}
 	}
-
-	// persist workflow artifacts
-	// release.Artifacts = plugins.MapStringStringToHstore(releaseExtensionArtifacts)
-	// x.DB.Save(&release)
 
 	// if there are no deployment workflows, then release is complete
 	if !found {
@@ -636,42 +618,6 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 		})
 	}
 
-	releaseEvent := plugins.Release{
-		Action:       plugins.GetAction("create"),
-		State:        plugins.GetState("waiting"),
-		Environment:  environment.Key,
-		Artifacts:    aggregateReleaseExtensionArtifacts,
-		StateMessage: "create release event",
-		ID:           release.Model.ID.String(),
-		HeadFeature: plugins.Feature{
-			Hash:       headFeature.Hash,
-			ParentHash: headFeature.ParentHash,
-			User:       headFeature.User,
-			Message:    headFeature.Message,
-			Created:    headFeature.Created,
-		},
-		TailFeature: plugins.Feature{
-			ID:         tailFeature.Model.ID.String(),
-			Hash:       tailFeature.Hash,
-			ParentHash: tailFeature.ParentHash,
-			User:       tailFeature.User,
-			Message:    tailFeature.Message,
-			Created:    tailFeature.Created,
-		},
-		User: "",
-		Project: plugins.Project{
-			ID:         project.Model.ID.String(),
-			Slug:       project.Slug,
-			Repository: project.Repository,
-		},
-		Git: plugins.Git{
-			Url:           project.GitUrl,
-			Branch:        branch,
-			RsaPrivateKey: project.RsaPrivateKey,
-		},
-		Secrets:  pluginSecrets,
-		Services: pluginServices,
-	}
 	releaseExtensionEvents := []plugins.ReleaseExtension{}
 
 	for _, extension := range depProjectExtensions {
@@ -716,29 +662,65 @@ func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release)
 				log.Info(err.Error())
 			}
 
-			config, err := resolvers.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
+			extensionArtifacts, err := resolvers.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
 			if err != nil {
 				log.Info(err.Error())
 			}
 
+			for _, artifact := range extensionArtifacts {
+				artifacts = append(artifacts, artifact)
+			}
+
 			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
-				ID:           releaseExtension.Model.ID.String(),
-				Action:       plugins.GetAction("create"),
-				Slug:         ext.Key,
-				State:        releaseExtension.State,
-				Config:       config,
-				Artifacts:    map[string]interface{}{},
-				Release:      releaseEvent,
+				ID:     releaseExtension.Model.ID.String(),
+				Action: plugins.GetAction("create"),
+				Slug:   ext.Key,
+				State:  releaseExtension.State,
+				Release: plugins.Release{
+					Action:       plugins.GetAction("create"),
+					State:        plugins.GetState("waiting"),
+					Environment:  environment.Key,
+					StateMessage: "create release event",
+					ID:           release.Model.ID.String(),
+					HeadFeature: plugins.Feature{
+						Hash:       headFeature.Hash,
+						ParentHash: headFeature.ParentHash,
+						User:       headFeature.User,
+						Message:    headFeature.Message,
+						Created:    headFeature.Created,
+					},
+					TailFeature: plugins.Feature{
+						ID:         tailFeature.Model.ID.String(),
+						Hash:       tailFeature.Hash,
+						ParentHash: tailFeature.ParentHash,
+						User:       tailFeature.User,
+						Message:    tailFeature.Message,
+						Created:    tailFeature.Created,
+					},
+					User: "",
+					Project: plugins.Project{
+						ID:         project.Model.ID.String(),
+						Slug:       project.Slug,
+						Repository: project.Repository,
+					},
+					Git: plugins.Git{
+						Url:           project.GitUrl,
+						Branch:        branch,
+						RsaPrivateKey: project.RsaPrivateKey,
+					},
+					Secrets:  pluginSecrets,
+					Services: pluginServices,
+				},
 				StateMessage: releaseExtension.StateMessage,
 			})
-
 		}
 	}
 
 	// send out release extension event for each re
 	for _, re := range releaseExtensionEvents {
-		//re.Release.Artifacts = aggregateReleaseExtensionArtifacts
-		x.Events <- transistor.NewEvent(re, nil)
+		ev := transistor.NewEvent(re, nil)
+		ev.Artifacts = artifacts
+		x.Events <- ev
 	}
 }
 
@@ -844,8 +826,8 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		return
 	}
 
-	unmarshalledArtifacts := make(map[string]interface{})
-	err := json.Unmarshal(release.Artifacts.RawMessage, &unmarshalledArtifacts)
+	artifacts := []transistor.Artifact{}
+	err := json.Unmarshal(release.Artifacts.RawMessage, &artifacts)
 	if err != nil {
 		log.Info(err.Error(), log.Fields{})
 		return
@@ -861,39 +843,6 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 		branch = projectSettings.GitBranch
 	}
 
-	releaseEvent := plugins.Release{
-		ID:          release.Model.ID.String(),
-		Action:      plugins.GetAction("create"),
-		State:       plugins.GetState("waiting"),
-		Environment: environment.Key,
-		HeadFeature: plugins.Feature{
-			ID:         headFeature.Model.ID.String(),
-			Hash:       headFeature.Hash,
-			ParentHash: headFeature.ParentHash,
-			User:       headFeature.User,
-			Message:    headFeature.Message,
-			Created:    headFeature.Created,
-		},
-		TailFeature: plugins.Feature{
-			ID:         tailFeature.Model.ID.String(),
-			Hash:       tailFeature.Hash,
-			ParentHash: tailFeature.ParentHash,
-			User:       tailFeature.User,
-			Message:    tailFeature.Message,
-			Created:    tailFeature.Created,
-		},
-		User: release.User.Email,
-		Project: plugins.Project{
-			ID:         project.Model.ID.String(),
-			Repository: project.Repository,
-		},
-		Git: plugins.Git{
-			Url:           project.GitUrl,
-			Branch:        branch,
-			RsaPrivateKey: project.RsaPrivateKey,
-		},
-		Artifacts: unmarshalledArtifacts,
-	}
 	for _, extension := range projectExtensions {
 		ext := resolvers.Extension{}
 		if x.DB.Where("id= ?", extension.ExtensionID).Find(&ext).RecordNotFound() {
@@ -924,20 +873,55 @@ func (x *CodeAmp) ReleaseCreated(release *resolvers.Release) {
 				log.Info(err.Error())
 			}
 
-			config, err := resolvers.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
+			extensionArtifacts, err := resolvers.ExtractConfig(unmarshalledConfig, ext.Key, x.DB)
 			if err != nil {
 				log.Info(err.Error())
 			}
 
-			x.Events <- transistor.NewEvent(plugins.ReleaseExtension{
-				ID:        releaseExtension.Model.ID.String(),
-				Action:    plugins.GetAction("create"),
-				Slug:      ext.Key,
-				State:     releaseExtension.State,
-				Release:   releaseEvent,
-				Config:    config,
-				Artifacts: map[string]interface{}{},
+			for _, artifact := range extensionArtifacts {
+				artifacts = append(artifacts, artifact)
+			}
+
+			ev := transistor.NewEvent(plugins.ReleaseExtension{
+				ID:     releaseExtension.Model.ID.String(),
+				Action: plugins.GetAction("create"),
+				Slug:   ext.Key,
+				State:  releaseExtension.State,
+				Release: plugins.Release{
+					ID:          release.Model.ID.String(),
+					Action:      plugins.GetAction("create"),
+					State:       plugins.GetState("waiting"),
+					Environment: environment.Key,
+					HeadFeature: plugins.Feature{
+						ID:         headFeature.Model.ID.String(),
+						Hash:       headFeature.Hash,
+						ParentHash: headFeature.ParentHash,
+						User:       headFeature.User,
+						Message:    headFeature.Message,
+						Created:    headFeature.Created,
+					},
+					TailFeature: plugins.Feature{
+						ID:         tailFeature.Model.ID.String(),
+						Hash:       tailFeature.Hash,
+						ParentHash: tailFeature.ParentHash,
+						User:       tailFeature.User,
+						Message:    tailFeature.Message,
+						Created:    tailFeature.Created,
+					},
+					User: release.User.Email,
+					Project: plugins.Project{
+						ID:         project.Model.ID.String(),
+						Repository: project.Repository,
+					},
+					Git: plugins.Git{
+						Url:           project.GitUrl,
+						Branch:        branch,
+						RsaPrivateKey: project.RsaPrivateKey,
+					},
+				},
 			}, nil)
+			ev.Artifacts = artifacts
+			x.Events <- ev
 		}
 	}
 

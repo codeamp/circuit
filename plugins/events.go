@@ -185,44 +185,39 @@ type WebsocketMsg struct {
 }
 
 type ReleaseExtension struct {
-	ID           string                 `json:"id"`
-	Action       Action                 `json:"action"`
-	Slug         string                 `json:"slug"`
-	State        State                  `json:"state"`
-	StateMessage string                 `json:"stateMessage"`
-	Project      Project                `json:"project"`
-	Release      Release                `json:"release"`
-	Config       map[string]interface{} `json:"config" role:"secret"`
-	Artifacts    map[string]interface{} `json:"artifacts" role:"secret"`
-	Environment  string                 `json:"environment"`
+	ID           string  `json:"id"`
+	Action       Action  `json:"action"`
+	Slug         string  `json:"slug"`
+	State        State   `json:"state"`
+	StateMessage string  `json:"stateMessage"`
+	Project      Project `json:"project"`
+	Release      Release `json:"release"`
+	Environment  string  `json:"environment"`
 }
 
 type ProjectExtension struct {
-	ID           string                 `json:"id"`
-	Action       Action                 `json:"action"`
-	Slug         string                 `json:"slug"`
-	State        State                  `json:"state"`
-	StateMessage string                 `json:"stateMessage"`
-	Project      Project                `json:"project"`
-	Config       map[string]interface{} `json:"config" role:"secret"`
-	Artifacts    map[string]interface{} `json:"artifacts" role:"secret"`
-	Environment  string                 `json:"environment"`
+	ID           string  `json:"id"`
+	Action       Action  `json:"action"`
+	Slug         string  `json:"slug"`
+	State        State   `json:"state"`
+	StateMessage string  `json:"stateMessage"`
+	Project      Project `json:"project"`
+	Environment  string  `json:"environment"`
 }
 
 type Release struct {
-	ID           string                 `json:"id"`
-	Action       Action                 `json:"action"`
-	State        State                  `json:"state"`
-	StateMessage string                 `json:"stateMessage"`
-	Project      Project                `json:"project"`
-	Git          Git                    `json:"git"`
-	HeadFeature  Feature                `json:"headFeature"`
-	User         string                 `json:"user"`
-	TailFeature  Feature                `json:"tailFeature"`
-	Services     []Service              `json:"services"`
-	Secrets      []Secret               `json:"secrets" role:"secret"`
-	Artifacts    map[string]interface{} `json:"artifacts" role:"secret"`
-	Environment  string                 `json:"environment"`
+	ID           string    `json:"id"`
+	Action       Action    `json:"action"`
+	State        State     `json:"state"`
+	StateMessage string    `json:"stateMessage"`
+	Project      Project   `json:"project"`
+	Git          Git       `json:"git"`
+	HeadFeature  Feature   `json:"headFeature"`
+	User         string    `json:"user"`
+	TailFeature  Feature   `json:"tailFeature"`
+	Services     []Service `json:"services"`
+	Secrets      []Secret  `json:"secrets" role:"secret"`
+	Environment  string    `json:"environment"`
 }
 
 type Project struct {

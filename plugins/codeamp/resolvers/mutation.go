@@ -482,7 +482,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				log.Info(err.Error())
 			}
 
-			config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+			artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
 			if err != nil {
 				log.Info(err.Error())
 			}
@@ -529,15 +529,17 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				}
 			}
 
-			r.Events <- transistor.NewEvent(plugins.ReleaseExtension{
-				ID:        releaseExtension.Model.ID.String(),
-				Action:    eventAction,
-				Slug:      extension.Key,
-				State:     eventState,
-				Release:   releaseEvent,
-				Config:    config,
-				Artifacts: artifacts,
+			ev := transistor.NewEvent(plugins.ReleaseExtension{
+				ID:      releaseExtension.Model.ID.String(),
+				Action:  plugins.GetAction("create"),
+				Slug:    extension.Key,
+				State:   releaseExtension.State,
+				Release: releaseEvent,
 			}, nil)
+
+			ev.Artifacts = artifacts
+
+			r.Events <- ev
 		}
 	}
 
@@ -1073,7 +1075,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			log.Info(err.Error())
 		}
 
-		config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+		artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
 		if err != nil {
 			log.Info(err.Error())
 		}
@@ -1089,12 +1091,11 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 				Slug:       project.Slug,
 				Repository: project.Repository,
 			},
-			Config:      config,
-			Artifacts:   map[string]interface{}{},
 			Environment: env.Key,
 		}
-
-		r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+		ev := transistor.NewEvent(projectExtensionEvent, nil)
+		ev.Artifacts = artifacts
+		r.Events <- ev
 
 		return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 	}
@@ -1147,7 +1148,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 		log.Info(err.Error())
 	}
 
-	config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
 	if err != nil {
 		log.Info(err.Error())
 	}
@@ -1163,12 +1164,12 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 			Slug:       project.Slug,
 			Repository: project.Repository,
 		},
-		Config:      config,
-		Artifacts:   map[string]interface{}{},
 		Environment: env.Key,
 	}
 
-	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+	ev := transistor.NewEvent(projectExtensionEvent, nil)
+	ev.Artifacts = artifacts
+	r.Events <- ev
 
 	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 }
@@ -1228,7 +1229,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 		log.Info(err.Error())
 	}
 
-	config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
 	if err != nil {
 		log.Info(err.Error())
 	}
@@ -1244,12 +1245,11 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 			Slug:       project.Slug,
 			Repository: project.Repository,
 		},
-		Config:      config,
-		Artifacts:   map[string]interface{}{},
 		Environment: env.Key,
 	}
-
-	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+	ev := transistor.NewEvent(projectExtensionEvent, nil)
+	ev.Artifacts = artifacts
+	r.Events <- ev
 
 	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 }
@@ -1349,10 +1349,11 @@ func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql
 }
 
 /* fills in Config by querying config ids and getting the actual value */
-func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (map[string]interface{}, error) {
-	c := make(map[string]interface{})
+func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) ([]transistor.Artifact, error) {
+	var artifacts []transistor.Artifact
 
 	for _, val := range config["config"].([]interface{}) {
+		var artifact transistor.Artifact
 		val := val.(map[string]interface{})
 		// check if val is UUID. If so, query in environment variables for id
 		secretID := uuid.FromStringOrNil(val["value"].(string))
@@ -1363,15 +1364,21 @@ func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (m
 					"secret_id": secretID,
 				})
 			}
-			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = secret.Value
+			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))
+			artifact.Value = secret.Value
 		} else {
-			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
+			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))
+			artifact.Value = val["value"].(string)
 		}
+		artifacts = append(artifacts, artifact)
 	}
 
 	for key, val := range config["custom"].(map[string]interface{}) {
-		c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))] = val
+		var artifact transistor.Artifact
+		artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))
+		artifact.Value = val
+		artifacts = append(artifacts, artifact)
 	}
 
-	return c, nil
+	return artifacts, nil
 }
