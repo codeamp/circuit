@@ -17,9 +17,9 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/extemporalgenome/slug"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
-	graphql "github.com/graph-gophers/graphql-go"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/ssh"
 )
@@ -510,20 +510,19 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			}
 
 			r.DB.Create(&releaseExtension)
-
-			eventAction := plugins.GetAction("create")
-			eventState := plugins.GetState("waiting")
-			artifacts := map[string]interface{}{}
-
 			// check if the last release extension has the same
 			// ServicesSignature and SecretsSignature. If so,
 			// mark the action as completed before sending the event
 			lastReleaseExtension := ReleaseExtension{}
+			var eventAction plugins.Action
+			var eventState plugins.State
+			artifacts := make(map[string]interface{})
 
-			r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature,
-				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension)
-
-			if lastReleaseExtension.Model.ID.String() != "" {
+			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature,
+				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+				eventAction = plugins.GetAction("create")
+				eventState = plugins.GetState("waiting")
+			} else {
 				eventAction = plugins.GetAction("status")
 				eventState = lastReleaseExtension.State
 				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
