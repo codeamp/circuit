@@ -101,13 +101,31 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 	// configPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
 	configPrefix := "KUBERNETESLOADBALANCERS_"
-	svcName := payload.Config[configPrefix+"SERVICE"].(string)
-	lbName := payload.Config[configPrefix+"NAME"].(string)
-	sslARN := payload.Config[configPrefix+"SSL_CERT_ARN"].(string)
-	s3AccessLogs := payload.Config[configPrefix+"ACCESS_LOG_S3_BUCKET"].(string)
-	lbType := plugins.GetType(payload.Config[configPrefix+"TYPE"].(string))
+
+	svcName, err := e.GetArtifact(configPrefix + "SERVICE")
+	if err != nil {
+		return err
+	}
+	lbName, err := e.GetArtifact(configPrefix + "NAME")
+	if err != nil {
+		return err
+	}
+	sslARN, err := e.GetArtifact(configPrefix + "SSL_CERT_ARN")
+	if err != nil {
+		return err
+	}
+	s3AccessLogs, err := e.GetArtifact(configPrefix + "ACCESS_LOG_S3_BUCKET")
+	if err != nil {
+		return err
+	}
+	_lbType, err := e.GetArtifact(configPrefix + "TYPE")
+	if err != nil {
+		return err
+	}
+
+	lbType := plugins.GetType(_lbType.GetString())
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-	kubeconfig, err := utils.SetupKubeConfig(payload.Config, configPrefix)
+	kubeconfig, err := utils.SetupKubeConfig(e, configPrefix)
 	if err != nil {
 		log.Info(err.Error())
 		return err
@@ -133,7 +151,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	}
 
 	coreInterface := clientset.Core()
-	deploymentName := utils.GenDeploymentName(projectSlug, svcName)
+	deploymentName := utils.GenDeploymentName(projectSlug, svcName.GetString())
 
 	var serviceType v1.ServiceType
 	var servicePorts []v1.ServicePort
@@ -154,10 +172,10 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout"] = "300"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled"] = "true"
-		if s3AccessLogs != "" {
+		if s3AccessLogs.GetString() != "" {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs.GetString()
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
 		}
 	case plugins.GetType("office"):
@@ -166,16 +184,20 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout"] = "300"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled"] = "true"
-		if s3AccessLogs != "" {
+		if s3AccessLogs.GetString() != "" {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs.GetString()
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
 		}
 	}
-	listenerPairs := payload.Config[configPrefix+"LISTENER_PAIRS"]
+	listenerPairs, err := e.GetArtifact(configPrefix + "LISTENER_PAIRS")
+	if err != nil {
+		return err
+	}
+
 	var sslPorts []string
-	for _, p := range listenerPairs.([]interface{}) {
+	for _, p := range listenerPairs.GetStringSlice() {
 		var realProto string
 		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
@@ -225,7 +247,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	if len(sslPorts) > 0 {
 		sslPortsCombined := strings.Join(sslPorts, ",")
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-ports"] = sslPortsCombined
-		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-cert"] = sslARN
+		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-cert"] = sslARN.GetString()
 	}
 	serviceSpec := v1.ServiceSpec{
 		Selector: map[string]string{"app": deploymentName},
@@ -238,7 +260,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			APIVersion: "v1",
 		},
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:        lbName,
+			Name:        lbName.GetString(),
 			Annotations: serviceAnnotations,
 		},
 		Spec: serviceSpec,
@@ -246,7 +268,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	// Implement service update-or-create semantics.
 	service := coreInterface.Services(namespace)
-	svc, err := service.Get(lbName, meta_v1.GetOptions{})
+	svc, err := service.Get(lbName.GetString(), meta_v1.GetOptions{})
 	switch {
 	case err == nil:
 		// Preserve the NodePorts for PATCH service.
@@ -290,7 +312,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		// Timeout waiting for ELB DNS name after 900 seconds
 		timeout := 90
 		for {
-			elbResult, elbErr := coreInterface.Services(namespace).Get(lbName, meta_v1.GetOptions{})
+			elbResult, elbErr := coreInterface.Services(namespace).Get(lbName.GetString(), meta_v1.GetOptions{})
 			if elbErr != nil {
 				fmt.Printf("Error '%s' describing service %s", elbErr, lbName)
 			} else {
@@ -312,9 +334,6 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		ELBDNS = fmt.Sprintf("%s.%s", lbName, utils.GenNamespaceName(payload.Environment, projectSlug))
 	}
 
-	route53Config := e.Payload.(plugins.ProjectExtension).Config
-	route53Config["KUBERNETESLOADBALANCERS_ELBDNS"] = ELBDNS
-
 	route53Event := e
 	route53Event.Payload = plugins.ProjectExtension{
 		ID:           e.Payload.(plugins.ProjectExtension).ID,
@@ -322,20 +341,19 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		Slug:         "route53",
 		State:        plugins.GetState("waiting"),
 		StateMessage: "",
-		Config:       route53Config,
-		Artifacts:    map[string]interface{}{},
 		Environment:  e.Payload.(plugins.ProjectExtension).Environment,
 		Project:      e.Payload.(plugins.ProjectExtension).Project,
 	}
 
 	// send event to codeamp to signal loadbalancers completion
 	event := utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)
-	event.Payload.(plugins.ProjectExtension).Artifacts["ELB_DNS"] = ELBDNS
-	event.Payload.(plugins.ProjectExtension).Artifacts["STATUS"] = "Waiting for Route53 DNS"
+	event.AddArtifact("KUBERNETESLOADBALANCERS_ELB_DNS", ELBDNS, false)
+	event.AddArtifact("KUBERNETESLOADBALANCERS_STATUS", "Waiting for Route53 DNS", false)
 	x.events <- event
 
 	// send route53 event
 	route53Event = e.NewEvent(route53Event.Payload, err)
+	route53Event.AddArtifact("KUBERNETESLOADBALANCERS_ELBDNS", ELBDNS, false)
 	x.events <- route53Event
 
 	return nil
@@ -346,7 +364,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 	configPrefix := "KUBERNETESLOADBALANCERS_"
-	kubeconfig, err := utils.SetupKubeConfig(payload.Config, configPrefix)
+	kubeconfig, err := utils.SetupKubeConfig(e, configPrefix)
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
@@ -372,29 +390,30 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		return nil
 	}
 
-	svcName, err := utils.GetFormValue(payload.Config, configPrefix, "SERVICE")
+	svcName, err := e.GetArtifact(configPrefix + "SERVICE")
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
-	lbName, err := utils.GetFormValue(payload.Config, configPrefix, "NAME")
+	lbName, err := e.GetArtifact(configPrefix + "NAME")
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
+
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 
 	coreInterface := clientset.Core()
 	namespace := utils.GenNamespaceName(payload.Environment, projectSlug)
 
-	log.Println(namespace, lbName.(string))
-	_, svcGetErr := coreInterface.Services(namespace).Get(lbName.(string), meta_v1.GetOptions{})
+	log.Println(namespace, lbName.GetString())
+	_, svcGetErr := coreInterface.Services(namespace).Get(lbName.GetString(), meta_v1.GetOptions{})
 	if svcGetErr == nil {
 		// Service was found, ready to delete
-		svcDeleteErr := coreInterface.Services(namespace).Delete(lbName.(string), &meta_v1.DeleteOptions{})
+		svcDeleteErr := coreInterface.Services(namespace).Delete(lbName.GetString(), &meta_v1.DeleteOptions{})
 		if svcDeleteErr != nil {
 			failMessage := fmt.Sprintf("Error '%s' deleting service %s", svcDeleteErr, lbName)
 			fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)

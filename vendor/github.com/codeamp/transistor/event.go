@@ -54,6 +54,10 @@ func (a *Artifact) GetStringMap() map[string]interface{} {
 	return a.Value.(map[string]interface{})
 }
 
+func (a *Artifact) GetStringSlice() []interface{} {
+	return a.Value.([]interface{})
+}
+
 func name(payload interface{}) string {
 	s := reflect.ValueOf(payload)
 

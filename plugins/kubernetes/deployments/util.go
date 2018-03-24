@@ -76,26 +76,36 @@ func (x *Deployments) sendDDInProgress(e transistor.Event, services []plugins.Se
 }
 
 func secretifyDockerCred(e transistor.Event) (string, error) {
-	ext := e.Payload.(plugins.ReleaseExtension)
-	// prefix := ext.Config["EXTENSION_PREFIX"].(string)
-	// if prefix == "" {
-	// 	prefix = "DOCKERBUILDER_"
-	// }
 	prefix := "DOCKERBUILDER_"
 
-	user := ext.Release.Artifacts[prefix+"USER"].(string)
-	pass := ext.Release.Artifacts[prefix+"PASSWORD"].(string)
-	email := ext.Release.Artifacts[prefix+"EMAIL"].(string)
-	host := ext.Release.Artifacts[prefix+"HOST"].(string)
+	user, err := e.GetArtifact(prefix + "USER")
+	if err != nil {
+		return "", err
+	}
 
-	encodeMe := fmt.Sprintf("%s:%s", user, pass)
+	pass, err := e.GetArtifact(prefix + "PASSWORD")
+	if err != nil {
+		return "", err
+	}
+
+	email, err := e.GetArtifact(prefix + "EMAIL")
+	if err != nil {
+		return "", err
+	}
+
+	host, err := e.GetArtifact(prefix + "HOST")
+	if err != nil {
+		return "", err
+	}
+
+	encodeMe := fmt.Sprintf("%s:%s", user.GetString(), pass.GetString())
 	encodeResult := []byte(encodeMe)
 	authField := base64.StdEncoding.EncodeToString(encodeResult)
 	jsonFilled := fmt.Sprintf("{\"%s\":{\"username\":\"%s\",\"password\":\"%s\",\"email\":\"%s\",\"auth\":\"%s\"}}",
-		host,
-		user,
-		pass,
-		email,
+		host.GetString(),
+		user.GetString(),
+		pass.GetString(),
+		email.GetString(),
 		authField,
 	)
 	return jsonFilled, nil
@@ -267,14 +277,11 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 }
 
 func (x *Deployments) doDeploy(e transistor.Event) error {
-
-	payload := e.Payload.(plugins.ReleaseExtension)
-
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
-	kubeconfig, err := utils.SetupKubeConfig(payload.Config, "KUBERNETESDEPLOYMENTS_")
+	kubeconfig, err := utils.SetupKubeConfig(e, "KUBERNETESDEPLOYMENTS_")
 	if err != nil {
 		ca_log.Info(err.Error())
 		x.sendDDErrorResponse(e, reData.Release.Services, "failed writing kubeconfig")
@@ -331,10 +338,6 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	var myEnvVars []v1.EnvVar
 
 	// This map is used in to create the secrets themselves
-	for key, val := range reData.Config {
-		secretMap[key] = val.(string)
-	}
-
 	for _, secret := range reData.Release.Secrets {
 		secretMap[secret.Key] = secret.Value
 	}
@@ -520,13 +523,18 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
 		}
 
+		dockerImage, err := e.GetArtifact("DOCKERBUILDER_IMAGE")
+		if err != nil {
+			return err
+		}
+
 		simplePod := SimplePodSpec{
 			Name:          oneShotServiceName,
 			RestartPolicy: v1.RestartPolicyNever,
 			NodeSelector:  nodeSelector,
 			Args:          commandArray,
 			Service:       service,
-			Image:         payload.Release.Artifacts["DOCKERBUILDER_IMAGE"].(string),
+			Image:         dockerImage.GetString(),
 			Env:           myEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
@@ -735,7 +743,11 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 		var revisionHistoryLimit int32 = 10
 
-		dockerImageForRelease := payload.Release.Artifacts["DOCKERBUILDER_IMAGE"].(string)
+		dockerImage, err := e.GetArtifact("DOCKERBUILDER_IMAGE")
+		if err != nil {
+			return err
+		}
+
 		simplePod := SimplePodSpec{
 			Name:          deploymentName,
 			DeployPorts:   deployPorts,
@@ -745,7 +757,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			NodeSelector:  nodeSelector,
 			Args:          commandArray,
 			Service:       service,
-			Image:         dockerImageForRelease,
+			Image:         dockerImage.GetString(),
 			Env:           myEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
@@ -772,7 +784,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		}
 
 		x.sendDDInProgress(e, reData.Release.Services, "Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
-		var err error
+
 		log.Printf("Getting list of deployments/ jobs matching %s", deploymentName)
 		_, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
 		var myError error

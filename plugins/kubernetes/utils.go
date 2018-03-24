@@ -15,26 +15,6 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func GetFormValuePrefix(e transistor.Event, fallbackPrefix string) string {
-	formValues := e.Payload.(plugins.ProjectExtension).Config
-
-	prefix := formValues["EXTENSION_PREFIX"]
-	if prefix == nil {
-		return fallbackPrefix
-	}
-	return prefix.(string)
-}
-
-func GetFormValue(form map[string]interface{}, prefix string, key string) (interface{}, error) {
-	value := form[prefix+key]
-
-	if value == nil {
-		err := fmt.Errorf(fmt.Sprintf("Form Value: %s not found.", prefix+key))
-		return nil, err
-	}
-	return value, nil
-}
-
 func CreateProjectExtensionEvent(e transistor.Event, action plugins.Action, state plugins.State, msg string, err error) transistor.Event {
 	payload := e.Payload.(plugins.ProjectExtension)
 	payload.State = state
@@ -101,14 +81,34 @@ func GetTempDir() (string, error) {
 	}
 }
 
-func SetupKubeConfig(config map[string]interface{}, key string) (string, error) {
+func SetupKubeConfig(e transistor.Event, prefix string) (string, error) {
 	randomDirectory, err := GetTempDir()
 	if err != nil {
 		log.Info(err.Error())
 		return "", err
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(config[fmt.Sprintf("%sKUBECONFIG", key)].(string)), 0644)
+	kubeconfig, err := e.GetArtifact(prefix + "KUBECONFIG")
+	if err != nil {
+		return "", err
+	}
+
+	clientCert, err := e.GetArtifact(prefix + "CLIENT_CERTIFICATE")
+	if err != nil {
+		return "", err
+	}
+
+	clientKey, err := e.GetArtifact(prefix + "CLIENT_KEY")
+	if err != nil {
+		return "", err
+	}
+
+	certificateAuthority, err := e.GetArtifact(prefix + "CERTIFICATE_AUTHORITY")
+	if err != nil {
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.GetString()), 0644)
 	if err != nil {
 		log.Info(err.Error())
 		return "", err
@@ -123,21 +123,21 @@ func SetupKubeConfig(config map[string]interface{}, key string) (string, error) 
 	// generate client cert, client key
 	// certificate authority
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin.pem", randomDirectory),
-		[]byte(config[fmt.Sprintf("%sCLIENT_CERTIFICATE", key)].(string)), 0644)
+		[]byte(clientCert.GetString()), 0644)
 	if err != nil {
 		log.Info("ERROR: %s", err.Error())
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
-		[]byte(config[fmt.Sprintf("%sCLIENT_KEY", key)].(string)), 0644)
+		[]byte(clientKey.GetString()), 0644)
 	if err != nil {
 		log.Info("ERROR: %s", err.Error())
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
-		[]byte(config[fmt.Sprintf("%sCERTIFICATE_AUTHORITY", key)].(string)), 0644)
+		[]byte(certificateAuthority.GetString()), 0644)
 	if err != nil {
 		log.Info("ERROR: %s", err.Error())
 		return "", err
