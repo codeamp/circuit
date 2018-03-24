@@ -329,7 +329,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
 
 		ev := e.NewEvent(event, nil)
-		ev.AddArtifact("BUILD_LOG", buildlogBuf.String(), false)
+		ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
 		x.events <- ev
 
 		return err
@@ -342,7 +342,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
 
 		ev := e.NewEvent(event, nil)
-		ev.AddArtifact("BUILD_LOG", buildlogBuf.String(), false)
+		ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
 		x.events <- ev
 
 		return err
