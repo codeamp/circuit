@@ -519,17 +519,15 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			eventState := plugins.GetState("waiting")
 			artifacts := make(map[string]interface{})
 
-			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature,
-				releaseExtension.SecretsSignature).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
-				if lastReleaseExtension.State != plugins.GetState("waiting") && lastReleaseExtension.State != plugins.GetState("fetching") {
-					eventAction = plugins.GetAction("status")
-					eventState = lastReleaseExtension.State
-					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-					if err != nil {
-						log.Info(err.Error())
-					}
+			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching"))).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
+				eventAction = plugins.GetAction("status")
+				eventState = lastReleaseExtension.State
+				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+				if err != nil {
+					log.Info(err.Error())
 				}
 			}
+
 			r.Events <- transistor.NewEvent(plugins.ReleaseExtension{
 				ID:        releaseExtension.Model.ID.String(),
 				Action:    eventAction,
