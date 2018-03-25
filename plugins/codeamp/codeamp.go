@@ -249,16 +249,12 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 		// for any envs in project. If so, check if latest commit
 		// and send call CreateRelease resolver
 		doContinuousDeploy = false
-		if x.DB.Order("created desc").First(&latestFeature).RecordNotFound() {
-			// no features found, so this is the latest feature
+		x.DB.Order("created desc").First(&latestFeature)
+		if latestFeature.Hash == feature.Hash {
 			doContinuousDeploy = true
-		} else {
-			if latestFeature.Hash == feature.Hash {
-				doContinuousDeploy = true
-			}
 		}
 
-		if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).RecordNotFound() {
+		if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
 			log.InfoWithFields("No continuous deploys found", log.Fields{
 				"continuous_deploy": true,
 				"project_id":        project.Model.ID,
