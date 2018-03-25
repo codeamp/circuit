@@ -17,7 +17,6 @@ import (
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
@@ -268,7 +267,6 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 			// call CreateRelease for each env that has cd turned on
 			for _, setting := range projectSettings {
 				if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref && doContinuousDeploy {
-					spew.Dump("CREATE RELEASE PLEASE")
 					x.Resolver.CreateRelease(adminContext, &struct{ Release *resolvers.ReleaseInput }{
 						Release: &resolvers.ReleaseInput{
 							HeadFeatureID: feature.Model.ID.String(),
