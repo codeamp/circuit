@@ -1,6 +1,7 @@
 package codeamp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
@@ -39,6 +41,7 @@ type CodeAmp struct {
 	SocketIO       *socketio.Server
 	DB             *gorm.DB
 	Redis          *redis.Client
+	Resolver       *resolvers.Resolver
 }
 
 func NewCodeAmp() *CodeAmp {
@@ -79,6 +82,7 @@ func (x *CodeAmp) Listen() {
 	http.Handle("/", fs)
 
 	r := &resolvers.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
+	x.Resolver = r
 	http.Handle("/query", resolvers.CorsMiddleware(r.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
 
 	log.Info(fmt.Sprintf("running GraphQL server on %v", x.ServiceAddress))
@@ -209,8 +213,18 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.GitCommit)
 
+	var adminContext context.Context
 	var project resolvers.Project
 	var feature resolvers.Feature
+	var latestFeature resolvers.Feature
+	var doContinuousDeploy bool
+	var projectSettings []resolvers.ProjectSettings
+
+	adminContext = context.WithValue(context.Background(), "jwt", resolvers.Claims{
+		UserID:      "foo",
+		Email:       "foo@gmail.com",
+		Permissions: []string{"admin"},
+	})
 
 	if x.DB.Where("repository = ?", payload.Repository).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -229,7 +243,42 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 			Ref:        payload.Ref,
 			Created:    payload.Created,
 		}
+
 		x.DB.Save(&feature)
+
+		// If latest commit, check if continuous deploy turned on
+		// for any envs in project. If so, check if latest commit
+		// and send call CreateRelease resolver
+		doContinuousDeploy = false
+		if x.DB.Order("created desc").First(&latestFeature).RecordNotFound() {
+			// no features found, so this is the latest feature
+			doContinuousDeploy = true
+		} else {
+			if latestFeature.Hash == feature.Hash {
+				doContinuousDeploy = true
+			}
+		}
+
+		if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).RecordNotFound() {
+			log.InfoWithFields("No continuous deploys found", log.Fields{
+				"continuous_deploy": true,
+				"project_id":        project.Model.ID,
+			})
+		} else {
+			// call CreateRelease for each env that has cd turned on
+			for _, setting := range projectSettings {
+				if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref && doContinuousDeploy {
+					spew.Dump("CREATE RELEASE PLEASE")
+					x.Resolver.CreateRelease(adminContext, &struct{ Release *resolvers.ReleaseInput }{
+						Release: &resolvers.ReleaseInput{
+							HeadFeatureID: feature.Model.ID.String(),
+							ProjectID:     setting.ProjectID.String(),
+							EnvironmentID: setting.EnvironmentID.String(),
+						},
+					})
+				}
+			}
+		}
 	} else {
 		log.InfoWithFields("feature already exists", log.Fields{
 			"repository": payload.Repository,
