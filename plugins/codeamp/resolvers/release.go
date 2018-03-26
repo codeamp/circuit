@@ -74,7 +74,7 @@ func (r *ReleaseResolver) User() *UserResolver {
 
 // Artifacts
 func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
-	var artifacts []transistor.Artifact
+	artifacts := []transistor.Artifact{}
 	var releaseExtensions []ReleaseExtension
 
 	isAdmin := false
@@ -109,7 +109,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 		log.InfoWithFields(err.Error(), log.Fields{
 			"input": artifacts,
 		})
-		return JSON{}, err
+		return JSON{[]byte("[]")}, err
 	}
 
 	return JSON{json.RawMessage(marshalledArtifacts)}, nil
