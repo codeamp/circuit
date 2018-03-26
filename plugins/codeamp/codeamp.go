@@ -528,14 +528,14 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *resolvers.ReleaseExtension) {
 	if done {
 		switch re.Type {
 		case plugins.GetType("workflow"):
-			x.WorkflowProjectExtensionsCompleted(&release)
+			x.WorkflowReleaseExtensionsCompleted(&release)
 		case plugins.GetType("deployment"):
 			x.ReleaseCompleted(&release)
 		}
 	}
 }
 
-func (x *CodeAmp) WorkflowProjectExtensionsCompleted(release *resolvers.Release) {
+func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release) {
 	project := resolvers.Project{}
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{

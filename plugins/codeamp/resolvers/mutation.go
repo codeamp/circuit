@@ -489,7 +489,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				SecretsSignature:   fmt.Sprintf("%x", secretsSig),
 				ProjectExtensionID: projectExtension.Model.ID,
 				State:              plugins.GetState("waiting"),
-				Type:               plugins.GetType("workflow"),
+				Type:               extension.Type,
 				Artifacts:          postgres.Jsonb{[]byte("[]")}, // default is empty obj
 			}
 
