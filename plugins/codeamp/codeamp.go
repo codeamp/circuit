@@ -306,7 +306,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	}
 
 	if e.Matches("plugins.Release:create") {
-		x.DB.Where("project_id = ? and release_id = ?", release.ProjectID, release.Model.ID).Find(&releaseExtensions)
+		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 
 		for _, releaseExtension := range releaseExtensions {
 			projectExtension := resolvers.ProjectExtension{}
