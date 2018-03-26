@@ -668,6 +668,20 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			return
 		}
 
+		unmarshalledConfig := make(map[string]interface{})
+		err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
+		if err != nil {
+			log.Info(err.Error())
+		}
+
+		projectExtensionArtifacts, err := resolvers.ExtractConfig(unmarshalledConfig, extension.Key, x.DB)
+		if err != nil {
+			log.Info(err.Error())
+		}
+		for _, artifact := range projectExtensionArtifacts {
+			artifacts = append(artifacts, artifact)
+		}
+
 		// collect workflow artifacts
 		if releaseExtension.Type == plugins.GetType("workflow") {
 			var unmarshalledArtifacts []transistor.Artifact
