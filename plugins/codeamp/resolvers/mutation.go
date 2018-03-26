@@ -454,8 +454,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		Secrets: pluginSecrets,
 	}
 
-	r.Events <- transistor.NewEvent(releaseEvent, nil)
-
 	// Create/Emit Release ProjectExtensions
 	for _, projectExtension := range projectExtensions {
 		extension := Extension{}
@@ -466,24 +464,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			return &ReleaseResolver{}, errors.New("extension spec not found")
 		}
 
-		if plugins.Type(extension.Type) == plugins.GetType("workflow") {
+		if plugins.Type(extension.Type) == plugins.GetType("workflow") || plugins.Type(extension.Type) == plugins.GetType("deployment") {
 			var headFeature Feature
 			if r.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 				log.ErrorWithFields("head feature not found", log.Fields{
 					"id": release.HeadFeatureID,
 				})
 				return &ReleaseResolver{}, errors.New("head feature not found")
-			}
-
-			unmarshalledConfig := make(map[string]interface{})
-			err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
-			if err != nil {
-				log.Info(err.Error())
-			}
-
-			artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
-			if err != nil {
-				log.Info(err.Error())
 			}
 
 			secretsSha1 := sha1.New()
@@ -494,8 +481,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			servicesSha1.Write(servicesJsonb.RawMessage)
 			servicesSig := servicesSha1.Sum(nil)
 
-			emptyArtifacts, _ := json.Marshal([]interface{}{})
-
 			// create ReleaseExtension
 			releaseExtension := ReleaseExtension{
 				ReleaseID:          release.Model.ID,
@@ -505,41 +490,14 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				ProjectExtensionID: projectExtension.Model.ID,
 				State:              plugins.GetState("waiting"),
 				Type:               plugins.GetType("workflow"),
-				Artifacts:          postgres.Jsonb{emptyArtifacts}, // default is empty obj
+				Artifacts:          postgres.Jsonb{[]byte("[]")}, // default is empty obj
 			}
 
 			r.DB.Create(&releaseExtension)
-
-			// check if the last release extension has the same
-			// ServicesSignature and SecretsSignature. If so,
-			// mark the action as completed before sending the event
-			lastReleaseExtension := ReleaseExtension{}
-
-			eventAction := plugins.GetAction("create")
-			eventState := plugins.GetState("waiting")
-
-			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
-				eventAction = plugins.GetAction("status")
-				eventState = lastReleaseExtension.State
-				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-				if err != nil {
-					log.Info(err.Error())
-				}
-			}
-
-			ev := transistor.NewEvent(plugins.ReleaseExtension{
-				ID:      releaseExtension.Model.ID.String(),
-				Action:  eventAction,
-				Slug:    extension.Key,
-				State:   eventState,
-				Release: releaseEvent,
-			}, nil)
-
-			ev.Artifacts = artifacts
-
-			r.Events <- ev
 		}
 	}
+
+	r.Events <- transistor.NewEvent(releaseEvent, nil)
 
 	return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
 }

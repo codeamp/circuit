@@ -292,6 +292,88 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 	return nil
 }
 
+func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
+	payload := e.Payload.(plugins.Release)
+	release := resolvers.Release{}
+	releaseExtensions := []resolvers.ReleaseExtension{}
+
+	if x.DB.Where("id = ?", payload.ID).First(&release).RecordNotFound() {
+		log.InfoWithFields("release not found", log.Fields{
+			"id": payload.ID,
+		})
+		return fmt.Errorf("release %s not found", payload.ID)
+	}
+
+	if e.Matches("plugins.Release:create") {
+		x.DB.Where("project_id = ? and release_id = ?", release.ProjectID, release.Model.ID).Find(&releaseExtensions)
+
+		for _, releaseExtension := range releaseExtensions {
+			projectExtension := resolvers.ProjectExtension{}
+			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+				log.InfoWithFields("project extensions not found", log.Fields{
+					"id": releaseExtension.ProjectExtensionID,
+					"release_extension_id": releaseExtension.Model.ID,
+				})
+				return fmt.Errorf("project extension %s not found", releaseExtension.ProjectExtensionID)
+			}
+
+			extension := resolvers.Extension{}
+			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+				log.InfoWithFields("extension not found", log.Fields{
+					"id": projectExtension.Model.ID,
+					"release_extension_id": releaseExtension.Model.ID,
+				})
+				return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
+			}
+
+			if plugins.Type(extension.Type) == plugins.GetType("workflow") {
+				// check if the last release extension has the same
+				// ServicesSignature and SecretsSignature. If so,
+				// mark the action as completed before sending the event
+				lastReleaseExtension := resolvers.ReleaseExtension{}
+				artifacts := []transistor.Artifact{}
+
+				eventAction := plugins.GetAction("create")
+				eventState := plugins.GetState("waiting")
+
+				if x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+					unmarshalledConfig := make(map[string]interface{})
+					err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
+					if err != nil {
+						log.Info(err.Error())
+					}
+
+					artifacts, err = resolvers.ExtractConfig(unmarshalledConfig, extension.Key, x.DB)
+					if err != nil {
+						log.Info(err.Error())
+					}
+				} else {
+					eventAction = plugins.GetAction("status")
+					eventState = lastReleaseExtension.State
+
+					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+					if err != nil {
+						log.Info(err.Error())
+					}
+				}
+
+				ev := transistor.NewEvent(plugins.ReleaseExtension{
+					ID:      releaseExtension.Model.ID.String(),
+					Action:  eventAction,
+					Slug:    extension.Key,
+					State:   eventState,
+					Release: payload,
+				}, nil)
+
+				ev.Artifacts = artifacts
+
+				x.Events <- ev
+			}
+		}
+	}
+	return nil
+}
+
 func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.ReleaseExtension)
 
