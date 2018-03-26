@@ -31,8 +31,6 @@ type Release struct {
 	HeadFeatureID uuid.UUID `json:"headFeatureID" gorm:"type:uuid"`
 	// TailFeatureID
 	TailFeatureID uuid.UUID `json:"tailFeatureID" gorm:"type:uuid"`
-	// Artifacts
-	Artifacts postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
 	// Services
 	Services postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
 	// Secrets
@@ -77,18 +75,27 @@ func (r *ReleaseResolver) User() *UserResolver {
 // Artifacts
 func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 	var artifacts []transistor.Artifact
+	var releaseExtensions []ReleaseExtension
 
 	isAdmin := false
 	if _, err := CheckAuth(ctx, []string{"admin"}); err == nil {
 		isAdmin = true
 	}
 
-	err := json.Unmarshal(r.Release.Artifacts.RawMessage, &artifacts)
-	if err != nil {
-		log.InfoWithFields(err.Error(), log.Fields{
-			"input": r.Release.Artifacts.RawMessage,
-		})
-		return JSON{}, err
+	r.DB.Where("release_id = ?", r.Model.ID).Find(&releaseExtensions)
+
+	for _, releaseExtension := range releaseExtensions {
+		var _artifacts []transistor.Artifact
+		err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &_artifacts)
+		if err != nil {
+			log.InfoWithFields(err.Error(), log.Fields{
+				"input": releaseExtension.Artifacts.RawMessage,
+			})
+		} else {
+			for _, artifact := range _artifacts {
+				artifacts = append(artifacts, artifact)
+			}
+		}
 	}
 
 	for i, artifact := range artifacts {

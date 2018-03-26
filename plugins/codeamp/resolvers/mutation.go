@@ -320,8 +320,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		return &ReleaseResolver{}, err
 	}
 
-	emptyArtifacts, _ := json.Marshal([]interface{}{})
-
 	// Create Release
 	release := Release{
 		ProjectID:         projectID,
@@ -334,7 +332,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		Secrets:           secretsJsonb,
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
-		Artifacts:         postgres.Jsonb{emptyArtifacts},
 	}
 
 	r.DB.Create(&release)
