@@ -167,6 +167,7 @@ func (x *CodeAmp) Subscribe() []string {
 		"plugins.ProjectExtension:complete",
 		"plugins.ReleaseExtension:status",
 		"plugins.Release:status",
+		"plugins.Release:create",
 		"plugins.Release:complete",
 	}
 }
