@@ -23,6 +23,7 @@ import (
 
 type DockerBuilder struct {
 	events chan transistor.Event
+	event  transistor.Event
 	Socket string
 }
 
@@ -189,7 +190,7 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 			buildArgs = append(buildArgs, ba)
 		}
 	}
-	fullImagePath := fullImagePath(event)
+	fullImagePath := fullImagePath(x.event)
 	buildOptions := docker.BuildImageOptions{
 		Dockerfile:   fmt.Sprintf("Dockerfile"),
 		Name:         fullImagePath,
@@ -216,42 +217,57 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, buildlog io.Writer) error {
 	var err error
 
-	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(event))))
+	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(x.event))))
+
+	user, err := x.event.GetArtifact("DOCKERBUILDER_USER")
+	if err != nil {
+		return err
+	}
+
+	password, err := x.event.GetArtifact("DOCKERBUILDER_PASSWORD")
+	if err != nil {
+		return err
+	}
+
+	email, err := x.event.GetArtifact("DOCKERBUILDER_EMAIL")
+	if err != nil {
+		return err
+	}
 
 	dockerClient, err := docker.NewClient(x.Socket)
 	err = dockerClient.PushImage(docker.PushImageOptions{
-		Name:         imagePathGen(event),
-		Tag:          imageTagGen(event),
+		Name:         imagePathGen(x.event),
+		Tag:          imageTagGen(x.event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Config["DOCKERBUILDER_USER"].(string),
-		Password: event.Config["DOCKERBUILDER_PASSWORD"].(string),
-		Email:    event.Config["DOCKERBUILDER_EMAIL"].(string),
+		Username: user.GetString(),
+		Password: password.GetString(),
+		Email:    email.GetString(),
 	})
 	if err != nil {
 		return err
 	}
 
 	tagOptions := docker.TagImageOptions{
-		Repo:  imagePathGen(event),
-		Tag:   imageTagLatest(event),
+		Repo:  imagePathGen(x.event),
+		Tag:   imageTagLatest(x.event),
 		Force: true,
 	}
 
-	fullImagePath := imagePathGen(event) + ":" + imageTagGen(event)
+	fullImagePath := imagePathGen(x.event) + ":" + imageTagGen(x.event)
 
 	if err = dockerClient.TagImage(fullImagePath, tagOptions); err != nil {
 		return err
 	}
 
 	err = dockerClient.PushImage(docker.PushImageOptions{
-		Name:         imagePathGen(event),
-		Tag:          imageTagLatest(event),
+		Name:         imagePathGen(x.event),
+		Tag:          imageTagLatest(x.event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: event.Config["DOCKERBUILDER_USER"].(string),
-		Password: event.Config["DOCKERBUILDER_PASSWORD"].(string),
-		Email:    event.Config["DOCKERBUILDER_EMAIL"].(string),
+		Username: user.GetString(),
+		Password: password.GetString(),
+		Email:    email.GetString(),
 	})
 	if err != nil {
 		return err
@@ -261,6 +277,8 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
+	x.event = e
+
 	if e.Name == "plugins.ProjectExtension:create:dockerbuilder" {
 		var extensionEvent plugins.ProjectExtension
 		extensionEvent = e.Payload.(plugins.ProjectExtension)
@@ -309,8 +327,11 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		log.Debug(err)
 		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
-		event.Artifacts["BUILD_LOG"] = buildlogBuf.String()
-		x.events <- e.NewEvent(event, nil)
+
+		ev := e.NewEvent(event, nil)
+		ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
+		x.events <- ev
+
 		return err
 	}
 
@@ -319,44 +340,77 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		log.Debug(err)
 		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
-		event.Artifacts["BUILD_LOG"] = buildlogBuf.String()
-		x.events <- e.NewEvent(event, nil)
+
+		ev := e.NewEvent(event, nil)
+		ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
+		x.events <- ev
+
 		return err
 	}
 
 	event.State = plugins.GetState("complete")
-	event.Artifacts["IMAGE"] = fullImagePath(event)
-	event.Artifacts["USER"] = event.Config["DOCKERBUILDER_USER"].(string)
-	event.Artifacts["PASSWORD"] = event.Config["DOCKERBUILDER_PASSWORD"].(string)
-	event.Artifacts["EMAIL"] = event.Config["DOCKERBUILDER_EMAIL"].(string)
-	event.Artifacts["HOST"] = event.Config["DOCKERBUILDER_HOST"].(string)
-	event.Artifacts["BUILD_LOG"] = buildlogBuf.String()
 	event.StateMessage = "Completed"
-	// event.BuildLog = buildlog.String()
-	x.events <- e.NewEvent(event, nil)
+
+	user, err := x.event.GetArtifact("DOCKERBUILDER_USER")
+	if err != nil {
+		return err
+	}
+
+	password, err := x.event.GetArtifact("DOCKERBUILDER_PASSWORD")
+	if err != nil {
+		return err
+	}
+
+	email, err := x.event.GetArtifact("DOCKERBUILDER_EMAIL")
+	if err != nil {
+		return err
+	}
+
+	registryHost, err := x.event.GetArtifact("DOCKERBUILDER_HOST")
+	if err != nil {
+		log.Error(err)
+	}
+
+	ev := e.NewEvent(event, nil)
+	ev.AddArtifact("DOCKERBUILDER_USER", user.GetString(), user.Secret)
+	ev.AddArtifact("DOCKERBUILDER_PASSWORD", password.GetString(), password.Secret)
+	ev.AddArtifact("DOCKERBUILDER_EMAIL", email.GetString(), email.Secret)
+	ev.AddArtifact("DOCKERBUILDER_HOST", registryHost.GetString(), registryHost.Secret)
+	ev.AddArtifact("DOCKERBUILDER_IMAGE", fullImagePath(x.event), false)
+	ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
+	x.events <- ev
+
 	return nil
 }
 
 // generate image tag name
-func imageTagGen(event plugins.ReleaseExtension) string {
-	return (fmt.Sprintf("%s.%s", event.Release.HeadFeature.Hash, event.Release.Environment))
+func imageTagGen(event transistor.Event) string {
+	return (fmt.Sprintf("%s.%s", event.Payload.(plugins.ReleaseExtension).Release.HeadFeature.Hash, event.Payload.(plugins.ReleaseExtension).Release.Environment))
 }
 
-func imageTagLatest(event plugins.ReleaseExtension) string {
-	if event.Release.Environment == "production" {
+func imageTagLatest(event transistor.Event) string {
+	if event.Payload.(plugins.ReleaseExtension).Release.Environment == "production" {
 		return ("latest")
 	}
-	return (fmt.Sprintf("%s.%s", "latest", event.Release.Environment))
+	return (fmt.Sprintf("%s.%s", "latest", event.Payload.(plugins.ReleaseExtension).Release.Environment))
 }
 
 // rengerate image path name
-func imagePathGen(event plugins.ReleaseExtension) string {
-	registryHost := event.Config["DOCKERBUILDER_HOST"]
-	registryOrg := event.Config["DOCKERBUILDER_ORG"]
-	return (fmt.Sprintf("%s/%s/%s", registryHost, registryOrg, slug.Slug(event.Release.Project.Repository)))
+func imagePathGen(event transistor.Event) string {
+	registryHost, err := event.GetArtifact("DOCKERBUILDER_HOST")
+	if err != nil {
+		log.Error(err)
+	}
+
+	registryOrg, err := event.GetArtifact("DOCKERBUILDER_ORG")
+	if err != nil {
+		log.Error(err)
+	}
+
+	return (fmt.Sprintf("%s/%s/%s", registryHost.GetString(), registryOrg.GetString(), slug.Slug(event.Payload.(plugins.ReleaseExtension).Release.Project.Repository)))
 }
 
 // return the full image path with featureHash tag
-func fullImagePath(event plugins.ReleaseExtension) string {
+func fullImagePath(event transistor.Event) string {
 	return (fmt.Sprintf("%s:%s", imagePathGen(event), imageTagGen(event)))
 }

@@ -45,27 +45,17 @@ func (suite *TestSuite) TearDownSuite() {
 
 func (suite *TestSuite) TestDockerBuilder() {
 	var e transistor.Event
-
 	log.SetLogLevel(logrus.DebugLevel)
-
-	formValues := make(map[string]interface{})
-	formValues["USER"] = "test"
-	formValues["PASSWORD"] = "test"
-	formValues["EMAIL"] = "test@checkr.com"
-	formValues["HOST"] = "registry-testing.checkrhq-dev.net:5000"
-	formValues["ORG"] = "testorg"
-
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
 
 	dockerBuildEvent := plugins.ReleaseExtension{
 		Slug:   "dockerbuilder",
-		Action: plugins.Create,
+		Action: plugins.GetAction("create"),
 		State:  plugins.GetState("waiting"),
 		Release: plugins.Release{
 			Project: plugins.Project{
 				Repository: "checkr/deploy-test",
 			},
-
 			Git: plugins.Git{
 				Url:           "https://github.com/checkr/deploy-test.git",
 				Protocol:      "HTTPS",
@@ -74,7 +64,6 @@ func (suite *TestSuite) TestDockerBuilder() {
 				RsaPublicKey:  "",
 				Workdir:       "/tmp/something",
 			},
-
 			HeadFeature: plugins.Feature{
 				Hash:       deploytestHash,
 				ParentHash: deploytestHash,
@@ -83,15 +72,15 @@ func (suite *TestSuite) TestDockerBuilder() {
 			},
 			Environment: "testing",
 		},
-		ProjectExtension: plugins.ProjectExtension{
-			Action:     plugins.Create,
-			Slug:       "dockerbuilder",
-			FormValues: formValues,
-		},
-		Artifacts: make(map[string]string),
 	}
 
-	suite.transistor.Events <- transistor.NewEvent(dockerBuildEvent, nil)
+	ev := transistor.NewEvent(dockerBuildEvent, nil)
+	ev.AddArtifact("DOCKERBUILDER_USER", "test", false)
+	ev.AddArtifact("DOCKERBUILDER_PASSWORD", "test", false)
+	ev.AddArtifact("DOCKERBUILDER_EMAIL", "test@checkr.com", false)
+	ev.AddArtifact("DOCKERBUILDER_HOST", "registry-testing.checkrhq-dev.net:5000", false)
+	ev.AddArtifact("DOCKERBUILDER_ORG", "testorg", false)
+	suite.transistor.Events <- ev
 
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 60)
 	payload := e.Payload.(plugins.ReleaseExtension)
@@ -103,8 +92,12 @@ func (suite *TestSuite) TestDockerBuilder() {
 	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
 	assert.Equal(suite.T(), string(plugins.GetState("complete")), string(payload.State))
 
-	assert.NotEmpty(suite.T(), payload.Artifacts)
-	assert.Contains(suite.T(), payload.Artifacts["IMAGE"], deploytestHash)
+	image, err := e.GetArtifact("DOCKERBUILDER_IMAGE")
+	if err != nil {
+		log.Error(err)
+	}
+
+	assert.Equal(suite.T(), image.Value.(string), "registry-testing.checkrhq-dev.net:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
 }
 
 func TestDockerBuilder(t *testing.T) {

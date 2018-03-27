@@ -332,7 +332,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		Secrets:           secretsJsonb,
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
-		Artifacts:         postgres.Jsonb{[]byte("{}")},
 	}
 
 	r.DB.Create(&release)
@@ -455,8 +454,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		Secrets: pluginSecrets,
 	}
 
-	r.Events <- transistor.NewEvent(releaseEvent, nil)
-
 	// Create/Emit Release ProjectExtensions
 	for _, projectExtension := range projectExtensions {
 		extension := Extension{}
@@ -467,24 +464,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			return &ReleaseResolver{}, errors.New("extension spec not found")
 		}
 
-		if plugins.Type(extension.Type) == plugins.GetType("workflow") {
+		if plugins.Type(extension.Type) == plugins.GetType("workflow") || plugins.Type(extension.Type) == plugins.GetType("deployment") {
 			var headFeature Feature
 			if r.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 				log.ErrorWithFields("head feature not found", log.Fields{
 					"id": release.HeadFeatureID,
 				})
 				return &ReleaseResolver{}, errors.New("head feature not found")
-			}
-
-			unmarshalledConfig := make(map[string]interface{})
-			err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
-			if err != nil {
-				log.Info(err.Error())
-			}
-
-			config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
-			if err != nil {
-				log.Info(err.Error())
 			}
 
 			secretsSha1 := sha1.New()
@@ -495,8 +481,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			servicesSha1.Write(servicesJsonb.RawMessage)
 			servicesSig := servicesSha1.Sum(nil)
 
-			emptyArtifacts, _ := json.Marshal(map[string]string{})
-
 			// create ReleaseExtension
 			releaseExtension := ReleaseExtension{
 				ReleaseID:          release.Model.ID,
@@ -505,41 +489,15 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				SecretsSignature:   fmt.Sprintf("%x", secretsSig),
 				ProjectExtensionID: projectExtension.Model.ID,
 				State:              plugins.GetState("waiting"),
-				Type:               plugins.GetType("workflow"),
-				Artifacts:          postgres.Jsonb{emptyArtifacts}, // default is empty obj
+				Type:               extension.Type,
+				Artifacts:          postgres.Jsonb{[]byte("[]")}, // default is empty obj
 			}
 
 			r.DB.Create(&releaseExtension)
-
-			// check if the last release extension has the same
-			// ServicesSignature and SecretsSignature. If so,
-			// mark the action as completed before sending the event
-			lastReleaseExtension := ReleaseExtension{}
-
-			eventAction := plugins.GetAction("create")
-			eventState := plugins.GetState("waiting")
-			artifacts := make(map[string]interface{})
-
-			if r.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() == false {
-				eventAction = plugins.GetAction("status")
-				eventState = lastReleaseExtension.State
-				err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-				if err != nil {
-					log.Info(err.Error())
-				}
-			}
-
-			r.Events <- transistor.NewEvent(plugins.ReleaseExtension{
-				ID:        releaseExtension.Model.ID.String(),
-				Action:    eventAction,
-				Slug:      extension.Key,
-				State:     eventState,
-				Release:   releaseEvent,
-				Config:    config,
-				Artifacts: artifacts,
-			}, nil)
 		}
 	}
+
+	r.Events <- transistor.NewEvent(releaseEvent, nil)
 
 	return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
 }
@@ -1073,7 +1031,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			log.Info(err.Error())
 		}
 
-		config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+		artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
 		if err != nil {
 			log.Info(err.Error())
 		}
@@ -1083,18 +1041,17 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			Action:       plugins.GetAction("create"),
 			Slug:         extension.Key,
 			State:        plugins.GetState("waiting"),
-			StateMessage: "installation started",
+			StateMessage: "Installation started.",
 			Project: plugins.Project{
 				ID:         project.Model.ID.String(),
 				Slug:       project.Slug,
 				Repository: project.Repository,
 			},
-			Config:      config,
-			Artifacts:   map[string]interface{}{},
 			Environment: env.Key,
 		}
-
-		r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+		ev := transistor.NewEvent(projectExtensionEvent, nil)
+		ev.Artifacts = artifacts
+		r.Events <- ev
 
 		return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 	}
@@ -1147,7 +1104,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 		log.Info(err.Error())
 	}
 
-	config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
 	if err != nil {
 		log.Info(err.Error())
 	}
@@ -1163,12 +1120,12 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 			Slug:       project.Slug,
 			Repository: project.Repository,
 		},
-		Config:      config,
-		Artifacts:   map[string]interface{}{},
 		Environment: env.Key,
 	}
 
-	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+	ev := transistor.NewEvent(projectExtensionEvent, nil)
+	ev.Artifacts = artifacts
+	r.Events <- ev
 
 	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 }
@@ -1228,7 +1185,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 		log.Info(err.Error())
 	}
 
-	config, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
 	if err != nil {
 		log.Info(err.Error())
 	}
@@ -1244,12 +1201,11 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 			Slug:       project.Slug,
 			Repository: project.Repository,
 		},
-		Config:      config,
-		Artifacts:   map[string]interface{}{},
 		Environment: env.Key,
 	}
-
-	r.Events <- transistor.NewEvent(projectExtensionEvent, nil)
+	ev := transistor.NewEvent(projectExtensionEvent, nil)
+	ev.Artifacts = artifacts
+	r.Events <- ev
 
 	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 }
@@ -1349,10 +1305,11 @@ func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql
 }
 
 /* fills in Config by querying config ids and getting the actual value */
-func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (map[string]interface{}, error) {
-	c := make(map[string]interface{})
+func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) ([]transistor.Artifact, error) {
+	var artifacts []transistor.Artifact
 
 	for _, val := range config["config"].([]interface{}) {
+		var artifact transistor.Artifact
 		val := val.(map[string]interface{})
 		// check if val is UUID. If so, query in environment variables for id
 		secretID := uuid.FromStringOrNil(val["value"].(string))
@@ -1363,15 +1320,21 @@ func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) (m
 					"secret_id": secretID,
 				})
 			}
-			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = secret.Value
+			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))
+			artifact.Value = secret.Value
 		} else {
-			c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))] = val["value"].(string)
+			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))
+			artifact.Value = val["value"].(string)
 		}
+		artifacts = append(artifacts, artifact)
 	}
 
 	for key, val := range config["custom"].(map[string]interface{}) {
-		c[fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))] = val
+		var artifact transistor.Artifact
+		artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))
+		artifact.Value = val
+		artifacts = append(artifacts, artifact)
 	}
 
-	return c, nil
+	return artifacts, nil
 }
