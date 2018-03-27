@@ -1041,7 +1041,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			Action:       plugins.GetAction("create"),
 			Slug:         extension.Key,
 			State:        plugins.GetState("waiting"),
-			StateMessage: "installation started",
+			StateMessage: "Installation started.",
 			Project: plugins.Project{
 				ID:         project.Model.ID.String(),
 				Slug:       project.Slug,
