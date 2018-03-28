@@ -6,9 +6,9 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
-	graphql "github.com/graph-gophers/graphql-go"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -27,6 +27,8 @@ type ProjectExtension struct {
 	Artifacts postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
 	// Config
 	Config postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
+	// CustomConfig
+	CustomConfig postgres.Jsonb `json:"customConfig" gorm:"type:jsonb;not null"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 }
@@ -68,6 +70,11 @@ func (r *ProjectExtensionResolver) Artifacts() JSON {
 // Config
 func (r *ProjectExtensionResolver) Config() JSON {
 	return JSON{r.ProjectExtension.Config.RawMessage}
+}
+
+// CustomConfig
+func (r *ProjectExtensionResolver) CustomConfig() JSON {
+	return JSON{r.ProjectExtension.CustomConfig.RawMessage}
 }
 
 // State

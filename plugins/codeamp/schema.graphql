@@ -218,6 +218,7 @@ type ProjectExtension {
   extension: Extension!
   artifacts: JSON!
   config: JSON!
+  customConfig: JSON!
   state: String!
   stateMessage: String!
   environment: Environment!
@@ -325,6 +326,7 @@ input ProjectExtensionInput {
   projectID: String!,
   extensionID: String!,
   config: JSON!
+  customConfig: JSON!
   environmentID: String!
 }
 

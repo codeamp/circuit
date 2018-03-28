@@ -328,6 +328,7 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
+	var err error
 	payload := e.Payload.(plugins.Release)
 	release := resolvers.Release{}
 	releaseExtensions := []resolvers.ReleaseExtension{}
@@ -372,13 +373,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				eventState := plugins.GetState("waiting")
 
 				if x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
-					unmarshalledConfig := make(map[string]interface{})
-					err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
-					if err != nil {
-						log.Info(err.Error())
-					}
-
-					artifacts, err = resolvers.ExtractConfig(unmarshalledConfig, extension.Key, x.DB)
+					artifacts, err = resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
 					if err != nil {
 						log.Info(err.Error())
 					}
@@ -703,13 +698,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			return
 		}
 
-		unmarshalledConfig := make(map[string]interface{})
-		err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
-		if err != nil {
-			log.Info(err.Error())
-		}
-
-		projectExtensionArtifacts, err := resolvers.ExtractConfig(unmarshalledConfig, extension.Key, x.DB)
+		projectExtensionArtifacts, err := resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
 		if err != nil {
 			log.Info(err.Error())
 		}

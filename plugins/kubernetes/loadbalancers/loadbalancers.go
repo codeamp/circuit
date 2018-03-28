@@ -99,25 +99,28 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	log.Println("doLoadBalancer")
 
 	payload := e.Payload.(plugins.ProjectExtension)
-	// configPrefix := utils.GetFormValuePrefix(e, "LOADBALANCERS_")
 	configPrefix := "KUBERNETESLOADBALANCERS_"
 
 	svcName, err := e.GetArtifact(configPrefix + "SERVICE")
 	if err != nil {
 		return err
 	}
+
 	lbName, err := e.GetArtifact(configPrefix + "NAME")
 	if err != nil {
 		return err
 	}
+
 	sslARN, err := e.GetArtifact(configPrefix + "SSL_CERT_ARN")
 	if err != nil {
 		return err
 	}
+
 	s3AccessLogs, err := e.GetArtifact(configPrefix + "ACCESS_LOG_S3_BUCKET")
 	if err != nil {
 		return err
 	}
+
 	_lbType, err := e.GetArtifact(configPrefix + "TYPE")
 	if err != nil {
 		return err

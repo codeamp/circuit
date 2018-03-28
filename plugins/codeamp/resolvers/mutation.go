@@ -1021,19 +1021,14 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			ProjectID:     project.Model.ID,
 			EnvironmentID: env.Model.ID,
 			Config:        postgres.Jsonb{[]byte(args.ProjectExtension.Config.RawMessage)},
+			CustomConfig:  postgres.Jsonb{[]byte(args.ProjectExtension.CustomConfig.RawMessage)},
 			State:         plugins.GetState("waiting"),
 			Artifacts:     postgres.Jsonb{},
 		}
 
 		r.DB.Save(&projectExtension)
 
-		unmarshalledConfig := make(map[string]interface{})
-		err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
-		if err != nil {
-			log.Info(err.Error())
-		}
-
-		artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+		artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 		if err != nil {
 			log.Info(err.Error())
 		}
@@ -1096,17 +1091,12 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 	}
 
 	projectExtension.Config = postgres.Jsonb{args.ProjectExtension.Config.RawMessage}
+	projectExtension.CustomConfig = postgres.Jsonb{args.ProjectExtension.CustomConfig.RawMessage}
 	projectExtension.State = plugins.GetState("waiting")
 
 	r.DB.Save(&projectExtension)
 
-	unmarshalledConfig := make(map[string]interface{})
-	err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
-	if err != nil {
-		log.Info(err.Error())
-	}
-
-	artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
 		log.Info(err.Error())
 	}
@@ -1181,13 +1171,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 
 	r.DB.Delete(&projectExtension)
 
-	unmarshalledConfig := make(map[string]interface{})
-	err := json.Unmarshal(projectExtension.Config.RawMessage, &unmarshalledConfig)
-	if err != nil {
-		log.Info(err.Error())
-	}
-
-	artifacts, err := ExtractConfig(unmarshalledConfig, extension.Key, r.DB)
+	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
 		log.Info(err.Error())
 	}
@@ -1307,14 +1291,40 @@ func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql
 }
 
 /* fills in Config by querying config ids and getting the actual value */
-func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) ([]transistor.Artifact, error) {
+func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db *gorm.DB) ([]transistor.Artifact, error) {
 	var artifacts []transistor.Artifact
+	var err error
 
-	for _, val := range config["config"].([]interface{}) {
+	type ExtConfig struct {
+		Key           string `json:"key"`
+		Value         string `json:"value"`
+		AllowOverride bool   `json:"allowOverride"`
+	}
+
+	extensionConfig := []ExtConfig{}
+	err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	projectConfig := map[string]ExtConfig{}
+	err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	for i, ec := range extensionConfig {
+		for _, pc := range projectConfig {
+			if ec.AllowOverride && ec.Key == pc.Key {
+				extensionConfig[i].Value = pc.Value
+			}
+		}
+	}
+
+	for _, ec := range extensionConfig {
 		var artifact transistor.Artifact
-		val := val.(map[string]interface{})
 		// check if val is UUID. If so, query in environment variables for id
-		secretID := uuid.FromStringOrNil(val["value"].(string))
+		secretID := uuid.FromStringOrNil(ec.Value)
 		if secretID != uuid.Nil {
 			secret := SecretValue{}
 			if db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).RecordNotFound() {
@@ -1322,18 +1332,24 @@ func ExtractConfig(config map[string]interface{}, extKey string, db *gorm.DB) ([
 					"secret_id": secretID,
 				})
 			}
-			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))
+			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extension.Key), strings.ToUpper(ec.Key))
 			artifact.Value = secret.Value
 		} else {
-			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(val["key"].(string)))
-			artifact.Value = val["value"].(string)
+			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extension.Key), strings.ToUpper(ec.Key))
+			artifact.Value = ec.Value
 		}
 		artifacts = append(artifacts, artifact)
 	}
 
-	for key, val := range config["custom"].(map[string]interface{}) {
+	projectCustomConfig := make(map[string]interface{})
+	err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	for key, val := range projectCustomConfig {
 		var artifact transistor.Artifact
-		artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extKey), strings.ToUpper(key))
+		artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extension.Key), strings.ToUpper(key))
 		artifact.Value = val
 		artifacts = append(artifacts, artifact)
 	}
