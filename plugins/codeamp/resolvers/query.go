@@ -233,14 +233,13 @@ func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *
 		return nil, err
 	}
 
-	var env Environment
 	var rows []Extension
 	var results []*ExtensionResolver
 
-	if r.DB.Where("id =?", args.EnvironmentID).Find(&env).RecordNotFound() {
-		r.DB.Order("created_at desc").Find(&rows)
-	} else {
+	if args.EnvironmentID != nil {
 		r.DB.Where("environment_id = ?", args.EnvironmentID).Order("created_at desc").Find(&rows)
+	} else {
+		r.DB.Order("created_at desc").Find(&rows)
 	}
 
 	for _, ext := range rows {
