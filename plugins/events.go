@@ -115,6 +115,7 @@ type GitCommit struct {
 	Ref        string    `json:"ref"`
 	Hash       string    `json:"hash"`
 	ParentHash string    `json:"parentHash"`
+	Head       bool      `json:"head"`
 	Created    time.Time `json:"created"`
 }
 

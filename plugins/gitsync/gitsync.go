@@ -77,7 +77,7 @@ func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
-func (x *GitSync) toGitCommit(entry string) (plugins.GitCommit, error) {
+func (x *GitSync) toGitCommit(entry string, head bool) (plugins.GitCommit, error) {
 	items := strings.Split(entry, "#@#")
 	commiterDate, err := time.Parse("2006-01-02T15:04:05-07:00", items[4])
 
@@ -90,6 +90,7 @@ func (x *GitSync) toGitCommit(entry string) (plugins.GitCommit, error) {
 		ParentHash: items[1],
 		Message:    items[2],
 		User:       items[3],
+		Head:       head,
 		Created:    commiterDate,
 	}, nil
 }
@@ -166,8 +167,12 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 	var commits []plugins.GitCommit
 
-	for _, line := range strings.Split(strings.TrimSuffix(string(output), "\n"), "\n") {
-		commit, err := x.toGitCommit(line)
+	for i, line := range strings.Split(strings.TrimSuffix(string(output), "\n"), "\n") {
+		head := false
+		if i == 0 {
+			head = true
+		}
+		commit, err := x.toGitCommit(line, head)
 		if err != nil {
 			log.Debug(err)
 			return nil, err

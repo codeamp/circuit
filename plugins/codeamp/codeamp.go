@@ -25,6 +25,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	uuid "github.com/satori/go.uuid"
 	sioredis "github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
@@ -212,18 +213,9 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.GitCommit)
 
-	var adminContext context.Context
 	var project resolvers.Project
 	var feature resolvers.Feature
-	var latestFeature resolvers.Feature
-	var doContinuousDeploy bool
 	var projectSettings []resolvers.ProjectSettings
-
-	adminContext = context.WithValue(context.Background(), "jwt", resolvers.Claims{
-		UserID:      "foo",
-		Email:       "foo@gmail.com",
-		Permissions: []string{"admin"},
-	})
 
 	if x.DB.Where("repository = ?", payload.Repository).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -245,44 +237,43 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 
 		x.DB.Save(&feature)
 
-		// If latest commit, check if continuous deploy turned on
-		// for any envs in project. If so, check if latest commit
-		// and send call CreateRelease resolver
-		doContinuousDeploy = false
-		x.DB.Order("created desc").First(&latestFeature)
-		if latestFeature.Hash == feature.Hash {
-			doContinuousDeploy = true
-		}
+		if payload.Head {
+			if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
+				log.InfoWithFields("No continuous deploys found", log.Fields{
+					"continuous_deploy": true,
+					"project_id":        project.Model.ID,
+				})
+			} else {
+				// call CreateRelease for each env that has cd turned on
+				for _, setting := range projectSettings {
+					if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
+						adminContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+							UserID:      uuid.FromStringOrNil("codeamp").String(),
+							Email:       "codeamp",
+							Permissions: []string{"admin"},
+						})
 
-		if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
-			log.InfoWithFields("No continuous deploys found", log.Fields{
-				"continuous_deploy": true,
-				"project_id":        project.Model.ID,
-			})
-		} else {
-			// call CreateRelease for each env that has cd turned on
-			for _, setting := range projectSettings {
-				if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref && doContinuousDeploy {
-					x.Resolver.CreateRelease(adminContext, &struct{ Release *resolvers.ReleaseInput }{
-						Release: &resolvers.ReleaseInput{
-							HeadFeatureID: feature.Model.ID.String(),
-							ProjectID:     setting.ProjectID.String(),
-							EnvironmentID: setting.EnvironmentID.String(),
-						},
-					})
+						x.Resolver.CreateRelease(adminContext, &struct{ Release *resolvers.ReleaseInput }{
+							Release: &resolvers.ReleaseInput{
+								HeadFeatureID: feature.Model.ID.String(),
+								ProjectID:     setting.ProjectID.String(),
+								EnvironmentID: setting.EnvironmentID.String(),
+							},
+						})
+					}
 				}
 			}
 		}
+
+		x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+			Event: fmt.Sprintf("projects/%s/features", project.Slug),
+		}, nil)
 	} else {
 		log.InfoWithFields("feature already exists", log.Fields{
 			"repository": payload.Repository,
 			"hash":       payload.Hash,
 		})
 	}
-
-	x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-		Event: fmt.Sprintf("projects/%s/features", project.Slug),
-	}, nil)
 
 	return nil
 }
