@@ -52,6 +52,8 @@ type ProjectExtensionInput struct {
 	ExtensionID string `json:"extID"`
 	// Config
 	Config JSON `json:"config"`
+	// CustomConfig
+	CustomConfig JSON `json:"customConfig"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
 }

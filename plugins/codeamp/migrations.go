@@ -402,6 +402,47 @@ func (x *CodeAmp) Migrate() {
 				return db.Model(&resolvers.Environment{}).DropColumn("is_default").Error
 			},
 		},
+		// migrate ProjectExtension config to customConfig
+		{
+			ID: "201803271507",
+			Migrate: func(tx *gorm.DB) error {
+
+				var projectExtensions []resolvers.ProjectExtension
+				db.Find(&projectExtensions)
+
+				for _, projectExtension := range projectExtensions {
+					config := make(map[string]interface{})
+					err = json.Unmarshal(projectExtension.Config.RawMessage, &config)
+					if err != nil {
+						log.Error(err.Error())
+					}
+
+					if config["config"] != nil {
+						configMarshaled, err := json.Marshal(config["config"].([]interface{}))
+						if err != nil {
+							log.Error(err)
+						}
+
+						projectExtension.Config = postgres.Jsonb{configMarshaled}
+					}
+
+					if config["custom"] != nil {
+						customConfigMarshaled, err := json.Marshal(config["custom"].(interface{}))
+						if err != nil {
+							log.Error(err)
+						}
+						projectExtension.CustomConfig = postgres.Jsonb{customConfigMarshaled}
+					}
+
+					db.Save(&projectExtension)
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
 	})
 
 	if err = m.Migrate(); err != nil {
