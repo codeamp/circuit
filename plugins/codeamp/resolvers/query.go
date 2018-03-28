@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/jinzhu/gorm"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -228,15 +228,21 @@ func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	return results, nil
 }
 
-func (r *Resolver) Extensions(ctx context.Context) ([]*ExtensionResolver, error) {
+func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
+	var env Environment
 	var rows []Extension
 	var results []*ExtensionResolver
 
-	r.DB.Order("created_at desc").Find(&rows)
+	if r.DB.Where("id =?", args.EnvironmentID).Find(&env).RecordNotFound() {
+		r.DB.Order("created_at desc").Find(&rows)
+	} else {
+		r.DB.Where("environment_id = ?", args.EnvironmentID).Order("created_at desc").Find(&rows)
+	}
+
 	for _, ext := range rows {
 		results = append(results, &ExtensionResolver{DB: r.DB, Extension: ext})
 	}
