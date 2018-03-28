@@ -420,14 +420,14 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			log.InfoWithFields("release", log.Fields{
 				"id": payload.Release.ID,
 			})
-			return nil
+			return fmt.Errorf("Release %s not found", payload.Release.ID)
 		}
 
 		if x.DB.Where("id = ?", payload.ID).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found", log.Fields{
 				"id": payload.ID,
 			})
-			return nil
+			return fmt.Errorf("Release extension %s not found", payload.ID)
 		}
 
 		releaseExtension.State = payload.State
@@ -435,6 +435,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		marshalledReArtifacts, err := json.Marshal(e.Artifacts)
 		if err != nil {
 			log.Info(err.Error(), log.Fields{})
+			return err
 		}
 
 		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}

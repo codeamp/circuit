@@ -29,7 +29,7 @@ type Query {
   # Environment variables
   secrets(): [Secret]!
   # ProjectExtension spec
-  extensions(): [Extension]!
+  extensions(environmentID: String): [Extension]!
   # ProjectExtensions
   projectExtensions(): [ProjectExtension]!
   # Release extensions
