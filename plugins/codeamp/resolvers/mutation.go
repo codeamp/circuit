@@ -254,11 +254,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 		servicesJsonb = postgres.Jsonb{servicesMarshaled}
 
+		// check if any project extensions that are not 'once' exists
 		if r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, plugins.GetState("complete")).Find(&projectExtensions).RecordNotFound() {
 			log.InfoWithFields("project has no extensions", log.Fields{
 				"project_id":     args.Release.ProjectID,
 				"environment_id": args.Release.EnvironmentID,
 			})
+			return nil, fmt.Errorf("no project extensions found")
 		}
 
 		projectExtensionsMarshaled, err := json.Marshal(projectExtensions)
@@ -343,7 +345,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		return &ReleaseResolver{}, errors.New("Project not found")
 	}
 
-	// get all branches relevant for the projec
+	// get all branches relevant for the project
 	var branch string
 	var projectSettings ProjectSettings
 

@@ -43,6 +43,8 @@ type ProjectSettings struct {
 	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
 	// GitBranch
 	GitBranch string `json:"gitBranch"`
+	//ContinuousDeploy
+	ContinuousDeploy bool `json:"continuousDeploy"`
 }
 
 // ProjectEnvironment

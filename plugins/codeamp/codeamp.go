@@ -1,6 +1,7 @@
 package codeamp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	uuid "github.com/satori/go.uuid"
 	sioredis "github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
@@ -39,6 +41,7 @@ type CodeAmp struct {
 	SocketIO       *socketio.Server
 	DB             *gorm.DB
 	Redis          *redis.Client
+	Resolver       *resolvers.Resolver
 }
 
 func NewCodeAmp() *CodeAmp {
@@ -79,6 +82,7 @@ func (x *CodeAmp) Listen() {
 	http.Handle("/", fs)
 
 	r := &resolvers.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
+	x.Resolver = r
 	http.Handle("/query", resolvers.CorsMiddleware(r.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
 
 	log.Info(fmt.Sprintf("running GraphQL server on %v", x.ServiceAddress))
@@ -211,6 +215,7 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 
 	var project resolvers.Project
 	var feature resolvers.Feature
+	var projectSettings []resolvers.ProjectSettings
 
 	if x.DB.Where("repository = ?", payload.Repository).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -229,17 +234,46 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 			Ref:        payload.Ref,
 			Created:    payload.Created,
 		}
+
 		x.DB.Save(&feature)
+
+		if payload.Head {
+			if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
+				log.InfoWithFields("No continuous deploys found", log.Fields{
+					"continuous_deploy": true,
+					"project_id":        project.Model.ID,
+				})
+			} else {
+				// call CreateRelease for each env that has cd turned on
+				for _, setting := range projectSettings {
+					if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
+						adminContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+							UserID:      uuid.FromStringOrNil("codeamp").String(),
+							Email:       "codeamp",
+							Permissions: []string{"admin"},
+						})
+
+						x.Resolver.CreateRelease(adminContext, &struct{ Release *resolvers.ReleaseInput }{
+							Release: &resolvers.ReleaseInput{
+								HeadFeatureID: feature.Model.ID.String(),
+								ProjectID:     setting.ProjectID.String(),
+								EnvironmentID: setting.EnvironmentID.String(),
+							},
+						})
+					}
+				}
+			}
+		}
+
+		x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+			Event: fmt.Sprintf("projects/%s/features", project.Slug),
+		}, nil)
 	} else {
 		log.InfoWithFields("feature already exists", log.Fields{
 			"repository": payload.Repository,
 			"hash":       payload.Hash,
 		})
 	}
-
-	x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-		Event: fmt.Sprintf("projects/%s/features", project.Slug),
-	}, nil)
 
 	return nil
 }
