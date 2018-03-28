@@ -180,9 +180,13 @@ func (r *Resolver) UpdateProject(args *struct {
 			projectSettings.EnvironmentID = environmentID
 			projectSettings.ProjectID = projectID
 			projectSettings.GitBranch = *args.Project.GitBranch
+			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
+
 			r.DB.Save(&projectSettings)
 		} else {
 			projectSettings.GitBranch = *args.Project.GitBranch
+			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
+
 			r.DB.Save(&projectSettings)
 		}
 	}

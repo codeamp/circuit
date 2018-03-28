@@ -232,6 +232,17 @@ func (r *ProjectResolver) GitBranch() string {
 	}
 }
 
+// ContinuousDeploy
+func (r *ProjectResolver) ContinuousDeploy() bool {
+	var projectSettings ProjectSettings
+
+	if r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&projectSettings).RecordNotFound() {
+		return false
+	} else {
+		return projectSettings.ContinuousDeploy
+	}
+}
+
 // Environments
 func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	var permissions []ProjectEnvironment

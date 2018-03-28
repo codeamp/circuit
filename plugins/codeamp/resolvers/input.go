@@ -88,6 +88,8 @@ type ProjectInput struct {
 	GitBranch *string `json:"gitBranch"`
 	// Bookmarked
 	Bookmarked *bool `json:"bookmarked"`
+	// ContinuousDeploy
+	ContinuousDeploy *bool `json:"continuousDeploy"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
 }
