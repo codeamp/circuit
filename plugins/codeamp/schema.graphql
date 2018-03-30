@@ -15,7 +15,7 @@ type Query {
   # Project
   project(id: ID, slug: String, name: String, environmentID: String): Project
   # Projects
-  projects(): [Project]!
+  projects(repository: String, bookmarked: Boolean!): [Project]!
   # Features
   features(): [Feature]!
   # Services

@@ -9,6 +9,7 @@ import (
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -40,6 +41,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 	db.AutoMigrate(
 		&resolvers.Project{},
 		&resolvers.ProjectEnvironment{},
+		&resolvers.ProjectBookmark{},
 		&resolvers.UserPermission{},
 		&resolvers.ProjectSettings{},
 		&resolvers.Environment{},
@@ -47,6 +49,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 	suite.Resolver = &resolvers.Resolver{DB: db}
 }
 
+/*
 func (suite *ProjectTestSuite) TestCreateProject() {
 	// setup
 	env := resolvers.Environment{
@@ -79,6 +82,7 @@ func (suite *ProjectTestSuite) TestCreateProject() {
 	assert.Equal(suite.T(), createProjectResolver.Permissions(), []string{env.Model.ID.String()})
 	suite.TearDownTest([]string{string(createProjectResolver.ID())})
 }
+*/
 
 /* Test successful project permissions update */
 func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
@@ -150,6 +154,69 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	for _, projectEnvironment := range projectEnvironments {
 		deleteIds = append(deleteIds, projectEnvironment.Model.ID.String())
 	}
+
+	suite.TearDownTest(deleteIds)
+}
+
+func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
+	// init 3 projects into db
+	projectNames := []string{"foo", "foobar", "boo"}
+	userId := uuid.NewV1()
+	deleteIds := []string{}
+
+	for _, name := range projectNames {
+		project := resolvers.Project{
+			Name:          name,
+			Slug:          name,
+			Repository:    fmt.Sprintf("test/%s", name),
+			Secret:        "foo",
+			GitUrl:        "foo",
+			GitProtocol:   "foo",
+			RsaPrivateKey: "foo",
+			RsaPublicKey:  "foo",
+		}
+
+		suite.Resolver.DB.Create(&project)
+
+		projectBookmark := resolvers.ProjectBookmark{
+			UserID:    userId,
+			ProjectID: project.Model.ID,
+		}
+
+		suite.Resolver.DB.Create(&projectBookmark)
+		deleteIds = append(deleteIds, project.Model.ID.String(),
+			projectBookmark.Model.ID.String())
+	}
+
+	adminContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+		UserID:      userId.String(),
+		Email:       "codeamp",
+		Permissions: []string{"admin"},
+	})
+	projects, err := suite.Resolver.Projects(adminContext, &struct{ ProjectSearch *resolvers.ProjectSearchInput }{
+		ProjectSearch: &resolvers.ProjectSearchInput{
+			Bookmarked: true,
+		},
+	})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), 3, len(projects))
+
+	// do a search for 'foo'
+	searchQuery := "foo"
+	projects, err = suite.Resolver.Projects(adminContext, &struct{ ProjectSearch *resolvers.ProjectSearchInput }{
+		ProjectSearch: &resolvers.ProjectSearchInput{
+			Bookmarked: false,
+			Repository: &searchQuery,
+		},
+	})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), 2, len(projects))
 
 	suite.TearDownTest(deleteIds)
 }

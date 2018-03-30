@@ -113,8 +113,10 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	return &ProjectResolver{DB: r.DB, Project: project, Environment: environment}, nil
 }
 
-// Projects Projects
-func (r *Resolver) Projects(ctx context.Context) ([]*ProjectResolver, error) {
+// Projects
+func (r *Resolver) Projects(ctx context.Context, args *struct {
+	ProjectSearch *ProjectSearchInput
+}) ([]*ProjectResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -122,9 +124,28 @@ func (r *Resolver) Projects(ctx context.Context) ([]*ProjectResolver, error) {
 	var rows []Project
 	var results []*ProjectResolver
 
-	r.DB.Find(&rows)
+	if args.ProjectSearch.Repository != nil {
+		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
+	} else {
+		r.DB.Find(&rows)
+	}
+
 	for _, project := range rows {
-		results = append(results, &ProjectResolver{DB: r.DB, Project: project})
+		projectResolver := &ProjectResolver{DB: r.DB, Project: project}
+		addToList := false
+		if args.ProjectSearch.Bookmarked {
+			if projectResolver.Bookmarked(ctx) {
+				addToList = true
+			} else {
+				addToList = false
+			}
+		} else {
+			addToList = true
+		}
+
+		if addToList {
+			results = append(results, &ProjectResolver{DB: r.DB, Project: project})
+		}
 	}
 
 	return results, nil
