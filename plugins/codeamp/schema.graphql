@@ -15,7 +15,7 @@ type Query {
   # Project
   project(id: ID, slug: String, name: String, environmentID: String): Project
   # Projects
-  projects(): [Project]!
+  projects(projectSearch: ProjectSearchInput): [Project]!
   # Features
   features(): [Feature]!
   # Services
@@ -250,6 +250,12 @@ input ProjectInput {
   bookmarked: Boolean
   environmentID: String!
   continuousDeploy: Boolean
+}
+
+# ProjectSearch input
+input ProjectSearchInput {
+  Repository: String,
+  Bookmarked: Boolean!
 }
 
 # Release input

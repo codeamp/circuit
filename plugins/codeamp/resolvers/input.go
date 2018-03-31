@@ -94,6 +94,14 @@ type ProjectInput struct {
 	EnvironmentID string `json:"environmentID"`
 }
 
+// ProjectSearchInput
+type ProjectSearchInput struct {
+	// Repository
+	Repository *string `json:"repository"`
+	// Bookmarked
+	Bookmarked bool `json:"bookmarked"`
+}
+
 // ReleaseInput
 type ReleaseInput struct {
 	// ID
