@@ -123,29 +123,27 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 
 	var rows []Project
 	var results []*ProjectResolver
+	var projectBookmarks []ProjectBookmark
 
 	if args.ProjectSearch.Repository != nil {
+
 		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
+
 	} else {
-		r.DB.Find(&rows)
+
+		r.DB.Where("user_id = ?", ctx.Value("jwt").(Claims).UserID).Find(&projectBookmarks)
+
+		for _, bookmark := range projectBookmarks {
+			project := Project{}
+
+			r.DB.Where("id = ?", bookmark.ProjectID).Find(&project)
+
+			rows = append(rows, project)
+		}
 	}
 
 	for _, project := range rows {
-		projectResolver := &ProjectResolver{DB: r.DB, Project: project}
-		addToList := false
-		if args.ProjectSearch.Bookmarked {
-			if projectResolver.Bookmarked(ctx) {
-				addToList = true
-			} else {
-				addToList = false
-			}
-		} else {
-			addToList = true
-		}
-
-		if addToList {
-			results = append(results, &ProjectResolver{DB: r.DB, Project: project})
-		}
+		results = append(results, &ProjectResolver{DB: r.DB, Project: project})
 	}
 
 	return results, nil
