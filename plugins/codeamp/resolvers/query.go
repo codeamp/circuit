@@ -133,13 +133,11 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 
 		r.DB.Where("user_id = ?", ctx.Value("jwt").(Claims).UserID).Find(&projectBookmarks)
 
+		var projectIds []uuid.UUID
 		for _, bookmark := range projectBookmarks {
-			project := Project{}
-
-			r.DB.Where("id = ?", bookmark.ProjectID).Find(&project)
-
-			rows = append(rows, project)
+			projectIds = append(projectIds, bookmark.ProjectID)
 		}
+		r.DB.Where("id in (?)", projectIds).Find(&rows)
 	}
 
 	for _, project := range rows {
