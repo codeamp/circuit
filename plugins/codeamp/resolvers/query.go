@@ -123,7 +123,6 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 
 	var rows []Project
 	var results []*ProjectResolver
-
 	if args.ProjectSearch.Repository != nil {
 
 		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
