@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -424,6 +425,28 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			Type:  secret.Type,
 		})
 	}
+
+	// insert CodeAmp envs
+	slugSecret := plugins.Secret{
+		Key:   "CODEAMP_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, slugSecret)
+
+	hashSecret := plugins.Secret{
+		Key:   "CODEAMP_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, hashSecret)
+
+	timeSecret := plugins.Secret{
+		Key:   "CODEAMP_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, timeSecret)
 
 	releaseEvent := plugins.Release{
 		ID:          release.Model.ID.String(),
