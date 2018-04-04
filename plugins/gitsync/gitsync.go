@@ -38,6 +38,12 @@ func (x *GitSync) SampleConfig() string {
 func (x *GitSync) Start(e chan transistor.Event) error {
 	x.events = e
 	log.Info("Started GitSync")
+	// create global gitconfig file
+	err := ioutil.WriteFile("/root/.gitconfig", []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
+	if err != nil {
+		log.Debug(err)
+		return err
+	}
 
 	return nil
 }
