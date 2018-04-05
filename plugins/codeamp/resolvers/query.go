@@ -146,6 +146,23 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 	return results, nil
 }
 
+// ProjectTypes
+func (r *Resolver) ProjectTypes(ctx context.Context) ([]*ProjectTypeResolver, error) {
+	if _, err := CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
+	var rows []ProjectType
+	var results []*ProjectTypeResolver
+
+	r.DB.Order("created_at desc").Find(&rows)
+	for _, projectType := range rows {
+		results = append(results, &ProjectTypeResolver{DB: r.DB, ProjectType: projectType})
+	}
+
+	return results, nil
+}
+
 func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err

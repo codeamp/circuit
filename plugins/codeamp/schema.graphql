@@ -36,6 +36,8 @@ type Query {
   releaseExtensions(): [ReleaseExtension]!
   # Permissions
   permissions(): JSON!
+  # ProjectTypes
+  projectTypes(): [ProjectType]!
 }
 
 # Mutation
@@ -200,6 +202,14 @@ type Project {
   created: Time!
 }
 
+# ProjectType
+type ProjectType {
+  id: ID!
+  name: String!
+  key: String!
+  availableExtensions: JSON!
+}
+
 # Extension spec
 type Extension {
   id: ID!
@@ -250,6 +260,14 @@ input ProjectInput {
   bookmarked: Boolean
   environmentID: String!
   continuousDeploy: Boolean
+}
+
+# ProjectType input
+input ProjectTypeInput {
+  id: String
+  name: String!
+  key: String!
+  availableExtensions: JSON!
 }
 
 # ProjectSearch input

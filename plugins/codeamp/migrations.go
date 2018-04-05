@@ -29,7 +29,7 @@ func (x *CodeAmp) Migrate() {
 	db.LogMode(false)
 	db.Set("gorm:auto_preload", true)
 
-	db.AutoMigrate(
+	err = db.AutoMigrate(
 		&resolvers.User{},
 		&resolvers.UserPermission{},
 		&resolvers.Project{},
@@ -47,7 +47,12 @@ func (x *CodeAmp) Migrate() {
 		&resolvers.Environment{},
 		&resolvers.ProjectEnvironment{},
 		&resolvers.ProjectBookmark{},
-	)
+		&resolvers.ProjectType{},
+	).Error
+	if err != nil {
+		log.Info("automigrate failed: %s", err.Error())
+		return
+	}
 
 	m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 		// create users
@@ -436,6 +441,47 @@ func (x *CodeAmp) Migrate() {
 
 					db.Save(&projectExtension)
 				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+		// migrate ProjectType and create Docker type
+		{
+			ID: "201804051130",
+			Migrate: func(tx *gorm.DB) error {
+				// get relevant extensions to put in AvailableExtensions
+				extensions := []resolvers.Extension{}
+				availableExtensions := []resolvers.AvailableExtension{}
+
+				tx.Where("key in (?)", []string{"dockerbuilder", "kubernetesdeployments", "kubernetesloadbalancers"}).Find(&extensions)
+
+				for _, extension := range extensions {
+					isDefault := false
+					if extension.Key == "dockerbuilder" || extension.Key == "kubernetesdeployments" {
+						isDefault = true
+					}
+
+					availableExtensions = append(availableExtensions, resolvers.AvailableExtension{
+						ExtensionID: extension.Model.ID.String(),
+						IsDefault:   isDefault,
+					})
+				}
+
+				marshaledAvailableExtensions, err := json.Marshal(availableExtensions)
+				if err != nil {
+					return err
+				}
+
+				dockerProjectType := resolvers.ProjectType{
+					Name:                "Docker",
+					Key:                 "docker",
+					AvailableExtensions: postgres.Jsonb{marshaledAvailableExtensions},
+				}
+
+				tx.Save(&dockerProjectType)
 
 				return nil
 			},
