@@ -106,6 +106,8 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		return nil, fmt.Errorf("No environments initialized.")
 	}
 
+	// create ProjectSettings, ProjectEnvironment and ProjectExtension objects
+	// for each env
 	for _, env := range environments {
 		r.DB.Create(&ProjectSettings{
 			EnvironmentID: env.Model.ID,
@@ -118,6 +120,28 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 				EnvironmentID: env.Model.ID,
 				ProjectID:     project.Model.ID,
 			})
+		}
+		// Install project extensions
+		if plugins.GetProjectType(args.Project.Type) == plugins.GetProjectType("docker") {
+			dockerProjectExtensions := []string{"dockerbuilder", "kubernetesdeployments"}
+			for _, extensionKey := range dockerProjectExtensions {
+				extension := Extension{}
+				if r.DB.Where("key = ? and environment_id = ?", extensionKey, env.Model.ID).RecordNotFound() {
+					log.InfoWithFields("no extension found", log.Fields{
+						"key":            extensionKey,
+						"environment_id": env.Model.ID,
+					})
+				} else {
+					r.CreateProjectExtension(ctx, &struct{ ProjectExtension *ProjectExtensionInput }{
+						ProjectExtension: &ProjectExtensionInput{
+							ProjectID:     project.Model.ID.String(),
+							ExtensionID:   extension.Model.ID.String(),
+							Config:        JSON{extension.Config.RawMessage},
+							EnvironmentID: env.Model.ID.String(),
+						},
+					})
+				}
+			}
 		}
 	}
 

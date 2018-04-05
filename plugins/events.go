@@ -75,6 +75,24 @@ func GetType(s string) Type {
 	return Type("unknown")
 }
 
+type ProjectType string
+
+func GetProjectType(s string) ProjectType {
+	projectTypes := []string{
+		"docker",
+	}
+
+	for _, t := range projectTypes {
+		if s == t {
+			return ProjectType(t)
+		}
+	}
+
+	log.Info(fmt.Sprintf("ProjectType not found: %s", s))
+
+	return ProjectType("unknown")
+}
+
 type Action string
 
 func GetAction(s string) Action {
