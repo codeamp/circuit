@@ -179,7 +179,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs.GetString()
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName.GetString())
 		}
 	case plugins.GetType("office"):
 		serviceType = v1.ServiceTypeLoadBalancer
@@ -191,7 +191,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs.GetString()
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName)
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName.GetString())
 		}
 	}
 	listenerPairs, err := e.GetArtifact(configPrefix + "LISTENER_PAIRS")
@@ -419,7 +419,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		svcDeleteErr := coreInterface.Services(namespace).Delete(lbName.GetString(), &meta_v1.DeleteOptions{})
 		if svcDeleteErr != nil {
 			failMessage := fmt.Sprintf("Error '%s' deleting service %s", svcDeleteErr, lbName)
-			fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)
+			fmt.Printf("ERROR managing loadbalancer %s: %s", svcName.GetString(), failMessage)
 			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 			return nil
 		}
@@ -427,7 +427,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	} else {
 		// Send failure message that we couldn't find the service to delete
 		failMessage := fmt.Sprintf("Error finding %s service: '%s'", lbName, svcGetErr)
-		fmt.Printf("ERROR managing loadbalancer %s: %s", svcName, failMessage)
+		fmt.Printf("ERROR managing loadbalancer %s: %s", svcName.GetString(), failMessage)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 	}
 	return nil
