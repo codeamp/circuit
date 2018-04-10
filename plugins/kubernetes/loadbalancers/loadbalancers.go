@@ -311,13 +311,13 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	// If ELB grab the DNS name for the response
 	ELBDNS := ""
 	if lbType == plugins.GetType("external") || lbType == plugins.GetType("office") {
-		fmt.Printf("Waiting for ELB address for %s", lbName)
+		fmt.Printf("Waiting for ELB address for %s", lbName.GetString())
 		// Timeout waiting for ELB DNS name after 900 seconds
 		timeout := 90
 		for {
 			elbResult, elbErr := coreInterface.Services(namespace).Get(lbName.GetString(), meta_v1.GetOptions{})
 			if elbErr != nil {
-				fmt.Printf("Error '%s' describing service %s", elbErr, lbName)
+				fmt.Printf("Error '%s' describing service %s", elbErr, lbName.GetString())
 			} else {
 				ingressList := elbResult.Status.LoadBalancer.Ingress
 				if len(ingressList) > 0 {
@@ -325,7 +325,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 					break
 				}
 				if timeout <= 0 {
-					failMessage := fmt.Sprintf("Error: timeout waiting for ELB DNS name for: %s", lbName)
+					failMessage := fmt.Sprintf("Error: timeout waiting for ELB DNS name for: %s", lbName.GetString())
 					x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 					return nil
 				}
@@ -334,7 +334,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			timeout -= 5
 		}
 	} else {
-		ELBDNS = fmt.Sprintf("%s.%s", lbName, utils.GenNamespaceName(payload.Environment, projectSlug))
+		ELBDNS = fmt.Sprintf("%s.%s", lbName.GetString(), utils.GenNamespaceName(payload.Environment, projectSlug))
 	}
 
 	route53Event := e
@@ -418,7 +418,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		// Service was found, ready to delete
 		svcDeleteErr := coreInterface.Services(namespace).Delete(lbName.GetString(), &meta_v1.DeleteOptions{})
 		if svcDeleteErr != nil {
-			failMessage := fmt.Sprintf("Error '%s' deleting service %s", svcDeleteErr, lbName)
+			failMessage := fmt.Sprintf("Error '%s' deleting service %s", svcDeleteErr, lbName.GetString())
 			fmt.Printf("ERROR managing loadbalancer %s: %s", svcName.GetString(), failMessage)
 			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 			return nil
@@ -426,7 +426,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("deleted"), "", nil)
 	} else {
 		// Send failure message that we couldn't find the service to delete
-		failMessage := fmt.Sprintf("Error finding %s service: '%s'", lbName, svcGetErr)
+		failMessage := fmt.Sprintf("Error finding %s service: '%s'", lbName.GetString(), svcGetErr)
 		fmt.Printf("ERROR managing loadbalancer %s: %s", svcName.GetString(), failMessage)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 	}
