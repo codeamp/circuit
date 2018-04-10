@@ -116,6 +116,12 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		return nil
 	}
 
+	elbHostedZoneId, err := e.GetArtifact("KUBERNETESLOADBALANCERS_HOSTED_ZONE_ID")
+	if err != nil {
+		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		return nil
+	}
+
 	awsAccessKeyId, err := e.GetArtifact("KUBERNETESLOADBALANCERS_AWS_ACCESS_KEY_ID")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
@@ -194,7 +200,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		client := route53.New(sess)
 		// Look for this dns name
 		params := &route53.ListResourceRecordSetsInput{
-			HostedZoneId: aws.String(elbHostedZoneName.GetString()), // Required
+			HostedZoneId: aws.String(elbHostedZoneId.GetString()), // Required
 		}
 		foundRecord := false
 		pageNum := 0
@@ -224,7 +230,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		}
 
 		updateParams := &route53.ChangeResourceRecordSetsInput{
-			HostedZoneId: aws.String(elbHostedZoneName.GetString()),
+			HostedZoneId: aws.String(elbHostedZoneId.GetString()),
 			ChangeBatch: &route53.ChangeBatch{
 				Changes: []*route53.Change{
 					{
