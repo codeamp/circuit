@@ -356,7 +356,9 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	// send route53 event
 	route53Event = e.NewEvent(route53Event.Payload, err)
+	route53Event.Artifacts = e.Artifacts
 	route53Event.AddArtifact("KUBERNETESLOADBALANCERS_ELBDNS", ELBDNS, false)
+
 	x.events <- route53Event
 
 	return nil
