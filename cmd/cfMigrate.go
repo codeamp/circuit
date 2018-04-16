@@ -71,7 +71,7 @@ var cfMigrateCmd = &cobra.Command{
 		
 		// create CodeAmp project objects from codeflow
 		projects := []codeflow.Project{}
-		results := codeflowDB.Collection("projects").Find(bson.M{ })
+		results := codeflowDB.Collection("projects").Find(bson.M{ "deleted": false })
 		results.Query.All(&projects)
 
 		reg, err := regexp.Compile("[^0-9]+")
