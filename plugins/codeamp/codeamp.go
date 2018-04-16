@@ -49,6 +49,22 @@ func NewCodeAmp() *CodeAmp {
 	return &CodeAmp{}
 }
 
+func NewDB(host string, port string, user string, dbName string, sslMode string, password string) (*gorm.DB, error) {
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
+		host,
+		port,
+		user,
+		dbName,
+		sslMode,
+		password,
+	))
+	if err != nil {
+		log.Fatal(err.Error())
+		return nil, err
+	}
+	return db, nil
+}
+
 //Custom server which basically only contains a socketio variable
 //But we need it to enhance it with functions
 type socketIOServer struct {

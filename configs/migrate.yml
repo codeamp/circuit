@@ -1,0 +1,23 @@
+---
+codeflow:
+  mongodb:
+    database: "codeflow"
+    uri: "mongodb://0.0.0.0:27017"
+    ssl: true
+    connection_timeout: 3
+    health_check_interval: 10
+codeamp:
+  postgres:
+    host: "0.0.0.0"
+    port: "5432"
+    user: "postgres"
+    dbname: "codeamp"
+    sslmode: "disable"
+    password: ""
+  redis:
+    username:
+    password:
+    server: "0.0.0.0:6379"
+    database: "0"
+    pool: "30"
+    process: "1"
