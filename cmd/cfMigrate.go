@@ -329,7 +329,7 @@ var cfMigrateCmd = &cobra.Command{
 					for _, cfListenerPair := range codeflowLoadBalancer.ListenerPairs {
 						listenerPairs = append(listenerPairs, map[string]string{
 							"port": strconv.Itoa(cfListenerPair.Source.Port),
-							"containerPort": strconv.Itoa(cfListenerPair.Source.Port), // Get container port id from corresponding service
+							"containerPort": strconv.Itoa(cfListenerPair.Destination.Port), // Get container port id from corresponding service
 							"serviceProtocol": strings.ToLower(cfListenerPair.Destination.Protocol),
 						})
 					}
