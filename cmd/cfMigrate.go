@@ -298,7 +298,7 @@ var cfMigrateCmd = &cobra.Command{
 						listenerPairs = append(listenerPairs, map[string]string{
 							"port": strconv.Itoa(cfListenerPair.Destination.Port),
 							"containerPort": strconv.Itoa(cfListenerPair.Source.Port),
-							"protocol": cfListenerPair.Destination.Protocol,
+							"serviceProtocol": cfListenerPair.Destination.Protocol,
 						})
 					}
 
