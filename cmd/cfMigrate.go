@@ -11,19 +11,20 @@ import (
 	"strconv"
 	"regexp"
 	// "context"
-	"encoding/json"
+	// "encoding/json"
+	// "strings"
 	// "os"
 
 	"github.com/spf13/cobra"
 	"github.com/checkr/codeflow/server/plugins/codeflow"
 	codeamp "github.com/codeamp/circuit/plugins/codeamp"
 	codeamp_resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
-	codeamp_plugins "github.com/codeamp/circuit/plugins"
-	"github.com/jinzhu/gorm/dialects/postgres"
+	// codeamp_plugins "github.com/codeamp/circuit/plugins"
+	// "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/go-bongo/bongo"
 	mgo "gopkg.in/mgo.v2"
 	"github.com/spf13/viper"	
-	"github.com/davecgh/go-spew/spew"
+	// "github.com/davecgh/go-spew/spew"
 	// uuid "github.com/satori/go.uuid" 
 )
 var codeflowDB *bongo.Connection
@@ -106,7 +107,7 @@ var cfMigrateCmd = &cobra.Command{
 		
 		fmt.Println("[*] Porting projects")
 		for _, project := range projects {
-			fmt.Println(fmt.Sprintf("[*] Creating corresponding CodeAmp project for %s", project.Slug))
+			// fmt.Println(fmt.Sprintf("[*] Creating corresponding CodeAmp project for %s", project.Slug))
 			codeampProject := codeamp_resolvers.Project{
 				Name: project.Name,
 				Slug: project.Slug,
@@ -118,6 +119,18 @@ var cfMigrateCmd = &cobra.Command{
 				RsaPublicKey: project.RsaPublicKey,
 			}
 			codeampDB.Create(&codeampProject)			
+
+			// find one successful release
+			successReleases := []codeflow.Release{}
+ 	 		fmt.Println(bson.ObjectId(project.Id))
+			results = codeflowDB.Collection("releases").Find(bson.M{ "state": "complete", "projectId": bson.ObjectId(project.Id) })
+			results.Query.All(&successReleases)
+			if len(successReleases) == 0 {
+				fmt.Println("[-] No successful releases. Skipping.")
+				continue
+			}
+
+			fmt.Println(project.Name)
 
 			// fmt.Println("[*] Porting features")
 			// // find the features tied to the project
@@ -143,325 +156,332 @@ var cfMigrateCmd = &cobra.Command{
 			// fmt.Println("[+] Successfully ported features! \n")
 
 
-			fmt.Println("[*] Porting environments...")
-			// get envs in codeamp
-			envs := []codeamp_resolvers.Environment{}
-			codeampDB.Find(&envs)
+		// 	fmt.Println("[*] Porting environments...")
+		// 	// get envs in codeamp
+		// 	envs := []codeamp_resolvers.Environment{}
+		// 	codeampDB.Find(&envs)
 
-			for _, env := range envs {
-				fmt.Println(fmt.Sprintf("[*] Filling in environment %s", env.Key))
+		// 	for _, env := range envs {
+		// 		fmt.Println(fmt.Sprintf("[*] Filling in environment %s", env.Key))
 
 
-				fmt.Println("[*] Porting secrets...")
-				// find and create the secrets tied to the project
-				// secret := codeflow.Secret{}
-				codeflowSecrets := []codeflow.Secret{}
+		// 		fmt.Println("[*] Porting secrets...")
+		// 		// find and create the secrets tied to the project
+		// 		// secret := codeflow.Secret{}
+		// 		codeflowSecrets := []codeflow.Secret{}
 
-				// bson.M{ "deleted": false, "projectId": project.Id } not working
-				// so doing a manually-looped filter
-				results = codeflowDB.Collection("secrets").Find(bson.M{ "projectId": bson.ObjectId(project.Id), "deleted": false })
-				results.Query.All(&codeflowSecrets)
+		// 		// bson.M{ "deleted": false, "projectId": project.Id } not working
+		// 		// so doing a manually-looped filter
+		// 		results = codeflowDB.Collection("secrets").Find(bson.M{ "projectId": bson.ObjectId(project.Id), "deleted": false })
+		// 		results.Query.All(&codeflowSecrets)
 
-				codeampSecrets  := []codeamp_resolvers.Secret{}
-				for _, secret := range codeflowSecrets {
-					fmt.Println(fmt.Sprintf("[*] Creating secret %s", secret.Key))
+		// 		codeampSecrets  := []codeamp_resolvers.Secret{}
+		// 		for _, secret := range codeflowSecrets {
+		// 			fmt.Println(fmt.Sprintf("[*] Creating secret %s", secret.Key))
 					
-					isSecret := false
-					if string(secret.Type) == "protected-env" {
-						isSecret = true
-					}
+		// 			isSecret := false
+		// 			if string(secret.Type) == "protected-env" {
+		// 				isSecret = true
+		// 			}
 
-					codeampSecret := codeamp_resolvers.Secret{
-						Key: secret.Key,
-						Scope: codeamp_resolvers.GetSecretScope("project"),
-						EnvironmentID: env.Model.ID,
-						IsSecret: isSecret,
-						ProjectID: codeampProject.Model.ID,
-						Type: codeamp_plugins.GetType(string(secret.Type)),
-					}
-					codeampDB.Create(&codeampSecret)
+		// 			codeampSecret := codeamp_resolvers.Secret{
+		// 				Key: secret.Key,
+		// 				Scope: codeamp_resolvers.GetSecretScope("project"),
+		// 				EnvironmentID: env.Model.ID,
+		// 				IsSecret: isSecret,
+		// 				ProjectID: codeampProject.Model.ID,
+		// 				Type: codeamp_plugins.GetType(string(secret.Type)),
+		// 			}
+		// 			codeampDB.Create(&codeampSecret)
 
-					codeampSecretValue := codeamp_resolvers.SecretValue{
-						SecretID: codeampSecret.Model.ID,
-						Value: secret.Value,
-						UserID: codeampUser.Model.ID,
-					}
-					codeampDB.Create(&codeampSecretValue)
-					codeampSecret.Value = codeampSecretValue
-					codeampSecrets = append(codeampSecrets, codeampSecret)
+		// 			codeampSecretValue := codeamp_resolvers.SecretValue{
+		// 				SecretID: codeampSecret.Model.ID,
+		// 				Value: secret.Value,
+		// 				UserID: codeampUser.Model.ID,
+		// 			}
+		// 			codeampDB.Create(&codeampSecretValue)
+		// 			codeampSecret.Value = codeampSecretValue
+		// 			codeampSecrets = append(codeampSecrets, codeampSecret)
 
-					fmt.Println(fmt.Sprintf("[+] Successfully created Secret %s => %s", secret.Key, secret.Value))
-				}
-				fmt.Println("[+] Successfully ported secrets! \n\n")
+		// 			fmt.Println(fmt.Sprintf("[+] Successfully created Secret %s => %s", secret.Key, secret.Value))
+		// 		}
+		// 		fmt.Println("[+] Successfully ported secrets! \n\n")
 
 
-				fmt.Println("[*] Porting services...")
-				// find the services tied to the project
-				codeflowServices := []codeflow.Service{}
-				results = codeflowDB.Collection("services").Find(bson.M{ "projectId": bson.ObjectId(project.Id) })
-				results.Query.All(&codeflowServices)
-				codeampServices := []codeamp_resolvers.Service{}
-				for _, codeflowService := range codeflowServices {
-					if string(codeflowService.State) != "deleted" {
-						fmt.Println("[*] Porting service ", codeflowService.Name, codeflowService.Id, codeflowService.SpecId)
-						// get service spec
-						codeflowServiceSpec := codeflow.ServiceSpec{}
-						results = codeflowDB.Collection("serviceSpecs").Find(bson.M{ "_id": bson.ObjectId(codeflowService.SpecId) })
-						results.Query.One(&codeflowServiceSpec)
+		// 		fmt.Println("[*] Porting services...")
+		// 		// find the services tied to the project
+		// 		codeflowServices := []codeflow.Service{}
+		// 		results = codeflowDB.Collection("services").Find(bson.M{ "projectId": bson.ObjectId(project.Id) })
+		// 		results.Query.All(&codeflowServices)
+		// 		codeampServices := []codeamp_resolvers.Service{}
+		// 		for _, codeflowService := range codeflowServices {
+		// 			if string(codeflowService.State) != "deleted" {
+		// 				fmt.Println("[*] Porting service ", codeflowService.Name, codeflowService.Id, codeflowService.SpecId)
+		// 				// get service spec
+		// 				codeflowServiceSpec := codeflow.ServiceSpec{}
+		// 				results = codeflowDB.Collection("serviceSpecs").Find(bson.M{ "_id": bson.ObjectId(codeflowService.SpecId) })
+		// 				results.Query.One(&codeflowServiceSpec)
 	
-						codeampServiceSpec := codeamp_resolvers.ServiceSpec{}
-						if codeampDB.Where("name = ?", codeflowServiceSpec.Name).First(&codeampServiceSpec).RecordNotFound() {
-							fmt.Println(fmt.Sprintf("[-] Could not find ServiceSpec %s in CodeAmp", codeflowServiceSpec.Name))
-							continue
-						}
+		// 				codeampServiceSpec := codeamp_resolvers.ServiceSpec{}
+		// 				if codeampDB.Where("name = ?", codeflowServiceSpec.Name).First(&codeampServiceSpec).RecordNotFound() {
+		// 					fmt.Println(fmt.Sprintf("[-] Could not find ServiceSpec %s in CodeAmp", codeflowServiceSpec.Name))
+		// 					continue
+		// 				}
 	
-						codeampServiceType := codeamp_plugins.GetType("general")
-						if codeflowService.OneShot {
-							codeampServiceType = codeamp_plugins.GetType("one-shot")
-						}
+		// 				codeampServiceType := codeamp_plugins.GetType("general")
+		// 				if codeflowService.OneShot {
+		// 					codeampServiceType = codeamp_plugins.GetType("one-shot")
+		// 				}
 	
-						codeampService := codeamp_resolvers.Service{
-							ProjectID: codeampProject.Model.ID,
-							ServiceSpecID: codeampServiceSpec.Model.ID,
-							Command: codeflowService.Command,
-							EnvironmentID: env.Model.ID,
-							Count: strconv.Itoa(codeflowService.Count),
-							Type: codeampServiceType,
-							Name: codeflowService.Name,
-						}
-						codeampDB.Create(&codeampService)
+		// 				codeampService := codeamp_resolvers.Service{
+		// 					ProjectID: codeampProject.Model.ID,
+		// 					ServiceSpecID: codeampServiceSpec.Model.ID,
+		// 					Command: codeflowService.Command,
+		// 					EnvironmentID: env.Model.ID,
+		// 					Count: strconv.Itoa(codeflowService.Count),
+		// 					Type: codeampServiceType,
+		// 					Name: codeflowService.Name,
+		// 				}
+		// 				codeampDB.Create(&codeampService)
 	
-						// create ports arr
-						codeampPorts := []codeamp_resolvers.ServicePort{}
-						for _, codeflowPort := range codeflowService.Listeners {
-							codeampPort := codeamp_resolvers.ServicePort{
-								ServiceID: codeampService.Model.ID,
-								Port: strconv.Itoa(codeflowPort.Port),
-								Protocol: codeflowPort.Protocol,
-							}
-							codeampDB.Create(&codeampPort)
-							codeampPorts = append(codeampPorts, codeampPort)
-						}
-						codeampService.Ports = codeampPorts
-						codeampServices = append(codeampServices, codeampService)
-					}
-				}
-				fmt.Println("[+] Succesfully ported services! \n")
+		// 				// create ports arr
+		// 				codeampPorts := []codeamp_resolvers.ServicePort{}
+		// 				for _, codeflowPort := range codeflowService.Listeners {
+		// 					codeampPort := codeamp_resolvers.ServicePort{
+		// 						ServiceID: codeampService.Model.ID,
+		// 						Port: strconv.Itoa(codeflowPort.Port),
+		// 						Protocol: codeflowPort.Protocol,
+		// 					}
+		// 					codeampDB.Create(&codeampPort)
+		// 					codeampPorts = append(codeampPorts, codeampPort)
+		// 				}
+		// 				codeampService.Ports = codeampPorts
+		// 				codeampServices = append(codeampServices, codeampService)
+		// 			}
+		// 		}
+		// 		fmt.Println("[+] Succesfully ported services! \n")
 
-				// create additional objects i.e. ProjectSettings, ProjectEnvironments
-				fmt.Println("[*] Creating ProjectSettings... ", env, codeampProject.Slug)				
-				projectSettings := codeamp_resolvers.ProjectSettings{
-					EnvironmentID: env.Model.ID,
-					ProjectID: codeampProject.Model.ID,
-					GitBranch: "master",
-					ContinuousDeploy: false,
-				}
-				codeampDB.Create(&projectSettings)
-				fmt.Println("[+] Successfully created ProjectSettings")
+		// 		// create additional objects i.e. ProjectSettings, ProjectEnvironments
+		// 		fmt.Println("[*] Creating ProjectSettings... ", env, codeampProject.Slug)				
+		// 		projectSettings := codeamp_resolvers.ProjectSettings{
+		// 			EnvironmentID: env.Model.ID,
+		// 			ProjectID: codeampProject.Model.ID,
+		// 			GitBranch: "master",
+		// 			ContinuousDeploy: false,
+		// 		}
+		// 		codeampDB.Create(&projectSettings)
+		// 		fmt.Println("[+] Successfully created ProjectSettings")
 
-				fmt.Println("[*] Creating ProjectEnvironment permission... ", env, codeampProject.Slug)
-				projectEnvironment := codeamp_resolvers.ProjectEnvironment{
-					EnvironmentID: env.Model.ID,
-					ProjectID: codeampProject.Model.ID,
-				}
-				codeampDB.Create(&projectEnvironment)
-				fmt.Println("[+] Successfully created ProjectEnvironment")	
+		// 		fmt.Println("[*] Creating ProjectEnvironment permission... ", env, codeampProject.Slug)
+		// 		projectEnvironment := codeamp_resolvers.ProjectEnvironment{
+		// 			EnvironmentID: env.Model.ID,
+		// 			ProjectID: codeampProject.Model.ID,
+		// 		}
+		// 		codeampDB.Create(&projectEnvironment)
+		// 		fmt.Println("[+] Successfully created ProjectEnvironment")	
 				
 				
-				// Create project extensions
-				fmt.Println("[*] Creating Project Extensions...")
-				// Create DockerBuilder extension
-				dockerBuilderDBExtension := codeamp_resolvers.Extension{}
-				if codeampDB.Where("environment_id = ? and key = ?", env.Model.ID, "dockerbuilder").Find(&dockerBuilderDBExtension).RecordNotFound() {
-					panic(err.Error())
-				}
+		// 		// Create project extensions
+		// 		fmt.Println("[*] Creating Project Extensions...")
+		// 		// Create DockerBuilder extension
+		// 		dockerBuilderDBExtension := codeamp_resolvers.Extension{}
+		// 		if codeampDB.Where("environment_id = ? and key = ?", env.Model.ID, "dockerbuilder").Find(&dockerBuilderDBExtension).RecordNotFound() {
+		// 			panic(err.Error())
+		// 		}
 
-				dockerBuilderProjectExtension := codeamp_resolvers.ProjectExtension{
-					ProjectID: codeampProject.Model.ID,
-					ExtensionID: dockerBuilderDBExtension.Model.ID,
-					State: codeamp_plugins.GetState("waiting"),
-					StateMessage: "Migrated, click update to send an event.",
-					Artifacts: postgres.Jsonb{[]byte("{}")},
-					Config: dockerBuilderDBExtension.Config,
-					CustomConfig: postgres.Jsonb{[]byte("{}")},
-					EnvironmentID: env.Model.ID,
-				}
-				codeampDB.Create(&dockerBuilderProjectExtension)
+		// 		dockerBuilderProjectExtension := codeamp_resolvers.ProjectExtension{
+		// 			ProjectID: codeampProject.Model.ID,
+		// 			ExtensionID: dockerBuilderDBExtension.Model.ID,
+		// 			State: codeamp_plugins.GetState("waiting"),
+		// 			StateMessage: "Migrated, click update to send an event.",
+		// 			Artifacts: postgres.Jsonb{[]byte("{}")},
+		// 			Config: dockerBuilderDBExtension.Config,
+		// 			CustomConfig: postgres.Jsonb{[]byte("{}")},
+		// 			EnvironmentID: env.Model.ID,
+		// 		}
+		// 		codeampDB.Create(&dockerBuilderProjectExtension)
 
-				// get relevant information for project's corresponding load balancers in codeflow
-				results = codeflowDB.Collection("extensions").Find(bson.M{ "projectId": bson.ObjectId(project.Id), "extension": "LoadBalancer" })
-				codeflowLoadBalancers := []codeflow.LoadBalancer{}
-				results.Query.All(&codeflowLoadBalancers)
-				for _, codeflowLoadBalancer := range codeflowLoadBalancers {
-					listenerPairs := []map[string]string{}
-					for _, cfListenerPair := range codeflowLoadBalancer.ListenerPairs {
-						listenerPairs = append(listenerPairs, map[string]string{
-							"port": strconv.Itoa(cfListenerPair.Destination.Port),
-							"containerPort": strconv.Itoa(cfListenerPair.Source.Port),
-							"serviceProtocol": cfListenerPair.Destination.Protocol,
-						})
-					}
+		// 		// get relevant information for project's corresponding load balancers in codeflow
+		// 		results = codeflowDB.Collection("extensions").Find(bson.M{ "projectId": bson.ObjectId(project.Id), "extension": "LoadBalancer" })
+		// 		codeflowLoadBalancers := []codeflow.LoadBalancer{}
+		// 		results.Query.All(&codeflowLoadBalancers)
+		// 		for _, codeflowLoadBalancer := range codeflowLoadBalancers {
+		// 			listenerPairs := []map[string]string{}
+		// 			codeflowService := codeflow.Service{}
+		// 			codeampService := codeamp_resolvers.Service{}
 
-					codeflowService := codeflow.Service{}
-					err = codeflowDB.Collection("services").FindById(bson.ObjectId(codeflowLoadBalancer.ServiceId), &codeflowService)
-					if err != nil {
-						panic(err.Error())
-					}
+		// 			err = codeflowDB.Collection("services").FindById(bson.ObjectId(codeflowLoadBalancer.ServiceId), &codeflowService)
+		// 			if err != nil {
+		// 				fmt.Println(err.Error())
+		// 				fmt.Println("[-] Could not find codeflow service with id ", codeflowLoadBalancer.ServiceId)
+		// 			}
 
-					lbCustomConfig := map[string]interface{}{
-						"name": codeflowLoadBalancer.Subdomain,
-						"type": codeflowLoadBalancer.Type,
-						"service": codeflowLoadBalancer.Name,
-						"listener_pairs": listenerPairs,
-					}
-					marshaledLbCustomConfig, err := json.Marshal(lbCustomConfig)
-					if err != nil {
-						panic(err.Error())
-					}
+		// 			if codeampDB.Where("name = ? and project_id = ? and environment_id = ?", codeflowService.Name, codeampProject.Model.ID, env.Model.ID).RecordNotFound() {
+		// 				fmt.Println("[-] Could not find codeamp corresponding service for ", codeflowLoadBalancer.Name)
+		// 			}
+
+		// 			for _, cfListenerPair := range codeflowLoadBalancer.ListenerPairs {
+		// 				listenerPairs = append(listenerPairs, map[string]string{
+		// 					"port": strconv.Itoa(cfListenerPair.Source.Port),
+		// 					"containerPort": strconv.Itoa(cfListenerPair.Source.Port), // Get container port id from corresponding service
+		// 					"serviceProtocol": strings.ToLower(cfListenerPair.Destination.Protocol),
+		// 				})
+		// 			}
+
+		// 			lbCustomConfig := map[string]interface{}{
+		// 				"name": codeflowLoadBalancer.Subdomain,
+		// 				"type": codeflowLoadBalancer.Type,
+		// 				"service": codeampService.Model.ID.String(),
+		// 				"listener_pairs": listenerPairs,
+		// 			}
+		// 			marshaledLbCustomConfig, err := json.Marshal(lbCustomConfig)
+		// 			if err != nil {
+		// 				panic(err.Error())
+		// 			}
 	
-					// Create Kubernetes Deployments extension
-					loadBalancersDBExtension := codeamp_resolvers.Extension{}
-					if codeampDB.Where("environment_id = ? and key = ?", env.Model.ID, "kubernetesloadbalancers").Find(&loadBalancersDBExtension).RecordNotFound() {
-						panic(err.Error())
-					}				
-					lbProjectExtension := codeamp_resolvers.ProjectExtension{
-						ProjectID: codeampProject.Model.ID,
-						ExtensionID: loadBalancersDBExtension.Model.ID,
-						State: codeamp_plugins.GetState("waiting"),
-						StateMessage: "Migrated, click update to send an event.",
-						Artifacts: postgres.Jsonb{[]byte("{}")},
-						Config: loadBalancersDBExtension.Config,
-						CustomConfig: postgres.Jsonb{marshaledLbCustomConfig},
-						EnvironmentID: env.Model.ID,
-					}
-					codeampDB.Create(&lbProjectExtension)			
-				}
+		// 			// Create Kubernetes Deployments extension
+		// 			loadBalancersDBExtension := codeamp_resolvers.Extension{}
+		// 			if codeampDB.Where("environment_id = ? and key = ?", env.Model.ID, "kubernetesloadbalancers").Find(&loadBalancersDBExtension).RecordNotFound() {
+		// 				panic(err.Error())
+		// 			}				
+		// 			lbProjectExtension := codeamp_resolvers.ProjectExtension{
+		// 				ProjectID: codeampProject.Model.ID,
+		// 				ExtensionID: loadBalancersDBExtension.Model.ID,
+		// 				State: codeamp_plugins.GetState("waiting"),
+		// 				StateMessage: "Migrated, click update to send an event.",
+		// 				Artifacts: postgres.Jsonb{[]byte("{}")},
+		// 				Config: loadBalancersDBExtension.Config,
+		// 				CustomConfig: postgres.Jsonb{marshaledLbCustomConfig},
+		// 				EnvironmentID: env.Model.ID,
+		// 			}
+		// 			codeampDB.Create(&lbProjectExtension)			
+		// 		}
 
-				// Create Kubernetes Deployments extension
-				kubernetesDeploymentsDBExtension := codeamp_resolvers.Extension{}
-				if codeampDB.Where("environment_id = ? and key = ?", env.Model.ID, "kubernetesdeployments").Find(&kubernetesDeploymentsDBExtension).RecordNotFound() {
-					panic(err.Error())
-				}		
-				kubernetesProjectExtension := codeamp_resolvers.ProjectExtension{
-					ProjectID: codeampProject.Model.ID,
-					ExtensionID: kubernetesDeploymentsDBExtension.Model.ID,
-					State: codeamp_plugins.GetState("waiting"),
-					StateMessage: "Migrated, click update to send an event.",
-					Artifacts: postgres.Jsonb{[]byte("{}")},
-					Config: kubernetesDeploymentsDBExtension.Config,
-					CustomConfig: postgres.Jsonb{[]byte("{}")},
-					EnvironmentID: env.Model.ID,
-				}
-				codeampDB.Create(&kubernetesProjectExtension)						
+		// 		// Create Kubernetes Deployments extension
+		// 		kubernetesDeploymentsDBExtension := codeamp_resolvers.Extension{}
+		// 		if codeampDB.Where("environment_id = ? and key = ?", env.Model.ID, "kubernetesdeployments").Find(&kubernetesDeploymentsDBExtension).RecordNotFound() {
+		// 			panic(err.Error())
+		// 		}		
+		// 		kubernetesProjectExtension := codeamp_resolvers.ProjectExtension{
+		// 			ProjectID: codeampProject.Model.ID,
+		// 			ExtensionID: kubernetesDeploymentsDBExtension.Model.ID,
+		// 			State: codeamp_plugins.GetState("waiting"),
+		// 			StateMessage: "Migrated, click update to send an event.",
+		// 			Artifacts: postgres.Jsonb{[]byte("{}")},
+		// 			Config: kubernetesDeploymentsDBExtension.Config,
+		// 			CustomConfig: postgres.Jsonb{[]byte("{}")},
+		// 			EnvironmentID: env.Model.ID,
+		// 		}
+		// 		codeampDB.Create(&kubernetesProjectExtension)						
 
-				fmt.Println("[+] Successfully created project extensions\n\n")
+		// 		fmt.Println("[+] Successfully created project extensions\n\n")
 
 
-				fmt.Println("[*] Porting Release...")
-				// find and transform the most recent release tied to the project
+		// 		fmt.Println("[*] Porting Release...")
+		// 		// find and transform the most recent release tied to the project
 
-				// marshaledCodeampServices, err := json.Marshal(codeampServices)
-				// if err != nil {
-				// 	panic(err.Error())
-				// }
+		// 		// marshaledCodeampServices, err := json.Marshal(codeampServices)
+		// 		// if err != nil {
+		// 		// 	panic(err.Error())
+		// 		// }
 
-				// marshaledCodeampSecrets, err := json.Marshal(codeampSecrets)
-				// if err != nil {
-				// 	panic(err.Error())
-				// }				
+		// 		// marshaledCodeampSecrets, err := json.Marshal(codeampSecrets)
+		// 		// if err != nil {
+		// 		// 	panic(err.Error())
+		// 		// }				
 
-				codeampRelease := codeamp_resolvers.Release{
-					ProjectID: codeampProject.Model.ID,
-					EnvironmentID: env.Model.ID,
-					UserID: codeampUser.Model.ID,
-					State: codeamp_plugins.GetState("complete"),
-					StateMessage: "migrated",
-					// Services: postgres.Jsonb{marshaledCodeampServices},
-					// Secrets: postgres.Jsonb{marshaledCodeampSecrets},
-				}
+		// 		codeampRelease := codeamp_resolvers.Release{
+		// 			ProjectID: codeampProject.Model.ID,
+		// 			EnvironmentID: env.Model.ID,
+		// 			UserID: codeampUser.Model.ID,
+		// 			State: codeamp_plugins.GetState("complete"),
+		// 			StateMessage: "migrated",
+		// 			// Services: postgres.Jsonb{marshaledCodeampServices},
+		// 			// Secrets: postgres.Jsonb{marshaledCodeampSecrets},
+		// 		}
 				
-				for {
-					if codeflowDB.Session.Ping() == nil {							
-						break
-					}
-					codeflowDB.Session.Refresh()
-					time.Sleep(1)
-				}
+		// 		for {
+		// 			if codeflowDB.Session.Ping() == nil {							
+		// 				break
+		// 			}
+		// 			codeflowDB.Session.Refresh()
+		// 			time.Sleep(1)
+		// 		}
 
-				results = codeflowDB.Collection("releases").Find(bson.M{ "projectId": bson.ObjectId(project.Id) })
-				latestCodeflowRelease := codeflow.Release{}
-				codeflowRelease := codeflow.Release{}
-				for results.Next(&codeflowRelease) {
-					if string(codeflowRelease.State) == "complete" && latestCodeflowRelease.Created.Unix() < codeflowRelease.Created.Unix() {
-						latestCodeflowRelease = codeflowRelease
-					} 
-				}
+		// 		results = codeflowDB.Collection("releases").Find(bson.M{ "projectId": bson.ObjectId(project.Id) })
+		// 		latestCodeflowRelease := codeflow.Release{}
+		// 		codeflowRelease := codeflow.Release{}
+		// 		for results.Next(&codeflowRelease) {
+		// 			if string(codeflowRelease.State) == "complete" && latestCodeflowRelease.Created.Unix() < codeflowRelease.Created.Unix() {
+		// 				latestCodeflowRelease = codeflowRelease
+		// 			} 
+		// 		}
 
-				spew.Dump(latestCodeflowRelease.State, latestCodeflowRelease.Id.Hex())
-				if string(latestCodeflowRelease.State) == "" || latestCodeflowRelease.Id.Hex() == "" {
-					continue
-				}
+		// 		spew.Dump(latestCodeflowRelease.State, latestCodeflowRelease.Id.Hex())
+		// 		if string(latestCodeflowRelease.State) == "" || latestCodeflowRelease.Id.Hex() == "" {
+		// 			continue
+		// 		}
 				
-				if latestCodeflowRelease.Id.String() != "" {
-					fmt.Println("[+] Found latest release! ", latestCodeflowRelease.Id, latestCodeflowRelease.HeadFeatureId, latestCodeflowRelease.TailFeatureId)					
-					// head feature
-					codeflowReleaseHeadFeature := codeflow.Feature{}
+		// 		if latestCodeflowRelease.Id.String() != "" {
+		// 			fmt.Println("[+] Found latest release! ", latestCodeflowRelease.Id, latestCodeflowRelease.HeadFeatureId, latestCodeflowRelease.TailFeatureId)					
+		// 			// head feature
+		// 			codeflowReleaseHeadFeature := codeflow.Feature{}
 
-					results = codeflowDB.Collection("features").Find(bson.M{ "_id": bson.ObjectId(latestCodeflowRelease.HeadFeatureId) })
-					results.Query.One(&codeflowReleaseHeadFeature)
+		// 			results = codeflowDB.Collection("features").Find(bson.M{ "_id": bson.ObjectId(latestCodeflowRelease.HeadFeatureId) })
+		// 			results.Query.One(&codeflowReleaseHeadFeature)
 					
-					fmt.Println(codeflowReleaseHeadFeature.Message)
+		// 			fmt.Println(codeflowReleaseHeadFeature.Message)
 
-					codeampHeadFeature := codeamp_resolvers.Feature{
-						ProjectID: codeampProject.Model.ID,
-						Message: codeflowReleaseHeadFeature.Message,
-						User: codeflowReleaseHeadFeature.User,
-						Ref: codeflowReleaseHeadFeature.Ref,
-						ParentHash: codeflowReleaseHeadFeature.ParentHash,
-						Created: codeflowReleaseHeadFeature.Created,
-						Hash: codeflowReleaseHeadFeature.Hash,
-					}
-					codeampDB.Create(&codeampHeadFeature)
+		// 			codeampHeadFeature := codeamp_resolvers.Feature{
+		// 				ProjectID: codeampProject.Model.ID,
+		// 				Message: codeflowReleaseHeadFeature.Message,
+		// 				User: codeflowReleaseHeadFeature.User,
+		// 				Ref: codeflowReleaseHeadFeature.Ref,
+		// 				ParentHash: codeflowReleaseHeadFeature.ParentHash,
+		// 				Created: codeflowReleaseHeadFeature.Created,
+		// 				Hash: codeflowReleaseHeadFeature.Hash,
+		// 			}
+		// 			codeampDB.Create(&codeampHeadFeature)
 
-					codeampRelease.HeadFeatureID = codeampHeadFeature.Model.ID				
+		// 			codeampRelease.HeadFeatureID = codeampHeadFeature.Model.ID				
 
-					if latestCodeflowRelease.TailFeatureId != latestCodeflowRelease.HeadFeatureId {
-						// tail feature
-						codeflowReleaseTailFeature := codeflow.Feature{}
-						results = codeflowDB.Collection("features").Find(bson.M{ "_id": bson.ObjectId(latestCodeflowRelease.TailFeatureId) })
-						results.Query.One(&codeflowReleaseTailFeature)
+		// 			if latestCodeflowRelease.TailFeatureId != latestCodeflowRelease.HeadFeatureId {
+		// 				// tail feature
+		// 				codeflowReleaseTailFeature := codeflow.Feature{}
+		// 				results = codeflowDB.Collection("features").Find(bson.M{ "_id": bson.ObjectId(latestCodeflowRelease.TailFeatureId) })
+		// 				results.Query.One(&codeflowReleaseTailFeature)
 
-						if codeflowReleaseTailFeature.Message == "" {
-							spew.Dump(codeflowReleaseTailFeature)
-							continue
-						}
+		// 				if codeflowReleaseTailFeature.Message == "" {
+		// 					spew.Dump(codeflowReleaseTailFeature)
+		// 					continue
+		// 				}
 
-						fmt.Println(codeflowReleaseTailFeature.Message)
-						codeampTailFeature := codeamp_resolvers.Feature{
-							ProjectID: codeampProject.Model.ID,
-							Message: codeflowReleaseTailFeature.Message,
-							User: codeflowReleaseTailFeature.User,
-							Ref: codeflowReleaseTailFeature.Ref,
-							ParentHash: codeflowReleaseTailFeature.ParentHash,
-							Created: codeflowReleaseTailFeature.Created,
-							Hash: codeflowReleaseTailFeature.Hash,
-						}
-						codeampDB.Create(&codeampTailFeature)
-						codeampRelease.TailFeatureID = codeampTailFeature.Model.ID
-					} else {
-						codeampRelease.TailFeatureID = codeampHeadFeature.Model.ID
-					}
+		// 				fmt.Println(codeflowReleaseTailFeature.Message)
+		// 				codeampTailFeature := codeamp_resolvers.Feature{
+		// 					ProjectID: codeampProject.Model.ID,
+		// 					Message: codeflowReleaseTailFeature.Message,
+		// 					User: codeflowReleaseTailFeature.User,
+		// 					Ref: codeflowReleaseTailFeature.Ref,
+		// 					ParentHash: codeflowReleaseTailFeature.ParentHash,
+		// 					Created: codeflowReleaseTailFeature.Created,
+		// 					Hash: codeflowReleaseTailFeature.Hash,
+		// 				}
+		// 				codeampDB.Create(&codeampTailFeature)
+		// 				codeampRelease.TailFeatureID = codeampTailFeature.Model.ID
+		// 			} else {
+		// 				codeampRelease.TailFeatureID = codeampHeadFeature.Model.ID
+		// 			}
 
-					codeampDB.Create(&codeampRelease)
-					fmt.Println("[+] Successfully ported release \n")
-				} else {
-					fmt.Println("[.] No releases found.")
-				}
+		// 			codeampDB.Create(&codeampRelease)
+		// 			fmt.Println("[+] Successfully ported release \n")
+		// 		} else {
+		// 			fmt.Println("[.] No releases found.")
+		// 		}
 
-				fmt.Println(fmt.Sprintf("Done filling objects in env %s", env.Key))				
-			}		
+		// 		fmt.Println(fmt.Sprintf("Done filling objects in env %s", env.Key))				
+		// 	}		
 
-			fmt.Println(fmt.Sprintf("[+] Successfully *fully* created %s for envs %s \n\n", project.Slug, envs))
+		// 	fmt.Println(fmt.Sprintf("[+] Successfully *fully* created %s for envs %s \n\n", project.Slug, envs))
 		}
 
 		fmt.Println("[+] Finished porting all projects!")
