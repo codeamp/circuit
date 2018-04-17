@@ -120,6 +120,14 @@ var cfMigrateCmd = &cobra.Command{
 			}
 			codeampDB.Create(&codeampProject)			
 
+			for {
+				if codeflowDB.Session.Ping() == nil {							
+					break
+				}
+				codeflowDB.Session.Refresh()
+				time.Sleep(1)
+			}
+			
 			// find one successful release
 			count, err := codeflowDB.Collection("releases").Find(bson.M{ "state": "complete", "projectId": bson.ObjectId(project.Id) }).Query.Count()
 			if err != nil {
@@ -329,7 +337,7 @@ var cfMigrateCmd = &cobra.Command{
 					lbCustomConfig := map[string]interface{}{
 						"name": codeflowLoadBalancer.Subdomain,
 						"type": codeflowLoadBalancer.Type,
-						"service": codeampService.Model.ID.String(),
+						"service": codeampService.Name,
 						"listener_pairs": listenerPairs,
 					}
 					marshaledLbCustomConfig, err := json.Marshal(lbCustomConfig)
