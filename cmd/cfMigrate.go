@@ -314,7 +314,7 @@ var cfMigrateCmd = &cobra.Command{
 						fmt.Println("[-] Could not find codeflow service with id ", codeflowLoadBalancer.ServiceId)
 					}
 
-					if codeampDB.Where("name = ? and project_id = ? and environment_id = ?", codeflowService.Name, codeampProject.Model.ID, env.Model.ID).RecordNotFound() {
+					if codeampDB.Where("name = ? and project_id = ? and environment_id = ?", codeflowService.Name, codeampProject.Model.ID, env.Model.ID).Find(&codeampService).RecordNotFound() {
 						fmt.Println("[-] Could not find codeamp corresponding service for ", codeflowLoadBalancer.Name)
 					}
 
