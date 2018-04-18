@@ -169,7 +169,7 @@ var cfMigrateCmd = &cobra.Command{
 			fmt.Println("[*] Porting environments...")
 			// get envs in codeamp
 			envs := []codeamp_resolvers.Environment{}
-			codeampDB.Debug().Find(&envs)
+			codeampDB.Debug().Where("key = ?", "production").Find(&envs)
 
 			for _, env := range envs {
 				fmt.Println(fmt.Sprintf("[*] Filling in environment %s", env.Key))
@@ -252,7 +252,11 @@ var cfMigrateCmd = &cobra.Command{
 							Type: codeampServiceType,
 							Name: codeflowService.Name,
 						}
-						codeampDB.Debug().Where(codeamp_resolvers.Service{ProjectID: codeampProject.Model.ID, Name: codeflowService.Name}).Assign(codeampService).FirstOrCreate(&codeampService)
+						codeampDB.Debug().Where(codeamp_resolvers.Service{
+							ProjectID: codeampProject.Model.ID, 
+							Name: codeflowService.Name,
+							EnvironmentID: env.Model.ID,
+						}).Assign(codeampService).FirstOrCreate(&codeampService)
 	
 						// create ports arr
 						codeampPorts := []codeamp_resolvers.ServicePort{}
@@ -316,7 +320,11 @@ var cfMigrateCmd = &cobra.Command{
 				}).Assign(dockerBuilderProjectExtension).FirstOrCreate(&dockerBuilderProjectExtension)
 
 				// get relevant information for project's corresponding load balancers in codeflow
-				results = codeflowDB.Collection("extensions").Find(bson.M{ "projectId": bson.ObjectId(project.Id), "extension": "LoadBalancer" })
+				results = codeflowDB.Collection("extensions").Find(bson.M{ 
+					"projectId": bson.ObjectId(project.Id), 
+					"extension": "LoadBalancer",
+					"state": "complete",
+				})
 				codeflowLoadBalancers := []codeflow.LoadBalancer{}
 				results.Query.All(&codeflowLoadBalancers)
 				for _, codeflowLoadBalancer := range codeflowLoadBalancers {
@@ -502,6 +510,7 @@ var cfMigrateCmd = &cobra.Command{
 						ProjectID: codeampRelease.ProjectID,
 						HeadFeatureID: codeampRelease.HeadFeatureID,
 						TailFeatureID: codeampRelease.TailFeatureID,
+						EnvironmentID: codeampRelease.EnvironmentID,
 					}).FirstOrCreate(&codeampRelease)
 
 					fmt.Println("[+] Successfully ported release \n")
