@@ -266,7 +266,11 @@ var cfMigrateCmd = &cobra.Command{
 								Port: strconv.Itoa(codeflowPort.Port),
 								Protocol: codeflowPort.Protocol,
 							}
-							codeampDB.Debug().Where(codeamp_resolvers.ServicePort{ ServiceID: codeampService.Model.ID }).Assign(codeampPort).FirstOrCreate(&codeampPort)
+							codeampDB.Debug().Where(codeamp_resolvers.ServicePort{ 
+								ServiceID: codeampService.Model.ID,
+								Port: strconv.Itoa(codeflowPort.Port),
+								Protocol: codeflowPort.Protocol,								
+							}).Assign(codeampPort).FirstOrCreate(&codeampPort)
 							codeampPorts = append(codeampPorts, codeampPort)
 						}
 						codeampService.Ports = codeampPorts
