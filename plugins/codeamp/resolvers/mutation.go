@@ -448,6 +448,28 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 	pluginSecrets = append(pluginSecrets, timeSecret)
 
+	// insert Codeflow envs - remove later
+	_slugSecret := plugins.Secret{
+		Key:   "CODEFLOW_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _slugSecret)
+
+	_hashSecret := plugins.Secret{
+		Key:   "CODEFLOW_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _hashSecret)
+
+	_timeSecret := plugins.Secret{
+		Key:   "CODEFLOW_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _timeSecret)
+
 	releaseEvent := plugins.Release{
 		ID:          release.Model.ID.String(),
 		Action:      plugins.GetAction("create"),
