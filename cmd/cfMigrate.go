@@ -27,6 +27,7 @@ import (
 	// "github.com/davecgh/go-spew/spew"
 	// uuid "github.com/satori/go.uuid" 
 )
+
 var codeflowDB *bongo.Connection
 
 // migrateCmd represents the migrate command
@@ -69,11 +70,20 @@ var cfMigrateCmd = &cobra.Command{
 		codeampDB.Unscoped().Delete(&codeamp_resolvers.Feature{})
 		codeampDB.Unscoped().Delete(&codeamp_resolvers.Release{})
 		fmt.Println("[+] Successfully cleaned Codeamp DB of all rows")
-		
-		// create CodeAmp project objects from codeflow
+
 		projects := []codeflow.Project{}
 		results := codeflowDB.Collection("projects").Find(bson.M{ "deleted": false })
-		results.Query.All(&projects)
+		services := viper.GetStringSlice("services")
+		tmpCodeflowProject := codeflow.Project{}
+
+		for results.Next(&tmpCodeflowProject) {
+			for _, service := range services {
+				if tmpCodeflowProject.Name == service {
+					fmt.Println("found service ", tmpCodeflowProject.Name)
+					projects = append(projects, tmpCodeflowProject)
+				}
+			}
+		}
 
 		reg, err := regexp.Compile("[^0-9]+")
 		if err != nil {
@@ -127,19 +137,11 @@ var cfMigrateCmd = &cobra.Command{
 				codeflowDB.Session.Refresh()
 				time.Sleep(1)
 			}
-			
-			// find one successful release
-			count, err := codeflowDB.Collection("releases").Find(bson.M{ "state": "complete", "projectId": bson.ObjectId(project.Id) }).Query.Count()
-			if err != nil {
-				panic(err.Error())
-			}
 
-			if count == 0 {
-				continue
-			}
+			fmt.Println(project.Name)
 
-			fmt.Println("[*] Porting features")
-			// find the features tied to the project
+			// fmt.Println("[*] Porting features")
+			// // find the features tied to the project
 			// codeflowFeatures := []codeflow.Feature{}
 			// results = codeflowDB.Collection("features").Find(bson.M{ "projectId": bson.ObjectId(project.Id) })
 			// results.Query.All(&codeflowFeatures)
