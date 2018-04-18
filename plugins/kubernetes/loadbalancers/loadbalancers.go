@@ -310,6 +310,8 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	// If ELB grab the DNS name for the response
 	ELBDNS := ""
+	kubeEventStatus := ""
+	var event transistor.Event
 	if lbType == plugins.GetType("external") || lbType == plugins.GetType("office") {
 		fmt.Printf("Waiting for ELB address for %s", lbName.GetString())
 		// Timeout waiting for ELB DNS name after 900 seconds
@@ -333,33 +335,35 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			time.Sleep(time.Second * 5)
 			timeout -= 5
 		}
+
+		route53Event := e
+		route53Event.Payload = plugins.ProjectExtension{
+			ID:           e.Payload.(plugins.ProjectExtension).ID,
+			Action:       plugins.GetAction("create"),
+			Slug:         "route53",
+			State:        plugins.GetState("waiting"),
+			StateMessage: "",
+			Environment:  e.Payload.(plugins.ProjectExtension).Environment,
+			Project:      e.Payload.(plugins.ProjectExtension).Project,
+		}
+
+		event = utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)	
+	
+		// send route53 event
+		route53Event = e.NewEvent(route53Event.Payload, err)
+		route53Event.Artifacts = e.Artifacts
+		route53Event.AddArtifact("KUBERNETESLOADBALANCERS_ELBDNS", ELBDNS, false)
+		kubeEventStatus = "Waiting for Route53"
+		x.events <- route53Event		
 	} else {
+		kubeEventStatus = "completed"
 		ELBDNS = fmt.Sprintf("%s.%s", lbName.GetString(), utils.GenNamespaceName(payload.Environment, projectSlug))
+		event = utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("complete"), "complete", nil)
 	}
 
-	route53Event := e
-	route53Event.Payload = plugins.ProjectExtension{
-		ID:           e.Payload.(plugins.ProjectExtension).ID,
-		Action:       plugins.GetAction("create"),
-		Slug:         "route53",
-		State:        plugins.GetState("waiting"),
-		StateMessage: "",
-		Environment:  e.Payload.(plugins.ProjectExtension).Environment,
-		Project:      e.Payload.(plugins.ProjectExtension).Project,
-	}
-
-	// send event to codeamp to signal loadbalancers completion
-	event := utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("waiting"), "waiting for route53", nil)
-	event.AddArtifact("KUBERNETESLOADBALANCERS_ELB_DNS", ELBDNS, false)
-	event.AddArtifact("KUBERNETESLOADBALANCERS_STATUS", "Waiting for Route53 DNS", false)
-	x.events <- event
-
-	// send route53 event
-	route53Event = e.NewEvent(route53Event.Payload, err)
-	route53Event.Artifacts = e.Artifacts
-	route53Event.AddArtifact("KUBERNETESLOADBALANCERS_ELBDNS", ELBDNS, false)
-
-	x.events <- route53Event
+	event.AddArtifact("KUBERNETESLOADBALANCERS_ELB_DNS", ELBDNS, false)	
+	event.AddArtifact("KUBERNETESLOADBALANCERS_STATUS", kubeEventStatus, false)
+	x.events <- event			
 
 	return nil
 }
