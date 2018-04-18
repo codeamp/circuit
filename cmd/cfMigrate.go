@@ -92,17 +92,53 @@ var cfMigrateCmd = &cobra.Command{
 
 		// create service specs
 		fmt.Println("[*] Porting service specs")
-		codeflowServiceSpecs := []codeflow.ServiceSpec{}
+		codeflowServiceSpec := codeflow.ServiceSpec{}
 		results = codeflowDB.Collection("serviceSpecs").Find(bson.M{})
-		results.Query.All(&codeflowServiceSpecs)
-		for _ , codeflowServiceSpec := range codeflowServiceSpecs {
+		// results.Query.All(&codeflowServiceSpecs)
+		for results.Next(&codeflowServiceSpec) {
 			fmt.Println(fmt.Sprintf("[*] Transferring %s", codeflowServiceSpec.Name))
+			cpuRequest, err := strconv.Atoi(reg.ReplaceAllString(codeflowServiceSpec.CpuRequest, ""))
+			if err != nil { 
+				panic(err.Error())
+			}
+
+			if strings.Contains(codeflowServiceSpec.CpuRequest, "Gi"){
+				cpuRequest = cpuRequest * 1000
+			}
+
+			cpuLimit, err := strconv.Atoi(reg.ReplaceAllString(codeflowServiceSpec.CpuLimit, ""))
+			if err != nil { 
+				panic(err.Error())
+			}
+
+			if strings.Contains(codeflowServiceSpec.CpuLimit, "Gi"){
+				cpuLimit = cpuLimit * 1000
+			}
+
+			memRequest, err := strconv.Atoi(reg.ReplaceAllString(codeflowServiceSpec.MemoryRequest, ""))
+			if err != nil { 
+				panic(err.Error())
+			}
+
+			if strings.Contains(codeflowServiceSpec.MemoryRequest, "Gi"){
+				memRequest = memRequest * 1000
+			}
+
+			memLimit, err := strconv.Atoi(reg.ReplaceAllString(codeflowServiceSpec.MemoryLimit, ""))
+			if err != nil { 
+				panic(err.Error())
+			}
+
+			if strings.Contains(codeflowServiceSpec.MemoryLimit, "Gi"){
+				memLimit = memLimit * 1000
+			}
+
 			codeampServiceSpec := codeamp_resolvers.ServiceSpec{
 				Name: codeflowServiceSpec.Name,
-				CpuRequest: reg.ReplaceAllString(codeflowServiceSpec.CpuRequest, ""),
-				CpuLimit: reg.ReplaceAllString(codeflowServiceSpec.CpuLimit, ""),
-				MemoryRequest: reg.ReplaceAllString(codeflowServiceSpec.MemoryRequest, ""),
-				MemoryLimit: reg.ReplaceAllString(codeflowServiceSpec.MemoryLimit, ""),
+				CpuRequest: strconv.Itoa(cpuRequest),
+				CpuLimit: strconv.Itoa(cpuLimit),
+				MemoryRequest: strconv.Itoa(memRequest),
+				MemoryLimit: strconv.Itoa(memLimit),
 				TerminationGracePeriod: strconv.Itoa(int(codeflowServiceSpec.TerminationGracePeriodSeconds)),
 			}
 			codeampDB.Debug().Where(codeamp_resolvers.ServiceSpec{Name: codeflowServiceSpec.Name}).Assign(codeampServiceSpec).FirstOrCreate(&codeampServiceSpec)
@@ -307,13 +343,18 @@ var cfMigrateCmd = &cobra.Command{
 					panic(err.Error())
 				}
 
+				newDockerBuilderExtensionConfig, err := insertAllowOverrideAttributeIntoExtConfig(dockerBuilderDBExtension)
+				if err != nil {
+					panic(err.Error())
+				}
+
 				dockerBuilderProjectExtension := codeamp_resolvers.ProjectExtension{
 					ProjectID: codeampProject.Model.ID,
 					ExtensionID: dockerBuilderDBExtension.Model.ID,
-					State: codeamp_plugins.GetState("waiting"),
+					State: codeamp_plugins.GetState("failed"),
 					StateMessage: "Migrated, click update to send an event.",
 					Artifacts: postgres.Jsonb{[]byte("{}")},
-					Config: dockerBuilderDBExtension.Config,
+					Config: postgres.Jsonb{newDockerBuilderExtensionConfig},
 					CustomConfig: postgres.Jsonb{[]byte("{}")},
 					EnvironmentID: env.Model.ID,
 				}
@@ -329,9 +370,9 @@ var cfMigrateCmd = &cobra.Command{
 					"extension": "LoadBalancer",
 					"state": "complete",
 				})
-				codeflowLoadBalancers := []codeflow.LoadBalancer{}
-				results.Query.All(&codeflowLoadBalancers)
-				for _, codeflowLoadBalancer := range codeflowLoadBalancers {
+				codeflowLoadBalancer := codeflow.LoadBalancer{}
+				// results.Query.All(&codeflowLoadBalancers)
+				for results.Next(&codeflowLoadBalancer) {
 					listenerPairs := []map[string]string{}
 					codeflowService := codeflow.Service{}
 					codeampService := codeamp_resolvers.Service{}
@@ -354,8 +395,13 @@ var cfMigrateCmd = &cobra.Command{
 						})
 					}
 
+					name := codeflowLoadBalancer.Subdomain
+					if string(codeflowLoadBalancer.Type) == "internal" {
+						name = codeflowLoadBalancer.Name
+					}
+
 					lbCustomConfig := map[string]interface{}{
-						"name": codeflowLoadBalancer.Subdomain,
+						"name": name,
 						"type": codeflowLoadBalancer.Type,
 						"service": codeampService.Name,
 						"listener_pairs": listenerPairs,
@@ -364,27 +410,32 @@ var cfMigrateCmd = &cobra.Command{
 					if err != nil {
 						panic(err.Error())
 					}
-	
+
 					// Create Kubernetes Deployments extension
 					loadBalancersDBExtension := codeamp_resolvers.Extension{}
 					if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "kubernetesloadbalancers").Find(&loadBalancersDBExtension).RecordNotFound() {
 						panic(err.Error())
-					}				
+					}	
+					
+					newLoadBalancersExtensionConfig, err := insertAllowOverrideAttributeIntoExtConfig(loadBalancersDBExtension)
+					if err != nil {
+						panic(err.Error())
+					}
+													
 					lbProjectExtension := codeamp_resolvers.ProjectExtension{
 						ProjectID: codeampProject.Model.ID,
 						ExtensionID: loadBalancersDBExtension.Model.ID,
-						State: codeamp_plugins.GetState("waiting"),
+						State: codeamp_plugins.GetState("failed"),
 						StateMessage: "Migrated, click update to send an event.",
 						Artifacts: postgres.Jsonb{[]byte("{}")},
-						Config: loadBalancersDBExtension.Config,
+						Config: postgres.Jsonb{newLoadBalancersExtensionConfig},
 						CustomConfig: postgres.Jsonb{marshaledLbCustomConfig},
 						EnvironmentID: env.Model.ID,
 					}
-					codeampDB.Debug().Where(codeamp_resolvers.ProjectExtension{
-						ProjectID: codeampProject.Model.ID,
-						ExtensionID: loadBalancersDBExtension.Model.ID,
-						EnvironmentID: env.Model.ID,
-					}).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)			
+					codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'name' = ?", 
+						codeampProject.Model.ID, 
+						env.Model.ID,
+						codeflowLoadBalancer.Subdomain).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)			
 				}
 
 				// Create Kubernetes Deployments extension
@@ -392,13 +443,19 @@ var cfMigrateCmd = &cobra.Command{
 				if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "kubernetesdeployments").Find(&kubernetesDeploymentsDBExtension).RecordNotFound() {
 					panic(err.Error())
 				}		
+				
+				newKubernetesDeploymentsConfig, err := insertAllowOverrideAttributeIntoExtConfig(kubernetesDeploymentsDBExtension)
+				if err != nil {
+					panic(err.Error())
+				}
+
 				kubernetesProjectExtension := codeamp_resolvers.ProjectExtension{
 					ProjectID: codeampProject.Model.ID,
 					ExtensionID: kubernetesDeploymentsDBExtension.Model.ID,
-					State: codeamp_plugins.GetState("waiting"),
+					State: codeamp_plugins.GetState("failed"),
 					StateMessage: "Migrated, click update to send an event.",
 					Artifacts: postgres.Jsonb{[]byte("{}")},
-					Config: kubernetesDeploymentsDBExtension.Config,
+					Config: postgres.Jsonb{newKubernetesDeploymentsConfig},
 					CustomConfig: postgres.Jsonb{[]byte("{}")},
 					EnvironmentID: env.Model.ID,
 				}
@@ -584,6 +641,36 @@ func createCodeampDB() (resolver *gorm.DB, err error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+func insertAllowOverrideAttributeIntoExtConfig(extension codeamp_resolvers.Extension) ([]byte, error) {
+	var err error
+	type ExtConfig struct {
+		Key           string `json:"key"`
+		Value         string `json:"value"`
+		AllowOverride bool   `json:"allowOverride"`
+	}
+
+	// unmarshal config and add AllowOverride to false
+	extensionConfig := []ExtConfig{}
+	newExtensionConfig := []ExtConfig{}
+
+	err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, kv := range extensionConfig {
+		kv.AllowOverride = false
+		newExtensionConfig = append(newExtensionConfig, kv)
+	}
+
+	marshaledNewExtensionConfig, err := json.Marshal(newExtensionConfig)
+	if err != nil {
+		return nil, err
+	}	
+
+	return marshaledNewExtensionConfig, nil
 }
 
 func init() {
