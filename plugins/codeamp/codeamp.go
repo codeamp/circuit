@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
@@ -396,7 +397,6 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				}, nil)
 
 				ev.Artifacts = artifacts
-
 				x.Events <- ev
 			}
 		}
@@ -672,6 +672,50 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			Type:  secret.Type,
 		})
 	}
+
+	// insert CodeAmp envs
+	slugSecret := plugins.Secret{
+		Key:   "CODEAMP_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, slugSecret)
+
+	hashSecret := plugins.Secret{
+		Key:   "CODEAMP_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, hashSecret)
+
+	timeSecret := plugins.Secret{
+		Key:   "CODEAMP_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, timeSecret)
+
+	// insert Codeflow envs - remove later
+	_slugSecret := plugins.Secret{
+		Key:   "CODEFLOW_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _slugSecret)
+
+	_hashSecret := plugins.Secret{
+		Key:   "CODEFLOW_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _hashSecret)
+
+	_timeSecret := plugins.Secret{
+		Key:   "CODEFLOW_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _timeSecret)	
 
 	releaseExtensionEvents := []plugins.ReleaseExtension{}
 	releaseExtensions := []resolvers.ReleaseExtension{}
