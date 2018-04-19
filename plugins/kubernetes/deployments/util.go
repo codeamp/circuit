@@ -53,26 +53,24 @@ func genOneShotServiceName(slugName string, serviceName string) string {
 	return "os-" + slugName + "-" + serviceName
 }
 
-func (x *Deployments) sendDDResponse(e transistor.Event, services []plugins.Service, state plugins.State, failureMessage string) {
-	data := e.Payload.(plugins.ReleaseExtension)
-	data.Action = plugins.GetAction("status")
-	data.State = state
-	data.StateMessage = failureMessage
-	event := e.NewEvent(data, nil)
-
-	x.events <- event
+func (x *Deployments) sendDDResponse(e transistor.Event, state plugins.State, msg string) {
+	event := e.Payload.(plugins.ReleaseExtension)
+	event.Action = plugins.GetAction("status")
+	event.State = state
+	event.StateMessage = msg
+	x.events <- e.NewEvent(event, nil)
 }
 
-func (x *Deployments) sendDDSuccessResponse(e transistor.Event, services []plugins.Service) {
-	x.sendDDResponse(e, services, plugins.GetState("complete"), "")
+func (x *Deployments) sendDDSuccessResponse(e transistor.Event) {
+	x.sendDDResponse(e, plugins.GetState("complete"), "")
 }
 
-func (x *Deployments) sendDDErrorResponse(e transistor.Event, services []plugins.Service, failureMessage string) {
-	x.sendDDResponse(e, services, plugins.GetState("failed"), failureMessage)
+func (x *Deployments) sendDDErrorResponse(e transistor.Event, msg string) {
+	x.sendDDResponse(e, plugins.GetState("failed"), msg)
 }
 
-func (x *Deployments) sendDDInProgress(e transistor.Event, services []plugins.Service, message string) {
-	x.sendDDResponse(e, services, plugins.GetState("running"), message)
+func (x *Deployments) sendDDInProgress(e transistor.Event, msg string) {
+	x.sendDDResponse(e, plugins.GetState("running"), msg)
 }
 
 func secretifyDockerCred(e transistor.Event) (string, error) {
@@ -284,7 +282,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	kubeconfig, err := utils.SetupKubeConfig(e, "KUBERNETESDEPLOYMENTS_")
 	if err != nil {
 		ca_log.Info(err.Error())
-		x.sendDDErrorResponse(e, reData.Release.Services, "failed writing kubeconfig")
+		x.sendDDErrorResponse(e, "failed writing kubeconfig")
 		return err
 	}
 
@@ -296,7 +294,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		config, err = clientcmd.BuildConfigFromFlags("", "")
 		if err != nil {
 			log.Printf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err)
-			x.sendDDErrorResponse(e, reData.Release.Services, "failed writing kubeconfig")
+			x.sendDDErrorResponse(e, "failed writing kubeconfig")
 			return err
 		}
 	}
@@ -304,11 +302,11 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Println("Error getting cluster config.  Aborting!")
-		x.sendDDErrorResponse(e, reData.Release.Services, err.Error())
+		x.sendDDErrorResponse(e, err.Error())
 		return err
 	}
 
-	x.sendDDInProgress(e, reData.Release.Services, "Deploy in-progress")
+	x.sendDDInProgress(e, "Deploy in-progress")
 	namespace := utils.GenNamespaceName(reData.Release.Environment, projectSlug)
 	coreInterface := clientset.Core()
 
@@ -323,13 +321,13 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
-		x.sendDDErrorResponse(e, reData.Release.Services, createNamespaceErr.Error())
+		x.sendDDErrorResponse(e, createNamespaceErr.Error())
 		return createNamespaceErr
 	}
 
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, coreInterface, e)
 	if createDockerIOSecretErr != nil {
-		x.sendDDErrorResponse(e, reData.Release.Services, createDockerIOSecretErr.Error())
+		x.sendDDErrorResponse(e, createDockerIOSecretErr.Error())
 		return createDockerIOSecretErr
 	}
 	// Create secrets for this deploy
@@ -358,12 +356,12 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	secretResult, secErr := coreInterface.Secrets(namespace).Create(secretParams)
 	if secErr != nil {
 		failMessage := fmt.Sprintf("Error '%s' creating secret %s", secErr, projectSlug)
-		x.sendDDErrorResponse(e, reData.Release.Services, failMessage)
+		x.sendDDErrorResponse(e, failMessage)
 		return fmt.Errorf(failMessage)
 	}
 	secretName := secretResult.Name
 	log.Printf("Secrets created: %s", secretName)
-	x.sendDDInProgress(e, reData.Release.Services, "Secrets created")
+	x.sendDDInProgress(e, "Secrets created")
 
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
@@ -417,7 +415,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		},
 	})
 
-	x.sendDDInProgress(e, reData.Release.Services, "Secrets added to deployVolumes")
+	x.sendDDInProgress(e, "Secrets added to deployVolumes")
 
 	// Do update/create of deployments and services
 	depInterface := clientset.Extensions()
@@ -426,7 +424,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	// Validate we have some services to deploy
 	if len(reData.Release.Services) == 0 {
 		zeroServicesErr := fmt.Errorf("ERROR: Zero services were found in the deploy message.")
-		x.sendDDErrorResponse(e, reData.Release.Services, zeroServicesErr.Error())
+		x.sendDDErrorResponse(e, zeroServicesErr.Error())
 		return zeroServicesErr
 	}
 
@@ -470,7 +468,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
 			oneShotServices[index].State = plugins.GetState("failed")
 			oneShotServices[index].StateMessage = errMsg
-			x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
+			x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
 			return nil
 		}
 
@@ -479,7 +477,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				if (job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0) || job.Status.Active > 0 {
 					oneShotServices[index].State = plugins.GetState("failed")
 					oneShotServices[index].StateMessage = fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
-					x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
+					x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
 					return fmt.Errorf(oneShotServices[index].StateMessage)
 				}
 			}
@@ -567,7 +565,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			log.Printf("Failed to create service job %s, with error: %s", createdJob.Name, err)
 			oneShotServices[index].State = plugins.GetState("failed")
 			oneShotServices[index].StateMessage = fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
-			x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
+			x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
 			return nil
 		}
 
@@ -601,7 +599,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 				oneShotServices[index].State = plugins.GetState("failed")
 				oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
-				x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
+				x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
 				return fmt.Errorf(oneShotServices[index].StateMessage)
 			}
 
@@ -614,7 +612,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 					// Job has failed!
 					oneShotServices[index].State = plugins.GetState("failed")
 					oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
-					x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
+					x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
 					return fmt.Errorf(oneShotServices[index].StateMessage)
 				}
 			}
@@ -624,14 +622,14 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				log.Printf("List Pods of service[%s] error: %v", job.Name, err)
 				oneShotServices[index].State = plugins.GetState("failed")
 				oneShotServices[index].StateMessage = fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
-				x.sendDDErrorResponse(e, oneShotServices, oneShotServices[index].StateMessage)
+				x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
 			} else {
 				for _, item := range pods.Items {
 					if message, result := detectPodFailure(item); result {
 						// Job has failed
 						oneShotServices[index].State = plugins.GetState("failed")
 						oneShotServices[index].StateMessage = fmt.Sprintf(message)
-						x.sendDDErrorResponse(e, oneShotServices, message)
+						x.sendDDErrorResponse(e, message)
 						return fmt.Errorf(message)
 					}
 				}
@@ -783,7 +781,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			},
 		}
 
-		x.sendDDInProgress(e, reData.Release.Services, "Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
+		x.sendDDInProgress(e, "Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
 
 		log.Printf("Getting list of deployments/ jobs matching %s", deploymentName)
 		_, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
@@ -793,7 +791,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			log.Printf("Existing deployment not found for %s. requested action: %s.", deploymentName, service.Action)
 			// Sanity check that we were told to create this service or error out.
 
-			x.sendDDInProgress(e, reData.Release.Services, "Successfully creating Deployment.")
+			x.sendDDInProgress(e, "Successfully creating Deployment.")
 			_, myError = depInterface.Deployments(namespace).Create(deployParams)
 			if myError != nil {
 				// send failed status
@@ -802,7 +800,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				deploymentServices[index].StateMessage = fmt.Sprintf("Error creating deployment: %s", myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
-				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
+				x.sendDDErrorResponse(e, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
 				return myError
 			}
 		} else {
@@ -814,7 +812,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				deploymentServices[index].StateMessage = fmt.Sprintf("Failed to update deployment %s, with error: %s", deploymentName, myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
-				x.sendDDErrorResponse(e, deploymentServices, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
+				x.sendDDErrorResponse(e, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
 				return myError
 			}
 		}
@@ -887,10 +885,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 								// This is a pod we want to check status for
 								if message, result := detectPodFailure(pod); result {
 									// Pod is waiting forever, fail the deployment.
-									var servicesPayload []plugins.Service
-									servicesPayload = setFailServices(deploymentServices)
-									log.Println(message)
-									x.sendDDErrorResponse(e, append(servicesPayload, oneShotServices...), message)
+									x.sendDDErrorResponse(e, message)
 									return fmt.Errorf(message)
 								}
 							}
@@ -906,8 +901,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			if curTime >= timeout || replicaFailures > 1 {
 				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
 				log.Printf(errMsg)
-				servicesPayload := setFailServices(deploymentServices)
-				x.sendDDErrorResponse(e, append(servicesPayload, oneShotServices...), errMsg)
+				x.sendDDErrorResponse(e, errMsg)
 				return fmt.Errorf(errMsg)
 			}
 			time.Sleep(5 * time.Second)
@@ -916,7 +910,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	}
 
-	x.sendDDSuccessResponse(e, append(deploymentServices, oneShotServices...))
+	x.sendDDSuccessResponse(e)
 
 	// all success!
 	log.Printf("All deployments successful.")
