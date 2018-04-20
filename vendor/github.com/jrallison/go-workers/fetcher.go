@@ -54,32 +54,40 @@ func (f *fetch) processOldMessages() {
 }
 
 func (f *fetch) Fetch() {
+	messages := make(chan string)
+
 	f.processOldMessages()
 
-	go func() {
+	go func(c chan string) {
 		for {
 			// f.Close() has been called
 			if f.Closed() {
 				break
 			}
 			<-f.Ready()
-			f.tryFetchMessage()
+			f.tryFetchMessage(c)
 		}
-	}()
+	}(messages)
 
+	f.handleMessages(messages)
+}
+
+func (f *fetch) handleMessages(messages chan string) {
 	for {
 		select {
+		case message := <-messages:
+			f.sendMessage(message)
 		case <-f.stop:
 			// Stop the redis-polling goroutine
 			close(f.closed)
 			// Signal to Close() that the fetcher has stopped
 			close(f.exit)
-			break
+			return
 		}
 	}
 }
 
-func (f *fetch) tryFetchMessage() {
+func (f *fetch) tryFetchMessage(messages chan string) {
 	conn := Config.Pool.Get()
 	defer conn.Close()
 
@@ -92,7 +100,7 @@ func (f *fetch) tryFetchMessage() {
 			time.Sleep(1 * time.Second)
 		}
 	} else {
-		f.sendMessage(message)
+		messages <- message
 	}
 }
 
