@@ -48,15 +48,19 @@ func (x *Route53) Stop() {
 func (x *Route53) Subscribe() []string {
 	return []string{
 		"plugins.ProjectExtension:create:route53",
+		"plugins.ProjectExtension:update:route53",
 	}
 }
 
 func (x *Route53) Process(e transistor.Event) error {
+	var err error
+
 	log.InfoWithFields("Processing route53 event", log.Fields{
 		"event": e,
 	})
+
 	event := e.Payload.(plugins.ProjectExtension)
-	var err error
+
 	switch event.Action {
 	case plugins.GetAction("create"):
 		log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Name), log.Fields{})
