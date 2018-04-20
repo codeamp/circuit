@@ -313,16 +313,21 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 
 		extension.State = payload.State
 		extension.StateMessage = payload.StateMessage
+
+		if payload.State == plugins.GetState("complete") {
+			marshalledReArtifacts, err := json.Marshal(e.Artifacts)
+			if err != nil {
+				log.Info(err.Error(), log.Fields{})
+			}
+			extension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
+		}
+
 		x.DB.Save(&extension)
 
 		x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
 			Event:   fmt.Sprintf("projects/%s/extensions", project.Slug),
 			Payload: extension,
 		}, nil)
-
-		if payload.State == plugins.GetState("complete") {
-			// TODO: handle extension init complete
-		}
 	}
 
 	return nil
@@ -715,7 +720,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		Value: time.Now().Format(time.RFC3339),
 		Type:  plugins.GetType("env"),
 	}
-	pluginSecrets = append(pluginSecrets, _timeSecret)	
+	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseExtensionEvents := []plugins.ReleaseExtension{}
 	releaseExtensions := []resolvers.ReleaseExtension{}
