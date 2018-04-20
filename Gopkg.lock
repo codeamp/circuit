@@ -371,7 +371,7 @@
   branch = "master"
   name = "github.com/jrallison/go-workers"
   packages = ["."]
-  revision = "dbf81d0b75bbe2fd90ef66a07643dd70cb42a88a"
+  revision = "6231dc0a316df0512364743bbffa4a12aada7631"
 
 [[projects]]
   name = "github.com/json-iterator/go"
