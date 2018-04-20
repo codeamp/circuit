@@ -189,7 +189,7 @@ func (t *Transistor) flusher() {
 								"plugin_name": plugin.Name,
 							})
 
-							options := workers.EnqueueOptions{}
+							options := workers.EnqueueOptions{Retry: false}
 							if plugin.WorkerRetries > 0 {
 								options.Retry = true
 								options.RetryCount = plugin.WorkerRetries
