@@ -2,6 +2,7 @@ package codeamp_resolvers
 
 import (
 	"encoding/json"
+	"context"
 
 	"github.com/jinzhu/gorm"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -45,7 +46,11 @@ func (r *UserResolver) Email() string {
 }
 
 // Permissions
-func (r *UserResolver) Permissions() []string {
+func (r *UserResolver) Permissions(ctx context.Context) []string {
+	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
+		return nil
+	}
+
 	var permissions []string
 
 	r.DB.Model(r.User).Association("Permissions").Find(&r.User.Permissions)
