@@ -8,6 +8,7 @@ import (
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -21,7 +22,7 @@ var startCmd = &cobra.Command{
 			Database:       viper.GetString("redis.database"),
 			Pool:           viper.GetString("redis.pool"),
 			Password:       viper.GetString("redis.password"),
-			Process:        viper.GetString("redis.process"),
+			Process:        uuid.NewV4().String(),
 			Queueing:       true,
 			Plugins:        viper.GetStringMap("plugins"),
 			EnabledPlugins: viper.GetStringSlice("enable"),
