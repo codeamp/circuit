@@ -288,7 +288,7 @@ func (x *CodeAmp) Migrate() {
 					}
 
 					extension = resolvers.Extension{
-						Type:          plugins.GetType("workflow"),
+						Type:          plugins.GetType("once"),
 						Key:           "kubernetesloadbalancers",
 						Name:          "Load Balancer",
 						Component:     "LoadBalancer",
@@ -321,7 +321,7 @@ func (x *CodeAmp) Migrate() {
 					}
 
 					extension = resolvers.Extension{
-						Type:          plugins.GetType("workflow"),
+						Type:          plugins.GetType("deployment"),
 						Key:           "kubernetesdeployments",
 						Name:          "Kubernetes",
 						Component:     "",
