@@ -39,10 +39,6 @@ func (r *Resolver) User(ctx context.Context, args *struct {
 
 // Users
 func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
-	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
-		return nil, err
-	}
-
 	var rows []User
 	var results []*UserResolver
 
