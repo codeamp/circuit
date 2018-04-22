@@ -171,7 +171,7 @@ func (r *Resolver) UpdateProject(args *struct {
 			return &ProjectResolver{}, fmt.Errorf("Couldn't parse project ID")
 		}
 
-		environmentID, err := uuid.FromString(args.Project.EnvironmentID)
+		environmentID, err := uuid.FromString(*args.Project.EnvironmentID)
 		if err != nil {
 			return &ProjectResolver{}, fmt.Errorf("Couldn't parse environment ID")
 		}
