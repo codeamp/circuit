@@ -41,6 +41,8 @@ type Release struct {
 	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// FinishedAt
 	FinishedAt time.Time
+	// ForceRebuild
+	ForceRebuild bool `json:"forceRebuild"`
 }
 
 // ReleaseResolver resolver for Release
