@@ -91,7 +91,7 @@ type ProjectInput struct {
 	// ContinuousDeploy
 	ContinuousDeploy *bool `json:"continuousDeploy"`
 	// EnvironmentID
-	EnvironmentID string `json:"environmentID"`
+	EnvironmentID *string `json:"environmentID"`
 }
 
 // ProjectSearchInput

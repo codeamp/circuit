@@ -248,7 +248,7 @@ input ProjectInput {
   gitUrl: String!
   gitBranch: String
   bookmarked: Boolean
-  environmentID: String!
+  environmentID: String
   continuousDeploy: Boolean
 }
 
