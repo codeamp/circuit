@@ -212,8 +212,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error
 func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 	var rows []ProjectExtension
 	var results []*ProjectExtensionResolver
-
-	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
+	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
 	for _, extension := range rows {
 		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
 	}
