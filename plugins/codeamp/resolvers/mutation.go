@@ -339,6 +339,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		Secrets:           secretsJsonb,
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
+		ForceRebuild: args.Release.ForceRebuild,
 	}
 
 	r.DB.Create(&release)
