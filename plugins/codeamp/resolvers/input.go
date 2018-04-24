@@ -112,6 +112,8 @@ type ReleaseInput struct {
 	ProjectID string `json:"projectID"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
+	// ForceRebuild
+	ForceRebuild bool `json:"forceRebuild"`
 }
 
 // ServiceInput

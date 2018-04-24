@@ -264,6 +264,7 @@ input ReleaseInput {
   headFeatureID: String!
   projectID: String!
   environmentID: String!
+  forceRebuild: Boolean!
 }
 
 # Service input
