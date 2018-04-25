@@ -313,7 +313,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 			return nil
 		}
-		fmt.Printf("Service updated: %s", lbName)
+		fmt.Printf("Service updated: %s", lbName.String())
 	case errors.IsNotFound(err):
 		_, err = service.Create(&serviceParams)
 		if err != nil {
@@ -321,7 +321,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
 			return nil
 		}
-		fmt.Printf("Service created: %s", lbName)
+		fmt.Printf("Service created: %s", lbName.String())
 	default:
 		errMsg := fmt.Sprintf("Unexpected error: %s", err.Error())
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), errMsg, err)
