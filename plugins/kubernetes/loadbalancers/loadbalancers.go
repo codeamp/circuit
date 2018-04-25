@@ -108,7 +108,29 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	lbName, err := e.GetArtifact(configPrefix + "NAME")
 	if err != nil {
-		return err
+		name := fmt.Sprintf("%s-%s", svcName.GetString(), payload.ID[0:5])
+		e.AddArtifact(configPrefix+"NAME", name, false)
+
+		lbName, err = e.GetArtifact(configPrefix + "NAME")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete old LB if service was changed and update the name
+	if !strings.HasPrefix(lbName.GetString(), fmt.Sprintf("%s-", svcName.GetString())) {
+		err := x.doDeleteLoadBalancer(e)
+		if err != nil {
+			return err
+		}
+
+		name := fmt.Sprintf("%s-%s", svcName.GetString(), payload.ID[0:5])
+		e.AddArtifact(configPrefix+"NAME", name, false)
+
+		lbName, err = e.GetArtifact(configPrefix + "NAME")
+		if err != nil {
+			return err
+		}
 	}
 
 	sslARN, err := e.GetArtifact(configPrefix + "SSL_CERT_ARN")
@@ -345,6 +367,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	event.AddArtifact("KUBERNETESLOADBALANCERS_DNS", ELBDNS, false)
 	event.AddArtifact("KUBERNETESLOADBALANCERS_STATUS", kubeEventStatus, false)
+	event.AddArtifact("KUBERNETESLOADBALANCERS_NAME", lbName.GetString(), false)
 	x.events <- event
 
 	return nil

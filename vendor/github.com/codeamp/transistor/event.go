@@ -164,7 +164,18 @@ func (e *Event) AddArtifact(key string, value interface{}, secret bool) {
 		Value:  value,
 		Secret: secret,
 	}
-	e.Artifacts = append(e.Artifacts, artifact)
+
+	exists := false
+	for i, _artifact := range e.Artifacts {
+		if _artifact.Key == key {
+			exists = true
+			e.Artifacts[i] = artifact
+		}
+	}
+
+	if !exists {
+		e.Artifacts = append(e.Artifacts, artifact)
+	}
 }
 
 func (e *Event) GetArtifact(key string) (Artifact, error) {

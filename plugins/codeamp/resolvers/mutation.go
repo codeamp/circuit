@@ -1167,6 +1167,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 
 	ev := transistor.NewEvent(projectExtensionEvent, nil)
 	ev.Artifacts = artifacts
+
 	r.Events <- ev
 
 	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
@@ -1357,8 +1358,14 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 		log.Info(err.Error())
 	}
 
-	projectConfig := map[string]ExtConfig{}
+	projectConfig := []ExtConfig{}
 	err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
+	if err != nil {
+		log.Info(err.Error())
+	}
+
+	existingArtifacts := []ExtConfig{}
+	err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 	if err != nil {
 		log.Info(err.Error())
 	}
@@ -1388,6 +1395,13 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extension.Key), strings.ToUpper(ec.Key))
 			artifact.Value = ec.Value
 		}
+		artifacts = append(artifacts, artifact)
+	}
+
+	for _, ea := range existingArtifacts {
+		var artifact transistor.Artifact
+		artifact.Key = ea.Key
+		artifact.Value = ea.Value
 		artifacts = append(artifacts, artifact)
 	}
 
