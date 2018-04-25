@@ -114,6 +114,7 @@ func NewEvent(payload interface{}, err error) Event {
 func (e *Event) NewEvent(payload interface{}, err error) Event {
 	event := Event{
 		ID:           uuid.NewV4(),
+		Key:          e.Key,
 		ParentID:     e.ID,
 		Name:         name(payload),
 		Payload:      payload,
