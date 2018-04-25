@@ -14,6 +14,7 @@ import (
 	utils "github.com/codeamp/circuit/plugins/kubernetes"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -363,6 +364,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 
 	event.AddArtifact("dns", ELBDNS, false)
 	event.AddArtifact("name", lbName.String(), false)
+	spew.Dump(event)
 	x.events <- event
 
 	return nil
