@@ -103,7 +103,6 @@ func pluginsCodeampStaticIndexHtml() (*asset, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	info := bindataFileInfo{name: "plugins/codeamp/static/index.html", size: 2810, mode: os.FileMode(420), modTime: time.Unix(1510690037, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil

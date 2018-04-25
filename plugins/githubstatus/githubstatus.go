@@ -65,9 +65,8 @@ func isValidGithubCredentials(username string, token string) (bool, error) {
 }
 
 func (x *GithubStatus) Process(e transistor.Event) error {
-	log.InfoWithFields("Processing githubstatus event", log.Fields{
-		"event": e,
-	})
+	log.Info("Processing GithubStatus event")
+	e.Dump()
 
 	username, err := e.GetArtifact("GITHUBSTATUS_USERNAME")
 	if err != nil {
