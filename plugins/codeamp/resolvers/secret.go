@@ -6,8 +6,8 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
-	"github.com/jinzhu/gorm"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -88,6 +88,10 @@ func (r *SecretResolver) Key() string {
 
 // Value
 func (r *SecretResolver) Value() string {
+	if r.IsSecret() {
+		return ""
+	}
+
 	if r.SecretValue != (SecretValue{}) {
 		return r.SecretValue.Value
 	} else {
