@@ -74,24 +74,22 @@ func (x *Deployments) sendDDInProgress(e transistor.Event, msg string) {
 }
 
 func secretifyDockerCred(e transistor.Event) (string, error) {
-	prefix := "dockerbuilder"
-
-	user, err := e.GetArtifact("user", prefix)
+	user, err := e.GetArtifactFromSource("user", "dockerbuilder")
 	if err != nil {
 		return "", err
 	}
 
-	pass, err := e.GetArtifact("password", prefix)
+	pass, err := e.GetArtifactFromSource("password", "dockerbuilder")
 	if err != nil {
 		return "", err
 	}
 
-	email, err := e.GetArtifact("email", prefix)
+	email, err := e.GetArtifactFromSource("email", "dockerbuilder")
 	if err != nil {
 		return "", err
 	}
 
-	host, err := e.GetArtifact("host", prefix)
+	host, err := e.GetArtifactFromSource("host", "dockerbuilder")
 	if err != nil {
 		return "", err
 	}
@@ -279,7 +277,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
-	kubeconfig, err := utils.SetupKubeConfig(e, "KUBERNETESDEPLOYMENTS_")
+	kubeconfig, err := utils.SetupKubeConfig(e)
 	if err != nil {
 		ca_log.Info(err.Error())
 		x.sendDDErrorResponse(e, "failed writing kubeconfig")
@@ -521,7 +519,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
 		}
 
-		dockerImage, err := e.GetArtifact("image", "dockerbuilder")
+		dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
 		if err != nil {
 			return err
 		}
@@ -741,7 +739,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 		var revisionHistoryLimit int32 = 10
 
-		dockerImage, err := e.GetArtifact("image", "dockerbuilder")
+		dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
 		if err != nil {
 			return err
 		}

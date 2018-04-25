@@ -68,11 +68,11 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 	log.Info("Processing GithubStatus event")
 	e.Dump()
 
-	username, err := e.GetArtifact("username", "githubstatus")
+	username, err := e.GetArtifact("username")
 	if err != nil {
 		return err
 	}
-	token, err := e.GetArtifact("personal_access_token", "githubstatus")
+	token, err := e.GetArtifact("personal_access_token")
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus release extension event: %s", e.Name), log.Fields{})
 			// get status and check if complete
 			client := &http.Client{}
-			timeoutLimit, err := e.GetArtifact("timeout_seconds", "githubstatus")
+			timeoutLimit, err := e.GetArtifact("timeout_seconds")
 			if err != nil {
 				return err
 			}
@@ -203,7 +203,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 							responseEvent.StateMessage = "One of the builds Failed."
 
 							ev := e.NewEvent(responseEvent, nil)
-							ev.AddArtifact("failed_builds", failedBuilds, false, "githubstatus")
+							ev.AddArtifact("failed_builds", failedBuilds, false)
 							x.events <- ev
 
 							return nil

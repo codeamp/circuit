@@ -97,43 +97,43 @@ func (x *Route53) sendRoute53Response(e transistor.Event, action plugins.Action,
 func (x *Route53) updateRoute53(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	elbFQDN, err := e.GetArtifact("loadbalancer_fqdn", "route53")
+	elbFQDN, err := e.GetArtifact("loadbalancer_fqdn")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	elbType, err := e.GetArtifact("loadbalancer_type", "route53")
+	elbType, err := e.GetArtifact("loadbalancer_type")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	subdomain, err := e.GetArtifact("subdomain", "route53")
+	subdomain, err := e.GetArtifact("subdomain")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	hostedZoneName, err := e.GetArtifact("hosted_zone_name", "route53")
+	hostedZoneName, err := e.GetArtifact("hosted_zone_name")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	hostedZoneId, err := e.GetArtifact("hosted_zone_id", "route53")
+	hostedZoneId, err := e.GetArtifact("hosted_zone_id")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	awsAccessKeyId, err := e.GetArtifact("aws_access_key_id", "route53")
+	awsAccessKeyId, err := e.GetArtifact("aws_access_key_id")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	awsSecretKey, err := e.GetArtifact("aws_secret_key", "route53")
+	awsSecretKey, err := e.GetArtifact("aws_secret_key")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
@@ -269,8 +269,8 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 	payload.StateMessage = "route53 completed"
 
 	ev := e.NewEvent(payload, err)
-	ev.AddArtifact("fqdn", fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String()), false, "route53")
-	ev.AddArtifact("loadbalancer_fqdn", elbFQDN.String(), false, "route53")
+	ev.AddArtifact("fqdn", fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String()), false)
+	ev.AddArtifact("loadbalancer_fqdn", elbFQDN.String(), false)
 	x.events <- ev
 
 	return nil

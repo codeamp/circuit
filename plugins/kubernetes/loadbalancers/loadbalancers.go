@@ -99,19 +99,17 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 	log.Println("doLoadBalancer")
 
 	payload := e.Payload.(plugins.ProjectExtension)
-	source := "kubernetesloadbalancers"
-
-	svcName, err := e.GetArtifact("service", source)
+	svcName, err := e.GetArtifact("service")
 	if err != nil {
 		return err
 	}
 
-	lbName, err := e.GetArtifact("name", source)
+	lbName, err := e.GetArtifact("name")
 	if err != nil {
 		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
-		e.AddArtifact("name", name, false, source)
+		e.AddArtifact("name", name, false)
 
-		lbName, err = e.GetArtifact("name", source)
+		lbName, err = e.GetArtifact("name")
 		if err != nil {
 			return err
 		}
@@ -125,32 +123,32 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		}
 
 		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
-		e.AddArtifact("name", name, false, source)
+		e.AddArtifact("name", name, false)
 
-		lbName, err = e.GetArtifact("name", source)
+		lbName, err = e.GetArtifact("name")
 		if err != nil {
 			return err
 		}
 	}
 
-	sslARN, err := e.GetArtifact("ssl_cert_arn", source)
+	sslARN, err := e.GetArtifact("ssl_cert_arn")
 	if err != nil {
 		return err
 	}
 
-	s3AccessLogs, err := e.GetArtifact("access_log_s3_bucket", source)
+	s3AccessLogs, err := e.GetArtifact("access_log_s3_bucket")
 	if err != nil {
 		return err
 	}
 
-	_lbType, err := e.GetArtifact("type", source)
+	_lbType, err := e.GetArtifact("type")
 	if err != nil {
 		return err
 	}
 
 	lbType := plugins.GetType(_lbType.String())
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-	kubeconfig, err := utils.SetupKubeConfig(e, source)
+	kubeconfig, err := utils.SetupKubeConfig(e)
 	if err != nil {
 		log.Info(err.Error())
 		return err
@@ -216,7 +214,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-source"] = fmt.Sprintf("%s/%s", projectSlug, svcName.String())
 		}
 	}
-	listenerPairs, err := e.GetArtifact("listener_pairs", source)
+	listenerPairs, err := e.GetArtifact("listener_pairs")
 	if err != nil {
 		return err
 	}
@@ -363,8 +361,8 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		event = utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("complete"), "complete", nil)
 	}
 
-	event.AddArtifact("dns", ELBDNS, false, "kubernetesloadbalancers")
-	event.AddArtifact("name", lbName.String(), false, "kubernetesloadbalancers")
+	event.AddArtifact("dns", ELBDNS, false)
+	event.AddArtifact("name", lbName.String(), false)
 	x.events <- event
 
 	return nil
@@ -374,8 +372,7 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 	log.Println("doDeleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
-	source := "kubernetesloadbalancers"
-	kubeconfig, err := utils.SetupKubeConfig(e, source)
+	kubeconfig, err := utils.SetupKubeConfig(e)
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
@@ -401,14 +398,14 @@ func (x *LoadBalancers) doDeleteLoadBalancer(e transistor.Event) error {
 		return nil
 	}
 
-	svcName, err := e.GetArtifact("service", source)
+	svcName, err := e.GetArtifact("service")
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)
 		return nil
 	}
 
-	lbName, err := e.GetArtifact("name", source)
+	lbName, err := e.GetArtifact("name")
 	if err != nil {
 		log.Debug(err)
 		x.events <- utils.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), err)

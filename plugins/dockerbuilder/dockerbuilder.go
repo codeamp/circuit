@@ -219,17 +219,17 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 
 	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(x.event))))
 
-	user, err := x.event.GetArtifact("user", "dockerbuilder")
+	user, err := x.event.GetArtifact("user")
 	if err != nil {
 		return err
 	}
 
-	password, err := x.event.GetArtifact("password", "dockerbuilder")
+	password, err := x.event.GetArtifact("password")
 	if err != nil {
 		return err
 	}
 
-	email, err := x.event.GetArtifact("email", "dockerbuilder")
+	email, err := x.event.GetArtifact("email")
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
 
 		ev := e.NewEvent(event, nil)
-		ev.AddArtifact("build_log", buildlogBuf.String(), false, "dockerbuilder")
+		ev.AddArtifact("build_log", buildlogBuf.String(), false)
 		x.events <- ev
 
 		return err
@@ -342,7 +342,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
 
 		ev := e.NewEvent(event, nil)
-		ev.AddArtifact("buildlog", buildlogBuf.String(), false, "dockerbuilder")
+		ev.AddArtifact("buildlog", buildlogBuf.String(), false)
 		x.events <- ev
 
 		return err
@@ -351,33 +351,33 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	event.State = plugins.GetState("complete")
 	event.StateMessage = "Completed"
 
-	user, err := x.event.GetArtifact("user", "dockerbuilder")
+	user, err := x.event.GetArtifact("user")
 	if err != nil {
 		return err
 	}
 
-	password, err := x.event.GetArtifact("password", "dockerbuilder")
+	password, err := x.event.GetArtifact("password")
 	if err != nil {
 		return err
 	}
 
-	email, err := x.event.GetArtifact("email", "dockerbuilder")
+	email, err := x.event.GetArtifact("email")
 	if err != nil {
 		return err
 	}
 
-	registryHost, err := x.event.GetArtifact("host", "dockerbuilder")
+	registryHost, err := x.event.GetArtifact("host")
 	if err != nil {
 		log.Error(err)
 	}
 
 	ev := e.NewEvent(event, nil)
-	ev.AddArtifact("user", user.String(), user.Secret, "dockerbuilder")
-	ev.AddArtifact("password", password.String(), password.Secret, "dockerbuilder")
-	ev.AddArtifact("email", email.String(), email.Secret, "dockerbuilder")
-	ev.AddArtifact("host", registryHost.String(), registryHost.Secret, "dockerbuilder")
-	ev.AddArtifact("image", fullImagePath(x.event), false, "dockerbuilder")
-	ev.AddArtifact("build_log", buildlogBuf.String(), false, "dockerbuilder")
+	ev.AddArtifact("user", user.String(), user.Secret)
+	ev.AddArtifact("password", password.String(), password.Secret)
+	ev.AddArtifact("email", email.String(), email.Secret)
+	ev.AddArtifact("host", registryHost.String(), registryHost.Secret)
+	ev.AddArtifact("image", fullImagePath(x.event), false)
+	ev.AddArtifact("build_log", buildlogBuf.String(), false)
 	x.events <- ev
 
 	return nil
@@ -397,12 +397,12 @@ func imageTagLatest(event transistor.Event) string {
 
 // rengerate image path name
 func imagePathGen(event transistor.Event) string {
-	registryHost, err := event.GetArtifact("host", "dockerbuilder")
+	registryHost, err := event.GetArtifact("host")
 	if err != nil {
 		log.Error(err)
 	}
 
-	registryOrg, err := event.GetArtifact("org", "dockerbuilder")
+	registryOrg, err := event.GetArtifact("org")
 	if err != nil {
 		log.Error(err)
 	}

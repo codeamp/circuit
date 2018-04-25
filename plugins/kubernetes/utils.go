@@ -81,29 +81,29 @@ func GetTempDir() (string, error) {
 	}
 }
 
-func SetupKubeConfig(e transistor.Event, prefix string) (string, error) {
+func SetupKubeConfig(e transistor.Event) (string, error) {
 	randomDirectory, err := GetTempDir()
 	if err != nil {
 		log.Info(err.Error())
 		return "", err
 	}
 
-	kubeconfig, err := e.GetArtifact("kubeconfig", prefix)
+	kubeconfig, err := e.GetArtifact("kubeconfig")
 	if err != nil {
 		return "", err
 	}
 
-	clientCert, err := e.GetArtifact("client_certificate", prefix)
+	clientCert, err := e.GetArtifact("client_certificate")
 	if err != nil {
 		return "", err
 	}
 
-	clientKey, err := e.GetArtifact("client_key", prefix)
+	clientKey, err := e.GetArtifact("client_key")
 	if err != nil {
 		return "", err
 	}
 
-	certificateAuthority, err := e.GetArtifact("certificate_authority", prefix)
+	certificateAuthority, err := e.GetArtifact("certificate_authority")
 	if err != nil {
 		return "", err
 	}
