@@ -339,7 +339,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		Secrets:           secretsJsonb,
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
-		ForceRebuild: args.Release.ForceRebuild,
+		ForceRebuild:      args.Release.ForceRebuild,
 	}
 
 	r.DB.Create(&release)
@@ -1347,8 +1347,10 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 	var err error
 
 	type ExtConfig struct {
+		Source        string `json:"source"`
 		Key           string `json:"key"`
 		Value         string `json:"value"`
+		Secret        bool   `json:"secret"`
 		AllowOverride bool   `json:"allowOverride"`
 	}
 
@@ -1364,7 +1366,7 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 		log.Info(err.Error())
 	}
 
-	existingArtifacts := []ExtConfig{}
+	existingArtifacts := []transistor.Artifact{}
 	err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 	if err != nil {
 		log.Info(err.Error())
@@ -1389,20 +1391,19 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 					"secret_id": secretID,
 				})
 			}
-			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extension.Key), strings.ToUpper(ec.Key))
+			artifact.Source = extension.Key
+			artifact.Key = ec.Key
 			artifact.Value = secret.Value
 		} else {
-			artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extension.Key), strings.ToUpper(ec.Key))
+			artifact.Source = extension.Key
+			artifact.Key = ec.Key
 			artifact.Value = ec.Value
 		}
 		artifacts = append(artifacts, artifact)
 	}
 
 	for _, ea := range existingArtifacts {
-		var artifact transistor.Artifact
-		artifact.Key = ea.Key
-		artifact.Value = ea.Value
-		artifacts = append(artifacts, artifact)
+		artifacts = append(artifacts, ea)
 	}
 
 	projectCustomConfig := make(map[string]interface{})
@@ -1413,8 +1414,10 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 
 	for key, val := range projectCustomConfig {
 		var artifact transistor.Artifact
-		artifact.Key = fmt.Sprintf("%s_%s", strings.ToUpper(extension.Key), strings.ToUpper(key))
+		artifact.Source = extension.Key
+		artifact.Key = key
 		artifact.Value = val
+		artifact.Secret = false
 		artifacts = append(artifacts, artifact)
 	}
 

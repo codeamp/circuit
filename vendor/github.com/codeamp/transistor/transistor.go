@@ -189,6 +189,9 @@ func (t *Transistor) flusher() {
 								"plugin_name": plugin.Name,
 							})
 
+							// Populate event key
+							e.Key = plugin.Name
+
 							options := workers.EnqueueOptions{Retry: false}
 							if plugin.WorkerRetries > 0 {
 								options.Retry = true

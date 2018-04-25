@@ -55,7 +55,7 @@ func (x *Route53) Subscribe() []string {
 func (x *Route53) Process(e transistor.Event) error {
 	var err error
 	log.Info("Processng route53 event")
-  e.Dump()
+	e.Dump()
 
 	event := e.Payload.(plugins.ProjectExtension)
 
@@ -97,68 +97,68 @@ func (x *Route53) sendRoute53Response(e transistor.Event, action plugins.Action,
 func (x *Route53) updateRoute53(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	elbFQDN, err := e.GetArtifact("ROUTE53_LOADBALANCER_FQDN")
+	elbFQDN, err := e.GetArtifact("loadbalancer_fqdn")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	elbType, err := e.GetArtifact("ROUTE53_LOADBALANCER_TYPE")
+	elbType, err := e.GetArtifact("loadbalancer_type")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	subdomain, err := e.GetArtifact("ROUTE53_SUBDOMAIN")
+	subdomain, err := e.GetArtifact("subdomain")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	hostedZoneName, err := e.GetArtifact("ROUTE53_HOSTED_ZONE_NAME")
+	hostedZoneName, err := e.GetArtifact("hosted_zone_name")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	hostedZoneId, err := e.GetArtifact("ROUTE53_HOSTED_ZONE_ID")
+	hostedZoneId, err := e.GetArtifact("hosted_zone_id")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	awsAccessKeyId, err := e.GetArtifact("ROUTE53_AWS_ACCESS_KEY_ID")
+	awsAccessKeyId, err := e.GetArtifact("aws_access_key_id")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
-	awsSecretKey, err := e.GetArtifact("ROUTE53_AWS_SECRET_KEY")
+	awsSecretKey, err := e.GetArtifact("aws_secret_key")
 	if err != nil {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	// Sanity checks
-	if elbFQDN.GetString() == "" {
+	if elbFQDN.String() == "" {
 		failMessage := fmt.Sprintf("DNS was blank for %s, skipping Route53.", payload.Project.Repository)
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
 		return nil
 	}
 
-	if subdomain.GetString() == "" {
+	if subdomain.String() == "" {
 		failMessage := fmt.Sprintf("Subdomain was blank for %s, skipping Route53.", payload.Project.Repository)
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
 	}
 
-	if plugins.GetType(elbType.GetString()) == plugins.GetType("internal") {
-		fmt.Printf("Internal service type ignored for %s", elbFQDN.GetString())
+	if plugins.GetType(elbType.String()) == plugins.GetType("internal") {
+		fmt.Printf("Internal service type ignored for %s", elbFQDN.String())
 		return nil
 	}
 
-	route53Name := fmt.Sprintf("%s.%s", subdomain.GetString(), hostedZoneName.GetString())
+	route53Name := fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String())
 
-	log.Info("Route53 plugin received LoadBalancer success message for %s, %s, %s.  Processing.\n", payload.Project.Repository, elbFQDN.GetString(), payload.Action)
+	log.Info("Route53 plugin received LoadBalancer success message for %s, %s, %s.  Processing.\n", payload.Project.Repository, elbFQDN.String(), payload.Action)
 
 	// Wait for DNS from the ELB to settle, abort if it does not resolve in initial_wait
 	// Trying to be conservative with these since we don't want to update Route53 before the new ELB dns record is available
@@ -172,12 +172,12 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 	var dnsLookup []string
 	var dnsLookupErr error
 	for dnsValid == false {
-		dnsLookup, dnsLookupErr = net.LookupHost(elbFQDN.GetString())
+		dnsLookup, dnsLookupErr = net.LookupHost(elbFQDN.String())
 		dnsTimeout -= 10
 		if dnsLookupErr != nil {
-			failMessage = fmt.Sprintf("Error '%s' resolving DNS for: %s", dnsLookupErr, elbFQDN.GetString())
+			failMessage = fmt.Sprintf("Error '%s' resolving DNS for: %s", dnsLookupErr, elbFQDN.String())
 		} else if len(dnsLookup) == 0 {
-			failMessage = fmt.Sprintf("Error 'found no names associated with ELB record' while resolving DNS for: %s", elbFQDN.GetString())
+			failMessage = fmt.Sprintf("Error 'found no names associated with ELB record' while resolving DNS for: %s", elbFQDN.String())
 		} else {
 			dnsValid = true
 		}
@@ -191,12 +191,12 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
 		return nil
 	}
-	fmt.Printf("DNS for %s resolved to: %s\n", elbFQDN.GetString(), strings.Join(dnsLookup, ","))
+	fmt.Printf("DNS for %s resolved to: %s\n", elbFQDN.String(), strings.Join(dnsLookup, ","))
 	// Create the client
 	sess := awssession.Must(awssession.NewSessionWithOptions(
 		awssession.Options{
 			Config: aws.Config{
-				Credentials: credentials.NewStaticCredentials(awsAccessKeyId.GetString(), awsSecretKey.GetString(), ""),
+				Credentials: credentials.NewStaticCredentials(awsAccessKeyId.String(), awsSecretKey.String(), ""),
 			},
 		},
 	))
@@ -204,7 +204,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 	client := route53.New(sess)
 	// Look for this dns name
 	params := &route53.ListResourceRecordSetsInput{
-		HostedZoneId: aws.String(hostedZoneId.GetString()), // Required
+		HostedZoneId: aws.String(hostedZoneId.String()), // Required
 	}
 	foundRecord := false
 	pageNum := 0
@@ -234,7 +234,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 	}
 
 	updateParams := &route53.ChangeResourceRecordSetsInput{
-		HostedZoneId: aws.String(hostedZoneId.GetString()),
+		HostedZoneId: aws.String(hostedZoneId.String()),
 		ChangeBatch: &route53.ChangeBatch{
 			Changes: []*route53.Change{
 				{
@@ -245,7 +245,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 						Type: aws.String("CNAME"),
 						ResourceRecords: []*route53.ResourceRecord{
 							{
-								Value: aws.String(elbFQDN.GetString()),
+								Value: aws.String(elbFQDN.String()),
 							},
 						},
 						TTL: aws.Int64(60),
@@ -262,15 +262,15 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		return nil
 	}
 
-	log.Info(fmt.Sprintf("Route53 record UPSERTed for %s: %s", route53Name, elbFQDN.GetString()))
+	log.Info(fmt.Sprintf("Route53 record UPSERTed for %s: %s", route53Name, elbFQDN.String()))
 
 	payload.Action = plugins.GetAction("status")
 	payload.State = plugins.GetState("complete")
 	payload.StateMessage = "route53 completed"
 
 	ev := e.NewEvent(payload, err)
-	ev.AddArtifact("ROUTE53_FQDN", fmt.Sprintf("%s.%s", subdomain.GetString(), hostedZoneName.GetString()), false)
-	ev.AddArtifact("LOADBALANCER_FQDN", elbFQDN.GetString(), false)
+	ev.AddArtifact("fqdn", fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String()), false)
+	ev.AddArtifact("loadbalancer_fqdn", elbFQDN.String(), false)
 	x.events <- ev
 
 	return nil

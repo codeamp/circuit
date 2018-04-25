@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	json "github.com/bww/go-json"
@@ -16,6 +17,7 @@ import (
 
 type Event struct {
 	ID           uuid.UUID   `json:"id"`
+	Key          string      `json:"key"`
 	ParentID     uuid.UUID   `json:"parentId"`
 	Name         string      `json:"name"`
 	Payload      interface{} `json:"payload"`
@@ -32,16 +34,17 @@ type Caller struct {
 }
 
 type Artifact struct {
+	Source string      `json:"source"`
 	Key    string      `json:"key"`
 	Value  interface{} `json:"value"`
 	Secret bool        `json:"secret"`
 }
 
-func (a *Artifact) GetString() string {
+func (a *Artifact) String() string {
 	return a.Value.(string)
 }
 
-func (a *Artifact) GetInt() int {
+func (a *Artifact) Int() int {
 	i, err := strconv.Atoi(a.Value.(string))
 	if err != nil {
 		log.Error(err)
@@ -50,11 +53,11 @@ func (a *Artifact) GetInt() int {
 	return i
 }
 
-func (a *Artifact) GetStringMap() map[string]interface{} {
+func (a *Artifact) StringMap() map[string]interface{} {
 	return a.Value.(map[string]interface{})
 }
 
-func (a *Artifact) GetStringSlice() []interface{} {
+func (a *Artifact) StringSlice() []interface{} {
 	return a.Value.([]interface{})
 }
 
@@ -160,6 +163,7 @@ func (e *Event) Matches(name string) bool {
 
 func (e *Event) AddArtifact(key string, value interface{}, secret bool) {
 	artifact := Artifact{
+		Source: e.Key,
 		Key:    key,
 		Value:  value,
 		Secret: secret,
@@ -167,7 +171,7 @@ func (e *Event) AddArtifact(key string, value interface{}, secret bool) {
 
 	exists := false
 	for i, _artifact := range e.Artifacts {
-		if _artifact.Key == key {
+		if strings.ToLower(_artifact.Key) == strings.ToLower(key) {
 			exists = true
 			e.Artifacts[i] = artifact
 		}
@@ -180,7 +184,17 @@ func (e *Event) AddArtifact(key string, value interface{}, secret bool) {
 
 func (e *Event) GetArtifact(key string) (Artifact, error) {
 	for _, artifact := range e.Artifacts {
-		if artifact.Key == key {
+		if strings.ToLower(artifact.Source) == strings.ToLower(e.Key) && strings.ToLower(artifact.Key) == strings.ToLower(key) {
+			return artifact, nil
+		}
+	}
+
+	return Artifact{}, errors.New(fmt.Sprintf("Artifact %s not found", key))
+}
+
+func (e *Event) GetArtifactFromSource(key string, source string) (Artifact, error) {
+	for _, artifact := range e.Artifacts {
+		if strings.ToLower(artifact.Source) == strings.ToLower(source) && strings.ToLower(artifact.Key) == strings.ToLower(key) {
 			return artifact, nil
 		}
 	}
