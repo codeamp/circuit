@@ -54,10 +54,8 @@ func (x *Route53) Subscribe() []string {
 
 func (x *Route53) Process(e transistor.Event) error {
 	var err error
-
-	log.InfoWithFields("Processing route53 event", log.Fields{
-		"event": e,
-	})
+	log.Info("Processng route53 event")
+	e.Dump()
 
 	event := e.Payload.(plugins.ProjectExtension)
 
