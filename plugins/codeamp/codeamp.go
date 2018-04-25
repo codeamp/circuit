@@ -376,8 +376,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 
 				eventAction := plugins.GetAction("create")
 				eventState := plugins.GetState("waiting")
-
-				if x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+				if !release.ForceRebuild && x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
 					artifacts, err = resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
 					if err != nil {
 						log.Info(err.Error())
