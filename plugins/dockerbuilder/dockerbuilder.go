@@ -219,17 +219,17 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 
 	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(x.event))))
 
-	user, err := x.event.GetArtifact("DOCKERBUILDER_USER")
+	user, err := x.event.GetArtifact("user", "dockerbuilder")
 	if err != nil {
 		return err
 	}
 
-	password, err := x.event.GetArtifact("DOCKERBUILDER_PASSWORD")
+	password, err := x.event.GetArtifact("password", "dockerbuilder")
 	if err != nil {
 		return err
 	}
 
-	email, err := x.event.GetArtifact("DOCKERBUILDER_EMAIL")
+	email, err := x.event.GetArtifact("email", "dockerbuilder")
 	if err != nil {
 		return err
 	}
@@ -240,9 +240,9 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 		Tag:          imageTagGen(x.event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: user.GetString(),
-		Password: password.GetString(),
-		Email:    email.GetString(),
+		Username: user.String(),
+		Password: password.String(),
+		Email:    email.String(),
 	})
 	if err != nil {
 		return err
@@ -265,9 +265,9 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 		Tag:          imageTagLatest(x.event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
-		Username: user.GetString(),
-		Password: password.GetString(),
-		Email:    email.GetString(),
+		Username: user.String(),
+		Password: password.String(),
+		Email:    email.String(),
 	})
 	if err != nil {
 		return err
@@ -329,7 +329,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
 
 		ev := e.NewEvent(event, nil)
-		ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
+		ev.AddArtifact("build_log", buildlogBuf.String(), false, "dockerbuilder")
 		x.events <- ev
 
 		return err
@@ -342,7 +342,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
 
 		ev := e.NewEvent(event, nil)
-		ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
+		ev.AddArtifact("buildlog", buildlogBuf.String(), false, "dockerbuilder")
 		x.events <- ev
 
 		return err
@@ -351,33 +351,33 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	event.State = plugins.GetState("complete")
 	event.StateMessage = "Completed"
 
-	user, err := x.event.GetArtifact("DOCKERBUILDER_USER")
+	user, err := x.event.GetArtifact("user", "dockerbuilder")
 	if err != nil {
 		return err
 	}
 
-	password, err := x.event.GetArtifact("DOCKERBUILDER_PASSWORD")
+	password, err := x.event.GetArtifact("password", "dockerbuilder")
 	if err != nil {
 		return err
 	}
 
-	email, err := x.event.GetArtifact("DOCKERBUILDER_EMAIL")
+	email, err := x.event.GetArtifact("email", "dockerbuilder")
 	if err != nil {
 		return err
 	}
 
-	registryHost, err := x.event.GetArtifact("DOCKERBUILDER_HOST")
+	registryHost, err := x.event.GetArtifact("host", "dockerbuilder")
 	if err != nil {
 		log.Error(err)
 	}
 
 	ev := e.NewEvent(event, nil)
-	ev.AddArtifact("DOCKERBUILDER_USER", user.GetString(), user.Secret)
-	ev.AddArtifact("DOCKERBUILDER_PASSWORD", password.GetString(), password.Secret)
-	ev.AddArtifact("DOCKERBUILDER_EMAIL", email.GetString(), email.Secret)
-	ev.AddArtifact("DOCKERBUILDER_HOST", registryHost.GetString(), registryHost.Secret)
-	ev.AddArtifact("DOCKERBUILDER_IMAGE", fullImagePath(x.event), false)
-	ev.AddArtifact("DOCKERBUILDER_BUILD_LOG", buildlogBuf.String(), false)
+	ev.AddArtifact("user", user.String(), user.Secret, "dockerbuilder")
+	ev.AddArtifact("password", password.String(), password.Secret, "dockerbuilder")
+	ev.AddArtifact("email", email.String(), email.Secret, "dockerbuilder")
+	ev.AddArtifact("host", registryHost.String(), registryHost.Secret, "dockerbuilder")
+	ev.AddArtifact("image", fullImagePath(x.event), false, "dockerbuilder")
+	ev.AddArtifact("build_log", buildlogBuf.String(), false, "dockerbuilder")
 	x.events <- ev
 
 	return nil
@@ -397,17 +397,17 @@ func imageTagLatest(event transistor.Event) string {
 
 // rengerate image path name
 func imagePathGen(event transistor.Event) string {
-	registryHost, err := event.GetArtifact("DOCKERBUILDER_HOST")
+	registryHost, err := event.GetArtifact("host", "dockerbuilder")
 	if err != nil {
 		log.Error(err)
 	}
 
-	registryOrg, err := event.GetArtifact("DOCKERBUILDER_ORG")
+	registryOrg, err := event.GetArtifact("org", "dockerbuilder")
 	if err != nil {
 		log.Error(err)
 	}
 
-	return (fmt.Sprintf("%s/%s/%s", registryHost.GetString(), registryOrg.GetString(), slug.Slug(event.Payload.(plugins.ReleaseExtension).Release.Project.Repository)))
+	return (fmt.Sprintf("%s/%s/%s", registryHost.String(), registryOrg.String(), slug.Slug(event.Payload.(plugins.ReleaseExtension).Release.Project.Repository)))
 }
 
 // return the full image path with featureHash tag

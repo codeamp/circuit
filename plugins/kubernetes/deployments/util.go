@@ -74,36 +74,36 @@ func (x *Deployments) sendDDInProgress(e transistor.Event, msg string) {
 }
 
 func secretifyDockerCred(e transistor.Event) (string, error) {
-	prefix := "DOCKERBUILDER_"
+	prefix := "dockerbuilder"
 
-	user, err := e.GetArtifact(prefix + "USER")
+	user, err := e.GetArtifact("user", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	pass, err := e.GetArtifact(prefix + "PASSWORD")
+	pass, err := e.GetArtifact("password", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	email, err := e.GetArtifact(prefix + "EMAIL")
+	email, err := e.GetArtifact("email", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	host, err := e.GetArtifact(prefix + "HOST")
+	host, err := e.GetArtifact("host", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	encodeMe := fmt.Sprintf("%s:%s", user.GetString(), pass.GetString())
+	encodeMe := fmt.Sprintf("%s:%s", user.String(), pass.String())
 	encodeResult := []byte(encodeMe)
 	authField := base64.StdEncoding.EncodeToString(encodeResult)
 	jsonFilled := fmt.Sprintf("{\"%s\":{\"username\":\"%s\",\"password\":\"%s\",\"email\":\"%s\",\"auth\":\"%s\"}}",
-		host.GetString(),
-		user.GetString(),
-		pass.GetString(),
-		email.GetString(),
+		host.String(),
+		user.String(),
+		pass.String(),
+		email.String(),
 		authField,
 	)
 	return jsonFilled, nil
@@ -521,7 +521,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
 		}
 
-		dockerImage, err := e.GetArtifact("DOCKERBUILDER_IMAGE")
+		dockerImage, err := e.GetArtifact("image", "dockerbuilder")
 		if err != nil {
 			return err
 		}
@@ -532,7 +532,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			NodeSelector:  nodeSelector,
 			Args:          commandArray,
 			Service:       service,
-			Image:         dockerImage.GetString(),
+			Image:         dockerImage.String(),
 			Env:           myEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
@@ -741,7 +741,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 		var revisionHistoryLimit int32 = 10
 
-		dockerImage, err := e.GetArtifact("DOCKERBUILDER_IMAGE")
+		dockerImage, err := e.GetArtifact("image", "dockerbuilder")
 		if err != nil {
 			return err
 		}
@@ -755,7 +755,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			NodeSelector:  nodeSelector,
 			Args:          commandArray,
 			Service:       service,
-			Image:         dockerImage.GetString(),
+			Image:         dockerImage.String(),
 			Env:           myEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,

@@ -88,27 +88,27 @@ func SetupKubeConfig(e transistor.Event, prefix string) (string, error) {
 		return "", err
 	}
 
-	kubeconfig, err := e.GetArtifact(prefix + "KUBECONFIG")
+	kubeconfig, err := e.GetArtifact("kubeconfig", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	clientCert, err := e.GetArtifact(prefix + "CLIENT_CERTIFICATE")
+	clientCert, err := e.GetArtifact("client_certificate", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	clientKey, err := e.GetArtifact(prefix + "CLIENT_KEY")
+	clientKey, err := e.GetArtifact("client_key", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	certificateAuthority, err := e.GetArtifact(prefix + "CERTIFICATE_AUTHORITY")
+	certificateAuthority, err := e.GetArtifact("certificate_authority", prefix)
 	if err != nil {
 		return "", err
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.GetString()), 0644)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.String()), 0644)
 	if err != nil {
 		log.Info(err.Error())
 		return "", err
@@ -123,21 +123,21 @@ func SetupKubeConfig(e transistor.Event, prefix string) (string, error) {
 	// generate client cert, client key
 	// certificate authority
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin.pem", randomDirectory),
-		[]byte(clientCert.GetString()), 0644)
+		[]byte(clientCert.String()), 0644)
 	if err != nil {
 		log.Info("ERROR: %s", err.Error())
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
-		[]byte(clientKey.GetString()), 0644)
+		[]byte(clientKey.String()), 0644)
 	if err != nil {
 		log.Info("ERROR: %s", err.Error())
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
-		[]byte(certificateAuthority.GetString()), 0644)
+		[]byte(certificateAuthority.String()), 0644)
 	if err != nil {
 		log.Info("ERROR: %s", err.Error())
 		return "", err
