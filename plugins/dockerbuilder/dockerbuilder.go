@@ -11,14 +11,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/extemporalgenome/slug"
-
-	"github.com/spf13/viper"
-
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/extemporalgenome/slug"
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/spf13/viper"
 )
 
 type DockerBuilder struct {
@@ -278,14 +276,14 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
 	x.event = e
-
 	if e.Name == "plugins.ProjectExtension:create:dockerbuilder" {
 		var extensionEvent plugins.ProjectExtension
 		extensionEvent = e.Payload.(plugins.ProjectExtension)
 		extensionEvent.Action = plugins.GetAction("status")
 		extensionEvent.State = plugins.GetState("complete")
-		extensionEvent.StateMessage = "installation successfully completed"
-		x.events <- e.NewEvent(extensionEvent, nil)
+		extensionEvent.StateMessage = "installation complete"
+		ev := e.NewEvent(extensionEvent, nil)
+		x.events <- ev
 		return nil
 	}
 
@@ -294,7 +292,9 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		extensionEvent = e.Payload.(plugins.ProjectExtension)
 		extensionEvent.Action = plugins.GetAction("status")
 		extensionEvent.State = plugins.GetState("complete")
-		x.events <- e.NewEvent(extensionEvent, nil)
+		extensionEvent.StateMessage = "update complete"
+		ev := e.NewEvent(extensionEvent, nil)
+		x.events <- ev
 		return nil
 	}
 
