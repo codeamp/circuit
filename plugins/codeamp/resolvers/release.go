@@ -3,6 +3,7 @@ package codeamp_resolvers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -88,6 +89,25 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 
 	for _, releaseExtension := range releaseExtensions {
 		var _artifacts []transistor.Artifact
+
+		projectExtension := ProjectExtension{}
+		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+			log.InfoWithFields("project extensions not found", log.Fields{
+				"id": releaseExtension.ProjectExtensionID,
+				"release_extension_id": releaseExtension.Model.ID,
+			})
+			return JSON{[]byte("[]")}, errors.New("release extension not found")
+		}
+
+		extension := Extension{}
+		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+			log.InfoWithFields("extension not found", log.Fields{
+				"id": projectExtension.Model.ID,
+				"release_extension_id": releaseExtension.Model.ID,
+			})
+			return JSON{[]byte("[]")}, errors.New("project extension not found")
+		}
+
 		err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &_artifacts)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{
@@ -95,6 +115,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 			})
 		} else {
 			for _, artifact := range _artifacts {
+				artifact.Source = extension.Key
 				artifacts = append(artifacts, artifact)
 			}
 		}
