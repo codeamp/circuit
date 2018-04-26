@@ -17,7 +17,6 @@ import (
 
 type Event struct {
 	ID           uuid.UUID   `json:"id"`
-	Key          string      `json:"key"`
 	ParentID     uuid.UUID   `json:"parentId"`
 	Name         string      `json:"name"`
 	Payload      interface{} `json:"payload"`
@@ -34,7 +33,7 @@ type Caller struct {
 }
 
 type Artifact struct {
-	Source string      `json:"source"`
+	Source string      `json:"source,omitempty"`
 	Key    string      `json:"key"`
 	Value  interface{} `json:"value"`
 	Secret bool        `json:"secret"`
@@ -114,7 +113,6 @@ func NewEvent(payload interface{}, err error) Event {
 func (e *Event) NewEvent(payload interface{}, err error) Event {
 	event := Event{
 		ID:           uuid.NewV4(),
-		Key:          e.Key,
 		ParentID:     e.ID,
 		Name:         name(payload),
 		Payload:      payload,
@@ -164,7 +162,6 @@ func (e *Event) Matches(name string) bool {
 
 func (e *Event) AddArtifact(key string, value interface{}, secret bool) {
 	artifact := Artifact{
-		Source: e.Key,
 		Key:    key,
 		Value:  value,
 		Secret: secret,
@@ -185,7 +182,7 @@ func (e *Event) AddArtifact(key string, value interface{}, secret bool) {
 
 func (e *Event) GetArtifact(key string) (Artifact, error) {
 	for _, artifact := range e.Artifacts {
-		if strings.ToLower(artifact.Source) == strings.ToLower(e.Key) && strings.ToLower(artifact.Key) == strings.ToLower(key) {
+		if artifact.Source == "" && strings.ToLower(artifact.Key) == strings.ToLower(key) {
 			return artifact, nil
 		}
 	}

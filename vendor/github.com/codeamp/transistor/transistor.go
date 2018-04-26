@@ -123,7 +123,7 @@ func (t *Transistor) addPlugin(name string) error {
 			event.Error = fmt.Errorf("PayloadModel not found: %s. Did you add it to ApiRegistry?", event.PayloadModel)
 		}
 
-		event.Dump()
+		//event.Dump()
 
 		plugin.Process(event)
 	}
@@ -188,9 +188,6 @@ func (t *Transistor) flusher() {
 								"event_name":  e.Name,
 								"plugin_name": plugin.Name,
 							})
-
-							// Populate event key
-							e.Key = plugin.Name
 
 							options := workers.EnqueueOptions{Retry: false}
 							if plugin.WorkerRetries > 0 {

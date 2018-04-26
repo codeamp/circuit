@@ -542,7 +542,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				ProjectExtensionID: projectExtension.Model.ID,
 				State:              plugins.GetState("waiting"),
 				Type:               extension.Type,
-				Artifacts:          postgres.Jsonb{[]byte("[]")}, // default is empty obj
 			}
 
 			r.DB.Create(&releaseExtension)
@@ -1073,7 +1072,6 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			Config:        postgres.Jsonb{[]byte(args.ProjectExtension.Config.RawMessage)},
 			CustomConfig:  postgres.Jsonb{[]byte(args.ProjectExtension.CustomConfig.RawMessage)},
 			State:         plugins.GetState("waiting"),
-			Artifacts:     postgres.Jsonb{},
 		}
 
 		r.DB.Save(&projectExtension)
@@ -1347,7 +1345,6 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 	var err error
 
 	type ExtConfig struct {
-		Source        string `json:"source"`
 		Key           string `json:"key"`
 		Value         string `json:"value"`
 		Secret        bool   `json:"secret"`
@@ -1391,11 +1388,9 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 					"secret_id": secretID,
 				})
 			}
-			artifact.Source = extension.Key
 			artifact.Key = ec.Key
 			artifact.Value = secret.Value
 		} else {
-			artifact.Source = extension.Key
 			artifact.Key = ec.Key
 			artifact.Value = ec.Value
 		}
@@ -1414,7 +1409,6 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 
 	for key, val := range projectCustomConfig {
 		var artifact transistor.Artifact
-		artifact.Source = extension.Key
 		artifact.Key = key
 		artifact.Value = val
 		artifact.Secret = false

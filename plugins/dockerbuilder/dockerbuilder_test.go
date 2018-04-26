@@ -75,11 +75,11 @@ func (suite *TestSuite) TestDockerBuilder() {
 	}
 
 	ev := transistor.NewEvent(dockerBuildEvent, nil)
-	ev.AddArtifact("DOCKERBUILDER_USER", "test", false)
-	ev.AddArtifact("DOCKERBUILDER_PASSWORD", "test", false)
-	ev.AddArtifact("DOCKERBUILDER_EMAIL", "test@checkr.com", false)
-	ev.AddArtifact("DOCKERBUILDER_HOST", "registry-testing.checkrhq-dev.net:5000", false)
-	ev.AddArtifact("DOCKERBUILDER_ORG", "testorg", false)
+	ev.AddArtifact("USER", "test", false)
+	ev.AddArtifact("PASSWORD", "test", false)
+	ev.AddArtifact("EMAIL", "test@checkr.com", false)
+	ev.AddArtifact("HOST", "registry-testing.checkrhq-dev.net:5000", false)
+	ev.AddArtifact("ORG", "testorg", false)
 	suite.transistor.Events <- ev
 
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 60)
@@ -92,12 +92,12 @@ func (suite *TestSuite) TestDockerBuilder() {
 	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
 	assert.Equal(suite.T(), string(plugins.GetState("complete")), string(payload.State))
 
-	image, err := e.GetArtifact("DOCKERBUILDER_IMAGE")
+	image, err := e.GetArtifact("image")
 	if err != nil {
-		log.Error(err)
+		log.Fatal(err)
 	}
 
-	assert.Equal(suite.T(), image.Value.(string), "registry-testing.checkrhq-dev.net:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
+	assert.Equal(suite.T(), image.String(), "registry-testing.checkrhq-dev.net:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
 }
 
 func TestDockerBuilder(t *testing.T) {

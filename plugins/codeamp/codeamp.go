@@ -314,11 +314,13 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 		extension.StateMessage = payload.StateMessage
 
 		if payload.State == plugins.GetState("complete") {
-			marshalledReArtifacts, err := json.Marshal(e.Artifacts)
-			if err != nil {
-				log.Info(err.Error(), log.Fields{})
+			if len(e.Artifacts) > 0 {
+				marshalledReArtifacts, err := json.Marshal(e.Artifacts)
+				if err != nil {
+					log.Info(err.Error(), log.Fields{})
+				}
+				extension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 			}
-			extension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		}
 
 		x.DB.Save(&extension)
@@ -720,41 +722,32 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 	}
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
-	releaseExtensionEvents := []plugins.ReleaseExtension{}
+	releaseExtensionDeploymentsCount := 0
 	releaseExtensions := []resolvers.ReleaseExtension{}
 	artifacts := []transistor.Artifact{}
 
 	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
-
 	for _, releaseExtension := range releaseExtensions {
-		projectExtension := resolvers.ProjectExtension{}
-		if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
-			log.InfoWithFields("project extensions not found", log.Fields{
-				"id": releaseExtension.ProjectExtensionID,
-				"release_extension_id": releaseExtension.Model.ID,
-			})
-			return
-		}
-
-		extension := resolvers.Extension{}
-		if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
-			log.InfoWithFields("extension not found", log.Fields{
-				"id": projectExtension.Model.ID,
-				"release_extension_id": releaseExtension.Model.ID,
-			})
-			return
-		}
-
-		projectExtensionArtifacts, err := resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
-		if err != nil {
-			log.Info(err.Error())
-		}
-		for _, artifact := range projectExtensionArtifacts {
-			artifacts = append(artifacts, artifact)
-		}
-
 		// collect workflow artifacts
 		if releaseExtension.Type == plugins.GetType("workflow") {
+			projectExtension := resolvers.ProjectExtension{}
+			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+				log.InfoWithFields("project extensions not found", log.Fields{
+					"id": releaseExtension.ProjectExtensionID,
+					"release_extension_id": releaseExtension.Model.ID,
+				})
+				return
+			}
+
+			extension := resolvers.Extension{}
+			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+				log.InfoWithFields("extension not found", log.Fields{
+					"id": projectExtension.Model.ID,
+					"release_extension_id": releaseExtension.Model.ID,
+				})
+				return
+			}
+
 			var unmarshalledArtifacts []transistor.Artifact
 			err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &unmarshalledArtifacts)
 			if err != nil {
@@ -763,12 +756,44 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			}
 
 			for _, artifact := range unmarshalledArtifacts {
+				artifact.Source = extension.Key
 				artifacts = append(artifacts, artifact)
 			}
 		}
+	}
 
+	for _, releaseExtension := range releaseExtensions {
 		if releaseExtension.Type == plugins.GetType("deployment") {
-			releaseExtensionEvents = append(releaseExtensionEvents, plugins.ReleaseExtension{
+			_artifacts := artifacts
+
+			projectExtension := resolvers.ProjectExtension{}
+			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+				log.InfoWithFields("project extensions not found", log.Fields{
+					"id": releaseExtension.ProjectExtensionID,
+					"release_extension_id": releaseExtension.Model.ID,
+				})
+				return
+			}
+
+			extension := resolvers.Extension{}
+			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+				log.InfoWithFields("extension not found", log.Fields{
+					"id": projectExtension.Model.ID,
+					"release_extension_id": releaseExtension.Model.ID,
+				})
+				return
+			}
+
+			projectExtensionArtifacts, err := resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
+			if err != nil {
+				log.Info(err.Error())
+			}
+
+			for _, artifact := range projectExtensionArtifacts {
+				_artifacts = append(_artifacts, artifact)
+			}
+
+			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:     releaseExtension.Model.ID.String(),
 				Action: plugins.GetAction("create"),
 				Slug:   extension.Key,
@@ -807,18 +832,16 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 					Services: pluginServices,
 				},
 				StateMessage: releaseExtension.StateMessage,
-			})
+			}
+
+			ev := transistor.NewEvent(releaseExtensionEvent, nil)
+			ev.Artifacts = _artifacts
+			x.Events <- ev
+			releaseExtensionDeploymentsCount++
 		}
 	}
 
-	if len(releaseExtensionEvents) > 0 {
-		// send out release extension event for each re
-		for _, releaseExtensionEvent := range releaseExtensionEvents {
-			ev := transistor.NewEvent(releaseExtensionEvent, nil)
-			ev.Artifacts = artifacts
-			x.Events <- ev
-		}
-	} else {
+	if releaseExtensionDeploymentsCount == 0 {
 		x.ReleaseCompleted(release)
 	}
 }
