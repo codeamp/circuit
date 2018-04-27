@@ -180,7 +180,6 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						x.events <- e.NewEvent(failedEvent, err)
 						return nil
 					} else {
-
 						if len(statusBodyInterface.(map[string]interface{})["statuses"].([]interface{})) == 0 || statusBodyInterface.(map[string]interface{})["state"].(string) == "success" {
 							responseEvent := e.Payload.(plugins.ReleaseExtension)
 							responseEvent.State = plugins.GetState("complete")
