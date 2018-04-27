@@ -189,11 +189,11 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 							return nil
 						}
 
-						if statusBodyInterface.(map[string]interface{})["state"].(string) == "failed" {
+						if statusBodyInterface.(map[string]interface{})["state"].(string) == "failure" {
 							failedBuilds := ""
 							// check which builds failed
 							for _, build := range statusBodyInterface.(map[string]interface{})["statuses"].([]interface{}) {
-								if build.(map[string]interface{})["state"].(string) == "failed" {
+								if build.(map[string]interface{})["state"].(string) == "failure" {
 									failedBuilds += fmt.Sprintf(", %s", build.(map[string]interface{})["context"].(string))
 								}
 							}
@@ -217,14 +217,14 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", resp.Status))
 					return nil
 				}
-				timeout += 1
-				time.Sleep(10 * time.Second)
+				timeout++
+				time.Sleep(1 * time.Second)
 				if timeout >= timeoutLimit.Int() {
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
 					failedEvent.Action = plugins.GetAction("status")
-					failedEvent.StateMessage = err.Error()
-					x.events <- e.NewEvent(failedEvent, fmt.Errorf("Timeout: try again and check if builds are taking too long fome reason."))
+					failedEvent.StateMessage = fmt.Sprintf("Timeout: try again and check if builds are taking too long fome reason.")
+					x.events <- e.NewEvent(failedEvent, nil)
 					return nil
 				}
 				log.Info("Looping through again and checking statuses")
