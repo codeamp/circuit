@@ -349,7 +349,7 @@ var cfMigrateCmd = &cobra.Command{
 					ExtensionID:   dockerBuilderDBExtension.Model.ID,
 					State:         codeamp_plugins.GetState("failed"),
 					StateMessage:  "Migrated, click update to send an event.",
-					Artifacts:     postgres.Jsonb{[]byte("{}")},
+					Artifacts:     postgres.Jsonb{[]byte("[]")},
 					Config:        postgres.Jsonb{newDockerBuilderExtensionConfig},
 					CustomConfig:  postgres.Jsonb{[]byte("{}")},
 					EnvironmentID: env.Model.ID,
@@ -423,7 +423,7 @@ var cfMigrateCmd = &cobra.Command{
 						ExtensionID:   loadBalancersDBExtension.Model.ID,
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
-						Artifacts:     postgres.Jsonb{[]byte("{}")},
+						Artifacts:     postgres.Jsonb{[]byte("[]")},
 						Config:        postgres.Jsonb{newLoadBalancersExtensionConfig},
 						CustomConfig:  postgres.Jsonb{marshaledLbCustomConfig},
 						EnvironmentID: env.Model.ID,
@@ -431,11 +431,11 @@ var cfMigrateCmd = &cobra.Command{
 					codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'name' = ?",
 						codeampProject.Model.ID,
 						env.Model.ID,
-						codeflowLoadBalancer.Subdomain).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)
+						serviceName).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)
 
 					route53CustomConfig := map[string]interface{}{
-						"subdomain":         name,
-						"loadbalancer":      serviceName,
+						"subdomain":         codeflowLoadBalancer.Subdomain,
+						"loadbalancer":      lbProjectExtension.Model.ID.String(),
 						"loadbalancer_fqdn": codeflowLoadBalancer.FQDN,
 						"loadbalancer_type": codeflowLoadBalancer.Type,
 					}
@@ -459,12 +459,12 @@ var cfMigrateCmd = &cobra.Command{
 						ExtensionID:   route53DBExtension.Model.ID,
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
-						Artifacts:     postgres.Jsonb{[]byte("{}")},
+						Artifacts:     postgres.Jsonb{[]byte("[]")},
 						Config:        postgres.Jsonb{newRoute53ExtensionConfig},
 						CustomConfig:  postgres.Jsonb{marshaledRoute53CustomConfig},
 						EnvironmentID: env.Model.ID,
 					}
-					codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'name' = ?",
+					codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'subdomain' = ?",
 						codeampProject.Model.ID,
 						env.Model.ID,
 						codeflowLoadBalancer.Subdomain).Assign(r53ProjectExtension).FirstOrCreate(&r53ProjectExtension)
@@ -486,7 +486,7 @@ var cfMigrateCmd = &cobra.Command{
 					ExtensionID:   kubernetesDeploymentsDBExtension.Model.ID,
 					State:         codeamp_plugins.GetState("failed"),
 					StateMessage:  "Migrated, click update to send an event.",
-					Artifacts:     postgres.Jsonb{[]byte("{}")},
+					Artifacts:     postgres.Jsonb{[]byte("[]")},
 					Config:        postgres.Jsonb{newKubernetesDeploymentsConfig},
 					CustomConfig:  postgres.Jsonb{[]byte("{}")},
 					EnvironmentID: env.Model.ID,
