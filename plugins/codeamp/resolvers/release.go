@@ -91,7 +91,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 		var _artifacts []transistor.Artifact
 
 		projectExtension := ProjectExtension{}
-		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+		if r.DB.Unscoped().Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.InfoWithFields("project extensions not found", log.Fields{
 				"id": releaseExtension.ProjectExtensionID,
 				"release_extension_id": releaseExtension.Model.ID,
