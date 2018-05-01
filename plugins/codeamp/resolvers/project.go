@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -11,6 +12,7 @@ import (
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+	"github.com/spf13/viper"
 )
 
 // Project
@@ -45,6 +47,8 @@ type ProjectSettings struct {
 	GitBranch string `json:"gitBranch"`
 	//ContinuousDeploy
 	ContinuousDeploy bool `json:"continuousDeploy"`
+	//ReleaseTimeout (in seconds)
+	ReleaseTimeout int32 `json:"releaseTimeout`
 }
 
 // ProjectEnvironment
@@ -239,6 +243,18 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 		return false
 	} else {
 		return projectSettings.ContinuousDeploy
+	}
+}
+
+// ReleaseTimeout
+func (r *ProjectResolver) ReleaseTimeout() int32 {
+	var projectSettings ProjectSettings
+
+	if r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&projectSettings).RecordNotFound() {
+		timeout, _ := strconv.Atoi(viper.GetString("plugins.codeamp.release_timeout"))
+		return int32(timeout)
+	} else {
+		return projectSettings.ReleaseTimeout
 	}
 }
 

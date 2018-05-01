@@ -18,6 +18,7 @@ import (
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
@@ -196,6 +197,47 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	return nil
 }
 
+// ExpireStaleReleases checks if releases are still in a workflow state for longer
+// than 5 minutes and its ReleaseExtension objects
+func (x *CodeAmp) ExpireStaleReleases(project *resolvers.Project) {
+	staleReleases := []resolvers.Release{}
+
+	projectSettings := []resolvers.ProjectSettings{}
+	x.DB.Where("project_id = ?", project.Model.ID).Find(&projectSettings)
+
+	for _, projectSetting := range projectSettings {
+		now := time.Now().Unix() - int64(projectSetting.ReleaseTimeout)
+		spew.Dump(now)
+
+		x.DB.Where("state = ? and created_at < to_timestamp(?)", "waiting", now).Find(&staleReleases)
+
+		for _, staleRelease := range staleReleases {
+			workflowReleaseExtensions := []resolvers.ReleaseExtension{}
+
+			x.DB.Where("id = ? and state = ?", staleRelease.Model.ID, "waiting").Find(&workflowReleaseExtensions)
+			if len(workflowReleaseExtensions) > 0 {
+				// fail release
+				staleRelease.State = plugins.GetState("failed")
+				staleRelease.StateMessage = "Stale release"
+
+				x.DB.Save(&staleRelease)
+
+				// fail release extensions
+				for _, workflow := range workflowReleaseExtensions {
+					workflow.State = plugins.GetState("failed")
+					workflow.StateMessage = "Stale release"
+
+					x.DB.Save(&workflow)
+				}
+
+				log.InfoWithFields("Expired Release", log.Fields{
+					"id": staleRelease.Model.ID,
+				})
+			}
+		}
+	}
+}
+
 func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 	payload := e.Payload.(plugins.HeartBeat)
 
@@ -206,6 +248,7 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 		switch payload.Tick {
 		case "minute":
 			x.GitSync(&project)
+			x.ExpireStaleReleases(&project)
 		}
 	}
 }

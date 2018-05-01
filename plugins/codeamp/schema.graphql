@@ -195,6 +195,7 @@ type Project {
   extensions: [ProjectExtension]!
   gitBranch: String!
   continuousDeploy: Boolean!
+  releaseTimeout: Int!
   environments: [Environment!]!
   bookmarked: Boolean!
   created: Time!
@@ -250,6 +251,7 @@ input ProjectInput {
   bookmarked: Boolean
   environmentID: String
   continuousDeploy: Boolean
+  releaseTimeout: Int!
 }
 
 # ProjectSearch input
