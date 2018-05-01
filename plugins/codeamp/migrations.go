@@ -453,7 +453,7 @@ func (x *CodeAmp) Migrate() {
 				db.Find(&projectSettings)
 
 				for _, projectSetting := range projectSettings {
-					releaseTimeout, err = strconv.Atoi(viper.GetString("plugins.codeamp.release_timeout"))
+					releaseTimeout, err := strconv.Atoi(viper.GetString("plugins.codeamp.release_timeout"))
 					if err != nil {
 						log.Info("Set plugins.codeamp.release_timeout")
 						return nil
