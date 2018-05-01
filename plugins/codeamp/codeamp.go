@@ -18,7 +18,6 @@ import (
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
@@ -207,7 +206,6 @@ func (x *CodeAmp) ExpireStaleReleases(project *resolvers.Project) {
 
 	for _, projectSetting := range projectSettings {
 		now := time.Now().Unix() - int64(projectSetting.ReleaseTimeout)
-		spew.Dump(now)
 
 		x.DB.Where("state = ? and created_at < to_timestamp(?)", "waiting", now).Find(&staleReleases)
 
