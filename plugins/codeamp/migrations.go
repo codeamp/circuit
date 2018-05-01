@@ -442,6 +442,29 @@ func (x *CodeAmp) Migrate() {
 			Rollback: func(tx *gorm.DB) error {
 				return nil
 			},
+		// migrate ProjectExtension config to customConfig
+		{
+			ID: "201805301824",
+			Migrate: func(tx *gorm.DB) error {
+
+				var projectSettings []resolvers.ProjectSettings
+				db.Find(&projectSettings)
+
+				for _, projectSetting := range projectSettings {
+					releaseTimeout, err = strconv.Atoi(viper.GetString("plugins.codeamp.release_timeout"))
+					if err != nil {
+						log.Info("Set plugins.codeamp.release_timeout")
+						return nil
+					}
+					projectSetting.ReleaseTimeout = int32(releaseTimeout)
+					db.Save(&projectSetting)
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},			
 		},
 	})
 
