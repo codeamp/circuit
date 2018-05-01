@@ -8,6 +8,7 @@ redis:
   process: "1"
 plugins:
   codeamp:
+    release_timeout: 300
     workers: 1
     oidc_uri: http://localhost:5556/dex
     oidc_client_id: example-app
