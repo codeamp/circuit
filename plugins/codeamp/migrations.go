@@ -3,6 +3,7 @@ package codeamp
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/codeamp/circuit/plugins"
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
@@ -442,8 +443,9 @@ func (x *CodeAmp) Migrate() {
 			Rollback: func(tx *gorm.DB) error {
 				return nil
 			},
-		// migrate ProjectExtension config to customConfig
+		},
 		{
+			// migrate ProjectExtension config to customConfig
 			ID: "201805301824",
 			Migrate: func(tx *gorm.DB) error {
 
@@ -464,7 +466,7 @@ func (x *CodeAmp) Migrate() {
 			},
 			Rollback: func(tx *gorm.DB) error {
 				return nil
-			},			
+			},
 		},
 	})
 
