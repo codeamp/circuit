@@ -58,7 +58,7 @@ func (r *EnvironmentResolver) ProjectReleases() []*ReleaseResolver {
 	var results []*ReleaseResolver
 
 	if r.Project != (Project{}) {
-		r.DB.Where("environment_id = ? and project_id = ?", r.Environment.Model.ID, r.Project.Model.ID).Find(&rows)
+		r.DB.Where("environment_id = ? and project_id = ?", r.Environment.Model.ID, r.Project.Model.ID).Order("created_at desc").Find(&rows)
 
 		for _, row := range rows {
 			results = append(results, &ReleaseResolver{DB: r.DB, Release: row})
