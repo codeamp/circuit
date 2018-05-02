@@ -373,25 +373,25 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				// check if the last release extension has the same
 				// ServicesSignature and SecretsSignature. If so,
 				// mark the action as completed before sending the event
-				lastReleaseExtension := resolvers.ReleaseExtension{}
+				// lastReleaseExtension := resolvers.ReleaseExtension{}
 				artifacts := []transistor.Artifact{}
 
 				eventAction := plugins.GetAction("create")
 				eventState := plugins.GetState("waiting")
-				if !release.ForceRebuild && x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
-					artifacts, err = resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
-					if err != nil {
-						log.Info(err.Error())
-					}
-				} else {
-					eventAction = plugins.GetAction("status")
-					eventState = lastReleaseExtension.State
-
-					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-					if err != nil {
-						log.Info(err.Error())
-					}
+				// if !release.ForceRebuild && x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+				artifacts, err = resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
+				if err != nil {
+					log.Info(err.Error())
 				}
+				// } else {
+				// 	eventAction = plugins.GetAction("status")
+				// 	eventState = lastReleaseExtension.State
+
+				// 	err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+				// 	if err != nil {
+				// 		log.Info(err.Error())
+				// 	}
+				// }
 
 				ev := transistor.NewEvent(plugins.ReleaseExtension{
 					ID:      releaseExtension.Model.ID.String(),
