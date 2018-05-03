@@ -18,7 +18,6 @@ import (
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
@@ -382,7 +381,6 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 
 				// check if can cache workflows
 				if !release.ForceRebuild && !x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete", "failed"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
-					spew.Dump(lastReleaseExtension)
 					eventAction = plugins.GetAction("status")
 					eventState = lastReleaseExtension.State
 
@@ -848,13 +846,19 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 	}
 }
 
-func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
-	nextQueuedRelease := resolvers.Release{}
-	if x.DB.Where("id != ? and state = ? and created_at > ? and project_id = ? and environment_id = ?", "waiting", release.Model.ID, release.CreatedAt, release.ProjectID, release.EnvironmentID).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
-		return
-	}
+func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) error {
+	var nextQueuedRelease resolvers.Release
 
-	spew.Dump(nextQueuedRelease)
+	if x.DB.Where("id != ? and state = ? and project_id = ? and environment_id = ? and created_at > ?", release.Model.ID, "waiting", release.ProjectID, release.EnvironmentID, release.CreatedAt).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
+		log.InfoWithFields("No queued releases found.", log.Fields{
+			"id":             release.Model.ID,
+			"state":          "waiting",
+			"project_id":     release.ProjectID,
+			"environment_id": release.EnvironmentID,
+			"created_at":     release.CreatedAt,
+		})
+		return nil
+	}
 
 	var project resolvers.Project
 	var services []resolvers.Service
@@ -862,7 +866,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 
 	projectSecrets := []resolvers.Secret{}
 	// get all the env vars related to this release and store
-	x.DB.Where("environment_id = ? AND project_id = ? AND scope = ?", release.EnvironmentID, release.ProjectID, "project").Find(&projectSecrets)
+	x.DB.Where("environment_id = ? AND project_id = ? AND scope = ?", nextQueuedRelease.EnvironmentID, nextQueuedRelease.ProjectID, "project").Find(&projectSecrets)
 	for _, secret := range projectSecrets {
 		var secretValue resolvers.SecretValue
 		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
@@ -871,7 +875,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 	}
 
 	globalSecrets := []resolvers.Secret{}
-	x.DB.Where("environment_id = ? AND scope = ?", release.EnvironmentID, "global").Find(&globalSecrets)
+	x.DB.Where("environment_id = ? AND scope = ?", nextQueuedRelease.EnvironmentID, "global").Find(&globalSecrets)
 	for _, secret := range globalSecrets {
 		var secretValue resolvers.SecretValue
 		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
@@ -879,18 +883,18 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 		secrets = append(secrets, secret)
 	}
 
-	x.DB.Where("project_id = ? and environment_id = ?", release.ProjectID, release.EnvironmentID).Find(&services)
+	x.DB.Where("project_id = ? and environment_id = ?", nextQueuedRelease.ProjectID, nextQueuedRelease.EnvironmentID).Find(&services)
 	if len(services) == 0 {
 		log.InfoWithFields("no services found", log.Fields{
-			"project_id": release.ProjectID,
+			"project_id": nextQueuedRelease.ProjectID,
 		})
 	}
 
-	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
+	if x.DB.Where("id = ?", nextQueuedRelease.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
-			"id": release.ProjectID,
+			"id": nextQueuedRelease.ProjectID,
 		})
-		return
+		return nil
 	}
 
 	for i, service := range services {
@@ -899,45 +903,45 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 		services[i].Ports = ports
 	}
 
-	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
+	if x.DB.Where("id = ?", nextQueuedRelease.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
-			"id": release.ProjectID,
+			"id": nextQueuedRelease.ProjectID,
 		})
-		return
+		return nil
 	}
 
 	// get all branches relevant for the project
 	var branch string
 	var projectSettings resolvers.ProjectSettings
 
-	if x.DB.Where("environment_id = ? and project_id = ?", release.EnvironmentID, release.ProjectID).First(&projectSettings).RecordNotFound() {
+	if x.DB.Where("environment_id = ? and project_id = ?", nextQueuedRelease.EnvironmentID, nextQueuedRelease.ProjectID).First(&projectSettings).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
 		branch = projectSettings.GitBranch
 	}
 
 	var environment resolvers.Environment
-	if x.DB.Where("id = ?", release.EnvironmentID).Find(&environment).RecordNotFound() {
+	if x.DB.Where("id = ?", nextQueuedRelease.EnvironmentID).Find(&environment).RecordNotFound() {
 		log.InfoWithFields("no env found", log.Fields{
-			"id": release.EnvironmentID,
+			"id": nextQueuedRelease.EnvironmentID,
 		})
-		return
+		return nil
 	}
 
 	var headFeature resolvers.Feature
-	if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+	if x.DB.Where("id = ?", nextQueuedRelease.HeadFeatureID).First(&headFeature).RecordNotFound() {
 		log.InfoWithFields("head feature not found", log.Fields{
-			"id": release.HeadFeatureID,
+			"id": nextQueuedRelease.HeadFeatureID,
 		})
-		return
+		return nil
 	}
 
 	var tailFeature resolvers.Feature
-	if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
+	if x.DB.Where("id = ?", nextQueuedRelease.TailFeatureID).First(&tailFeature).RecordNotFound() {
 		log.InfoWithFields("tail feature not found", log.Fields{
-			"id": release.TailFeatureID,
+			"id": nextQueuedRelease.TailFeatureID,
 		})
-		return
+		return nil
 	}
 
 	var pluginServices []plugins.Service
@@ -947,7 +951,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 			log.InfoWithFields("servicespec not found", log.Fields{
 				"id": service.ServiceSpecID,
 			})
-			return
+			return nil
 		}
 
 		count, _ := strconv.ParseInt(service.Count, 10, 64)
@@ -1027,7 +1031,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseEvent := plugins.Release{
-		ID:          release.Model.ID.String(),
+		ID:          nextQueuedRelease.Model.ID.String(),
 		Action:      plugins.GetAction("create"),
 		State:       plugins.GetState("waiting"),
 		Environment: environment.Key,
@@ -1047,7 +1051,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 			Message:    tailFeature.Message,
 			Created:    tailFeature.Created,
 		},
-		User: release.User.Email,
+		User: nextQueuedRelease.User.Email,
 		Project: plugins.Project{
 			ID:         project.Model.ID.String(),
 			Slug:       project.Slug,
@@ -1062,6 +1066,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
 	}
 
 	x.Events <- transistor.NewEvent(releaseEvent, nil)
+	return nil
 }
 
 func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string) {
