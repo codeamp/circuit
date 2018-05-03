@@ -384,7 +384,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	waitingRelease := Release{}
 
-	r.DB.Where("state = ? and project_id = ? and environment_id = ?", "waiting", args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
+	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(plugins.GetState("waiting")),
+		string(plugins.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
 
 	wrSecretsSha1 := sha1.New()
 	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
