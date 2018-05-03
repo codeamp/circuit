@@ -763,8 +763,16 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 	}
 
 	for _, releaseExtension := range releaseExtensions {
+		releaseExtensionAction := plugins.Action("create")
 		if releaseExtension.Type == plugins.GetType("deployment") {
 			_artifacts := artifacts
+
+			// Fail deployment if the release is in a failed state
+			if release.State == plugins.GetState("failed") {
+				releaseExtensionAction = plugins.GetAction("status")
+				releaseExtension.State = plugins.GetState("failed")
+				releaseExtension.StateMessage = release.StateMessage
+			}
 
 			projectExtension := resolvers.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
@@ -795,7 +803,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 
 			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:     releaseExtension.Model.ID.String(),
-				Action: plugins.GetAction("create"),
+				Action: releaseExtensionAction,
 				Slug:   extension.Key,
 				State:  releaseExtension.State,
 				Release: plugins.Release{
