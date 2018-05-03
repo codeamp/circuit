@@ -255,7 +255,7 @@ input ProjectInput {
 
 # ProjectSearch input
 input ProjectSearchInput {
-  repository: String,
+  repository: String
   bookmarked: Boolean!
 }
 
