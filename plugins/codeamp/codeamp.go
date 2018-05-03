@@ -1074,7 +1074,7 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 	release.StateMessage = stateMessage
 	x.DB.Save(release)
 
-	// x.RunQueuedReleases(release)
+	x.RunQueuedReleases(release)
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
