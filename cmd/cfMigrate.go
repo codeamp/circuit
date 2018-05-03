@@ -687,7 +687,7 @@ func insertAllowOverrideAttributeIntoExtConfig(extension codeamp_resolvers.Exten
 	}
 
 	for _, kv := range extensionConfig {
-		kv.Secret = false
+		kv.Secret = true
 		newExtensionConfig = append(newExtensionConfig, kv)
 	}
 
