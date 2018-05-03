@@ -55,22 +55,16 @@ var cfMigrateCmd = &cobra.Command{
 
 		fmt.Println("[+] Successfully initialized CodeAmp transistor")
 
-		// adminContext := context.WithValue(context.Background(), "jwt", codeamp_resolvers.Claims{
-		// 	UserID:      uuid.FromStringOrNil("codeamp").String(),
-		// 	Email:       "codeamp",
-		// 	Permissions: []string{"admin"},
-		// })
-
 		// // TODO: Remove for production
-		// fmt.Println("[*] Cleaning Codeamp DB of all rows. REMOVE FOR PRODUCTION.")
-		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Service{})
-		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Secret{})
-		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.SecretValue{})
-		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Project{})
-		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ServiceSpec{})
-		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Feature{})
-		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Release{})
-		// fmt.Println("[+] Successfully cleaned Codeamp DB of all rows")
+		fmt.Println("[*] Cleaning Codeamp DB of all rows. REMOVE FOR PRODUCTION.")
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Service{})
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Secret{})
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.SecretValue{})
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Project{})
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ServiceSpec{})
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Feature{})
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Release{})
+		fmt.Println("[+] Successfully cleaned Codeamp DB of all rows")
 
 		projects := []codeflow.Project{}
 		results := codeflowDB.Collection("projects").Find(bson.M{"deleted": false})
