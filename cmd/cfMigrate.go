@@ -334,18 +334,13 @@ var cfMigrateCmd = &cobra.Command{
 					panic(err.Error())
 				}
 
-				newDockerBuilderExtensionConfig, err := insertAllowOverrideAttributeIntoExtConfig(dockerBuilderDBExtension)
-				if err != nil {
-					panic(err.Error())
-				}
-
 				dockerBuilderProjectExtension := codeamp_resolvers.ProjectExtension{
 					ProjectID:     codeampProject.Model.ID,
 					ExtensionID:   dockerBuilderDBExtension.Model.ID,
 					State:         codeamp_plugins.GetState("complete"),
 					StateMessage:  "Migrated, click update to send an event.",
 					Artifacts:     postgres.Jsonb{[]byte("[]")},
-					Config:        postgres.Jsonb{newDockerBuilderExtensionConfig},
+					Config:        postgres.Jsonb{[]byte("[]")},
 					CustomConfig:  postgres.Jsonb{[]byte("{}")},
 					EnvironmentID: env.Model.ID,
 				}
@@ -408,18 +403,13 @@ var cfMigrateCmd = &cobra.Command{
 						panic(err.Error())
 					}
 
-					newLoadBalancersExtensionConfig, err := insertAllowOverrideAttributeIntoExtConfig(loadBalancersDBExtension)
-					if err != nil {
-						panic(err.Error())
-					}
-
 					lbProjectExtension := codeamp_resolvers.ProjectExtension{
 						ProjectID:     codeampProject.Model.ID,
 						ExtensionID:   loadBalancersDBExtension.Model.ID,
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
 						Artifacts:     postgres.Jsonb{[]byte("[]")},
-						Config:        postgres.Jsonb{newLoadBalancersExtensionConfig},
+						Config:        postgres.Jsonb{[]byte("[]")},
 						CustomConfig:  postgres.Jsonb{marshaledLbCustomConfig},
 						EnvironmentID: env.Model.ID,
 					}
@@ -444,10 +434,6 @@ var cfMigrateCmd = &cobra.Command{
 					if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "route53").Find(&route53DBExtension).RecordNotFound() {
 						panic(err.Error())
 					}
-					newRoute53ExtensionConfig, err := insertAllowOverrideAttributeIntoExtConfig(route53DBExtension)
-					if err != nil {
-						panic(err.Error())
-					}
 
 					r53ProjectExtension := codeamp_resolvers.ProjectExtension{
 						ProjectID:     codeampProject.Model.ID,
@@ -455,7 +441,7 @@ var cfMigrateCmd = &cobra.Command{
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
 						Artifacts:     postgres.Jsonb{[]byte("[]")},
-						Config:        postgres.Jsonb{newRoute53ExtensionConfig},
+						Config:        postgres.Jsonb{[]byte("[]")},
 						CustomConfig:  postgres.Jsonb{marshaledRoute53CustomConfig},
 						EnvironmentID: env.Model.ID,
 					}
@@ -471,18 +457,13 @@ var cfMigrateCmd = &cobra.Command{
 					panic(err.Error())
 				}
 
-				newKubernetesDeploymentsConfig, err := insertAllowOverrideAttributeIntoExtConfig(kubernetesDeploymentsDBExtension)
-				if err != nil {
-					panic(err.Error())
-				}
-
 				kubernetesProjectExtension := codeamp_resolvers.ProjectExtension{
 					ProjectID:     codeampProject.Model.ID,
 					ExtensionID:   kubernetesDeploymentsDBExtension.Model.ID,
 					State:         codeamp_plugins.GetState("complete"),
 					StateMessage:  "Migrated, click update to send an event.",
 					Artifacts:     postgres.Jsonb{[]byte("[]")},
-					Config:        postgres.Jsonb{newKubernetesDeploymentsConfig},
+					Config:        postgres.Jsonb{[]byte("[]")},
 					CustomConfig:  postgres.Jsonb{[]byte("{}")},
 					EnvironmentID: env.Model.ID,
 				}
