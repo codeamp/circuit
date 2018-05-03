@@ -239,11 +239,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 		secretsJsonb = postgres.Jsonb{secretsMarshaled}
 
-		if r.DB.Where("project_id = ? and environment_id = ?", args.Release.ProjectID, args.Release.EnvironmentID).Find(&services).RecordNotFound() {
+		r.DB.Where("project_id = ? and environment_id = ?", args.Release.ProjectID, args.Release.EnvironmentID).Find(&services)
+		if len(services) == 0 {
 			log.InfoWithFields("no services found", log.Fields{
 				"project_id": args.Release.ProjectID,
 			})
-			return &ReleaseResolver{}, fmt.Errorf("no services found")
 		}
 
 		for i, service := range services {
@@ -258,9 +258,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		}
 
 		servicesJsonb = postgres.Jsonb{servicesMarshaled}
-
 		// check if any project extensions that are not 'once' exists
-		if r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, plugins.GetState("complete")).Find(&projectExtensions).RecordNotFound() {
+		r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, plugins.GetState("complete")).Find(&projectExtensions)
+
+		if len(projectExtensions) == 0 {
 			log.InfoWithFields("project has no extensions", log.Fields{
 				"project_id":     args.Release.ProjectID,
 				"environment_id": args.Release.EnvironmentID,
@@ -288,6 +289,46 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		secretsJsonb = release.Secrets
 		servicesJsonb = release.Services
 		projectExtensionsJsonb = release.ProjectExtensions
+	}
+
+	// check if there's a previous release in waiting state that
+	// has the same secrets and services signatures
+	secretsSha1 := sha1.New()
+	secretsSha1.Write(secretsJsonb.RawMessage)
+	secretsSig := secretsSha1.Sum(nil)
+
+	servicesSha1 := sha1.New()
+	servicesSha1.Write(servicesJsonb.RawMessage)
+	servicesSig := servicesSha1.Sum(nil)
+
+	currentReleaseHeadFeature := Feature{}
+
+	r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&currentReleaseHeadFeature)
+
+	waitingRelease := Release{}
+
+	r.DB.Where("state = ?", "waiting").Order("created_at desc").First(&waitingRelease)
+
+	wrSecretsSha1 := sha1.New()
+	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
+	waitingReleaseSecretsSig := wrSecretsSha1.Sum(nil)
+
+	wrServicesSha1 := sha1.New()
+	wrServicesSha1.Write(waitingRelease.Services.RawMessage)
+	waitingReleaseServicesSig := wrServicesSha1.Sum(nil)
+
+	waitingReleaseHeadFeature := Feature{}
+
+	r.DB.Where("id = ?", waitingRelease.HeadFeatureID).First(&waitingReleaseHeadFeature)
+
+	if fmt.Sprintf("%x", secretsSig) == fmt.Sprintf("%x", waitingReleaseSecretsSig) && fmt.Sprintf("%x", servicesSig) == fmt.Sprintf("%x", waitingReleaseServicesSig) && currentReleaseHeadFeature.Hash == waitingReleaseHeadFeature.Hash {
+		// same release so return
+		log.InfoWithFields("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting", log.Fields{
+			"services_sig":      servicesSig,
+			"secrets_sig":       secretsSig,
+			"head_feature_hash": waitingReleaseHeadFeature.Hash,
+		})
+		return &ReleaseResolver{}, fmt.Errorf("Found a waiting release with the same properties. Aborting.")
 	}
 
 	projectID, err := uuid.FromString(args.Release.ProjectID)
@@ -525,14 +566,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				return &ReleaseResolver{}, errors.New("head feature not found")
 			}
 
-			secretsSha1 := sha1.New()
-			secretsSha1.Write(secretsJsonb.RawMessage)
-			secretsSig := secretsSha1.Sum(nil)
-
-			servicesSha1 := sha1.New()
-			servicesSha1.Write(servicesJsonb.RawMessage)
-			servicesSig := servicesSha1.Sum(nil)
-
 			// create ReleaseExtension
 			releaseExtension := ReleaseExtension{
 				ReleaseID:          release.Model.ID,
@@ -548,9 +581,14 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		}
 	}
 
-	r.Events <- transistor.NewEvent(releaseEvent, nil)
+	if waitingRelease.State != "" {
+		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
+		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
+	} else {
+		r.Events <- transistor.NewEvent(releaseEvent, nil)
 
-	return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
+		return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
+	}
 }
 
 // CreateService Create service

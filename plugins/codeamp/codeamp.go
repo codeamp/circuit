@@ -18,6 +18,7 @@ import (
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	redis "github.com/go-redis/redis"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
@@ -373,25 +374,28 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				// check if the last release extension has the same
 				// ServicesSignature and SecretsSignature. If so,
 				// mark the action as completed before sending the event
-				// lastReleaseExtension := resolvers.ReleaseExtension{}
+				lastReleaseExtension := resolvers.ReleaseExtension{}
 				artifacts := []transistor.Artifact{}
 
 				eventAction := plugins.GetAction("create")
 				eventState := plugins.GetState("waiting")
-				// if !release.ForceRebuild && x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
-				artifacts, err = resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
-				if err != nil {
-					log.Info(err.Error())
-				}
-				// } else {
-				// 	eventAction = plugins.GetAction("status")
-				// 	eventState = lastReleaseExtension.State
 
-				// 	err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-				// 	if err != nil {
-				// 		log.Info(err.Error())
-				// 	}
-				// }
+				// check if can cache workflows
+				if !release.ForceRebuild && !x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete", "failed"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+					spew.Dump(lastReleaseExtension)
+					eventAction = plugins.GetAction("status")
+					eventState = lastReleaseExtension.State
+
+					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+					if err != nil {
+						log.Info(err.Error())
+					}
+				} else {
+					artifacts, err = resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
+					if err != nil {
+						log.Info(err.Error())
+					}
+				}
 
 				ev := transistor.NewEvent(plugins.ReleaseExtension{
 					ID:      releaseExtension.Model.ID.String(),
@@ -446,9 +450,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		}
 
 		if payload.State == plugins.GetState("failed") {
-			release.State = plugins.GetState("failed")
-			release.StateMessage = payload.StateMessage
-			x.DB.Save(&release)
+			x.ReleaseFailed(&release, payload.StateMessage)
 		}
 	}
 
@@ -846,6 +848,230 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 	}
 }
 
+func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) {
+	nextQueuedRelease := resolvers.Release{}
+	if x.DB.Where("id != ? and state = ? and created_at > ? and project_id = ? and environment_id = ?", "waiting", release.Model.ID, release.CreatedAt, release.ProjectID, release.EnvironmentID).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
+		return
+	}
+
+	spew.Dump(nextQueuedRelease)
+
+	var project resolvers.Project
+	var services []resolvers.Service
+	var secrets []resolvers.Secret
+
+	projectSecrets := []resolvers.Secret{}
+	// get all the env vars related to this release and store
+	x.DB.Where("environment_id = ? AND project_id = ? AND scope = ?", release.EnvironmentID, release.ProjectID, "project").Find(&projectSecrets)
+	for _, secret := range projectSecrets {
+		var secretValue resolvers.SecretValue
+		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
+		secret.Value = secretValue
+		secrets = append(secrets, secret)
+	}
+
+	globalSecrets := []resolvers.Secret{}
+	x.DB.Where("environment_id = ? AND scope = ?", release.EnvironmentID, "global").Find(&globalSecrets)
+	for _, secret := range globalSecrets {
+		var secretValue resolvers.SecretValue
+		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
+		secret.Value = secretValue
+		secrets = append(secrets, secret)
+	}
+
+	x.DB.Where("project_id = ? and environment_id = ?", release.ProjectID, release.EnvironmentID).Find(&services)
+	if len(services) == 0 {
+		log.InfoWithFields("no services found", log.Fields{
+			"project_id": release.ProjectID,
+		})
+	}
+
+	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"id": release.ProjectID,
+		})
+		return
+	}
+
+	for i, service := range services {
+		ports := []resolvers.ServicePort{}
+		x.DB.Where("service_id = ?", service.Model.ID).Find(&ports)
+		services[i].Ports = ports
+	}
+
+	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"id": release.ProjectID,
+		})
+		return
+	}
+
+	// get all branches relevant for the project
+	var branch string
+	var projectSettings resolvers.ProjectSettings
+
+	if x.DB.Where("environment_id = ? and project_id = ?", release.EnvironmentID, release.ProjectID).First(&projectSettings).RecordNotFound() {
+		log.InfoWithFields("no env project branch found", log.Fields{})
+	} else {
+		branch = projectSettings.GitBranch
+	}
+
+	var environment resolvers.Environment
+	if x.DB.Where("id = ?", release.EnvironmentID).Find(&environment).RecordNotFound() {
+		log.InfoWithFields("no env found", log.Fields{
+			"id": release.EnvironmentID,
+		})
+		return
+	}
+
+	var headFeature resolvers.Feature
+	if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+		log.InfoWithFields("head feature not found", log.Fields{
+			"id": release.HeadFeatureID,
+		})
+		return
+	}
+
+	var tailFeature resolvers.Feature
+	if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
+		log.InfoWithFields("tail feature not found", log.Fields{
+			"id": release.TailFeatureID,
+		})
+		return
+	}
+
+	var pluginServices []plugins.Service
+	for _, service := range services {
+		var spec resolvers.ServiceSpec
+		if x.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
+			log.InfoWithFields("servicespec not found", log.Fields{
+				"id": service.ServiceSpecID,
+			})
+			return
+		}
+
+		count, _ := strconv.ParseInt(service.Count, 10, 64)
+		terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
+
+		pluginServices = append(pluginServices, plugins.Service{
+			ID:        service.Model.ID.String(),
+			Action:    plugins.GetAction("create"),
+			State:     plugins.GetState("waiting"),
+			Name:      service.Name,
+			Command:   service.Command,
+			Listeners: []plugins.Listener{},
+			Replicas:  count,
+			Spec: plugins.ServiceSpec{
+				ID:                            spec.Model.ID.String(),
+				CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
+				CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
+				MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
+				MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
+				TerminationGracePeriodSeconds: terminationGracePeriod,
+			},
+			Type: string(service.Type),
+		})
+	}
+
+	var pluginSecrets []plugins.Secret
+	for _, secret := range secrets {
+		pluginSecrets = append(pluginSecrets, plugins.Secret{
+			Key:   secret.Key,
+			Value: secret.Value.Value,
+			Type:  secret.Type,
+		})
+	}
+
+	// insert CodeAmp envs
+	slugSecret := plugins.Secret{
+		Key:   "CODEAMP_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, slugSecret)
+
+	hashSecret := plugins.Secret{
+		Key:   "CODEAMP_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, hashSecret)
+
+	timeSecret := plugins.Secret{
+		Key:   "CODEAMP_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, timeSecret)
+
+	// insert Codeflow envs - remove later
+	_slugSecret := plugins.Secret{
+		Key:   "CODEFLOW_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _slugSecret)
+
+	_hashSecret := plugins.Secret{
+		Key:   "CODEFLOW_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _hashSecret)
+
+	_timeSecret := plugins.Secret{
+		Key:   "CODEFLOW_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _timeSecret)
+
+	releaseEvent := plugins.Release{
+		ID:          release.Model.ID.String(),
+		Action:      plugins.GetAction("create"),
+		State:       plugins.GetState("waiting"),
+		Environment: environment.Key,
+		HeadFeature: plugins.Feature{
+			ID:         headFeature.Model.ID.String(),
+			Hash:       headFeature.Hash,
+			ParentHash: headFeature.ParentHash,
+			User:       headFeature.User,
+			Message:    headFeature.Message,
+			Created:    headFeature.Created,
+		},
+		TailFeature: plugins.Feature{
+			ID:         tailFeature.Model.ID.String(),
+			Hash:       tailFeature.Hash,
+			ParentHash: tailFeature.ParentHash,
+			User:       tailFeature.User,
+			Message:    tailFeature.Message,
+			Created:    tailFeature.Created,
+		},
+		User: release.User.Email,
+		Project: plugins.Project{
+			ID:         project.Model.ID.String(),
+			Slug:       project.Slug,
+			Repository: project.Repository,
+		},
+		Git: plugins.Git{
+			Url:           project.GitUrl,
+			Branch:        branch,
+			RsaPrivateKey: project.RsaPrivateKey,
+		},
+		Secrets: pluginSecrets,
+	}
+
+	x.Events <- transistor.NewEvent(releaseEvent, nil)
+}
+
+func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string) {
+	release.State = plugins.GetState("failed")
+	release.StateMessage = stateMessage
+	x.DB.Save(release)
+
+	// x.RunQueuedReleases(release)
+}
+
 func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 	project := resolvers.Project{}
 
@@ -865,4 +1091,6 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 		Event:   fmt.Sprintf("projects/%s/releases/completed", project.Slug),
 		Payload: release,
 	}, nil)
+
+	x.RunQueuedReleases(release)
 }
