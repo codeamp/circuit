@@ -251,7 +251,7 @@ func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	for _, permission := range permissions {
 		var environment Environment
 		r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
-		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
+		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment, Project: r.Project})
 	}
 
 	return results

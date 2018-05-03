@@ -3,8 +3,8 @@ package codeamp_resolvers
 import (
 	"encoding/json"
 
-	"github.com/jinzhu/gorm"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/jinzhu/gorm"
 )
 
 // Environment Environment
@@ -23,6 +23,7 @@ type Environment struct {
 // EnvironmentResolver resolver for Environment
 type EnvironmentResolver struct {
 	Environment
+	Project
 	DB *gorm.DB
 }
 
@@ -49,6 +50,22 @@ func (r *EnvironmentResolver) Key() string {
 // Is Default
 func (r *EnvironmentResolver) IsDefault() bool {
 	return r.Environment.IsDefault
+}
+
+// ProjectReleases
+func (r *EnvironmentResolver) ProjectReleases() []*ReleaseResolver {
+	var rows []Release
+	var results []*ReleaseResolver
+
+	if r.Project != (Project{}) {
+		r.DB.Where("environment_id = ? and project_id = ?", r.Environment.Model.ID, r.Project.Model.ID).Order("created_at desc").Find(&rows)
+
+		for _, row := range rows {
+			results = append(results, &ReleaseResolver{DB: r.DB, Release: row})
+		}
+	}
+
+	return results
 }
 
 // Created
