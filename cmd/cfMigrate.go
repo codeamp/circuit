@@ -64,6 +64,7 @@ var cfMigrateCmd = &cobra.Command{
 		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ServiceSpec{})
 		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Feature{})
 		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Release{})
+		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ProjectExtension{})
 		fmt.Println("[+] Successfully cleaned Codeamp DB of all rows")
 
 		projects := []codeflow.Project{}
@@ -478,7 +479,7 @@ var cfMigrateCmd = &cobra.Command{
 				kubernetesProjectExtension := codeamp_resolvers.ProjectExtension{
 					ProjectID:     codeampProject.Model.ID,
 					ExtensionID:   kubernetesDeploymentsDBExtension.Model.ID,
-					State:         codeamp_plugins.GetState("failed"),
+					State:         codeamp_plugins.GetState("complete"),
 					StateMessage:  "Migrated, click update to send an event.",
 					Artifacts:     postgres.Jsonb{[]byte("[]")},
 					Config:        postgres.Jsonb{newKubernetesDeploymentsConfig},
@@ -671,9 +672,9 @@ func createCodeampDB() (resolver *gorm.DB, err error) {
 func insertAllowOverrideAttributeIntoExtConfig(extension codeamp_resolvers.Extension) ([]byte, error) {
 	var err error
 	type ExtConfig struct {
-		Key           string `json:"key"`
-		Value         string `json:"value"`
-		AllowOverride bool   `json:"allowOverride"`
+		Key    string `json:"key"`
+		Value  string `json:"value"`
+		Secret bool   `json:"secret"`
 	}
 
 	// unmarshal config and add AllowOverride to false
@@ -686,7 +687,7 @@ func insertAllowOverrideAttributeIntoExtConfig(extension codeamp_resolvers.Exten
 	}
 
 	for _, kv := range extensionConfig {
-		kv.AllowOverride = false
+		kv.Secret = false
 		newExtensionConfig = append(newExtensionConfig, kv)
 	}
 
