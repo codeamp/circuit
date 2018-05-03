@@ -763,12 +763,13 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 	}
 
 	for _, releaseExtension := range releaseExtensions {
-		releaseAction := plugins.Action("create")
+		releaseExtensionAction := plugins.Action("create")
 		if releaseExtension.Type == plugins.GetType("deployment") {
 			_artifacts := artifacts
 
+			// Fail deployment if the release is in a failed state
 			if release.State == plugins.GetState("failed") {
-				releaseAction = plugins.GetAction("failed")
+				releaseExtensionAction = plugins.GetAction("status")
 				releaseExtension.State = plugins.GetState("failed")
 				releaseExtension.StateMessage = release.StateMessage
 			}
@@ -802,7 +803,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 
 			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:     releaseExtension.Model.ID.String(),
-				Action: releaseAction,
+				Action: releaseExtensionAction,
 				Slug:   extension.Key,
 				State:  releaseExtension.State,
 				Release: plugins.Release{
