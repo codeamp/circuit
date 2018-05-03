@@ -672,9 +672,9 @@ func createCodeampDB() (resolver *gorm.DB, err error) {
 func insertAllowOverrideAttributeIntoExtConfig(extension codeamp_resolvers.Extension) ([]byte, error) {
 	var err error
 	type ExtConfig struct {
-		Key    string `json:"key"`
-		Value  string `json:"value"`
-		Secret bool   `json:"secret"`
+		Key           string `json:"key"`
+		Value         string `json:"value"`
+		AllowOverride bool   `json:"allowOverride"`
 	}
 
 	// unmarshal config and add AllowOverride to false
@@ -687,7 +687,7 @@ func insertAllowOverrideAttributeIntoExtConfig(extension codeamp_resolvers.Exten
 	}
 
 	for _, kv := range extensionConfig {
-		kv.Secret = true
+		kv.AllowOverride = false
 		newExtensionConfig = append(newExtensionConfig, kv)
 	}
 
