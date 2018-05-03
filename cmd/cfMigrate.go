@@ -342,7 +342,7 @@ var cfMigrateCmd = &cobra.Command{
 				dockerBuilderProjectExtension := codeamp_resolvers.ProjectExtension{
 					ProjectID:     codeampProject.Model.ID,
 					ExtensionID:   dockerBuilderDBExtension.Model.ID,
-					State:         codeamp_plugins.GetState("failed"),
+					State:         codeamp_plugins.GetState("complete"),
 					StateMessage:  "Migrated, click update to send an event.",
 					Artifacts:     postgres.Jsonb{[]byte("[]")},
 					Config:        postgres.Jsonb{newDockerBuilderExtensionConfig},
