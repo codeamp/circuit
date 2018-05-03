@@ -197,6 +197,87 @@ func (r *Resolver) UpdateProject(args *struct {
 	return &ProjectResolver{DB: r.DB, Project: project}, nil
 }
 
+// StopRelease
+func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID }) (*ReleaseResolver, error) {
+	userID, err := CheckAuth(ctx, []string{})
+	if err != nil {
+		return &ReleaseResolver{}, err
+	}
+
+	var user User
+
+	r.DB.Where("id = ?", userID).Find(&user)
+
+	var release Release
+	var releaseExtensions []ReleaseExtension
+
+	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
+	if len(releaseExtensions) < 1 {
+		return nil, errors.New("No Release Extensions found for release")
+	}
+
+	if r.DB.Where("id = ?", args.ID).Find(&release).RecordNotFound() {
+		log.InfoWithFields("Release not found", log.Fields{
+			"release_id": args.ID,
+		})
+
+		return nil, errors.New("Release Not Found")
+	}
+
+	release.State = plugins.GetState("failed")
+	release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
+	r.DB.Save(&release)
+
+	for _, releaseExtension := range releaseExtensions {
+		// releaseExtension.State = plugins.GetState("failed")
+		// r.DB.Update(&releaseExtension)
+
+		// find associated project extension
+		var projectExtension ProjectExtension
+		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+			log.InfoWithFields("Associated project extension not found", log.Fields{
+				"release_id":           args.ID,
+				"release_extension_id": releaseExtension.ID,
+				"project_extension_id": releaseExtension.ProjectExtensionID,
+			})
+
+			return nil, errors.New("Project Extension Not Found")
+		}
+
+		// find associated ProjectExtension Extension
+		var extension Extension
+		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+			log.InfoWithFields("Associated extension not found", log.Fields{
+				"release_id":           args.ID,
+				"release_extension_id": releaseExtension.ID,
+				"project_extension_id": releaseExtension.ProjectExtensionID,
+				"extension_id":         projectExtension.ExtensionID,
+			})
+
+			return nil, errors.New("Extension Not Found")
+		}
+
+		if releaseExtension.State == plugins.GetState("waiting") {
+
+			releaseExtensionEvent := plugins.ReleaseExtension{
+				ID:           releaseExtension.ID.String(),
+				Action:       plugins.GetAction("status"),
+				Slug:         extension.Key,
+				State:        plugins.GetState("failed"),
+				StateMessage: fmt.Sprintf("Deployment Stopped By User %s", user.Email),
+				Project:      plugins.Project{},
+				Release: plugins.Release{
+					ID: releaseExtension.ReleaseID.String(),
+				},
+				Environment: "",
+			}
+			r.Events <- transistor.NewEvent(releaseExtensionEvent, nil)
+		}
+	}
+
+	return &ReleaseResolver{DB: r.DB, Release: release}, nil
+}
+
 // CreateRelease
 func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
 	var project Project

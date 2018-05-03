@@ -46,6 +46,8 @@ type Mutation {
   updateProject(project: ProjectInput): Project
   # Create release
   createRelease(release: ReleaseInput): Release
+  #Stop release
+  stopRelease(id: ID!): Release
   # Create service
   createService(service: ServiceInput): Service
   # Update Service
