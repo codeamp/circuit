@@ -403,12 +403,29 @@ var cfMigrateCmd = &cobra.Command{
 						panic(err.Error())
 					}
 
+					lbArtifacts := []map[string]interface{}{
+						map[string]interface{}{
+							"key":    "dns",
+							"value":  "",
+							"secret": "false",
+						},
+						map[string]interface{}{
+							"key":    "name",
+							"value":  "",
+							"secret": "false",
+						},
+					}
+					marshaledLbArtifacts, err := json.Marshal(lbArtifacts)
+					if err != nil {
+						panic(err.Error())
+					}
+
 					lbProjectExtension := codeamp_resolvers.ProjectExtension{
 						ProjectID:     codeampProject.Model.ID,
 						ExtensionID:   loadBalancersDBExtension.Model.ID,
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
-						Artifacts:     postgres.Jsonb{[]byte("[]")},
+						Artifacts:     postgres.Jsonb{marshaledLbArtifacts},
 						Config:        postgres.Jsonb{[]byte("[]")},
 						CustomConfig:  postgres.Jsonb{marshaledLbCustomConfig},
 						EnvironmentID: env.Model.ID,
@@ -429,6 +446,23 @@ var cfMigrateCmd = &cobra.Command{
 						panic(err.Error())
 					}
 
+					route53Artifacts := []map[string]interface{}{
+						map[string]interface{}{
+							"key":    "fqdn",
+							"value":  "",
+							"secret": "",
+						},
+						map[string]interface{}{
+							"key":    "loadbalancer_fqdn",
+							"value":  "",
+							"secret": "",
+						},
+					}
+					marshaledRoute53Artifacts, err := json.Marshal(route53Artifacts)
+					if err != nil {
+						panic(err.Error())
+					}
+
 					// Create Kubernetes Deployments extension
 					route53DBExtension := codeamp_resolvers.Extension{}
 					if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "route53").Find(&route53DBExtension).RecordNotFound() {
@@ -440,7 +474,7 @@ var cfMigrateCmd = &cobra.Command{
 						ExtensionID:   route53DBExtension.Model.ID,
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
-						Artifacts:     postgres.Jsonb{[]byte("[]")},
+						Artifacts:     postgres.Jsonb{marshaledRoute53Artifacts},
 						Config:        postgres.Jsonb{[]byte("[]")},
 						CustomConfig:  postgres.Jsonb{marshaledRoute53CustomConfig},
 						EnvironmentID: env.Model.ID,
