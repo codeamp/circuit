@@ -22,6 +22,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
+	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -106,11 +107,19 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		return nil, fmt.Errorf("No environments initialized.")
 	}
 
+	var defaultReleaseTimeout int
+	defaultReleaseTimeout, err = strconv.Atoi(viper.GetString("plugins.codeamp.release_timeout"))
+	if err != nil {
+		defaultReleaseTimeout = 300
+		log.Warn("plugins.codeamp.release_timeout not set. Using 300 as value instead.")
+	}
+
 	for _, env := range environments {
 		r.DB.Create(&ProjectSettings{
-			EnvironmentID: env.Model.ID,
-			ProjectID:     project.Model.ID,
-			GitBranch:     "master",
+			EnvironmentID:  env.Model.ID,
+			ProjectID:      project.Model.ID,
+			GitBranch:      "master",
+			ReleaseTimeout: int32(defaultReleaseTimeout),
 		})
 		// Create ProjectEnvironment rows for default envs
 		if env.IsDefault {
@@ -182,11 +191,13 @@ func (r *Resolver) UpdateProject(args *struct {
 			projectSettings.ProjectID = projectID
 			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
+			projectSettings.ReleaseTimeout = int32(*args.Project.ReleaseTimeout)
 
 			r.DB.Save(&projectSettings)
 		} else {
 			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
+			projectSettings.ReleaseTimeout = int32(*args.Project.ReleaseTimeout)
 
 			r.DB.Save(&projectSettings)
 		}

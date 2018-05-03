@@ -196,6 +196,46 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	return nil
 }
 
+// ExpireStaleReleases checks if releases are still in a workflow state for longer
+// than 5 minutes and its ReleaseExtension objects
+func (x *CodeAmp) ExpireStaleReleases(project *resolvers.Project) {
+	staleReleases := []resolvers.Release{}
+
+	projectSettings := []resolvers.ProjectSettings{}
+	x.DB.Where("project_id = ?", project.Model.ID).Find(&projectSettings)
+
+	for _, projectSetting := range projectSettings {
+		now := time.Now().Unix() - int64(projectSetting.ReleaseTimeout)
+
+		x.DB.Where("state = ? and created_at < to_timestamp(?)", "waiting", now).Find(&staleReleases)
+
+		for _, staleRelease := range staleReleases {
+			workflowReleaseExtensions := []resolvers.ReleaseExtension{}
+
+			x.DB.Where("id = ? and state = ?", staleRelease.Model.ID, "waiting").Find(&workflowReleaseExtensions)
+			if len(workflowReleaseExtensions) > 0 {
+				// fail release
+				staleRelease.State = plugins.GetState("failed")
+				staleRelease.StateMessage = "Stale release"
+
+				x.DB.Save(&staleRelease)
+
+				// fail release extensions
+				for _, workflow := range workflowReleaseExtensions {
+					workflow.State = plugins.GetState("failed")
+					workflow.StateMessage = "Stale release"
+
+					x.DB.Save(&workflow)
+				}
+
+				log.InfoWithFields("Expired Release", log.Fields{
+					"id": staleRelease.Model.ID,
+				})
+			}
+		}
+	}
+}
+
 func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 	payload := e.Payload.(plugins.HeartBeat)
 
@@ -206,6 +246,7 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 		switch payload.Tick {
 		case "minute":
 			x.GitSync(&project)
+			x.ExpireStaleReleases(&project)
 		}
 	}
 }
@@ -335,7 +376,7 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
-	var err error
+	// var err error
 	payload := e.Payload.(plugins.Release)
 	release := resolvers.Release{}
 	releaseExtensions := []resolvers.ReleaseExtension{}
@@ -373,25 +414,25 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				// check if the last release extension has the same
 				// ServicesSignature and SecretsSignature. If so,
 				// mark the action as completed before sending the event
-				lastReleaseExtension := resolvers.ReleaseExtension{}
+				// lastReleaseExtension := resolvers.ReleaseExtension{}
 				artifacts := []transistor.Artifact{}
 
 				eventAction := plugins.GetAction("create")
 				eventState := plugins.GetState("waiting")
-				if !release.ForceRebuild && x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
-					artifacts, err = resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
-					if err != nil {
-						log.Info(err.Error())
-					}
-				} else {
-					eventAction = plugins.GetAction("status")
-					eventState = lastReleaseExtension.State
-
-					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-					if err != nil {
-						log.Info(err.Error())
-					}
+				// if !release.ForceRebuild && x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and state <> ? and state <> ? and feature_hash = ?", releaseExtension.ProjectExtensionID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, string(plugins.GetState("waiting")), string(plugins.GetState("fetching")), releaseExtension.FeatureHash).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+				artifacts, err := resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
+				if err != nil {
+					log.Info(err.Error())
 				}
+				// } else {
+				// 	eventAction = plugins.GetAction("create")
+				// 	eventState = lastReleaseExtension.State
+
+				// 	err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+				// 	if err != nil {
+				// 		log.Info(err.Error())
+				// 	}
+				// }
 
 				ev := transistor.NewEvent(plugins.ReleaseExtension{
 					ID:      releaseExtension.Model.ID.String(),
