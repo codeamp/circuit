@@ -13,13 +13,14 @@ import (
 	"strings"
 	"time"
 
+	socketio "github.com/azhao1981/go-socket.io"
+	sioredis "github.com/azhao1981/go-socket.io-redis"
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
 	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	redis "github.com/go-redis/redis"
-	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
@@ -27,7 +28,6 @@ import (
 	"github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
-	sioredis "github.com/satyakb/go-socket.io-redis"
 	"github.com/spf13/viper"
 )
 
@@ -123,8 +123,9 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	host, port := split[0], split[1]
 
 	opts := map[string]string{
-		"host": host,
-		"port": port,
+		"host":   host,
+		"port":   port,
+		"prefix": "socket.io",
 	}
 	sio.SetAdaptor(sioredis.Redis(opts))
 
