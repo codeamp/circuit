@@ -270,7 +270,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 
 	ev := e.NewEvent(payload, err)
 	ev.AddArtifact("fqdn", fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String()), false)
-	ev.AddArtifact("loadbalancer_fqdn", elbFQDN.String(), false)
+	ev.AddArtifact("lb_fqdn", elbFQDN.String(), false)
 	x.events <- ev
 
 	return nil
