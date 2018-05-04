@@ -25,7 +25,7 @@ type Query {
   # Releases
   releases(): [Release]!
   # Environments
-  environments(): [Environment]!
+  environments(projectSlug: String): [Environment]!
   # Environment variables
   secrets(): [Secret]!
   # ProjectExtension spec
