@@ -123,9 +123,8 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	host, port := split[0], split[1]
 
 	opts := map[string]string{
-		"host":   host,
-		"port":   port,
-		"prefix": "socket.io",
+		"host": host,
+		"port": port,
 	}
 	sio.SetAdaptor(sioredis.Redis(opts))
 
