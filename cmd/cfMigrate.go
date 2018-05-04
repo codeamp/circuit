@@ -57,16 +57,16 @@ var cfMigrateCmd = &cobra.Command{
 		fmt.Println("[+] Successfully initialized CodeAmp transistor")
 
 		// // TODO: Remove for production
-		fmt.Println("[*] Cleaning Codeamp DB of all rows. REMOVE FOR PRODUCTION.")
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Service{})
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Secret{})
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.SecretValue{})
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Project{})
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ServiceSpec{})
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Feature{})
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Release{})
-		codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ProjectExtension{})
-		fmt.Println("[+] Successfully cleaned Codeamp DB of all rows")
+		// fmt.Println("[*] Cleaning Codeamp DB of all rows. REMOVE FOR PRODUCTION.")
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Service{})
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Secret{})
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.SecretValue{})
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Project{})
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ServiceSpec{})
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Feature{})
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.Release{})
+		// codeampDB.Debug().Unscoped().Delete(&codeamp_resolvers.ProjectExtension{})
+		// fmt.Println("[+] Successfully cleaned Codeamp DB of all rows")
 
 		projects := []codeflow.Project{}
 		results := codeflowDB.Collection("projects").Find(bson.M{"deleted": false})
@@ -454,7 +454,7 @@ var cfMigrateCmd = &cobra.Command{
 					route53CustomConfig := map[string]interface{}{
 						"subdomain":         codeflowLoadBalancer.Subdomain,
 						"loadbalancer":      lbProjectExtension.Model.ID.String(),
-						"loadbalancer_fqdn": codeflowLoadBalancer.DNS,
+						"loadbalancer_fqdn": "",
 						"loadbalancer_type": codeflowLoadBalancer.Type,
 					}
 					marshaledRoute53CustomConfig, err := json.Marshal(route53CustomConfig)
@@ -470,7 +470,7 @@ var cfMigrateCmd = &cobra.Command{
 						},
 						map[string]interface{}{
 							"key":    "loadbalancer_fqdn",
-							"value":  codeflowLoadBalancer.DNS,
+							"value":  "",
 							"secret": "false",
 						},
 					}
