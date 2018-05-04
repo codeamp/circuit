@@ -206,17 +206,35 @@ func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	return results, nil
 }
 
-func (r *Resolver) Environments(ctx context.Context) ([]*EnvironmentResolver, error) {
+func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []Environment
+	var environments []Environment
 	var results []*EnvironmentResolver
 
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, env := range rows {
-		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: env})
+	if args.ProjectSlug != nil {
+		var project Project
+		var permissions []ProjectEnvironment
+
+		if err := r.DB.Where("slug = ?", *args.ProjectSlug).First(&project).Error; err != nil {
+			return nil, err
+		}
+
+		r.DB.Where("project_id = ?", project.Model.ID).Find(&permissions)
+		for _, permission := range permissions {
+			var environment Environment
+			r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
+			results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
+		}
+
+		return results, nil
+	}
+
+	r.DB.Order("created_at desc").Find(&environments)
+	for _, environment := range environments {
+		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
 	}
 
 	return results, nil
