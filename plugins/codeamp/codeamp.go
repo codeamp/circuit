@@ -214,6 +214,7 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.GitCommit)
 
 	var project resolvers.Project
+	var environment resolvers.Environment
 	var feature resolvers.Feature
 	var projectSettings []resolvers.ProjectSettings
 
@@ -261,13 +262,19 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 							},
 						})
 					}
+
+					if x.DB.Where("id = ?", setting.EnvironmentID).First(&environment).RecordNotFound() {
+						log.InfoWithFields("Environment not found", log.Fields{
+							"id": setting.EnvironmentID,
+						})
+					}
+
+					x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+						Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
+					}, nil)
 				}
 			}
 		}
-
-		x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-			Event: fmt.Sprintf("projects/%s/features", project.Slug),
-		}, nil)
 	} else {
 		log.InfoWithFields("feature already exists", log.Fields{
 			"repository": payload.Repository,
@@ -326,7 +333,7 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 		x.DB.Save(&extension)
 
 		x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-			Event:   fmt.Sprintf("projects/%s/extensions", project.Slug),
+			Event:   fmt.Sprintf("projects/%s/%s/extensions", project.Slug, payload.Environment),
 			Payload: extension,
 		}, nil)
 	}
@@ -525,6 +532,7 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 func (x *CodeAmp) ReleaseExtensionCompleted(re *resolvers.ReleaseExtension) {
 	project := resolvers.Project{}
 	release := resolvers.Release{}
+	environment := resolvers.Environment{}
 	releaseExtensions := []resolvers.ReleaseExtension{}
 
 	if x.DB.Where("id = ?", re.ReleaseID).First(&release).RecordNotFound() {
@@ -548,8 +556,14 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *resolvers.ReleaseExtension) {
 		return
 	}
 
+	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
+		log.InfoWithFields("Environment not found", log.Fields{
+			"id": release.EnvironmentID,
+		})
+	}
+
 	x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("projects/%s/releases/reCompleted", project.Slug),
+		Event:   fmt.Sprintf("projects/%s/%s/releases/reCompleted", project.Slug, environment.Key),
 		Payload: release,
 	}, nil)
 
@@ -1087,10 +1101,17 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 
 func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 	project := resolvers.Project{}
+	environment := resolvers.Environment{}
 
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"release": release,
+		})
+	}
+
+	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
+		log.InfoWithFields("Environment not found", log.Fields{
+			"id": release.EnvironmentID,
 		})
 	}
 
@@ -1101,7 +1122,7 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 	x.DB.Save(release)
 
 	x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("projects/%s/releases/completed", project.Slug),
+		Event:   fmt.Sprintf("projects/%s/%s/releases/completed", project.Slug, environment.Key),
 		Payload: release,
 	}, nil)
 
