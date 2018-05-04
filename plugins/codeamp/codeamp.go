@@ -1122,7 +1122,7 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 	x.DB.Save(release)
 
 	x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("projects/%s/%s/releases/completed", project.Slug, environment.Key),
+		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 		Payload: release,
 	}, nil)
 
