@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"gopkg.in/mgo.v2/bson"
 	// "context"
@@ -85,6 +86,13 @@ var cfMigrateCmd = &cobra.Command{
 		if err != nil {
 			panic(err.Error())
 		}
+
+		type ServiceNameMapping struct {
+			NewServiceName string `json:"newServiceName"`
+			OldServiceName string `json:"oldServiceName"`
+		}
+
+		newServiceNames := []ServiceNameMapping{}
 
 		// create service specs
 		fmt.Println("[*] Porting service specs")
@@ -389,7 +397,7 @@ var cfMigrateCmd = &cobra.Command{
 					lbCustomConfig := map[string]interface{}{
 						"name":           name,
 						"type":           codeflowLoadBalancer.Type,
-						"service":        codeampService.Name,
+						"service":        codeflowService.Name,
 						"listener_pairs": listenerPairs,
 					}
 					marshaledLbCustomConfig, err := json.Marshal(lbCustomConfig)
@@ -403,29 +411,11 @@ var cfMigrateCmd = &cobra.Command{
 						panic(err.Error())
 					}
 
-					lbArtifacts := []map[string]interface{}{
-						map[string]interface{}{
-							"key":    "dns",
-							"value":  "",
-							"secret": "false",
-						},
-						map[string]interface{}{
-							"key":    "name",
-							"value":  "",
-							"secret": "false",
-						},
-					}
-					marshaledLbArtifacts, err := json.Marshal(lbArtifacts)
-					if err != nil {
-						panic(err.Error())
-					}
-
 					lbProjectExtension := codeamp_resolvers.ProjectExtension{
 						ProjectID:     codeampProject.Model.ID,
 						ExtensionID:   loadBalancersDBExtension.Model.ID,
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
-						Artifacts:     postgres.Jsonb{marshaledLbArtifacts},
 						Config:        postgres.Jsonb{[]byte("[]")},
 						CustomConfig:  postgres.Jsonb{marshaledLbCustomConfig},
 						EnvironmentID: env.Model.ID,
@@ -433,12 +423,38 @@ var cfMigrateCmd = &cobra.Command{
 					codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'name' = ?",
 						codeampProject.Model.ID,
 						env.Model.ID,
-						serviceName).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)
+						codeflowService.Name).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)
+
+					serviceName := fmt.Sprintf("%s-%s", codeflowService.Name, lbProjectExtension.ID.String()[0:5])
+					lbArtifacts := []map[string]interface{}{
+						map[string]interface{}{
+							"key":    "dns",
+							"value":  "",
+							"secret": false,
+						},
+						map[string]interface{}{
+							"key":    "name",
+							"value":  serviceName,
+							"secret": false,
+						},
+					}
+					marshaledLbArtifacts, err := json.Marshal(lbArtifacts)
+					if err != nil {
+						panic(err.Error())
+					}
+					lbProjectExtension.Artifacts = postgres.Jsonb{marshaledLbArtifacts}
+					codeampDB.Save(&lbProjectExtension)
+
+					// add to newServiceNames
+					newServiceNames = append(newServiceNames, ServiceNameMapping{
+						OldServiceName: codeflowLoadBalancer.Name,
+						NewServiceName: serviceName,
+					})
 
 					route53CustomConfig := map[string]interface{}{
 						"subdomain":         codeflowLoadBalancer.Subdomain,
 						"loadbalancer":      lbProjectExtension.Model.ID.String(),
-						"loadbalancer_fqdn": codeflowLoadBalancer.FQDN,
+						"loadbalancer_fqdn": codeflowLoadBalancer.DNS,
 						"loadbalancer_type": codeflowLoadBalancer.Type,
 					}
 					marshaledRoute53CustomConfig, err := json.Marshal(route53CustomConfig)
@@ -449,13 +465,13 @@ var cfMigrateCmd = &cobra.Command{
 					route53Artifacts := []map[string]interface{}{
 						map[string]interface{}{
 							"key":    "fqdn",
-							"value":  "",
-							"secret": "",
+							"value":  fmt.Sprintf("%s.%s", codeflowLoadBalancer.Subdomain, codeflowLoadBalancer.FQDN),
+							"secret": "false",
 						},
 						map[string]interface{}{
 							"key":    "loadbalancer_fqdn",
-							"value":  "",
-							"secret": "",
+							"value":  codeflowLoadBalancer.DNS,
+							"secret": "false",
 						},
 					}
 					marshaledRoute53Artifacts, err := json.Marshal(route53Artifacts)
@@ -627,6 +643,27 @@ var cfMigrateCmd = &cobra.Command{
 		}
 
 		fmt.Println("[+] Finished porting all projects!")
+
+		fmt.Println("[*] Finding all secrets that use old load balancer names and changing to the new ones")
+
+		for _, svcNameMapping := range newServiceNames {
+			var secretValues []codeamp_resolvers.SecretValue
+			// query codeamp for OldServiceName
+			codeampDB.Where("value like ?", fmt.Sprintf("%%%s.%%", svcNameMapping.OldServiceName)).Find(&secretValues)
+
+			for _, secret := range secretValues {
+				result := strings.Replace(secret.Value, svcNameMapping.OldServiceName, svcNameMapping.NewServiceName, 1)
+				spew.Dump(fmt.Sprintf("%s -> %s", svcNameMapping.OldServiceName, svcNameMapping.NewServiceName), result)
+				newSecret := codeamp_resolvers.SecretValue{
+					SecretID: secret.SecretID,
+					Value:    result,
+					UserID:   secret.UserID,
+				}
+				codeampDB.Create(&newSecret)
+			}
+		}
+
+		fmt.Println("[+] Finished replacing old service names with new in all relevant secrets")
 	},
 }
 
