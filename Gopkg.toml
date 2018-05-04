@@ -42,7 +42,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/googollee/go-socket.io"
+  name = "github.com/azhao1981/go-socket.io"
 
 [[constraint]]
   name = "github.com/gorilla/handlers"
@@ -66,7 +66,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/satyakb/go-socket.io-redis"
+  name = "github.com/azhao1981/go-socket.io-redis"
 
 [[constraint]]
   name = "github.com/spf13/cobra"

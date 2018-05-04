@@ -57,6 +57,35 @@
   version = "v1.13.33"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/azhao1981/go-engine.io"
+  packages = [
+    ".",
+    "message",
+    "parser",
+    "polling",
+    "transport",
+    "websocket"
+  ]
+  revision = "4f280f1c42e1295c571117367f2a33cbaae65714"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/azhao1981/go-socket.io"
+  packages = ["."]
+  revision = "fbcb463388fab10612a5ba92378bb7773ab02078"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/azhao1981/go-socket.io-redis"
+  packages = [
+    ".",
+    "cmap_string_cmap",
+    "cmap_string_socket"
+  ]
+  revision = "63556a528f7f8ae20b39daa18c4c1337a91f09ac"
+
+[[projects]]
   name = "github.com/bitly/go-simplejson"
   packages = ["."]
   revision = "aabad6e819789e569bd6aabf444c935aa9ba1e44"
@@ -250,25 +279,6 @@
   ]
   revision = "ee43cbb60db7bd22502942cccbc39059117352ab"
   version = "v0.1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/googollee/go-engine.io"
-  packages = [
-    ".",
-    "message",
-    "parser",
-    "polling",
-    "transport",
-    "websocket"
-  ]
-  revision = "80ae0e43aca17b4c5a6834999d0f2eaa16b9afda"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/googollee/go-socket.io"
-  packages = ["."]
-  revision = "5447e71f36d394766bf855d5714a487596809f0d"
 
 [[projects]]
   name = "github.com/gorilla/handlers"
@@ -509,16 +519,6 @@
   packages = ["."]
   revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
   version = "v1.2.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/satyakb/go-socket.io-redis"
-  packages = [
-    ".",
-    "cmap_string_cmap",
-    "cmap_string_socket"
-  ]
-  revision = "2306cd33e355142809fb7538a96d6c4b4ba1b8ae"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -817,6 +817,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "83d66b06148c2a9fadd031779afa5107e4605345ef3264aa7f43eb33434a33e2"
+  inputs-digest = "5c8a5d78730d67e94662bfbe1ac2d5fe43798d3afbc3242fccd13d84f529a807"
   solver-name = "gps-cdcl"
   solver-version = 1
