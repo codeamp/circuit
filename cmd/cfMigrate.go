@@ -469,7 +469,7 @@ var cfMigrateCmd = &cobra.Command{
 							"secret": "false",
 						},
 						map[string]interface{}{
-							"key":    "loadbalancer_fqdn",
+							"key":    "lb_fqdn",
 							"value":  "",
 							"secret": "false",
 						},
