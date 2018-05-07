@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -40,6 +41,7 @@ func initConfig() {
 	viper.SetEnvPrefix("CODEAMP")
 
 	if cfgFile != "" {
+		spew.Dump(cfgFile)
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {

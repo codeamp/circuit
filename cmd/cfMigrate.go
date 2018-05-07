@@ -405,6 +405,18 @@ var cfMigrateCmd = &cobra.Command{
 						panic(err.Error())
 					}
 
+					lbConfig := []map[string]interface{}{
+						map[string]interface{}{
+							"key":    "codeflow_id",
+							"value":  codeflowService.Id.Hex(),
+							"secret": false,
+						},
+					}
+					marshaledLbConfig, err := json.Marshal(lbConfig)
+					if err != nil {
+						panic(err.Error())
+					}
+
 					// Create Kubernetes Deployments extension
 					loadBalancersDBExtension := codeamp_resolvers.Extension{}
 					if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "kubernetesloadbalancers").Find(&loadBalancersDBExtension).RecordNotFound() {
@@ -416,16 +428,18 @@ var cfMigrateCmd = &cobra.Command{
 						ExtensionID:   loadBalancersDBExtension.Model.ID,
 						State:         codeamp_plugins.GetState("failed"),
 						StateMessage:  "Migrated, click update to send an event.",
-						Config:        postgres.Jsonb{[]byte("[]")},
+						Config:        postgres.Jsonb{marshaledLbConfig},
 						CustomConfig:  postgres.Jsonb{marshaledLbCustomConfig},
 						EnvironmentID: env.Model.ID,
 					}
-					codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'name' = ?",
+					codeampDB.Debug().Where(`project_id = ? and environment_id = ? and custom_config ->> 'type' = ? and config @> ?`,
 						codeampProject.Model.ID,
 						env.Model.ID,
-						codeflowService.Name).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)
+						codeflowLoadBalancer.Type,
+						fmt.Sprintf(`[{"key": "codeflow_id", "value": "%s" }]`, codeflowService.Id.Hex())).Assign(lbProjectExtension).FirstOrCreate(&lbProjectExtension)
 
-					serviceName := fmt.Sprintf("%s-%s", codeflowService.Name, lbProjectExtension.ID.String()[0:5])
+					serviceName := fmt.Sprintf("%s-%s", codeflowService.Name, lbProjectExtension.Model.ID.String()[0:5])
+					spew.Dump(lbProjectExtension)
 					lbArtifacts := []map[string]interface{}{
 						map[string]interface{}{
 							"key":    "dns",
@@ -435,6 +449,11 @@ var cfMigrateCmd = &cobra.Command{
 						map[string]interface{}{
 							"key":    "name",
 							"value":  serviceName,
+							"secret": false,
+						},
+						map[string]interface{}{
+							"key":    "old_id",
+							"value":  codeflowService.Id.Hex(),
 							"secret": false,
 						},
 					}
@@ -451,54 +470,56 @@ var cfMigrateCmd = &cobra.Command{
 						NewServiceName: serviceName,
 					})
 
-					route53CustomConfig := map[string]interface{}{
-						"subdomain":         codeflowLoadBalancer.Subdomain,
-						"loadbalancer":      lbProjectExtension.Model.ID.String(),
-						"loadbalancer_fqdn": "",
-						"loadbalancer_type": codeflowLoadBalancer.Type,
-					}
-					marshaledRoute53CustomConfig, err := json.Marshal(route53CustomConfig)
-					if err != nil {
-						panic(err.Error())
-					}
+					if codeflowLoadBalancer.Type != "internal" {
+						route53CustomConfig := map[string]interface{}{
+							"subdomain":         codeflowLoadBalancer.Subdomain,
+							"loadbalancer":      lbProjectExtension.Model.ID.String(),
+							"loadbalancer_fqdn": "",
+							"loadbalancer_type": codeflowLoadBalancer.Type,
+						}
+						marshaledRoute53CustomConfig, err := json.Marshal(route53CustomConfig)
+						if err != nil {
+							panic(err.Error())
+						}
 
-					route53Artifacts := []map[string]interface{}{
-						map[string]interface{}{
-							"key":    "fqdn",
-							"value":  fmt.Sprintf("%s.%s", codeflowLoadBalancer.Subdomain, codeflowLoadBalancer.FQDN),
-							"secret": "false",
-						},
-						map[string]interface{}{
-							"key":    "lb_fqdn",
-							"value":  "",
-							"secret": "false",
-						},
-					}
-					marshaledRoute53Artifacts, err := json.Marshal(route53Artifacts)
-					if err != nil {
-						panic(err.Error())
-					}
+						route53Artifacts := []map[string]interface{}{
+							map[string]interface{}{
+								"key":    "fqdn",
+								"value":  fmt.Sprintf("%s.%s", codeflowLoadBalancer.Subdomain, codeflowLoadBalancer.FQDN),
+								"secret": "false",
+							},
+							map[string]interface{}{
+								"key":    "lb_fqdn",
+								"value":  "",
+								"secret": "false",
+							},
+						}
+						marshaledRoute53Artifacts, err := json.Marshal(route53Artifacts)
+						if err != nil {
+							panic(err.Error())
+						}
 
-					// Create Kubernetes Deployments extension
-					route53DBExtension := codeamp_resolvers.Extension{}
-					if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "route53").Find(&route53DBExtension).RecordNotFound() {
-						panic(err.Error())
-					}
+						// Create Kubernetes Deployments extension
+						route53DBExtension := codeamp_resolvers.Extension{}
+						if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "route53").Find(&route53DBExtension).RecordNotFound() {
+							panic(err.Error())
+						}
 
-					r53ProjectExtension := codeamp_resolvers.ProjectExtension{
-						ProjectID:     codeampProject.Model.ID,
-						ExtensionID:   route53DBExtension.Model.ID,
-						State:         codeamp_plugins.GetState("failed"),
-						StateMessage:  "Migrated, click update to send an event.",
-						Artifacts:     postgres.Jsonb{marshaledRoute53Artifacts},
-						Config:        postgres.Jsonb{[]byte("[]")},
-						CustomConfig:  postgres.Jsonb{marshaledRoute53CustomConfig},
-						EnvironmentID: env.Model.ID,
+						r53ProjectExtension := codeamp_resolvers.ProjectExtension{
+							ProjectID:     codeampProject.Model.ID,
+							ExtensionID:   route53DBExtension.Model.ID,
+							State:         codeamp_plugins.GetState("failed"),
+							StateMessage:  "Migrated, click update to send an event.",
+							Artifacts:     postgres.Jsonb{marshaledRoute53Artifacts},
+							Config:        postgres.Jsonb{[]byte("[]")},
+							CustomConfig:  postgres.Jsonb{marshaledRoute53CustomConfig},
+							EnvironmentID: env.Model.ID,
+						}
+						codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'subdomain' = ?",
+							codeampProject.Model.ID,
+							env.Model.ID,
+							codeflowLoadBalancer.Subdomain).Assign(r53ProjectExtension).FirstOrCreate(&r53ProjectExtension)
 					}
-					codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'subdomain' = ?",
-						codeampProject.Model.ID,
-						env.Model.ID,
-						codeflowLoadBalancer.Subdomain).Assign(r53ProjectExtension).FirstOrCreate(&r53ProjectExtension)
 				}
 
 				// Create Kubernetes Deployments extension
@@ -648,6 +669,8 @@ var cfMigrateCmd = &cobra.Command{
 
 		for _, svcNameMapping := range newServiceNames {
 			var secretValues []codeamp_resolvers.SecretValue
+			var services []codeamp_resolvers.Service
+
 			// query codeamp for OldServiceName
 			codeampDB.Where("value like ?", fmt.Sprintf("%%%s.%%", svcNameMapping.OldServiceName)).Find(&secretValues)
 
@@ -661,6 +684,14 @@ var cfMigrateCmd = &cobra.Command{
 				}
 				codeampDB.Create(&newSecret)
 			}
+
+			codeampDB.Where("command like ?", fmt.Sprintf("%%%s.%%", svcNameMapping.OldServiceName)).Find(&services)
+			for _, svc := range services {
+				result := strings.Replace(svc.Command, svcNameMapping.OldServiceName, svcNameMapping.NewServiceName, 1)
+				svc.Command = result
+				codeampDB.Save(&svc)
+				spew.Dump(fmt.Sprintf("svc %s command changed: %s -> %s", svc.Name, svcNameMapping.OldServiceName, svcNameMapping.NewServiceName), result)
+			}
 		}
 
 		fmt.Println("[+] Finished replacing old service names with new in all relevant secrets")
@@ -669,6 +700,7 @@ var cfMigrateCmd = &cobra.Command{
 
 func createCodeflowDBConnection() {
 	var err error
+	spew.Dump(viper.GetStringMap("codeflow"))
 	config := &bongo.Config{
 		ConnectionString: viper.GetString("codeflow.mongodb.uri"),
 		Database:         viper.GetString("codeflow.mongodb.database"),
