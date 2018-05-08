@@ -52,16 +52,16 @@ func (r *EnvironmentResolver) IsDefault() bool {
 	return r.Environment.IsDefault
 }
 
-// ProjectReleases
-func (r *EnvironmentResolver) ProjectReleases() []*ReleaseResolver {
-	var rows []Release
-	var results []*ReleaseResolver
+// Projects - get projects permissioned for the environment
+func (r *EnvironmentResolver) Projects() []*ProjectResolver {
+	var permissions []ProjectEnvironment
+	var results []*ProjectResolver
 
-	if r.Project != (Project{}) {
-		r.DB.Where("environment_id = ? and project_id = ?", r.Environment.Model.ID, r.Project.Model.ID).Order("created_at desc").Find(&rows)
-
-		for _, row := range rows {
-			results = append(results, &ReleaseResolver{DB: r.DB, Release: row})
+	r.DB.Where("environment_id = ?", r.Environment.ID).Find(&permissions)
+	for _, permission := range permissions {
+		var project Project
+		if !r.DB.Where("id = ?", permission.ProjectID).First(&project).RecordNotFound() {
+			results = append(results, &ProjectResolver{DB: r.DB, Project: project, Environment: r.Environment})
 		}
 	}
 
