@@ -320,7 +320,7 @@ func (x *K8s) doDeploy(e transistor.Event) error {
 
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 		x.sendDDErrorResponse(e, "failed writing kubeconfig")
 		return err
 	}

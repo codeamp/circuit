@@ -64,15 +64,8 @@ func (x *K8s) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	err := x.ProcessDeployment(e)
-	if err != nil {
-		log.Error(err)
-	}
-
-	err = x.ProcessLoadBalancer(e)
-	if err != nil {
-		log.Error(err)
-	}
+	x.ProcessDeployment(e)
+	x.ProcessLoadBalancer(e)
 
 	return nil
 }

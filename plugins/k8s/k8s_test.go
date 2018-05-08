@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/k8s"
 	"github.com/codeamp/circuit/plugins/k8s/testdata"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +33,11 @@ func (suite *TestSuite) SetupSuite() {
 	viper.AutomaticEnv()
 	viper.ReadConfig(bytes.NewBuffer(viperConfig))
 
+	transistor.RegisterPlugin("k8s", func() transistor.Plugin {
+		return &k8s.K8s{}
+	})
+
+	log.Debug("issue here")
 	config := transistor.Config{
 		Plugins:        viper.GetStringMap("plugins"),
 		EnabledPlugins: []string{"k8s"},
@@ -40,7 +47,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.transistor = ag
 	go suite.transistor.Run()
 
-	suite.transistor.Events <- transistor.NewEvent(testdata.LBDataForTCP(plugins.Destroy, plugins.Office), nil)
+	suite.transistor.Events <- transistor.NewEvent(testdata.LBDataForTCP(plugins.GetAction("destroy"), plugins.GetType("office")), nil)
 	_ = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 60)
 }
 
@@ -68,16 +75,16 @@ func (suite *TestSuite) TestBasicFailedDeploy() {
 // Load Balancers Tests
 func (suite *TestSuite) TestLBTCPOffice() {
 	var e transistor.Event
-	payload := testdata.LBDataForTCP(plugins.Update, plugins.Office)
+	payload := testdata.LBDataForTCP(plugins.GetAction("update"), plugins.GetType("office"))
 	suite.transistor.Events <- transistor.NewEvent(payload, nil)
 
 	e = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 120)
-	assert.Equal(suite.T(), string(plugins.Complete), string(e.Payload.(plugins.ProjectExtension).State))
+	assert.Equal(suite.T(), string(plugins.GetAction("completed")), string(e.Payload.(plugins.ProjectExtension).State))
 
-	payload = testdata.LBDataForTCP(plugins.Destroy, plugins.Office)
+	payload = testdata.LBDataForTCP(plugins.GetAction("destroy"), plugins.GetType("office"))
 	suite.transistor.Events <- transistor.NewEvent(payload, nil)
 	e = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 120)
-	assert.Equal(suite.T(), string(plugins.Deleted), string(e.Payload.(plugins.ProjectExtension).State))
+	assert.Equal(suite.T(), string(plugins.GetAction("deleted")), string(e.Payload.(plugins.ProjectExtension).State))
 
 }
 

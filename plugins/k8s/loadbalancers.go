@@ -23,26 +23,28 @@ func (x *K8s) ProcessLoadBalancer(e transistor.Event) error {
 		"event": e,
 	})
 
-	event := e.Payload.(plugins.ProjectExtension)
+	if strings.Contains(e.Name, "kubernetesdeployments") == true {
+		event := e.Payload.(plugins.ProjectExtension)
 
-	var err error
-	switch event.Action {
-	case plugins.GetAction("destroy"):
-		err = x.doDeleteLoadBalancer(e)
-	case plugins.GetAction("create"):
-		err = x.doLoadBalancer(e)
-	case plugins.GetAction("update"):
-		err = x.doLoadBalancer(e)
-	}
+		var err error
+		switch event.Action {
+		case plugins.GetAction("destroy"):
+			err = x.doDeleteLoadBalancer(e)
+		case plugins.GetAction("create"):
+			err = x.doLoadBalancer(e)
+		case plugins.GetAction("update"):
+			err = x.doLoadBalancer(e)
+		}
 
-	if err != nil {
-		event.Action = plugins.GetAction("status")
-		event.State = plugins.GetState("failed")
-		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State)
-		log.Debug(event.StateMessage)
-		event := e.NewEvent(event, err)
-		x.events <- event
-		return err
+		if err != nil {
+			event.Action = plugins.GetAction("status")
+			event.State = plugins.GetState("failed")
+			event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State)
+			log.Debug(event.StateMessage)
+			event := e.NewEvent(event, err)
+			x.events <- event
+			return err
+		}
 	}
 
 	log.Info("Processed LoadBalancer Events")
