@@ -256,7 +256,7 @@ func (x *LoadBalancers) doLoadBalancer(e transistor.Event) error {
 		// randomLetters := "abcdev"
 		newPort := v1.ServicePort{
 			// TODO: remove this toLower when we fix the data in mongo, kube only allows lowercase port names
-			Name:       strings.ToLower(fmt.Sprintf("%s", p.(map[string]interface{})["name"])),
+			Name:       strings.ToLower(fmt.Sprintf("%s-%s", p.(map[string]interface{})["serviceProtocol"], p.(map[string]interface{})["containerPort"])),
 			Port:       int32(intPort),
 			TargetPort: convPort,
 			Protocol:   v1.Protocol(realProto),

@@ -1,7 +1,6 @@
 package plugins
 
 import (
-	"math/rand"
 	"regexp"
 
 	"github.com/extemporalgenome/slug"
@@ -46,14 +45,4 @@ func MapStringStringToHstore(mapStringString map[string]string) map[string]*stri
 
 func GetSlug(name string) string {
 	return slug.Slug(name)
-}
-
-func RandomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
 }
