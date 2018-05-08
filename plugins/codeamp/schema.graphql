@@ -134,7 +134,7 @@ type Environment {
   isDefault: Boolean!
   color: String!
   created: Time!
-  projectReleases: [Release!]!
+  projects: [Project]!
 }
 
 # Environment variable
