@@ -1,15 +1,16 @@
-package kubernetesdeployments
+package k8s
 
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 	"time"
 
-	utils "github.com/codeamp/circuit/plugins/kubernetes"
-	ca_log "github.com/codeamp/logger"
+	"github.com/codeamp/circuit/plugins"
+	log "github.com/codeamp/logger"
+	"github.com/codeamp/transistor"
+
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -22,11 +23,51 @@ import (
 
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/codeamp/circuit/plugins"
-	"github.com/codeamp/transistor"
 	"github.com/google/shlex"
 	"github.com/spf13/viper"
 )
+
+func (x *K8s) ProcessDeployment(e transistor.Event) error {
+	log.InfoWithFields("Processing Kubernetes Deployments event", log.Fields{
+		"event": e,
+	})
+
+	if e.Name == "plugins.ProjectExtension:create:kubernetesdeployments" {
+		var extensionEvent plugins.ProjectExtension
+		extensionEvent = e.Payload.(plugins.ProjectExtension)
+		extensionEvent.Action = plugins.GetAction("status")
+		extensionEvent.State = plugins.GetState("complete")
+
+		x.events <- e.NewEvent(extensionEvent, nil)
+		return nil
+	}
+
+	if e.Name == "plugins.ProjectExtension:update:kubernetesdeployments" {
+		var extensionEvent plugins.ProjectExtension
+		extensionEvent = e.Payload.(plugins.ProjectExtension)
+		extensionEvent.Action = plugins.GetAction("status")
+		extensionEvent.State = plugins.GetState("complete")
+
+		x.events <- e.NewEvent(extensionEvent, nil)
+		return nil
+	}
+
+	if e.Name == "plugins.ReleaseExtension:create:kubernetesdeployments" {
+		event := e.Payload.(plugins.ReleaseExtension)
+
+		err := x.doDeploy(e)
+		if err != nil {
+			event.Action = plugins.GetAction("status")
+			event.State = plugins.GetState("failed")
+			event.StateMessage = err.Error()
+
+			x.events <- e.NewEvent(event, nil)
+			return err
+		}
+	}
+
+	return nil
+}
 
 type SimplePodSpec struct {
 	Name          string
@@ -53,7 +94,7 @@ func genOneShotServiceName(slugName string, serviceName string) string {
 	return "os-" + slugName + "-" + serviceName
 }
 
-func (x *Deployments) sendDDResponse(e transistor.Event, state plugins.State, msg string) {
+func (x *K8s) sendDDResponse(e transistor.Event, state plugins.State, msg string) {
 	event := e.Payload.(plugins.ReleaseExtension)
 	event.Action = plugins.GetAction("status")
 	event.State = state
@@ -61,15 +102,15 @@ func (x *Deployments) sendDDResponse(e transistor.Event, state plugins.State, ms
 	x.events <- e.NewEvent(event, nil)
 }
 
-func (x *Deployments) sendDDSuccessResponse(e transistor.Event) {
+func (x *K8s) sendDDSuccessResponse(e transistor.Event) {
 	x.sendDDResponse(e, plugins.GetState("complete"), "")
 }
 
-func (x *Deployments) sendDDErrorResponse(e transistor.Event, msg string) {
+func (x *K8s) sendDDErrorResponse(e transistor.Event, msg string) {
 	x.sendDDResponse(e, plugins.GetState("failed"), msg)
 }
 
-func (x *Deployments) sendDDInProgress(e transistor.Event, msg string) {
+func (x *K8s) sendDDInProgress(e transistor.Event, msg string) {
 	x.sendDDResponse(e, plugins.GetState("running"), msg)
 }
 
@@ -107,15 +148,15 @@ func secretifyDockerCred(e transistor.Event) (string, error) {
 	return jsonFilled, nil
 }
 
-func (x *Deployments) createDockerIOSecretIfNotExists(namespace string, coreInterface corev1.CoreV1Interface, e transistor.Event) error {
+func (x *K8s) createDockerIOSecretIfNotExists(namespace string, coreInterface corev1.CoreV1Interface, e transistor.Event) error {
 	// Load up the docker-io secrets for image pull if not exists
 	_, dockerIOSecretErr := coreInterface.Secrets(namespace).Get("docker-io", meta_v1.GetOptions{})
 	if dockerIOSecretErr != nil {
 		if errors.IsNotFound(dockerIOSecretErr) {
-			log.Printf("docker-io secret not found for %s, creating.", namespace)
+			log.Println(fmt.Sprintf("docker-io secret not found for %s, creating.", namespace))
 			dockerCred, err := secretifyDockerCred(e)
 			if err != nil {
-				log.Printf("Error '%s' creating docker-io secret for %s.", err, namespace)
+				log.Println(fmt.Sprintf("Error '%s' creating docker-io secret for %s.", err, namespace))
 				return err
 			}
 			secretMap := map[string]string{
@@ -134,23 +175,23 @@ func (x *Deployments) createDockerIOSecretIfNotExists(namespace string, coreInte
 				Type:       v1.SecretTypeDockercfg,
 			})
 			if createDockerIOSecretErr != nil {
-				log.Printf("Error '%s' creating docker-io secret for %s.", createDockerIOSecretErr, namespace)
+				log.Println(fmt.Sprintf("Error '%s' creating docker-io secret for %s.", createDockerIOSecretErr, namespace))
 				return createDockerIOSecretErr
 			}
 		} else {
-			log.Printf("Error unhandled '%s' while attempting to lookup docker-io secret.", dockerIOSecretErr)
+			log.Println(fmt.Sprintf("Error unhandled '%s' while attempting to lookup docker-io secret.", dockerIOSecretErr))
 			return dockerIOSecretErr
 		}
 	}
 	return nil
 }
 
-func (x *Deployments) createNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
+func (x *K8s) createNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
 	// Create namespace if it does not exist.
 	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
 		if errors.IsNotFound(nameGetErr) {
-			log.Printf("Namespace %s does not yet exist, creating.", namespace)
+			log.Println(fmt.Sprintf("Namespace %s does not yet exist, creating.", namespace))
 			namespaceParams := &v1.Namespace{
 				TypeMeta: meta_v1.TypeMeta{
 					Kind:       "Namespace",
@@ -162,12 +203,12 @@ func (x *Deployments) createNamespaceIfNotExists(namespace string, coreInterface
 			}
 			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
 			if createNamespaceErr != nil {
-				log.Printf("Error '%s' creating namespace %s", createNamespaceErr, namespace)
+				log.Println(fmt.Sprintf("Error '%s' creating namespace %s", createNamespaceErr, namespace))
 				return createNamespaceErr
 			}
-			log.Printf("Namespace created: %s", namespace)
+			log.Println(fmt.Sprintf("Namespace created: %s", namespace))
 		} else {
-			log.Printf("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr)
+			log.Println(fmt.Sprintf("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr))
 			return nameGetErr
 		}
 	}
@@ -186,7 +227,7 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 					log.Println(failmessage)
 					return failmessage, true
 				default:
-					log.Printf("Pod '%s' is waiting because '%s'", pod.Name, waitingReason)
+					log.Println(fmt.Sprintf("Pod '%s' is waiting because '%s'", pod.Name, waitingReason))
 					return "", false
 				}
 			}
@@ -272,14 +313,14 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 	return podTemplateSpec
 }
 
-func (x *Deployments) doDeploy(e transistor.Event) error {
+func (x *K8s) doDeploy(e transistor.Event) error {
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
-	kubeconfig, err := utils.SetupKubeConfig(e)
+	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
-		ca_log.Info(err.Error())
+		log.Info(err.Error())
 		x.sendDDErrorResponse(e, "failed writing kubeconfig")
 		return err
 	}
@@ -288,10 +329,10 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
 	if err != nil {
-		log.Printf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err)
+		log.Println(fmt.Sprintf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err))
 		config, err = clientcmd.BuildConfigFromFlags("", "")
 		if err != nil {
-			log.Printf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err)
+			log.Println(fmt.Sprintf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err))
 			x.sendDDErrorResponse(e, "failed writing kubeconfig")
 			return err
 		}
@@ -305,7 +346,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	}
 
 	x.sendDDInProgress(e, "Deploy in-progress")
-	namespace := utils.GenNamespaceName(reData.Release.Environment, projectSlug)
+	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 	coreInterface := clientset.Core()
 
 	successfulDeploys := 0
@@ -358,7 +399,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		return fmt.Errorf(failMessage)
 	}
 	secretName := secretResult.Name
-	log.Printf("Secrets created: %s", secretName)
+	log.Println(fmt.Sprintf("Secrets created: %s", secretName))
 	x.sendDDInProgress(e, "Secrets created")
 
 	// This is for building the configuration to use the secrets from inside the deployment
@@ -488,24 +529,24 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 			err = batchv1DepInterface.Jobs(namespace).Delete(job.Name, &deleteOptions)
 			if err != nil {
-				log.Printf("Failed to delete job %s with err %s", job.Name, err)
+				log.Println(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
 			}
 
 			correspondingPods, err := coreInterface.Pods(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
 			if err != nil {
-				log.Printf("Failed to find corresponding pods with job-name %s with err %s", job.Name, err)
+				log.Println(fmt.Sprintf("Failed to find corresponding pods with job-name %s with err %s", job.Name, err))
 			}
 
 			// delete associated pods
 			for _, cp := range correspondingPods.Items {
 				err := coreInterface.Pods(namespace).Delete(cp.Name, &meta_v1.DeleteOptions{})
 				if err != nil {
-					log.Printf("Failed to delete pod %s with err %s", cp.Name, err)
+					log.Println(fmt.Sprintf("Failed to delete pod %s with err %s", cp.Name, err))
 				}
 			}
 
 			if err != nil {
-				log.Printf("Failed to delete job %s with err %s", job.Name, err)
+				log.Println(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
 			}
 		}
 
@@ -560,7 +601,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
 		if err != nil {
-			log.Printf("Failed to create service job %s, with error: %s", createdJob.Name, err)
+			log.Println(fmt.Sprintf("Failed to create service job %s, with error: %s", createdJob.Name, err))
 			oneShotServices[index].State = plugins.GetState("failed")
 			oneShotServices[index].StateMessage = fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
 			x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
@@ -572,12 +613,12 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		for {
 			job, err := batchv1DepInterface.Jobs(namespace).Get(createdJob.Name, meta_v1.GetOptions{})
 			if err != nil {
-				log.Printf("Error '%s' fetching job status for %s", err, createdJob.Name)
+				log.Println(fmt.Sprintf("Error '%s' fetching job status for %s", err, createdJob.Name))
 				time.Sleep(5 * time.Second)
 				continue
 			}
 
-			log.Printf("Job Status: Active: %v ; Succeeded: %v, Failed: %v \n", job.Status.Active, job.Status.Succeeded, job.Status.Failed)
+			log.Println(fmt.Sprintf("Job Status: Active: %v ; Succeeded: %v, Failed: %v \n", job.Status.Active, job.Status.Succeeded, job.Status.Failed))
 
 			// Container is still creating
 			if int32(service.Replicas) != 0 && job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0 {
@@ -592,7 +633,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				job.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
 				job, err = batchv1DepInterface.Jobs(namespace).Update(job)
 				if err != nil {
-					log.Printf("Error %s updating job %s before deletion", job.Name, err)
+					log.Println(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
 				}
 
 				oneShotServices[index].State = plugins.GetState("failed")
@@ -617,7 +658,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 			// Check Job's Pod status
 			if pods, err := clientset.Core().Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
-				log.Printf("List Pods of service[%s] error: %v", job.Name, err)
+				log.Println(fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err))
 				oneShotServices[index].State = plugins.GetState("failed")
 				oneShotServices[index].StateMessage = fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
 				x.sendDDErrorResponse(e, oneShotServices[index].StateMessage)
@@ -781,19 +822,19 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 		x.sendDDInProgress(e, "Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
 
-		log.Printf("Getting list of deployments/ jobs matching %s", deploymentName)
+		log.Println(fmt.Sprintf("Getting list of deployments/ jobs matching %s", deploymentName))
 		_, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
 		var myError error
 		if err != nil {
 			// Create deployment if it does not exist
-			log.Printf("Existing deployment not found for %s. requested action: %s.", deploymentName, service.Action)
+			log.Println(fmt.Sprintf("Existing deployment not found for %s. requested action: %s.", deploymentName, service.Action))
 			// Sanity check that we were told to create this service or error out.
 
 			x.sendDDInProgress(e, "Successfully creating Deployment.")
 			_, myError = depInterface.Deployments(namespace).Create(deployParams)
 			if myError != nil {
 				// send failed status
-				log.Printf("Failed to create service deployment %s, with error: %s", deploymentName, myError)
+				log.Println(fmt.Sprintf("Failed to create service deployment %s, with error: %s", deploymentName, myError))
 				deploymentServices[index].State = plugins.GetState("failed")
 				deploymentServices[index].StateMessage = fmt.Sprintf("Error creating deployment: %s", myError)
 				// shorten the timeout in this case so that we can fail without waiting
@@ -805,7 +846,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			// Deployment exists, update deployment with new configuration
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
-				log.Printf("Failed to update service deployment %s, with error: %s", deploymentName, myError)
+				log.Println(fmt.Sprintf("Failed to update service deployment %s, with error: %s", deploymentName, myError))
 				deploymentServices[index].State = plugins.GetState("failed")
 				deploymentServices[index].StateMessage = fmt.Sprintf("Failed to update deployment %s, with error: %s", deploymentName, myError)
 				// shorten the timeout in this case so that we can fail without waiting
@@ -817,7 +858,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 	} // All service deployments initiated.
 
-	log.Printf("Waiting %d seconds for deployment to succeed.", timeout)
+	log.Println(fmt.Sprintf("Waiting %d seconds for deployment to succeed.", timeout))
 	for i := range deploymentServices {
 		deploymentServices[i].State = plugins.GetState("waiting")
 	}
@@ -830,10 +871,10 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
 				deployment, err := depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
 				if err != nil {
-					log.Printf("Error '%s' fetching deployment status for %s", err, deploymentName)
+					log.Println(fmt.Sprintf("Error '%s' fetching deployment status for %s", err, deploymentName))
 					continue
 				}
-				log.Printf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d", deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas, deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas)
+				log.Println(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d", deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas, deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
 				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation && deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas && deployment.Status.AvailableReplicas >= deployment.Status.UpdatedReplicas && deployment.Status.UnavailableReplicas == 0 {
 					// deployment success
 					deploymentServices[index].State = plugins.GetState("complete")
@@ -843,7 +884,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 							successfulDeploys++
 						}
 					}
-					log.Printf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices))
+					log.Println(fmt.Sprintf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices)))
 
 					if successfulDeploys == len(deploymentServices) {
 						break
@@ -872,7 +913,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 				allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
 				if podErr != nil {
-					log.Printf("Error retrieving list of pods for %s", namespace)
+					log.Println(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
 					continue
 				}
 
@@ -898,7 +939,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 			if curTime >= timeout || replicaFailures > 1 {
 				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
-				log.Printf(errMsg)
+				log.Println(fmt.Sprintf(errMsg))
 				x.sendDDErrorResponse(e, errMsg)
 				return fmt.Errorf(errMsg)
 			}
@@ -911,11 +952,11 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	x.sendDDSuccessResponse(e)
 
 	// all success!
-	log.Printf("All deployments successful.")
+	log.Println(fmt.Sprintf("All deployments successful."))
 	// Cleanup orphan jobs
 	existingJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
-		log.Printf("Failed to list existing jobs in namespace %s, with error: %s", namespace, err)
+		log.Println(fmt.Sprintf("Failed to list existing jobs in namespace %s, with error: %s", namespace, err))
 	}
 
 	for _, job := range existingJobs.Items {
@@ -928,7 +969,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		}
 
 		if foundIt == false {
-			log.Printf("Deleting orphan job %s", job.Name)
+			log.Println(fmt.Sprintf("Deleting orphan job %s", job.Name))
 			gracePeriod := int64(0)
 			isOrphan := true
 			deleteOptions := meta_v1.DeleteOptions{
@@ -938,7 +979,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 
 			err = batchv1DepInterface.Jobs(namespace).Delete(job.Name, &deleteOptions)
 			if err != nil {
-				log.Printf("Failed to delete orphan job %s with err %s", job.Name, err)
+				log.Println(fmt.Sprintf("Failed to delete orphan job %s with err %s", job.Name, err))
 			}
 		}
 	}
@@ -947,7 +988,7 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	allDeploymentsList, listErr := depInterface.Deployments(namespace).List(meta_v1.ListOptions{})
 	if listErr != nil {
 		// If we can't list the deployments just return.  We have already sent the success message.
-		log.Printf("Fatal Error listing deployments during cleanup.  %s", listErr)
+		log.Println(fmt.Sprintf("Fatal Error listing deployments during cleanup.  %s", listErr))
 		return nil
 	}
 	var foundIt bool
@@ -967,14 +1008,14 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 	// Preload list of all replica sets
 	repSets, repErr := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{})
 	if repErr != nil {
-		log.Printf("Error retrieving list of replicasets for %s", namespace)
+		log.Println(fmt.Sprintf("Error retrieving list of replicasets for %s", namespace))
 		return repErr
 	}
 
 	// Preload list of all pods
 	allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
 	if podErr != nil {
-		log.Printf("Error retrieving list of pods for %s", namespace)
+		log.Println(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
 		return podErr
 	}
 
@@ -985,19 +1026,19 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 			continue
 		}
 
-		log.Printf("Deleting deployment orphan: %s", deleteThis.Name)
+		log.Println(fmt.Sprintf("Deleting deployment orphan: %s", deleteThis.Name))
 		err := depInterface.Deployments(namespace).Delete(deleteThis.Name, &meta_v1.DeleteOptions{})
 		if err != nil {
-			log.Printf("Error when deleting: %s", err)
+			log.Println(fmt.Sprintf("Error when deleting: %s", err))
 		}
 
 		// Delete the replicasets (cascade)
 		for _, repSet := range repSets.Items {
 			if repSet.ObjectMeta.Labels["app"] == deleteThis.Name {
-				log.Printf("Deleting replicaset orphan: %s", repSet.Name)
+				log.Println(fmt.Sprintf("Deleting replicaset orphan: %s", repSet.Name))
 				err := depInterface.ReplicaSets(namespace).Delete(repSet.Name, &meta_v1.DeleteOptions{})
 				if err != nil {
-					log.Printf("Error '%s' while deleting replica set %s", err, repSet.Name)
+					log.Println(fmt.Sprintf("Error '%s' while deleting replica set %s", err, repSet.Name))
 				}
 			}
 		}
@@ -1005,10 +1046,10 @@ func (x *Deployments) doDeploy(e transistor.Event) error {
 		// Delete the pods (cascade) or scale down the repset
 		for _, pod := range allPods.Items {
 			if pod.ObjectMeta.Labels["app"] == deleteThis.Name {
-				log.Printf("Deleting pod orphan: %s", pod.Name)
+				log.Println(fmt.Sprintf("Deleting pod orphan: %s", pod.Name))
 				err := coreInterface.Pods(namespace).Delete(pod.Name, &meta_v1.DeleteOptions{})
 				if err != nil {
-					log.Printf("Error '%s' while deleting pod %s", err, pod.Name)
+					log.Println(fmt.Sprintf("Error '%s' while deleting pod %s", err, pod.Name))
 				}
 			}
 		}

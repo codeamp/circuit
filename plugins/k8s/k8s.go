@@ -1,4 +1,4 @@
-package kubernetesutils
+package k8s
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,7 +16,70 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func CreateProjectExtensionEvent(e transistor.Event, action plugins.Action, state plugins.State, msg string, err error) transistor.Event {
+type K8s struct {
+	events chan transistor.Event
+}
+
+func init() {
+	transistor.RegisterPlugin("k8s", func() transistor.Plugin {
+		return &K8s{}
+	})
+}
+
+func (x *K8s) Description() string {
+	return "Kubernetes"
+
+}
+
+func (x *K8s) SampleConfig() string {
+	return ` `
+}
+
+func (x *K8s) Start(e chan transistor.Event) error {
+	x.events = e
+	log.Info("Started Kubernetes (k8s)")
+
+	return nil
+}
+
+func (x *K8s) Stop() {
+	log.Info("Stopping Kubernetes (k8s)")
+}
+
+func (x *K8s) Subscribe() []string {
+	return []string{
+		"plugins.ReleaseExtension:create:kubernetesdeployments",
+
+		"plugins.ProjectExtension:create:kubernetesdeployments",
+		"plugins.ProjectExtension:update:kubernetesdeployments",
+
+		"plugins.ProjectExtension:create:kubernetesloadbalancers",
+		"plugins.ProjectExtension:update:kubernetesloadbalancers",
+		"plugins.ProjectExtension:destroy:kubernetesloadbalancers",
+	}
+}
+
+func (x *K8s) Process(e transistor.Event) error {
+	log.InfoWithFields("Processing k8s event", log.Fields{
+		"event": e,
+	})
+
+	err := x.ProcessDeployment(e)
+	if err != nil {
+		log.Error(err)
+	}
+
+	err = x.ProcessLoadBalancer(e)
+	if err != nil {
+		log.Error(err)
+	}
+
+	return nil
+}
+
+/////////////////////////////////////////////////////////////////////
+
+func (x *K8s) CreateProjectExtensionEvent(e transistor.Event, action plugins.Action, state plugins.State, msg string, err error) transistor.Event {
 	payload := e.Payload.(plugins.ProjectExtension)
 	payload.State = state
 	payload.Action = action
@@ -24,19 +88,19 @@ func CreateProjectExtensionEvent(e transistor.Event, action plugins.Action, stat
 	return e.NewEvent(payload, err)
 }
 
-func GenNamespaceName(suggestedEnvironment string, projectSlug string) string {
+func (x *K8s) GenNamespaceName(suggestedEnvironment string, projectSlug string) string {
 	return fmt.Sprintf("%s-%s", suggestedEnvironment, projectSlug)
 }
 
-func GenDeploymentName(slugName string, serviceName string) string {
+func (x *K8s) GenDeploymentName(slugName string, serviceName string) string {
 	return slugName + "-" + serviceName
 }
 
-func GenOneShotServiceName(slugName string, serviceName string) string {
+func (x *K8s) GenOneShotServiceName(slugName string, serviceName string) string {
 	return "os-" + slugName + "-" + serviceName
 }
 
-func CreateNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
+func (x *K8s) CreateNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
 	// Create namespace if it does not exist.
 	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
@@ -65,7 +129,7 @@ func CreateNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Int
 	return nil
 }
 
-func GetTempDir() (string, error) {
+func (x *K8s) GetTempDir() (string, error) {
 	for {
 		filePath := fmt.Sprintf("/tmp/%s", uuid.NewV1().String())
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -81,8 +145,8 @@ func GetTempDir() (string, error) {
 	}
 }
 
-func SetupKubeConfig(e transistor.Event) (string, error) {
-	randomDirectory, err := GetTempDir()
+func (x *K8s) SetupKubeConfig(e transistor.Event) (string, error) {
+	randomDirectory, err := x.GetTempDir()
 	if err != nil {
 		log.Info(err.Error())
 		return "", err

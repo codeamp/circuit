@@ -1,4 +1,4 @@
-package kubernetesloadbalancers_test
+package k8s_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
-	"github.com/codeamp/circuit/plugins/kubernetes/loadbalancers/testdata"
+	"github.com/codeamp/circuit/plugins/k8s/testdata"
 	"github.com/codeamp/transistor"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ type TestSuite struct {
 
 var viperConfig = []byte(`
 plugins:
-  kubernetesloadbalancers:
+  k8s:
     workers: 1
 `)
 
@@ -33,24 +33,39 @@ func (suite *TestSuite) SetupSuite() {
 
 	config := transistor.Config{
 		Plugins:        viper.GetStringMap("plugins"),
-		EnabledPlugins: []string{"kubernetesloadbalancers"},
+		EnabledPlugins: []string{"k8s"},
 	}
 
 	ag, _ := transistor.NewTestTransistor(config)
 	suite.transistor = ag
 	go suite.transistor.Run()
 
-	// Test teardown of any existing LBs
 	suite.transistor.Events <- transistor.NewEvent(testdata.LBDataForTCP(plugins.Destroy, plugins.Office), nil)
 	_ = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 60)
-	// suite.agent.Events <- testdata.TearDownLBHTTPS(plugins.Internal)
-	// _ = suite.agent.GetTestEvent("plugins.LoadBalancer:status", 60)
-	// suite.agent.Events <- testdata.TearDownLBTCP(plugins.External)
-	// _ = suite.agent.GetTestEvent("plugins.LoadBalancer:status", 60)
-	// suite.agent.Events <- testdata.TearDownLBHTTPS(plugins.External)
-	// _ = suite.agent.GetTestEvent("plugins.LoadBalancer:status", 60)
 }
 
+// Deploys Tests
+func (suite *TestSuite) TestBasicSuccessDeploy() {
+	var e transistor.Event
+	suite.transistor.Events <- transistor.NewEvent(testdata.BasicReleaseExtension(), nil)
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 20)
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("running")))
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 120)
+	suite.T().Log(e.Payload.(plugins.ReleaseExtension).StateMessage)
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("complete")))
+}
+
+func (suite *TestSuite) TestBasicFailedDeploy() {
+	var e transistor.Event
+	suite.transistor.Events <- transistor.NewEvent(testdata.BasicFailedReleaseExtension(), nil)
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 20)
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("running")))
+	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 120)
+	suite.T().Log(e.Payload.(plugins.ReleaseExtension).StateMessage)
+	assert.Equal(suite.T(), string(e.Payload.(plugins.ReleaseExtension).State), string(plugins.GetState("failed")))
+}
+
+// Load Balancers Tests
 func (suite *TestSuite) TestLBTCPOffice() {
 	var e transistor.Event
 	payload := testdata.LBDataForTCP(plugins.Update, plugins.Office)
@@ -66,6 +81,13 @@ func (suite *TestSuite) TestLBTCPOffice() {
 
 }
 
-func TestLoadBalancers(t *testing.T) {
+func TestDeployments(t *testing.T) {
 	suite.Run(t, new(TestSuite))
+}
+
+func (suite *TestSuite) TearDownSuite() {
+	// TODO:
+	// teardown docker-io secret?
+	// teardown the deployment / namespaces
+	suite.transistor.Stop()
 }
