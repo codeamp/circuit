@@ -279,12 +279,17 @@ var cfMigrateCmd = &cobra.Command{
 							codeampServiceType = codeamp_plugins.GetType("one-shot")
 						}
 
+						count := codeflowService.Count
+						if codeflowService.Count > 2 {
+							count = 2
+						}
+
 						codeampService := codeamp_resolvers.Service{
 							ProjectID:     codeampProject.Model.ID,
 							ServiceSpecID: codeampServiceSpec.Model.ID,
 							Command:       codeflowService.Command,
 							EnvironmentID: env.Model.ID,
-							Count:         strconv.Itoa(codeflowService.Count),
+							Count:         strconv.Itoa(count),
 							Type:          codeampServiceType,
 							Name:          codeflowService.Name,
 						}
