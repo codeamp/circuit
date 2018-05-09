@@ -253,7 +253,7 @@ var cfMigrateCmd = &cobra.Command{
 							Value:         codeampSecretValue,
 						}
 
-						codeampDB.Debug().Where(codeamp_resolvers.Secret{Key: secret.Key, EnvironmentID: env.Model.ID, ProjectID: codeampProject.Model.ID}).Assign(codeampSecret).FirstOrCreate(&codeampSecret)
+						codeampDB.Debug().Where(codeamp_resolvers.Secret{Key: secret.Key, EnvironmentID: env.Model.ID, ProjectID: codeampProject.Model.ID, Type: codeamp_plugins.GetType(string(secret.Type))}).Assign(codeampSecret).FirstOrCreate(&codeampSecret)
 					}(secret, env, codeampProject)
 
 					// codeampDB.Debug().Create(&codeampSecretValue)
@@ -559,6 +559,7 @@ var cfMigrateCmd = &cobra.Command{
 						Config:        postgres.Jsonb{[]byte(`[]`)},
 						CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
 						EnvironmentID: env.Model.ID,
+						ProjectID:     codeampProject.Model.ID,
 					}
 					codeampDB.Debug().Where(`project_id = ? and environment_id = ? and extension_id = ?`,
 						codeampProject.Model.ID,
