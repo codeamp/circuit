@@ -309,6 +309,7 @@ var cfMigrateCmd = &cobra.Command{
 									ProjectID:     codeampProject.Model.ID,
 									Name:          codeflowService.Name,
 									EnvironmentID: env.Model.ID,
+									Type:          codeampServiceType,
 								}).Assign(codeampService).FirstOrCreate(&codeampService)
 
 								// create ports arr
