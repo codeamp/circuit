@@ -7,6 +7,7 @@ import (
 	"net"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -69,11 +70,11 @@ var cfMigrateCmd = &cobra.Command{
 		// fmt.Println("[+] Successfully cleaned Codeamp DB of all rows")
 
 		projects := []codeflow.Project{}
-		results := codeflowDB.Collection("projects").Find(bson.M{"deleted": false})
+		projectsResults := codeflowDB.Collection("projects").Find(bson.M{"deleted": false})
 		services := viper.GetStringSlice("services")
 		tmpCodeflowProject := codeflow.Project{}
 
-		for results.Next(&tmpCodeflowProject) {
+		for projectsResults.Next(&tmpCodeflowProject) {
 			for _, service := range services {
 				if tmpCodeflowProject.Name == service {
 					fmt.Println("found service ", tmpCodeflowProject.Name)
@@ -97,9 +98,9 @@ var cfMigrateCmd = &cobra.Command{
 		// create service specs
 		fmt.Println("[*] Porting service specs")
 		codeflowServiceSpec := codeflow.ServiceSpec{}
-		results = codeflowDB.Collection("serviceSpecs").Find(bson.M{})
+		serviceSpecResults := codeflowDB.Collection("serviceSpecs").Find(bson.M{})
 		// results.Query.All(&codeflowServiceSpecs)
-		for results.Next(&codeflowServiceSpec) {
+		for serviceSpecResults.Next(&codeflowServiceSpec) {
 			fmt.Println(fmt.Sprintf("[*] Transferring %s", codeflowServiceSpec.Name))
 			cpuRequest, err := strconv.Atoi(reg.ReplaceAllString(codeflowServiceSpec.CpuRequest, ""))
 			if err != nil {
@@ -154,9 +155,11 @@ var cfMigrateCmd = &cobra.Command{
 		if codeampDB.Debug().Where("email = ?", "kilgore@kilgore.trout").First(&codeampUser).RecordNotFound() {
 			panic("Could not find CodeAmp user with email kilgore@kilgore.trout")
 		}
-
+		var wg sync.WaitGroup
 		fmt.Println("[*] Porting projects")
 		for _, project := range projects {
+			fmt.Println("\n\n\n\n\n ---------------------- \n\n [+] STARTING PROJECT ", project.Slug)
+
 			// fmt.Println(fmt.Sprintf("[*] Creating corresponding CodeAmp project for %s", project.Slug))
 			codeampProject := codeamp_resolvers.Project{
 				Name:          project.Name,
@@ -219,36 +222,42 @@ var cfMigrateCmd = &cobra.Command{
 
 				// bson.M{ "deleted": false, "projectId": project.Id } not working
 				// so doing a manually-looped filter
-				results = codeflowDB.Collection("secrets").Find(bson.M{"projectId": bson.ObjectId(project.Id), "deleted": false})
-				results.Query.All(&codeflowSecrets)
+				secretResults := codeflowDB.Collection("secrets").Find(bson.M{"projectId": bson.ObjectId(project.Id), "deleted": false})
+				secretResults.Query.All(&codeflowSecrets)
 
-				codeampSecrets := []codeamp_resolvers.Secret{}
+				wg.Add(len(codeflowSecrets))
+
 				for _, secret := range codeflowSecrets {
-					fmt.Println(fmt.Sprintf("[*] Creating secret %s", secret.Key))
 
-					isSecret := false
-					if string(secret.Type) == "protected-env" {
-						isSecret = true
-					}
+					go func(secret codeflow.Secret, env codeamp_resolvers.Environment, codeampProject codeamp_resolvers.Project) {
+						defer wg.Done()
 
-					codeampSecret := codeamp_resolvers.Secret{
-						Key:           secret.Key,
-						Scope:         codeamp_resolvers.GetSecretScope("project"),
-						EnvironmentID: env.Model.ID,
-						IsSecret:      isSecret,
-						ProjectID:     codeampProject.Model.ID,
-						Type:          codeamp_plugins.GetType(string(secret.Type)),
-					}
-					codeampDB.Debug().Where(codeamp_resolvers.Secret{Key: secret.Key, EnvironmentID: env.Model.ID, ProjectID: codeampProject.Model.ID}).Assign(codeampSecret).FirstOrCreate(&codeampSecret, codeampSecret)
+						fmt.Println(fmt.Sprintf("[*] Creating secret %s", secret.Key))
+						isSecret := false
+						if string(secret.Type) == "protected-env" {
+							isSecret = true
+						}
 
-					codeampSecretValue := codeamp_resolvers.SecretValue{
-						SecretID: codeampSecret.Model.ID,
-						Value:    secret.Value,
-						UserID:   codeampUser.Model.ID,
-					}
-					codeampDB.Debug().Create(&codeampSecretValue)
-					codeampSecret.Value = codeampSecretValue
-					codeampSecrets = append(codeampSecrets, codeampSecret)
+						codeampSecretValue := codeamp_resolvers.SecretValue{
+							Value:  secret.Value,
+							UserID: codeampUser.Model.ID,
+						}
+
+						codeampSecret := codeamp_resolvers.Secret{
+							Key:           secret.Key,
+							Scope:         codeamp_resolvers.GetSecretScope("project"),
+							EnvironmentID: env.Model.ID,
+							IsSecret:      isSecret,
+							ProjectID:     codeampProject.Model.ID,
+							Type:          codeamp_plugins.GetType(string(secret.Type)),
+							Value:         codeampSecretValue,
+						}
+
+						codeampDB.Debug().Where(codeamp_resolvers.Secret{Key: secret.Key, EnvironmentID: env.Model.ID, ProjectID: codeampProject.Model.ID}).Assign(codeampSecret).FirstOrCreate(&codeampSecret)
+					}(secret, env, codeampProject)
+
+					// codeampDB.Debug().Create(&codeampSecretValue)
+					// codeampSecret.Value = codeampSecretValue
 
 					fmt.Println(fmt.Sprintf("[+] Successfully created Secret %s => %s", secret.Key, secret.Value))
 				}
@@ -257,66 +266,72 @@ var cfMigrateCmd = &cobra.Command{
 				fmt.Println("[*] Porting services...")
 				// find the services tied to the project
 				codeflowServices := []codeflow.Service{}
-				results = codeflowDB.Collection("services").Find(bson.M{"projectId": bson.ObjectId(project.Id)})
-				results.Query.All(&codeflowServices)
+				svcResults := codeflowDB.Collection("services").Find(bson.M{"projectId": bson.ObjectId(project.Id)})
+				svcResults.Query.All(&codeflowServices)
 				codeampServices := []codeamp_resolvers.Service{}
+
+				wg.Add(len(codeflowServices))
+
 				for _, codeflowService := range codeflowServices {
-					if string(codeflowService.State) != "deleted" {
-						fmt.Println("[*] Porting service ", codeflowService.Name, codeflowService.Id, codeflowService.SpecId)
-						// get service spec
-						codeflowServiceSpec := codeflow.ServiceSpec{}
-						results = codeflowDB.Collection("serviceSpecs").Find(bson.M{"_id": bson.ObjectId(codeflowService.SpecId)})
-						results.Query.One(&codeflowServiceSpec)
+					go func(codeampProject codeamp_resolvers.Project, env codeamp_resolvers.Environment, codeflowService codeflow.Service) {
+						defer wg.Done()
 
-						codeampServiceSpec := codeamp_resolvers.ServiceSpec{}
-						if codeampDB.Debug().Where("name = ?", codeflowServiceSpec.Name).First(&codeampServiceSpec).RecordNotFound() {
-							fmt.Println(fmt.Sprintf("[-] Could not find ServiceSpec %s in CodeAmp", codeflowServiceSpec.Name))
-							continue
-						}
+						if string(codeflowService.State) != "deleted" {
+							fmt.Println("[*] Porting service ", codeflowService.Name, codeflowService.Id, codeflowService.SpecId)
+							// get service spec
+							codeflowServiceSpec := codeflow.ServiceSpec{}
+							svcSpecResults := codeflowDB.Collection("serviceSpecs").Find(bson.M{"_id": bson.ObjectId(codeflowService.SpecId)})
+							svcSpecResults.Query.One(&codeflowServiceSpec)
 
-						codeampServiceType := codeamp_plugins.GetType("general")
-						if codeflowService.OneShot {
-							codeampServiceType = codeamp_plugins.GetType("one-shot")
-						}
+							codeampServiceSpec := codeamp_resolvers.ServiceSpec{}
+							if !codeampDB.Debug().Where("name = ?", codeflowServiceSpec.Name).First(&codeampServiceSpec).RecordNotFound() {
+								// fmt.Println(fmt.Sprintf("[-] Could not find ServiceSpec %s in CodeAmp", codeflowServiceSpec.Name))
+								codeampServiceType := codeamp_plugins.GetType("general")
+								if codeflowService.OneShot {
+									codeampServiceType = codeamp_plugins.GetType("one-shot")
+								}
 
-						count := codeflowService.Count
-						if codeflowService.Count > 2 {
-							count = 2
-						}
+								count := codeflowService.Count
+								if codeflowService.Count > 2 {
+									count = 2
+								}
 
-						codeampService := codeamp_resolvers.Service{
-							ProjectID:     codeampProject.Model.ID,
-							ServiceSpecID: codeampServiceSpec.Model.ID,
-							Command:       codeflowService.Command,
-							EnvironmentID: env.Model.ID,
-							Count:         strconv.Itoa(count),
-							Type:          codeampServiceType,
-							Name:          codeflowService.Name,
-						}
-						codeampDB.Debug().Where(codeamp_resolvers.Service{
-							ProjectID:     codeampProject.Model.ID,
-							Name:          codeflowService.Name,
-							EnvironmentID: env.Model.ID,
-						}).Assign(codeampService).FirstOrCreate(&codeampService)
+								codeampService := codeamp_resolvers.Service{
+									ProjectID:     codeampProject.Model.ID,
+									ServiceSpecID: codeampServiceSpec.Model.ID,
+									Command:       codeflowService.Command,
+									EnvironmentID: env.Model.ID,
+									Count:         strconv.Itoa(count),
+									Type:          codeampServiceType,
+									Name:          codeflowService.Name,
+								}
+								codeampDB.Debug().Where(codeamp_resolvers.Service{
+									ProjectID:     codeampProject.Model.ID,
+									Name:          codeflowService.Name,
+									EnvironmentID: env.Model.ID,
+								}).Assign(codeampService).FirstOrCreate(&codeampService)
 
-						// create ports arr
-						codeampPorts := []codeamp_resolvers.ServicePort{}
-						for _, codeflowPort := range codeflowService.Listeners {
-							codeampPort := codeamp_resolvers.ServicePort{
-								ServiceID: codeampService.Model.ID,
-								Port:      strconv.Itoa(codeflowPort.Port),
-								Protocol:  codeflowPort.Protocol,
+								// create ports arr
+								codeampPorts := []codeamp_resolvers.ServicePort{}
+								for _, codeflowPort := range codeflowService.Listeners {
+									codeampPort := codeamp_resolvers.ServicePort{
+										ServiceID: codeampService.Model.ID,
+										Port:      strconv.Itoa(codeflowPort.Port),
+										Protocol:  codeflowPort.Protocol,
+									}
+
+									codeampDB.Debug().Where(codeamp_resolvers.ServicePort{
+										ServiceID: codeampService.Model.ID,
+										Port:      strconv.Itoa(codeflowPort.Port),
+										Protocol:  codeflowPort.Protocol,
+									}).Assign(codeampPort).FirstOrCreate(&codeampPort)
+									codeampPorts = append(codeampPorts, codeampPort)
+								}
+								codeampService.Ports = codeampPorts
+								codeampServices = append(codeampServices, codeampService)
 							}
-							codeampDB.Debug().Where(codeamp_resolvers.ServicePort{
-								ServiceID: codeampService.Model.ID,
-								Port:      strconv.Itoa(codeflowPort.Port),
-								Protocol:  codeflowPort.Protocol,
-							}).Assign(codeampPort).FirstOrCreate(&codeampPort)
-							codeampPorts = append(codeampPorts, codeampPort)
 						}
-						codeampService.Ports = codeampPorts
-						codeampServices = append(codeampServices, codeampService)
-					}
+					}(codeampProject, env, codeflowService)
 				}
 				fmt.Println("[+] Succesfully ported services! \n")
 
@@ -326,9 +341,11 @@ var cfMigrateCmd = &cobra.Command{
 					EnvironmentID:    env.Model.ID,
 					ProjectID:        codeampProject.Model.ID,
 					GitBranch:        "master",
-					ContinuousDeploy: false,
+					ContinuousDeploy: project.ContinuousDelivery,
 				}
+
 				codeampDB.Debug().Where(codeamp_resolvers.ProjectSettings{EnvironmentID: env.Model.ID, ProjectID: codeampProject.Model.ID}).Assign(projectSettings).FirstOrCreate(&projectSettings)
+
 				fmt.Println("[+] Successfully created ProjectSettings")
 
 				fmt.Println("[*] Creating ProjectEnvironment permission... ", env, codeampProject.Slug)
@@ -364,14 +381,14 @@ var cfMigrateCmd = &cobra.Command{
 				}).Assign(dockerBuilderProjectExtension).FirstOrCreate(&dockerBuilderProjectExtension)
 
 				// get relevant information for project's corresponding load balancers in codeflow
-				results = codeflowDB.Collection("extensions").Find(bson.M{
+				extensionResults := codeflowDB.Collection("extensions").Find(bson.M{
 					"projectId": bson.ObjectId(project.Id),
 					"extension": "LoadBalancer",
 					"state":     "complete",
 				})
 				codeflowLoadBalancer := codeflow.LoadBalancer{}
 				// results.Query.All(&codeflowLoadBalancers)
-				for results.Next(&codeflowLoadBalancer) {
+				for extensionResults.Next(&codeflowLoadBalancer) {
 					listenerPairs := []map[string]string{}
 					codeflowService := codeflow.Service{}
 					codeampService := codeamp_resolvers.Service{}
@@ -520,11 +537,33 @@ var cfMigrateCmd = &cobra.Command{
 							CustomConfig:  postgres.Jsonb{marshaledRoute53CustomConfig},
 							EnvironmentID: env.Model.ID,
 						}
-						codeampDB.Debug().Where("project_id = ? and environment_id = ? and custom_config ->> 'subdomain' = ?",
+						codeampDB.Debug().Where("project_id = ? and environment_id = ? and extension_id = ? and custom_config ->> 'subdomain' = ?",
 							codeampProject.Model.ID,
 							env.Model.ID,
+							route53DBExtension.Model.ID,
 							codeflowLoadBalancer.Subdomain).Assign(r53ProjectExtension).FirstOrCreate(&r53ProjectExtension)
 					}
+				}
+
+				// Create GithubStatus extension for Continuous Integration
+				if project.ContinuousIntegration {
+					githubStatusDBExtension := codeamp_resolvers.Extension{}
+					if codeampDB.Debug().Where("environment_id = ? and key = ?", env.Model.ID, "githubstatus").Find(&githubStatusDBExtension).RecordNotFound() {
+						panic(err.Error())
+					}
+
+					githubStatusProjectExtension := codeamp_resolvers.ProjectExtension{
+						ExtensionID:   githubStatusDBExtension.Model.ID,
+						State:         codeamp_plugins.GetState("complete"),
+						StateMessage:  "Migrated, click update to send an event.",
+						Config:        postgres.Jsonb{[]byte(`[]`)},
+						CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
+						EnvironmentID: env.Model.ID,
+					}
+					codeampDB.Debug().Where(`project_id = ? and environment_id = ? and extension_id = ?`,
+						codeampProject.Model.ID,
+						env.Model.ID,
+						githubStatusDBExtension.Model.ID).Assign(githubStatusProjectExtension).FirstOrCreate(&githubStatusProjectExtension)
 				}
 
 				// Create Kubernetes Deployments extension
@@ -582,14 +621,16 @@ var cfMigrateCmd = &cobra.Command{
 					time.Sleep(1)
 				}
 
-				results = codeflowDB.Collection("releases").Find(bson.M{"projectId": bson.ObjectId(project.Id)})
+				releasesResults := codeflowDB.Collection("releases").Find(bson.M{"projectId": bson.ObjectId(project.Id), "state": "complete"})
 				latestCodeflowRelease := codeflow.Release{}
-				codeflowRelease := codeflow.Release{}
-				for results.Next(&codeflowRelease) {
-					if string(codeflowRelease.State) == "complete" && latestCodeflowRelease.Created.Unix() < codeflowRelease.Created.Unix() {
-						latestCodeflowRelease = codeflowRelease
-					}
-				}
+
+				releasesResults.Query.Sort("-$natural").One(&latestCodeflowRelease)
+
+				// for releasesResults.Next(&codeflowRelease) {
+				// 	if string(codeflowRelease.State) == "complete" && latestCodeflowRelease.Created.Unix() < codeflowRelease.Created.Unix() {
+				// 		latestCodeflowRelease = codeflowRelease
+				// 	}
+				// }
 
 				// spew.Dump(latestCodeflowRelease.State, latestCodeflowRelease.Id.Hex())
 				if string(latestCodeflowRelease.State) == "" || latestCodeflowRelease.Id.Hex() == "" {
@@ -601,8 +642,8 @@ var cfMigrateCmd = &cobra.Command{
 					// head feature
 					codeflowReleaseHeadFeature := codeflow.Feature{}
 
-					results = codeflowDB.Collection("features").Find(bson.M{"_id": bson.ObjectId(latestCodeflowRelease.HeadFeatureId)})
-					results.Query.One(&codeflowReleaseHeadFeature)
+					featureResults := codeflowDB.Collection("features").Find(bson.M{"_id": bson.ObjectId(latestCodeflowRelease.HeadFeatureId)})
+					featureResults.Query.One(&codeflowReleaseHeadFeature)
 
 					fmt.Println(codeflowReleaseHeadFeature.Message)
 
@@ -624,8 +665,8 @@ var cfMigrateCmd = &cobra.Command{
 					if latestCodeflowRelease.TailFeatureId != latestCodeflowRelease.HeadFeatureId {
 						// tail feature
 						codeflowReleaseTailFeature := codeflow.Feature{}
-						results = codeflowDB.Collection("features").Find(bson.M{"_id": bson.ObjectId(latestCodeflowRelease.TailFeatureId)})
-						results.Query.One(&codeflowReleaseTailFeature)
+						tailFeatureResults := codeflowDB.Collection("features").Find(bson.M{"_id": bson.ObjectId(latestCodeflowRelease.TailFeatureId)})
+						tailFeatureResults.Query.One(&codeflowReleaseTailFeature)
 
 						if codeflowReleaseTailFeature.Message == "" {
 							// spew.Dump(codeflowReleaseTailFeature)
@@ -665,10 +706,11 @@ var cfMigrateCmd = &cobra.Command{
 				fmt.Println(fmt.Sprintf("Done filling objects in env %s", env.Key))
 			}
 
-			fmt.Println(fmt.Sprintf("[+] Successfully *fully* created %s for envs %s \n\n", project.Slug, envs))
+			fmt.Println(fmt.Sprintf("[+] Successfully *fully* created %s for envs %s \n\n ----------------------- \n\n\n", project.Slug, envs))
 		}
-
 		fmt.Println("[+] Finished porting all projects!")
+
+		wg.Wait()
 
 		fmt.Println("[*] Finding all secrets that use old load balancer names and changing to the new ones")
 
@@ -677,7 +719,7 @@ var cfMigrateCmd = &cobra.Command{
 			var services []codeamp_resolvers.Service
 
 			// query codeamp for OldServiceName
-			codeampDB.Where("value like ?", fmt.Sprintf("%%%s.%%", svcNameMapping.OldServiceName)).Find(&secretValues)
+			codeampDB.Where("value like ?", fmt.Sprintf("%%%s%%", svcNameMapping.OldServiceName)).Find(&secretValues)
 
 			for _, secret := range secretValues {
 				result := strings.Replace(secret.Value, svcNameMapping.OldServiceName, svcNameMapping.NewServiceName, 1)
