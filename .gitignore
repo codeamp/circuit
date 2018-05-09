@@ -42,3 +42,4 @@ configs/*.dev2.yml
 bootstrap/postgres/data/
 circuit
 dbdata/*
+output.txt
