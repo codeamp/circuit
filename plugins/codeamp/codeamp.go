@@ -624,7 +624,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		log.InfoWithFields("user not found", log.Fields{
 			"id": release.UserID,
 		})
-		return
 	}
 
 	// get all branches relevant for the projec
