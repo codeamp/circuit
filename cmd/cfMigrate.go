@@ -292,9 +292,9 @@ var cfMigrateCmd = &cobra.Command{
 								}
 
 								count := codeflowService.Count
-								if codeflowService.Count > 2 {
-									count = 2
-								}
+								// if codeflowService.Count > 2 {
+								// 	count = 2
+								// }
 
 								codeampService := codeamp_resolvers.Service{
 									ProjectID:     codeampProject.Model.ID,
