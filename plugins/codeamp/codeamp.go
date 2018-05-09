@@ -388,7 +388,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				eventState := plugins.GetState("waiting")
 
 				// check if can cache workflows
-				if !release.ForceRebuild && !x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete", "failed"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+				if !release.ForceRebuild && !x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
 					eventAction = plugins.GetAction("status")
 					eventState = lastReleaseExtension.State
 
