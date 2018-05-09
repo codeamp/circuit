@@ -69,21 +69,6 @@ func (x *K8s) ProcessDeployment(e transistor.Event) error {
 	return nil
 }
 
-type SimplePodSpec struct {
-	Name          string
-	DeployPorts   []v1.ContainerPort
-	ReadyProbe    v1.Probe
-	LiveProbe     v1.Probe
-	RestartPolicy v1.RestartPolicy
-	NodeSelector  map[string]string
-	Args          []string
-	Service       plugins.Service
-	Image         string
-	Env           []v1.EnvVar
-	VolumeMounts  []v1.VolumeMount
-	Volumes       []v1.Volume
-}
-
 func int32Ptr(i int32) *int32 { return &i }
 
 func genDeploymentName(slugName string, serviceName string) string {
@@ -325,14 +310,15 @@ func (x *K8s) doDeploy(e transistor.Event) error {
 		return err
 	}
 
+	log.Info(kubeconfig)
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
 	if err != nil {
-		log.Println(fmt.Sprintf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err))
+		log.Error(fmt.Sprintf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err))
 		config, err = clientcmd.BuildConfigFromFlags("", "")
 		if err != nil {
-			log.Println(fmt.Sprintf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err))
+			log.Error(fmt.Sprintf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err))
 			x.sendDDErrorResponse(e, "failed writing kubeconfig")
 			return err
 		}

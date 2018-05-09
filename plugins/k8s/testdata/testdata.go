@@ -5,6 +5,7 @@ import (
 	"path"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/transistor"
 )
 
 func GetCreateProjectExtension() plugins.ProjectExtension {
@@ -94,34 +95,51 @@ func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.ProjectExtensio
 		Action:      action,
 		Environment: "testing",
 		Project:     project,
-		// FormValues:  formValues,
-		// Artifacts:   map[string]string{},
 	}
 	return lbe
 }
 
-func BasicFailedReleaseExtension() plugins.ReleaseExtension {
-	d := BasicReleaseExtension()
-	d.Release.Services[0].Command = "/bin/false"
-	return d
+func BasicFailedReleaseEvent() transistor.Event {
+	extension := BasicReleaseExtension()
+	extension.Release.Services[0].Command = "/bin/false"
+
+	event := transistor.NewEvent(extension, nil)
+	AddBasicReleaseExtensionArtifacts(extension, &event)
+
+	return event
+}
+
+func AddBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
+	kubeConfigPath := os.Getenv("KUBECONFIG_PATH")
+
+	event.AddArtifact("kubeconfig", kubeConfigPath, false)
+	event.AddArtifact("client_certificate", "", false)
+	event.AddArtifact("client_key", "", false)
+	event.AddArtifact("certificate_authority", "", false)
+	event.AddArtifact("client_key", "", false)
+
+	event.AddArtifact("dockerbuilder_user", "test", false)
+	event.AddArtifact("dockerbuilder_password", "test", false)
+	event.AddArtifact("dockerbuilder_email", "test", false)
+	event.AddArtifact("dockerbuilder_host", "test", false)
+}
+
+func BasicReleaseEvent() transistor.Event {
+	extension := BasicReleaseExtension()
+
+	event := transistor.NewEvent(extension, nil)
+	AddBasicReleaseExtensionArtifacts(extension, &event)
+
+	return event
 }
 
 func BasicReleaseExtension() plugins.ReleaseExtension {
-	formValues := make(map[string]interface{})
-	var kubeconfig string
-	// If this is not set the test will use inClusterConfig
-	kubeconfig = os.Getenv("KUBECONFIG")
-	formValues["KUBECONFIG"] = kubeconfig
-	formValues["DOCKERBUILDER_PASSWORD"] = "test"
-	formValues["DOCKERBUILDER_USER"] = "test"
-	formValues["DOCKERBUILDER_EMAIL"] = "test"
-	formValues["DOCKERBUILDER_HOST"] = "test"
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
 	artifacts := make(map[string]interface{})
 	artifacts["IMAGE"] = "dev-registry.checkrhq.net/checkr/checkr-deploy-test:latest"
 
-	releaseEvent := plugins.Release{
+	release := plugins.Release{
 		Project: plugins.Project{
 			Repository: "checkr/deploy-test",
 		},
@@ -162,16 +180,14 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 			Message:    "Test",
 		},
 		Environment: "testing",
-		// Artifacts:   artifacts,
 	}
 
-	releaseExtensionEvent := plugins.ReleaseExtension{
+	releaseExtension := plugins.ReleaseExtension{
 		Slug:    "kubernetesdeployments",
 		Action:  plugins.GetAction("create"),
 		State:   plugins.GetState("waiting"),
-		Release: releaseEvent,
-		// Artifacts: artifacts,
+		Release: release,
 	}
 
-	return releaseExtensionEvent
+	return releaseExtension
 }

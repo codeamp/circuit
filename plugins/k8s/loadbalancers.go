@@ -23,7 +23,8 @@ func (x *K8s) ProcessLoadBalancer(e transistor.Event) error {
 		"event": e,
 	})
 
-	if strings.Contains(e.Name, "kubernetesdeployments") == true {
+	if strings.Contains(e.Name, "kubernetesloadbalancers") == true {
+		log.Info(e)
 		event := e.Payload.(plugins.ProjectExtension)
 
 		var err error
@@ -40,27 +41,25 @@ func (x *K8s) ProcessLoadBalancer(e transistor.Event) error {
 			event.Action = plugins.GetAction("status")
 			event.State = plugins.GetState("failed")
 			event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State)
-			log.Debug(event.StateMessage)
 			event := e.NewEvent(event, err)
 			x.events <- event
 			return err
+		} else {
+			var extensionEvent plugins.ProjectExtension
+			extensionEvent = e.Payload.(plugins.ProjectExtension)
+			extensionEvent.Action = plugins.GetAction("status")
+			extensionEvent.State = plugins.GetState("complete")
+
+			x.events <- e.NewEvent(extensionEvent, nil)
+			return nil
 		}
 	}
-
-	log.Info("Processed LoadBalancer Events")
 
 	return nil
 }
 
-type ListenerPair struct {
-	Name       string
-	Protocol   string
-	SourcePort int32
-	TargetPort int32
-}
-
 func (x *K8s) doLoadBalancer(e transistor.Event) error {
-	log.Println("doLoadBalancer")
+	log.Info("doLoadBalancer")
 
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
@@ -124,7 +123,7 @@ func (x *K8s) doLoadBalancer(e transistor.Event) error {
 
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Println(failMessage)
+		log.Info(failMessage)
 		x.events <- x.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return err
 	}
@@ -132,7 +131,7 @@ func (x *K8s) doLoadBalancer(e transistor.Event) error {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
-		log.Println(failMessage)
+		log.Info(failMessage)
 		x.events <- x.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return nil
 	}
@@ -334,7 +333,7 @@ func (x *K8s) doLoadBalancer(e transistor.Event) error {
 }
 
 func (x *K8s) doDeleteLoadBalancer(e transistor.Event) error {
-	log.Println("doDeleteLoadBalancer")
+	log.Info("doDeleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 	kubeconfig, err := x.SetupKubeConfig(e)
@@ -350,7 +349,7 @@ func (x *K8s) doDeleteLoadBalancer(e transistor.Event) error {
 
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Println(failMessage)
+		log.Info(failMessage)
 		x.events <- x.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return err
 	}
@@ -358,7 +357,7 @@ func (x *K8s) doDeleteLoadBalancer(e transistor.Event) error {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
-		log.Println(failMessage)
+		log.Info(failMessage)
 		x.events <- x.CreateProjectExtensionEvent(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, err)
 		return nil
 	}
@@ -382,7 +381,7 @@ func (x *K8s) doDeleteLoadBalancer(e transistor.Event) error {
 	coreInterface := clientset.Core()
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
 
-	log.Println(namespace, lbName.String())
+	log.Info(namespace, lbName.String())
 	_, svcGetErr := coreInterface.Services(namespace).Get(lbName.String(), meta_v1.GetOptions{})
 	if svcGetErr == nil {
 		// Service was found, ready to delete

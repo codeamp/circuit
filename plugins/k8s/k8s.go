@@ -126,9 +126,9 @@ func (x *K8s) GetTempDir() (string, error) {
 	for {
 		filePath := fmt.Sprintf("/tmp/%s", uuid.NewV1().String())
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			log.Info("directory does not exist")
+			log.Info("directory does not exist, creating.")
 			// create the file
-			err = os.MkdirAll(filePath, os.ModeDir)
+			err = os.MkdirAll(filePath, os.ModeDir|0700)
 			if err != nil {
 				log.Info(err.Error())
 				return "", err
@@ -165,7 +165,13 @@ func (x *K8s) SetupKubeConfig(e transistor.Event) (string, error) {
 		return "", err
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.String()), 0644)
+	kubeConfigData, err := ioutil.ReadFile(kubeconfig.String())
+	if err != nil {
+		log.Info(err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), kubeConfigData, 0644)
 	if err != nil {
 		log.Info(err.Error())
 		return "", err
@@ -175,7 +181,7 @@ func (x *K8s) SetupKubeConfig(e transistor.Event) (string, error) {
 		log.Info("ERROR: %s", err.Error())
 		return "", err
 	}
-	log.Info("Using kubeconfig file: %s", fmt.Sprintf("%s/kubeconfig", randomDirectory))
+	log.Info("Using kubeconfig file: ", fmt.Sprintf("%s/kubeconfig", randomDirectory))
 
 	// generate client cert, client key
 	// certificate authority
