@@ -1487,7 +1487,7 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 
 	for i, ec := range extensionConfig {
 		for _, pc := range projectConfig {
-			if ec.AllowOverride && ec.Key == pc.Key {
+			if ec.AllowOverride && ec.Key == pc.Key && pc.Value != "" {
 				extensionConfig[i].Value = pc.Value
 			}
 		}
