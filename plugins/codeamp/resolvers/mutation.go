@@ -378,6 +378,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		if err != nil {
 			return &ReleaseResolver{}, errors.New("Could not unmarshal services")
 		}
+
+		err = json.Unmarshal(secretsJsonb.RawMessage, &secrets)
+		if err != nil {
+			return &ReleaseResolver{}, errors.New("Could not unmarshal secrets")
+		}
 	}
 
 	// check if there's a previous release in waiting state that
