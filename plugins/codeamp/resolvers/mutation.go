@@ -213,7 +213,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 
 	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
 	if len(releaseExtensions) < 1 {
-		return nil, errors.New("No Release Extensions found for release")
+		log.Info("No release extensions found for release")
 	}
 
 	if r.DB.Where("id = ?", args.ID).Find(&release).RecordNotFound() {
@@ -353,6 +353,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 		projectExtensionsJsonb = postgres.Jsonb{projectExtensionsMarshaled}
 	} else {
+		log.Info(fmt.Sprintf("Existing Release. Rolling back %s", args.Release.ID))
 		// Rollback
 		release := Release{}
 
@@ -366,6 +367,17 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		secretsJsonb = release.Secrets
 		servicesJsonb = release.Services
 		projectExtensionsJsonb = release.ProjectExtensions
+
+		// unmarshal projectExtensionsJsonb and servicesJsonb into project extensions
+		err := json.Unmarshal(projectExtensionsJsonb.RawMessage, &projectExtensions)
+		if err != nil {
+			return &ReleaseResolver{}, errors.New("Could not unmarshal project extensions")
+		}
+
+		err = json.Unmarshal(servicesJsonb.RawMessage, &services)
+		if err != nil {
+			return &ReleaseResolver{}, errors.New("Could not unmarshal services")
+		}
 	}
 
 	// check if there's a previous release in waiting state that
@@ -1194,6 +1206,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	// check if extension already exists with project
 	// ignore if the extension type is 'once' (installable many times)
 	if extension.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
+
 		projectExtension = ProjectExtension{
 			ExtensionID:   extension.Model.ID,
 			ProjectID:     project.Model.ID,
