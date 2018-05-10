@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -68,10 +69,21 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 	log.Info("Processing GithubStatus event")
 	e.Dump()
 
+	timeoutLimit, err := e.GetArtifact("timeout_seconds")
+	if err != nil {
+		return err
+	}
+
+	timeoutLimitInt, err := strconv.Atoi(timeoutLimit.String())
+	if err != nil {
+		return err
+	}
+
 	username, err := e.GetArtifact("username")
 	if err != nil {
 		return err
 	}
+
 	token, err := e.GetArtifact("personal_access_token")
 	if err != nil {
 		return err
@@ -124,10 +136,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus release extension event: %s", e.Name), log.Fields{})
 			// get status and check if complete
 			client := &http.Client{}
-			timeoutLimit, err := e.GetArtifact("timeout_seconds")
-			if err != nil {
-				return err
-			}
+
 			if err != nil {
 				failedEvent := e.Payload.(plugins.ProjectExtension)
 				failedEvent.State = plugins.GetState("failed")
@@ -136,8 +145,8 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				x.events <- e.NewEvent(failedEvent, err)
 				return nil
 			}
-			timeout := 0
 
+			timeout := 0
 			for {
 				req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", event.Release.Project.Repository, event.Release.HeadFeature.Hash), nil)
 				if err != nil {
@@ -219,7 +228,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				}
 				timeout++
 				time.Sleep(1 * time.Second)
-				if timeout >= timeoutLimit.Int() {
+				if timeout >= timeoutLimitInt {
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
 					failedEvent.Action = plugins.GetAction("status")
