@@ -1211,6 +1211,54 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	// check if extension already exists with project
 	// ignore if the extension type is 'once' (installable many times)
 	if extension.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
+		if extension.Key == "route53" {
+			// HOTFIX: check for existing subdomains for route53
+			unmarshaledCustomConfig := make(map[string]interface{})
+			err := json.Unmarshal(args.ProjectExtension.CustomConfig.RawMessage, &unmarshaledCustomConfig)
+			if err != nil {
+				return &ProjectExtensionResolver{}, errors.New("Could not unmarshal custom config")
+			}
+			extensionConfig := []map[string]interface{}{}
+			err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
+			if err != nil {
+				return &ProjectExtensionResolver{}, err
+			}
+
+			hostedZoneId := ""
+			for _, configValue := range extensionConfig {
+				if configValue["key"].(string) == "HOSTED_ZONE_ID" {
+					hostedZoneId = configValue["value"].(string)
+					break
+				}
+			}
+
+			existingProjectExtensions := GetProjectExtensionsWithRoute53Subdomain(unmarshaledCustomConfig["subdomain"].(string), r.DB)
+			for _, existingProjectExtension := range existingProjectExtensions {
+				if existingProjectExtension.Model.ID.String() != "" {
+					// check if HOSTED_ZONE_ID is the same
+					var tmpExtension Extension
+
+					r.DB.Where("id = ?", existingProjectExtension.ExtensionID).First(&tmpExtension)
+
+					tmpExtensionConfig := []map[string]interface{}{}
+					err := json.Unmarshal(tmpExtension.Config.RawMessage, &tmpExtensionConfig)
+					if err != nil {
+						return &ProjectExtensionResolver{}, err
+					}
+
+					for _, configValue := range tmpExtensionConfig {
+						if configValue["key"].(string) == "HOSTED_ZONE_ID" &&
+							configValue["value"].(string) == hostedZoneId {
+							errMsg := "There is a route53 project extension with inputted subdomain already."
+							log.InfoWithFields(errMsg, log.Fields{
+								"project_extension_id": existingProjectExtension.Model.ID.String(),
+							})
+							return &ProjectExtensionResolver{}, errors.New(errMsg)
+						}
+					}
+				}
+			}
+		}
 
 		projectExtension = ProjectExtension{
 			ExtensionID:   extension.Model.ID,
@@ -1283,6 +1331,55 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 			"id": args.ProjectExtension.EnvironmentID,
 		})
 		return nil, errors.New("No environment found.")
+	}
+
+	if extension.Key == "route53" {
+		// HOTFIX: check for existing subdomains for route53
+		unmarshaledCustomConfig := make(map[string]interface{})
+		err := json.Unmarshal(args.ProjectExtension.CustomConfig.RawMessage, &unmarshaledCustomConfig)
+		if err != nil {
+			return &ProjectExtensionResolver{}, errors.New("Could not unmarshal custom config")
+		}
+		extensionConfig := []map[string]interface{}{}
+		err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
+		if err != nil {
+			return &ProjectExtensionResolver{}, err
+		}
+
+		hostedZoneId := ""
+		for _, configValue := range extensionConfig {
+			if configValue["key"].(string) == "HOSTED_ZONE_ID" {
+				hostedZoneId = configValue["value"].(string)
+				break
+			}
+		}
+
+		existingProjectExtensions := GetProjectExtensionsWithRoute53Subdomain(unmarshaledCustomConfig["subdomain"].(string), r.DB)
+		for _, existingProjectExtension := range existingProjectExtensions {
+			if existingProjectExtension.Model.ID.String() != "" {
+				// check if HOSTED_ZONE_ID is the same
+				var tmpExtension Extension
+
+				r.DB.Where("id = ?", existingProjectExtension.ExtensionID).First(&tmpExtension)
+
+				tmpExtensionConfig := []map[string]interface{}{}
+				err := json.Unmarshal(tmpExtension.Config.RawMessage, &tmpExtensionConfig)
+				if err != nil {
+					return &ProjectExtensionResolver{}, err
+				}
+
+				for _, configValue := range tmpExtensionConfig {
+					if configValue["key"].(string) == "HOSTED_ZONE_ID" &&
+						configValue["value"].(string) == hostedZoneId {
+						errMsg := "There is a route53 project extension with inputted subdomain already."
+						log.InfoWithFields(errMsg, log.Fields{
+							"project_extension_id": existingProjectExtension.Model.ID.String(),
+						})
+						return &ProjectExtensionResolver{}, errors.New(errMsg)
+					}
+				}
+			}
+		}
 	}
 
 	projectExtension.Config = postgres.Jsonb{args.ProjectExtension.Config.RawMessage}
@@ -1484,6 +1581,16 @@ func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql
 		r.DB.Delete(&projectBookmark)
 		return false, nil
 	}
+}
+
+func GetProjectExtensionsWithRoute53Subdomain(subdomain string, db *gorm.DB) []ProjectExtension {
+	var existingProjectExtensions []ProjectExtension
+
+	if db.Where("custom_config ->> 'subdomain' = ?", subdomain).Find(&existingProjectExtensions).RecordNotFound() {
+		return []ProjectExtension{}
+	}
+
+	return existingProjectExtensions
 }
 
 /* fills in Config by querying config ids and getting the actual value */
