@@ -10,6 +10,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	log "github.com/codeamp/logger"
 )
@@ -89,6 +90,8 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		return err
 	}
 
+	spew.Dump(timeoutLimit, timeoutLimitInt, username, token)
+
 	if e.Matches("plugins.ProjectExtension") {
 		event := e.Payload.(plugins.ProjectExtension)
 
@@ -137,6 +140,8 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			// get status and check if complete
 			client := &http.Client{}
 
+			spew.Dump(event)
+
 			if err != nil {
 				failedEvent := e.Payload.(plugins.ProjectExtension)
 				failedEvent.State = plugins.GetState("failed")
@@ -148,6 +153,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 			timeout := 0
 			for {
+				spew.Dump(timeout, "looping")
 				req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", event.Release.Project.Repository, event.Release.HeadFeature.Hash), nil)
 				if err != nil {
 					log.Info(err.Error())
@@ -161,6 +167,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				req.SetBasicAuth(username.String(), token.String())
 
 				resp, _ := client.Do(req)
+				spew.Dump(resp.StatusCode, resp.Status)
 				if resp.StatusCode == 200 {
 					// send an event that we're successfully getting data from github status API
 					statusEvent := e.Payload.(plugins.ReleaseExtension)
@@ -179,6 +186,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						return nil
 					}
 					resp.Body.Close()
+					spew.Dump(combinedStatusBody)
 					// unmarshal into interface
 					var statusBodyInterface interface{}
 					if err := json.Unmarshal([]byte(combinedStatusBody), &statusBodyInterface); err != nil {
@@ -189,6 +197,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						x.events <- e.NewEvent(failedEvent, err)
 						return nil
 					} else {
+						spew.Dump(statusBodyInterface)
 						if len(statusBodyInterface.(map[string]interface{})["statuses"].([]interface{})) == 0 || statusBodyInterface.(map[string]interface{})["state"].(string) == "success" {
 							responseEvent := e.Payload.(plugins.ReleaseExtension)
 							responseEvent.State = plugins.GetState("complete")
@@ -227,7 +236,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					return nil
 				}
 				timeout++
+				spew.Dump("timeout++", timeout)
 				time.Sleep(1 * time.Second)
+				spew.Dump(timeout >= timeoutLimitInt)
 				if timeout >= timeoutLimitInt {
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
