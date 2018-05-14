@@ -97,7 +97,7 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		c, err := resolver.Redis.Get(fmt.Sprintf("%s_%s_1", idToken.Nonce, claims.Email)).Result()
+		c, err := resolver.Redis.Get(fmt.Sprintf("%s_%s", idToken.Nonce, claims.Email)).Result()
 		if err == redis.Nil {
 			user := User{}
 			if resolver.DB.Where("email = ?", claims.Email).Find(&user).RecordNotFound() {

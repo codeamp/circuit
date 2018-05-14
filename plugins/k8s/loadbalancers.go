@@ -146,7 +146,7 @@ func (x *K8s) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs.String()
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-source"] = fmt.Sprintf("%s/%s", projectSlug, svcName.String())
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName.String())
 		}
 	case plugins.GetType("office"):
 		serviceType = v1.ServiceTypeLoadBalancer
@@ -158,7 +158,7 @@ func (x *K8s) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-name"] = s3AccessLogs.String()
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-source"] = fmt.Sprintf("%s/%s", projectSlug, svcName.String())
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("%s/%s", projectSlug, svcName.String())
 		}
 	}
 	listenerPairs, err := e.GetArtifact("listener_pairs")
@@ -171,7 +171,7 @@ func (x *K8s) doLoadBalancer(e transistor.Event) error {
 		var realProto string
 		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
-			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
+			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "http"
 			realProto = "TCP"
 		case "SSL":
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
