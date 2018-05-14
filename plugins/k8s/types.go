@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/transistor"
 	"k8s.io/api/core/v1"
 )
 
@@ -27,4 +28,8 @@ type SimplePodSpec struct {
 	Env           []v1.EnvVar
 	VolumeMounts  []v1.VolumeMount
 	Volumes       []v1.Volume
+}
+
+type K8s struct {
+	events chan transistor.Event
 }

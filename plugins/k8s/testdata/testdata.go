@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -28,23 +29,11 @@ func GetBasicProjectExtension() plugins.ProjectExtension {
 		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
 	}
 
-	// formPrefix := "LOADBALANCERS_"
-	// formValues := map[string]interface{}{
-	// 	"EXTENSION_PREFIX":                  formPrefix,
-	// 	formPrefix + "NAME":                 "nginx-test-lb-asdf1234",
-	// 	formPrefix + "SERVICE":              "nginx-test-service-asdf",
-	// 	formPrefix + "ACCESS_LOG_S3_BUCKET": "test-s3-logs-bucket",
-	// 	formPrefix + "SSL_CERT_ARN":         "arn:1234:arnid",
-	// 	formPrefix + "KUBECONFIG":           kubeconfig,
-	// }
-
 	extensionEvent := plugins.ProjectExtension{
 		Slug:        "kubernetesloadbalancers",
 		Environment: "testing",
 		Action:      plugins.GetAction("create"),
 		State:       plugins.GetState("waiting"),
-		// FormValues:  formValues,
-		// Artifacts:   map[string]string{},
 		Project: plugins.Project{
 			Repository: "checkr/deploy-test",
 			// Services: []plugins.Service{
@@ -57,46 +46,55 @@ func GetBasicProjectExtension() plugins.ProjectExtension {
 }
 
 func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.ProjectExtension {
-	var kubeconfig string
-	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
-		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
-	}
 	project := plugins.Project{
 		Repository: "checkr/nginx-test-success",
 	}
-
-	// formPrefix := "LOADBALANCERS_"
-	// formValues := map[string]interface{}{
-	// 	"EXTENSION_PREFIX":                  formPrefix,
-	// 	formPrefix + "NAME":                 "nginx-test-lb-asdf1234",
-	// 	formPrefix + "SSL_CERT_ARN":         "",
-	// 	formPrefix + "ACCESS_LOG_S3_BUCKET": "",
-	// 	formPrefix + "TYPE":                 t,
-	// 	formPrefix + "SERVICE":              "nginx-test-service-asdf1234",
-	// 	formPrefix + "KUBECONFIG":           kubeconfig,
-	// 	formPrefix + "LISTENER_PAIRS": []k8s.ListenerPair{
-	// 		{
-	// 			Name:       "port1",
-	// 			Protocol:   "TCP",
-	// 			SourcePort: 443,
-	// 			TargetPort: 3000,
-	// 		},
-	// 		{
-	// 			Name:       "port2",
-	// 			Protocol:   "TCP",
-	// 			SourcePort: 444,
-	// 			TargetPort: 3001,
-	// 		},
-	// 	},
-	// }
 
 	lbe := plugins.ProjectExtension{
 		Slug:        "kubernetesloadbalancers",
 		Action:      action,
 		Environment: "testing",
 		Project:     project,
+		ID:          "nginx-test-lb-asdf1234",
 	}
 	return lbe
+}
+
+func LBTCPEvent(action plugins.Action, t plugins.Type) transistor.Event {
+	data := LBDataForTCP(action, t)
+	event := transistor.NewEvent(data, nil)
+
+	var kubeConfigPath string
+	if kubeConfigPath = os.Getenv("KUBECONFIG_PATH"); kubeConfigPath == "" {
+		kubeConfigPath = path.Join(os.Getenv("HOME"), ".kube", "config")
+	}
+
+	event.AddArtifact("service", "nginx-test-service-asdf", false)
+	event.AddArtifact("name", "nginx-test-lb-asdf1234", false)
+	event.AddArtifact("ssl_cert_arn", "arn:1234:arnid", false)
+	event.AddArtifact("access_log_s3_bucket", "test-s3-logs-bucket", false)
+	event.AddArtifact("type", fmt.Sprintf("%v", t), false)
+
+	// For Kube connectivity
+	event.AddArtifact("kubeconfig", kubeConfigPath, false)
+	event.AddArtifact("client_certificate", "", false)
+	event.AddArtifact("client_key", "", false)
+	event.AddArtifact("certificate_authority", "", false)
+
+	var listener_pairs []interface{} = make([]interface{}, 2, 2)
+	listener_pairs[0] = map[string]interface{}{
+		"serviceProtocol": "TCP",
+		"port":            "443",
+		"containerPort":   "3000",
+	}
+	listener_pairs[1] = map[string]interface{}{
+		"serviceProtocol": "TCP",
+		"port":            "444",
+		"containerPort":   "3001",
+	}
+	event.AddArtifact("listener_pairs", listener_pairs, false)
+
+	return event
 }
 
 func BasicFailedReleaseEvent() transistor.Event {
@@ -104,31 +102,38 @@ func BasicFailedReleaseEvent() transistor.Event {
 	extension.Release.Services[0].Command = "/bin/false"
 
 	event := transistor.NewEvent(extension, nil)
-	AddBasicReleaseExtensionArtifacts(extension, &event)
+	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
 }
 
-func AddBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
-	kubeConfigPath := os.Getenv("KUBECONFIG_PATH")
+func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
+	var kubeConfigPath string
+	if kubeConfigPath = os.Getenv("KUBECONFIG_PATH"); kubeConfigPath == "" {
+		kubeConfigPath = path.Join(os.Getenv("HOME"), ".kube", "config")
+	}
+
+	event.AddArtifact("user", "test", false)
+	event.AddArtifact("password", "test", false)
+	event.AddArtifact("host", "test", false)
+	event.AddArtifact("email", "test", false)
+	event.AddArtifact("image", "nginx", false)
+
+	for idx := range event.Artifacts {
+		event.Artifacts[idx].Source = "dockerbuilder"
+	}
 
 	event.AddArtifact("kubeconfig", kubeConfigPath, false)
 	event.AddArtifact("client_certificate", "", false)
 	event.AddArtifact("client_key", "", false)
 	event.AddArtifact("certificate_authority", "", false)
-	event.AddArtifact("client_key", "", false)
-
-	event.AddArtifact("dockerbuilder_user", "test", false)
-	event.AddArtifact("dockerbuilder_password", "test", false)
-	event.AddArtifact("dockerbuilder_email", "test", false)
-	event.AddArtifact("dockerbuilder_host", "test", false)
 }
 
 func BasicReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 
 	event := transistor.NewEvent(extension, nil)
-	AddBasicReleaseExtensionArtifacts(extension, &event)
+	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
 }
@@ -136,8 +141,6 @@ func BasicReleaseEvent() transistor.Event {
 func BasicReleaseExtension() plugins.ReleaseExtension {
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
-	artifacts := make(map[string]interface{})
-	artifacts["IMAGE"] = "dev-registry.checkrhq.net/checkr/checkr-deploy-test:latest"
 
 	release := plugins.Release{
 		Project: plugins.Project{
@@ -153,8 +156,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 		},
 		Services: []plugins.Service{
 			plugins.Service{
-				Name:    "www",
-				Command: "nginx -g 'daemon off';",
+				Name: "www",
 				Listeners: []plugins.Listener{
 					{
 						Port:     80,

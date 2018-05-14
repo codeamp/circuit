@@ -7,8 +7,7 @@ import (
 	_ "github.com/codeamp/circuit/plugins/githubstatus"
 	_ "github.com/codeamp/circuit/plugins/gitsync"
 	_ "github.com/codeamp/circuit/plugins/heartbeat"
-	_ "github.com/codeamp/circuit/plugins/kubernetes/deployments"
-	_ "github.com/codeamp/circuit/plugins/kubernetes/loadbalancers"
+	_ "github.com/codeamp/circuit/plugins/k8s"
 	_ "github.com/codeamp/circuit/plugins/route53"
 )
 
