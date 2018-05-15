@@ -1,4 +1,4 @@
-package k8s
+package kubernetes
 
 import (
 	"encoding/base64"
@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func (x *K8s) ProcessDeployment(e transistor.Event) {
+func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 	log.InfoWithFields("Processing Kubernetes Deployments event", log.Fields{
 		"event": e,
 	})
@@ -107,7 +107,7 @@ func secretifyDockerCred(e transistor.Event) (string, error) {
 	return jsonFilled, nil
 }
 
-func (x *K8s) createDockerIOSecretIfNotExists(namespace string, coreInterface corev1.CoreV1Interface, e transistor.Event) error {
+func (x *Kubernetes) createDockerIOSecretIfNotExists(namespace string, coreInterface corev1.CoreV1Interface, e transistor.Event) error {
 	// Load up the docker-io secrets for image pull if not exists
 	_, dockerIOSecretErr := coreInterface.Secrets(namespace).Get("docker-io", meta_v1.GetOptions{})
 	if dockerIOSecretErr != nil {
@@ -145,7 +145,7 @@ func (x *K8s) createDockerIOSecretIfNotExists(namespace string, coreInterface co
 	return nil
 }
 
-func (x *K8s) createNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
+func (x *Kubernetes) createNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
 	// Create namespace if it does not exist.
 	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
@@ -270,7 +270,7 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 	return podTemplateSpec
 }
 
-func (x *K8s) doDeploy(e transistor.Event) error {
+func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)

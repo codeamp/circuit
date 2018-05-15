@@ -1,4 +1,4 @@
-package k8s
+package kubernetes
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (x *K8s) ProcessLoadBalancer(e transistor.Event) {
+func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 	log.InfoWithFields("Processing load balancer event", log.Fields{
 		"event": e,
 	})
@@ -43,7 +43,7 @@ func (x *K8s) ProcessLoadBalancer(e transistor.Event) {
 	}
 }
 
-func (x *K8s) doLoadBalancer(e transistor.Event) error {
+func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
@@ -305,7 +305,7 @@ func (x *K8s) doLoadBalancer(e transistor.Event) error {
 	return nil
 }
 
-func (x *K8s) doDeleteLoadBalancer(e transistor.Event) error {
+func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
@@ -317,7 +317,7 @@ func (x *K8s) doDeleteLoadBalancer(e transistor.Event) error {
 	return nil
 }
 
-func deleteLoadBalancer(e transistor.Event, x *K8s) error {
+func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 

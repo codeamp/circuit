@@ -1,4 +1,4 @@
-package k8s
+package kubernetes
 
 import (
 	"github.com/codeamp/circuit/plugins"
@@ -30,6 +30,6 @@ type SimplePodSpec struct {
 	Volumes       []v1.Volume
 }
 
-type K8s struct {
+type Kubernetes struct {
 	events chan transistor.Event
 }
