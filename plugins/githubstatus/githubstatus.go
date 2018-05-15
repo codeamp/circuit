@@ -165,7 +165,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					// send an event that we're successfully getting data from github status API
 					statusEvent := e.Payload.(plugins.ReleaseExtension)
 					statusEvent.State = plugins.GetState("waiting")
-					statusEvent.Action = plugins.GetAction("status")
+					statusEvent.Action = plugins.GetAction("status")					
 					statusEvent.StateMessage = "Successfully got build events. Waiting for builds to succeed."
 					x.events <- e.NewEvent(statusEvent, nil)
 
@@ -189,7 +189,25 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						x.events <- e.NewEvent(failedEvent, err)
 						return nil
 					} else {
-						if len(statusBodyInterface.(map[string]interface{})["statuses"].([]interface{})) == 0 || statusBodyInterface.(map[string]interface{})["state"].(string) == "success" {
+						log.InfoWithFields("got > 1 status objects", log.Fields{
+							"hash": event.Release.HeadFeature.Hash,
+						})
+						statuses := statusBodyInterface.(map[string]interface{})["statuses"].([]interface{})
+						if len(statuses) > 0 {
+							statusEvent := e.Payload.(plugins.ReleaseExtension)
+							statusEvent.State = plugins.GetState("waiting")
+							statusEvent.Action = plugins.GetAction("status")					
+							statusEvent.StateMessage = "Successfully got build events. Waiting for builds to succeed."
+							newStatusEvent := e.NewEvent(statusEvent, nil)							
+							for _, status := range statuses {
+								// send back artifacts containing the build urls for each status object
+								newStatusEvent.AddArtifact(fmt.Sprintf("%s", status.(map[string]string)["context"]), status.(map[string]string)["target_url"], false)
+							}
+
+							x.events <- newStatusEvent								
+						}
+
+						if len(statuses) == 0 || statusBodyInterface.(map[string]interface{})["state"].(string) == "success" {
 							responseEvent := e.Payload.(plugins.ReleaseExtension)
 							responseEvent.State = plugins.GetState("complete")
 							responseEvent.Action = plugins.GetAction("status")
