@@ -19,9 +19,11 @@ func main() {
 	if _logLevel := os.Getenv("LOG_LEVEL"); _logLevel != "" {
 		logLevel, err := logrus.ParseLevel(_logLevel)
 
-		if err == nil {
-			log.SetLogLevel(logLevel)
+		if err != nil {
+			log.Fatal(err)
 		}
+
+		log.SetLogLevel(logLevel)
 	}
 
 	cmd.Execute()
