@@ -201,7 +201,8 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 							newStatusEvent := e.NewEvent(statusEvent, nil)							
 							for _, status := range statuses {
 								// send back artifacts containing the build urls for each status object
-								newStatusEvent.AddArtifact(fmt.Sprintf("%s", status.(map[string]string)["context"]), status.(map[string]string)["target_url"], false)
+								newStatusEvent.AddArtifact(fmt.Sprintf("%s_target_url", status.(map[string]string)["context"]), status.(map[string]string)["target_url"], false)
+								newStatusEvent.AddArtifact(fmt.Sprintf("%s_state", status.(map[string]string)["context"]), status.(map[string]string)["state"], false)
 							}
 
 							x.events <- newStatusEvent								
