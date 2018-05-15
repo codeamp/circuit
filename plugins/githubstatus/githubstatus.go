@@ -133,7 +133,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		event := e.Payload.(plugins.ReleaseExtension)
 		switch event.Action {
 		case plugins.GetAction("create"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus release extension event: %s", e.Name), log.Fields{})
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus release extension event: %s", e.Name), log.Fields{
+				"hash": event.Release.HeadFeature.Hash,
+			})
 			// get status and check if complete
 			client := &http.Client{}
 
@@ -150,7 +152,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			for {
 				req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", event.Release.Project.Repository, event.Release.HeadFeature.Hash), nil)
 				if err != nil {
-					log.Info(err.Error())
+					log.InfoWithFields(err.Error(), log.Fields{
+						"hash": event.Release.HeadFeature.Hash,
+					})
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
 					failedEvent.Action = plugins.GetAction("status")
@@ -162,6 +166,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 				resp, _ := client.Do(req)
 				if resp.StatusCode == 200 {
+					log.InfoWithFields("Successfully got build events. Waiting for builds to succeed.", log.Fields{
+						"hash": event.Release.HeadFeature.Hash,
+					})
 					// send an event that we're successfully getting data from github status API
 					statusEvent := e.Payload.(plugins.ReleaseExtension)
 					statusEvent.State = plugins.GetState("waiting")
@@ -171,6 +178,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 					combinedStatusBody, err := ioutil.ReadAll(resp.Body)
 					if err != nil {
+						log.InfoWithFields(err.Error(), log.Fields{
+							"hash": event.Release.HeadFeature.Hash,
+						})						
 						failedEvent := e.Payload.(plugins.ReleaseExtension)
 						failedEvent.State = plugins.GetState("failed")
 						failedEvent.Action = plugins.GetAction("status")
@@ -182,6 +192,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					// unmarshal into interface
 					var statusBodyInterface interface{}
 					if err := json.Unmarshal([]byte(combinedStatusBody), &statusBodyInterface); err != nil {
+						log.InfoWithFields(err.Error(), log.Fields{
+							"hash": event.Release.HeadFeature.Hash,
+						})						
 						failedEvent := e.Payload.(plugins.ReleaseExtension)
 						failedEvent.State = plugins.GetState("failed")
 						failedEvent.Action = plugins.GetAction("status")
@@ -218,6 +231,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						}
 
 						if statusBodyInterface.(map[string]interface{})["state"].(string) == "failure" {
+							log.InfoWithFields("one of the builds failed", log.Fields{
+								"hash": event.Release.HeadFeature.Hash,
+							})
 							failedBuilds := ""
 							// check which builds failed
 							for _, build := range statusBodyInterface.(map[string]interface{})["statuses"].([]interface{}) {
@@ -238,6 +254,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						}
 					}
 				} else {
+					log.InfoWithFields("failed to get a 200 response", log.Fields{
+						"hash": event.Release.HeadFeature.Hash,
+					})					
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
 					failedEvent.Action = plugins.GetAction("status")
@@ -248,14 +267,20 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				timeout++
 				time.Sleep(1 * time.Second)
 				if timeout >= timeoutLimitInt {
+					timeoutErrMsg := fmt.Sprintf("Timeout: try again and check if builds are taking too long fome reason.")					
+					log.InfoWithFields(timeoutErrMsg, log.Fields{
+						"hash": event.Release.HeadFeature.Hash,
+					})					
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
 					failedEvent.State = plugins.GetState("failed")
 					failedEvent.Action = plugins.GetAction("status")
-					failedEvent.StateMessage = fmt.Sprintf("Timeout: try again and check if builds are taking too long fome reason.")
+					failedEvent.StateMessage = timeoutErrMsg
 					x.events <- e.NewEvent(failedEvent, nil)
 					return nil
 				}
-				log.Info("Looping through again and checking statuses")
+				log.InfoWithFields("Looping through again and checking statuses", log.Fields{
+					"hash": event.Release.HeadFeature.Hash,
+				})
 			}
 		}
 	}
