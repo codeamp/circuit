@@ -192,7 +192,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					// unmarshal into interface
 					var statusBodyInterface interface{}
 					if err := json.Unmarshal([]byte(combinedStatusBody), &statusBodyInterface); err != nil {
-						log.InfoWithFields(err.Error(), log.Fields{
+						log.ErrorWithFields(err.Error(), log.Fields{
 							"hash": event.Release.HeadFeature.Hash,
 						})						
 						failedEvent := e.Payload.(plugins.ReleaseExtension)
@@ -231,7 +231,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						}
 
 						if statusBodyInterface.(map[string]interface{})["state"].(string) == "failure" {
-							log.InfoWithFields("one of the builds failed", log.Fields{
+							log.ErrorWithFields("one of the builds failed", log.Fields{
 								"hash": event.Release.HeadFeature.Hash,
 							})
 							failedBuilds := ""
@@ -268,7 +268,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				time.Sleep(1 * time.Second)
 				if timeout >= timeoutLimitInt {
 					timeoutErrMsg := fmt.Sprintf("Timeout: try again and check if builds are taking too long for some reason.")
-					log.InfoWithFields(timeoutErrMsg, log.Fields{
+					log.ErrorWithFields(timeoutErrMsg, log.Fields{
 						"hash": event.Release.HeadFeature.Hash,
 					})					
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
