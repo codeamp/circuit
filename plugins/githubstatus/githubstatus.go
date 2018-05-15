@@ -152,7 +152,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 			for {
 				req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", event.Release.Project.Repository, event.Release.HeadFeature.Hash), nil)
 				if err != nil {
-					log.InfoWithFields(err.Error(), log.Fields{
+					log.ErrorWithFields(err.Error(), log.Fields{
 						"hash": event.Release.HeadFeature.Hash,
 					})
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
@@ -178,7 +178,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 					combinedStatusBody, err := ioutil.ReadAll(resp.Body)
 					if err != nil {
-						log.InfoWithFields(err.Error(), log.Fields{
+						log.ErrorWithFields(err.Error(), log.Fields{
 							"hash": event.Release.HeadFeature.Hash,
 						})						
 						failedEvent := e.Payload.(plugins.ReleaseExtension)
@@ -254,7 +254,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						}
 					}
 				} else {
-					log.InfoWithFields("failed to get a 200 response", log.Fields{
+					log.ErrorWithFields("failed to get a 200 response", log.Fields{
 						"hash": event.Release.HeadFeature.Hash,
 					})					
 					failedEvent := e.Payload.(plugins.ReleaseExtension)
@@ -267,7 +267,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				timeout++
 				time.Sleep(1 * time.Second)
 				if timeout >= timeoutLimitInt {
-					timeoutErrMsg := fmt.Sprintf("Timeout: try again and check if builds are taking too long fome reason.")					
+					timeoutErrMsg := fmt.Sprintf("Timeout: try again and check if builds are taking too long for some reason.")
 					log.InfoWithFields(timeoutErrMsg, log.Fields{
 						"hash": event.Release.HeadFeature.Hash,
 					})					
@@ -278,7 +278,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					x.events <- e.NewEvent(failedEvent, nil)
 					return nil
 				}
-				log.InfoWithFields("Looping through again and checking statuses", log.Fields{
+				log.DebugWithFields("Looping through again and checking statuses", log.Fields{
 					"hash": event.Release.HeadFeature.Hash,
 				})
 			}
