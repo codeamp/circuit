@@ -64,7 +64,6 @@ func initConfig() {
 			log.Fatal(err)
 		}
 
-		log.Info("Log Level: ", logLevel)
 		log.SetLogLevel(logLevel)
 	}
 }
