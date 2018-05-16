@@ -229,6 +229,9 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 			timeout := 0			
 			for {
+				log.InfoWithFields("status object", log.Fields{
+					"status": status,
+				})
 				evt := e.NewEvent(payload, nil)				
 				for _, 	_status := range status.Statuses {
 					evt.AddArtifact(fmt.Sprintf("%d_%s_target_url", _status.Id, _status.Context), _status.TargetUrl, false)
