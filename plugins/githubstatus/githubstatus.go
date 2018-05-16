@@ -237,7 +237,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					evt.AddArtifact(fmt.Sprintf("%d_%s_description", _status.Id, _status.Context), _status.Description, false)
 				}
 				
-				if(status.State == "success") {
+				if status.State == "success" {
 					payload.State = plugins.GetState("complete")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "All status checks successful."					
@@ -245,7 +245,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 					x.events <- evt
 					break
-				} else if(status.State == "failure") {
+				} else if status.State == "failure" {
 					payload.State = plugins.GetState("failed")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "One or more status checks failed."
