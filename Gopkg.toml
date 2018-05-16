@@ -103,3 +103,7 @@
 [[constraint]]
   name = "gopkg.in/gormigrate.v1"
   version = "1.2.0"
+
+[[constraint]]
+  branch = "v1"
+  name = "gopkg.in/jarcoal/httpmock.v1"

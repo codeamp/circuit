@@ -68,7 +68,7 @@ func isValidGithubCredentials(username string, token string) (bool, error) {
 	
 type Status struct {
 	Url string `json:"url"`
-	Id int32 `json:"id"`
+	Id int `json:"id"`
 	State string `json:"state"`
 	Description string `json:"description"`
 	TargetUrl string `json:"target_url"`
