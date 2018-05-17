@@ -44,14 +44,13 @@ func (x *Kubernetes) Stop() {
 
 func (x *Kubernetes) Subscribe() []string {
 	return []string{
-		"plugins.ReleaseExtension:create:kubernetesdeployments",
+		"kubernetes:deployment:create",
+		"kubernetes:deployment:update",
+		"kubernetes:deployment:delete",
 
-		"plugins.ProjectExtension:create:kubernetesdeployments",
-		"plugins.ProjectExtension:update:kubernetesdeployments",
-
-		"plugins.ProjectExtension:create:kubernetesloadbalancers",
-		"plugins.ProjectExtension:update:kubernetesloadbalancers",
-		"plugins.ProjectExtension:destroy:kubernetesloadbalancers",
+		"kubernetes:loadbalancer:create",
+		"kubernetes:loadbalancer:update",
+		"kubernetes:loadbalancer:delete",
 	}
 }
 
@@ -60,66 +59,35 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		"event": e,
 	})
 
-	if e.Matches("kubernetesdeployments") == true {
+	if e.Matches("kubernetes:deployment") == true {
 		x.ProcessDeployment(e)
-	} else if e.Matches("kubernetesloadbalancers") == true {
+	} else if e.Matches("kubernetes:loadbalancer") == true {
 		x.ProcessLoadBalancer(e)
 	}
 
 	return nil
 }
 
-func buildEventPayload(e transistor.Event, state plugins.State, msg string) interface{} {
-	switch e.PayloadModel {
-	case "plugins.ReleaseExtension":
-		payload := e.Payload.(plugins.ReleaseExtension)
-
-		payload.Action = plugins.GetAction("status")
-		payload.State = state
-		payload.StateMessage = msg
-
-		return payload
-	case "plugins.ProjectExtension":
-		payload := e.Payload.(plugins.ProjectExtension)
-
-		payload.Action = plugins.GetAction("status")
-		payload.State = state
-		payload.StateMessage = msg
-
-		return payload
-	default:
-		log.Fatal("unexpected type '%s'", e.PayloadModel)
-	}
-
-	return nil
-}
-
-func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state plugins.State, artifacts []transistor.Artifact) {
-	payload := buildEventPayload(e, state, "")
-
-	event := e.NewEvent(payload, nil)
+func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.State, artifacts []transistor.Artifact) {
+	event := e.NewEvent(e.Name, plugins.GetAction("status"), e.Payload)
+	event.SetState(plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	event.Artifacts = artifacts
 
 	x.events <- event
 }
 
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
-	payload := buildEventPayload(e, plugins.GetState("failed"), msg)
-	x.events <- e.NewEvent(payload, nil)
+	event := e.NewEvent(e.Name, plugins.GetAction("status"), e.Payload)
+	event.SetState(plugins.GetState("failed"), msg)
+
+	x.events <- event
 }
 
 func (x *Kubernetes) sendInProgress(e transistor.Event, msg string) {
-	payload := buildEventPayload(e, plugins.GetState("running"), msg)
-	x.events <- e.NewEvent(payload, nil)
-}
+	event := e.NewEvent(e.Name, plugins.GetAction("status"), e.Payload)
+	event.SetState(plugins.GetState("running"), msg)
 
-func (x *Kubernetes) CreateProjectExtensionEvent(e transistor.Event, action plugins.Action, state plugins.State, msg string, err error) transistor.Event {
-	payload := e.Payload.(plugins.ProjectExtension)
-	payload.State = state
-	payload.Action = action
-	payload.StateMessage = msg
-
-	return e.NewEvent(payload, err)
+	x.events <- event
 }
 
 func (x *Kubernetes) GenNamespaceName(suggestedEnvironment string, projectSlug string) string {

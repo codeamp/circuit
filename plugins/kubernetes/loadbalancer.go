@@ -24,10 +24,8 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 		"event": e,
 	})
 
-	event := e.Payload.(plugins.ProjectExtension)
-
 	var err error
-	switch event.Action {
+	switch e.Action {
 	case plugins.GetAction("destroy"):
 		err = x.doDeleteLoadBalancer(e)
 	case plugins.GetAction("create"):
@@ -311,6 +309,7 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 	} else {
+		log.Warn("sending success deleted")
 		x.sendSuccessResponse(e, plugins.GetState("deleted"), nil)
 	}
 
@@ -318,6 +317,7 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 }
 
 func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
+	log.Info("deleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
