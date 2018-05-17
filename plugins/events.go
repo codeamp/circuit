@@ -24,6 +24,7 @@ func GetEventName(s string) transistor.EventName {
 	eventNames := []string{
 		"kubernetes:deployment",
 		"kubernetes:loadbalancer",
+		"githubstatus",
 	}
 
 	for _, t := range eventNames {

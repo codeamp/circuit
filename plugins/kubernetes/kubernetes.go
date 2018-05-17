@@ -55,7 +55,7 @@ func (x *Kubernetes) Subscribe() []string {
 }
 
 func (x *Kubernetes) Process(e transistor.Event) error {
-	log.InfoWithFields("Processing kubernetes event", log.Fields{
+	log.DebugWithFields("Processing kubernetes event", log.Fields{
 		"event": e,
 	})
 

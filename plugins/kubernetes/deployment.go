@@ -28,10 +28,6 @@ import (
 )
 
 func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
-	log.InfoWithFields("Processing Kubernetes Deployments event", log.Fields{
-		"event": e.Payload,
-	})
-
 	// There used to be a handler for a plugins.ReleaseExtension and a plugins.ProjectExtension
 	// but one of them didn't really do anything. Not sure if there are any events that are sent
 	// with those extensions or if handling them differently is important downstream

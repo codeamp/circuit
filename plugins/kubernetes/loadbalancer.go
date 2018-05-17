@@ -20,10 +20,6 @@ import (
 )
 
 func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
-	log.InfoWithFields("Processing load balancer event", log.Fields{
-		"event": e,
-	})
-
 	var err error
 	switch e.Action {
 	case plugins.GetAction("destroy"):
