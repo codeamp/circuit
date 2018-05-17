@@ -1122,6 +1122,13 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 	release.StateMessage = stateMessage
 	x.DB.Save(release)
 
+	releaseExtensions := []resolvers.ReleaseExtension{}
+	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+	for _, re := range releaseExtensions {
+		re.State = plugins.GetState("failed")
+		re.StateMessage = stateMessage
+	}
+
 	x.RunQueuedReleases(release)
 }
 

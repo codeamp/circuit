@@ -206,13 +206,7 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 		return "", err
 	}
 
-	kubeConfigData, err := ioutil.ReadFile(kubeconfig.String())
-	if err != nil {
-		log.Info(err.Error())
-		return "", err
-	}
-
-	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), kubeConfigData, 0644)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.String()), 0644)
 	if err != nil {
 		log.Error(err.Error())
 		return "", err

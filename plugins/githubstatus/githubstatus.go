@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"errors"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
@@ -64,28 +65,101 @@ func isValidGithubCredentials(username string, token string) (bool, error) {
 		return false, fmt.Errorf("Github credentials are not valid. Please check them and re-install.")
 	}
 }
+	
+type Status struct {
+	Url string `json:"url"`
+	Id int `json:"id"`
+	State string `json:"state"`
+	Description string `json:"description"`
+	TargetUrl string `json:"target_url"`
+	Context string `json:"context"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type StatusResponse struct {
+	State string `json:"state"`
+	Statuses []Status `json:"statuses"`
+}
+
+func getStatus(e transistor.Event) (StatusResponse, error) {
+	username, err := e.GetArtifact("username")
+	if err != nil {			
+		return StatusResponse{}, err
+	}
+
+	token, err := e.GetArtifact("personal_access_token")
+	if err != nil {
+		return StatusResponse{}, err
+	}
+
+	payload := e.Payload.(plugins.ReleaseExtension)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", payload.Release.Project.Repository, payload.Release.HeadFeature.Hash), nil)
+	if err != nil {
+		return StatusResponse{}, err
+	}
+	
+	client := &http.Client{}
+	req.SetBasicAuth(username.String(), token.String())
+	resp, err := client.Do(req)
+	defer resp.Body.Close()		
+	if err != nil {
+		return StatusResponse{}, err
+	}
+	
+	respBody, err := ioutil.ReadAll(resp.Body)			
+	if err != nil {
+		return StatusResponse{}, err
+	}
+
+	if resp.StatusCode == 200 {	
+		status := StatusResponse{}
+		err = json.Unmarshal(respBody, &status)
+		if err != nil {
+			return StatusResponse{}, err
+		}
+
+		return status, nil
+	} else {
+		return StatusResponse{}, errors.New(fmt.Sprintf("Unhandled status code: %d", resp.StatusCode))
+	}
+}
 
 func (x *GithubStatus) Process(e transistor.Event) error {
 	log.Info("Processing GithubStatus event")
-	e.Dump()
+	
+	timeoutInterval := 5
+	userTimeoutInterval, err := e.GetArtifact("timeout_interval")
+	if err != nil {
+		log.Error(err.Error())		
+	} else {
+		timeoutInterval, err = strconv.Atoi(userTimeoutInterval.String())
+		if err != nil {
+			log.Error(err.Error())				
+		}		
+	}
 
 	timeoutLimit, err := e.GetArtifact("timeout_seconds")
 	if err != nil {
-		return err
-	}
-
-	timeoutLimitInt, err := strconv.Atoi(timeoutLimit.String())
-	if err != nil {
+		log.Error(err.Error())		
 		return err
 	}
 
 	username, err := e.GetArtifact("username")
-	if err != nil {
+	if err != nil {			
+		log.Error(err.Error())		
 		return err
 	}
 
 	token, err := e.GetArtifact("personal_access_token")
 	if err != nil {
+		log.Error(err.Error())		
+		return err
+	}	
+
+	timeoutLimitInt, err := strconv.Atoi(timeoutLimit.String())
+	if err != nil {
+		log.Error(err.Error())				
 		return err
 	}
 
@@ -94,7 +168,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 		switch event.Action {
 		case plugins.GetAction("create"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus project extension event: %s", e.Name), log.Fields{})
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Name), log.Fields{})
 			if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
 				responseEvent := e.Payload.(plugins.ProjectExtension)
 				responseEvent.State = plugins.GetState("complete")
@@ -111,6 +185,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				return nil
 			}
 		case plugins.GetAction("update"):
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Name), log.Fields{})			
 			if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
 				responseEvent := e.Payload.(plugins.ProjectExtension)
 				responseEvent.State = plugins.GetState("complete")
@@ -126,161 +201,100 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				x.events <- e.NewEvent(failedEvent, err)
 				return nil
 			}
+		default:
+			log.InfoWithFields(fmt.Sprintf("GithubStatus ProjectExtension event not handled: %s", e.Name), log.Fields{})			
+			return nil
 		}
 	}
 
 	if e.Matches("plugins.ReleaseExtension") {
-		event := e.Payload.(plugins.ReleaseExtension)
-		switch event.Action {
+		payload := e.Payload.(plugins.ReleaseExtension)
+		switch payload.Action {
 		case plugins.GetAction("create"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus release extension event: %s", e.Name), log.Fields{
-				"hash": event.Release.HeadFeature.Hash,
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Name), log.Fields{
+				"hash": payload.Release.HeadFeature.Hash,
 			})
 			// get status and check if complete
-			client := &http.Client{}
-
+			status, err := getStatus(e)
 			if err != nil {
-				failedEvent := e.Payload.(plugins.ProjectExtension)
-				failedEvent.State = plugins.GetState("failed")
-				failedEvent.Action = plugins.GetAction("status")
-				failedEvent.StateMessage = err.Error()
-				x.events <- e.NewEvent(failedEvent, err)
+				log.ErrorWithFields(err.Error(), log.Fields{
+					"hash": payload.Release.HeadFeature.Hash,
+				})
+				payload.State = plugins.GetState("failed")
+				payload.Action = plugins.GetAction("status")
+				payload.StateMessage = err.Error()
+				x.events <- e.NewEvent(payload, err)
 				return nil
 			}
 
-			timeout := 0
+			timeout := 0			
 			for {
-				req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", event.Release.Project.Repository, event.Release.HeadFeature.Hash), nil)
-				if err != nil {
-					log.ErrorWithFields(err.Error(), log.Fields{
-						"hash": event.Release.HeadFeature.Hash,
-					})
-					failedEvent := e.Payload.(plugins.ReleaseExtension)
-					failedEvent.State = plugins.GetState("failed")
-					failedEvent.Action = plugins.GetAction("status")
-					failedEvent.StateMessage = err.Error()
-					x.events <- e.NewEvent(failedEvent, err)
-					return nil
+				log.InfoWithFields("status object", log.Fields{
+					"status": status,
+				})
+				var evt transistor.Event
+				
+				if status.State == "success" {
+					payload.State = plugins.GetState("complete")
+					payload.Action = plugins.GetAction("status")
+					payload.StateMessage = "All status checks successful."					
+					evt = e.NewEvent(payload, nil)
+				} else if status.State == "failure" {
+					payload.State = plugins.GetState("failed")
+					payload.Action = plugins.GetAction("status")
+					payload.StateMessage = "One or more status checks failed."
+					evt = e.NewEvent(payload, nil)
+				} else {
+					payload.State = plugins.GetState("running")
+					payload.Action = plugins.GetAction("status")
+					payload.StateMessage = "One or more status checks are running."
+					evt = e.NewEvent(payload, nil)					
 				}
-				req.SetBasicAuth(username.String(), token.String())
 
-				resp, _ := client.Do(req)
-				if resp.StatusCode == 200 {
-					log.InfoWithFields("Successfully got build events. Waiting for builds to succeed.", log.Fields{
-						"hash": event.Release.HeadFeature.Hash,
+				for _, 	_status := range status.Statuses {
+					evt.AddArtifact(fmt.Sprintf("%d_%s_target_url", _status.Id, _status.Context), _status.TargetUrl, false)
+					evt.AddArtifact(fmt.Sprintf("%d_%s_created_at", _status.Id, _status.Context), _status.CreatedAt.String(), false)
+					evt.AddArtifact(fmt.Sprintf("%d_%s_state", _status.Id, _status.Context), _status.State, false)
+					evt.AddArtifact(fmt.Sprintf("%d_%s_description", _status.Id, _status.Context), _status.Description, false)
+				}
+				x.events <- evt
+
+				if status.State == "success" || status.State == "failure" {
+					break	
+				} 
+				
+				timeout += timeoutInterval
+				time.Sleep(time.Duration(timeoutInterval) * time.Second)
+				if timeout >= timeoutLimitInt {
+					timeoutErrMsg := fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt)
+					log.ErrorWithFields(timeoutErrMsg, log.Fields{
+						"hash": payload.Release.HeadFeature.Hash,
+					})					
+					payload.State = plugins.GetState("failed")
+					payload.Action = plugins.GetAction("status")
+					payload.StateMessage = timeoutErrMsg
+					evt = e.NewEvent(payload, nil)
+
+					x.events <- evt
+					break
+				} else {
+					log.DebugWithFields("Checking statuses", log.Fields{
+						"hash": payload.Release.HeadFeature.Hash,
 					})
-					// send an event that we're successfully getting data from github status API
-					statusEvent := e.Payload.(plugins.ReleaseExtension)
-					statusEvent.State = plugins.GetState("waiting")
-					statusEvent.Action = plugins.GetAction("status")					
-					statusEvent.StateMessage = "Successfully got build events. Waiting for builds to succeed."
-					x.events <- e.NewEvent(statusEvent, nil)
-
-					combinedStatusBody, err := ioutil.ReadAll(resp.Body)
+					status, err = getStatus(e)
 					if err != nil {
 						log.ErrorWithFields(err.Error(), log.Fields{
-							"hash": event.Release.HeadFeature.Hash,
-						})						
-						failedEvent := e.Payload.(plugins.ReleaseExtension)
-						failedEvent.State = plugins.GetState("failed")
-						failedEvent.Action = plugins.GetAction("status")
-						failedEvent.StateMessage = err.Error()
-						x.events <- e.NewEvent(failedEvent, err)
-						return nil
-					}
-					resp.Body.Close()
-					// unmarshal into interface
-					var statusBodyInterface interface{}
-					if err := json.Unmarshal([]byte(combinedStatusBody), &statusBodyInterface); err != nil {
-						log.ErrorWithFields(err.Error(), log.Fields{
-							"hash": event.Release.HeadFeature.Hash,
-						})						
-						failedEvent := e.Payload.(plugins.ReleaseExtension)
-						failedEvent.State = plugins.GetState("failed")
-						failedEvent.Action = plugins.GetAction("status")
-						failedEvent.StateMessage = err.Error()
-						x.events <- e.NewEvent(failedEvent, err)
-						return nil
-					} else {
-						log.InfoWithFields("got > 1 status objects", log.Fields{
-							"hash": event.Release.HeadFeature.Hash,
+							"hash": payload.Release.HeadFeature.Hash,
 						})
-						statuses := statusBodyInterface.(map[string]interface{})["statuses"].([]interface{})
-						if len(statuses) > 0 {
-							statusEvent := e.Payload.(plugins.ReleaseExtension)
-							statusEvent.State = plugins.GetState("waiting")
-							statusEvent.Action = plugins.GetAction("status")					
-							statusEvent.StateMessage = "Successfully got build events. Waiting for builds to succeed."
-							newStatusEvent := e.NewEvent(statusEvent, nil)							
-							for _, status := range statuses {
-								// send back artifacts containing the build urls for each status object
-								newStatusEvent.AddArtifact(fmt.Sprintf("%s_target_url", status.(map[string]string)["context"]), status.(map[string]string)["target_url"], false)
-								newStatusEvent.AddArtifact(fmt.Sprintf("%s_state", status.(map[string]string)["context"]), status.(map[string]string)["state"], false)
-							}
-
-							x.events <- newStatusEvent								
-						}
-
-						if len(statuses) == 0 || statusBodyInterface.(map[string]interface{})["state"].(string) == "success" {
-							responseEvent := e.Payload.(plugins.ReleaseExtension)
-							responseEvent.State = plugins.GetState("complete")
-							responseEvent.Action = plugins.GetAction("status")
-							responseEvent.StateMessage = "Completed"
-							x.events <- e.NewEvent(responseEvent, nil)
-							return nil
-						}
-
-						if statusBodyInterface.(map[string]interface{})["state"].(string) == "failure" {
-							log.ErrorWithFields("one of the builds failed", log.Fields{
-								"hash": event.Release.HeadFeature.Hash,
-							})
-							failedBuilds := ""
-							// check which builds failed
-							for _, build := range statusBodyInterface.(map[string]interface{})["statuses"].([]interface{}) {
-								if build.(map[string]interface{})["state"].(string) == "failure" {
-									failedBuilds += fmt.Sprintf(", %s", build.(map[string]interface{})["context"].(string))
-								}
-							}
-							responseEvent := e.Payload.(plugins.ReleaseExtension)
-							responseEvent.State = plugins.GetState("failed")
-							responseEvent.Action = plugins.GetAction("status")
-							responseEvent.StateMessage = "One of the builds Failed."
-
-							ev := e.NewEvent(responseEvent, nil)
-							ev.AddArtifact("failed_builds", failedBuilds, false)
-							x.events <- ev
-
-							return nil
-						}
-					}
-				} else {
-					log.ErrorWithFields("failed to get a 200 response", log.Fields{
-						"hash": event.Release.HeadFeature.Hash,
-					})					
-					failedEvent := e.Payload.(plugins.ReleaseExtension)
-					failedEvent.State = plugins.GetState("failed")
-					failedEvent.Action = plugins.GetAction("status")
-					failedEvent.StateMessage = err.Error()
-					x.events <- e.NewEvent(failedEvent, fmt.Errorf("%s", resp.Status))
-					return nil
-				}
-				timeout++
-				time.Sleep(1 * time.Second)
-				if timeout >= timeoutLimitInt {
-					timeoutErrMsg := fmt.Sprintf("Timeout: try again and check if builds are taking too long for some reason.")
-					log.ErrorWithFields(timeoutErrMsg, log.Fields{
-						"hash": event.Release.HeadFeature.Hash,
-					})					
-					failedEvent := e.Payload.(plugins.ReleaseExtension)
-					failedEvent.State = plugins.GetState("failed")
-					failedEvent.Action = plugins.GetAction("status")
-					failedEvent.StateMessage = timeoutErrMsg
-					x.events <- e.NewEvent(failedEvent, nil)
-					return nil
-				}
-				log.DebugWithFields("Looping through again and checking statuses", log.Fields{
-					"hash": event.Release.HeadFeature.Hash,
-				})
+						payload.State = plugins.GetState("failed")
+						payload.Action = plugins.GetAction("status")
+						payload.StateMessage = err.Error()
+						evt = e.NewEvent(payload, nil)
+	
+						x.events <- evt
+						break
+					}	
+				}			
 			}
 		}
 	}
