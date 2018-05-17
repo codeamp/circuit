@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	log "github.com/codeamp/logger"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -54,5 +55,15 @@ func initConfig() {
 		log.InfoWithFields("config loaded", log.Fields{
 			"config": viper.ConfigFileUsed(),
 		})
+	}
+
+	if _logLevel := viper.GetString("LOG_LEVEL"); _logLevel != "" {
+		logLevel, err := logrus.ParseLevel(_logLevel)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.SetLogLevel(logLevel)
 	}
 }
