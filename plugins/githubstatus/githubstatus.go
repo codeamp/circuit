@@ -232,39 +232,37 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				log.InfoWithFields("status object", log.Fields{
 					"status": status,
 				})
-				evt := e.NewEvent(payload, nil)				
-				for _, 	_status := range status.Statuses {
-					evt.AddArtifact(fmt.Sprintf("%d_%s_target_url", _status.Id, _status.Context), _status.TargetUrl, false)
-					evt.AddArtifact(fmt.Sprintf("%d_%s_created_at", _status.Id, _status.Context), _status.CreatedAt.String(), false)
-					evt.AddArtifact(fmt.Sprintf("%d_%s_state", _status.Id, _status.Context), _status.State, false)
-					evt.AddArtifact(fmt.Sprintf("%d_%s_description", _status.Id, _status.Context), _status.Description, false)
-				}
+				var evt transistor.Event
 				
 				if status.State == "success" {
 					payload.State = plugins.GetState("complete")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "All status checks successful."					
 					evt = e.NewEvent(payload, nil)
-
-					x.events <- evt
-					break
 				} else if status.State == "failure" {
 					payload.State = plugins.GetState("failed")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "One or more status checks failed."
 					evt = e.NewEvent(payload, nil)
-
-					x.events <- evt					
-					break
 				} else {
 					payload.State = plugins.GetState("running")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "One or more status checks are running."
-					evt = e.NewEvent(payload, nil)
-
-					x.events <- evt
+					evt = e.NewEvent(payload, nil)					
 				}
 
+				for _, 	_status := range status.Statuses {
+					evt.AddArtifact(fmt.Sprintf("%d_%s_target_url", _status.Id, _status.Context), _status.TargetUrl, false)
+					evt.AddArtifact(fmt.Sprintf("%d_%s_created_at", _status.Id, _status.Context), _status.CreatedAt.String(), false)
+					evt.AddArtifact(fmt.Sprintf("%d_%s_state", _status.Id, _status.Context), _status.State, false)
+					evt.AddArtifact(fmt.Sprintf("%d_%s_description", _status.Id, _status.Context), _status.Description, false)
+				}
+				x.events <- evt
+
+				if status.State == "success" || status.State == "failure" {
+					break	
+				} 
+				
 				timeout += timeoutInterval
 				time.Sleep(time.Duration(timeoutInterval) * time.Second)
 				if timeout >= timeoutLimitInt {
