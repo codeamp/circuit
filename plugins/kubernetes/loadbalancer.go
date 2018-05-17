@@ -20,6 +20,8 @@ import (
 )
 
 func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
+	log.Info("ProcessLoadBalancer")
+	log.Info(e)
 	var err error
 	switch e.Action {
 	case plugins.GetAction("destroy"):
@@ -38,6 +40,7 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 }
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
+	log.Info("doLoadBalancer")
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
@@ -300,6 +303,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 }
 
 func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
+	log.Info("doDeleteLoadBalancer")
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -51,44 +52,44 @@ func (suite *TestSuite) SetupSuite() {
 	go suite.transistor.Run()
 }
 
-// func (suite *TestSuite) TestCleanupLBOffice() {
-// 	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
+// Load Balancers Tests
+func (suite *TestSuite) TestCleanupLBOffice() {
+	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
 
-// 	e := suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 60)
-// 	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State, e.StateMessage)
-// }
+	e := suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 60)
+	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State, e.StateMessage)
+}
 
-// // Load Balancers Tests
-// func (suite *TestSuite) TestLBTCPOffice() {
-// 	timer := time.NewTimer(time.Second * 100)
-// 	defer timer.Stop()
+func (suite *TestSuite) TestLBTCPOffice() {
+	timer := time.NewTimer(time.Second * 100)
+	defer timer.Stop()
 
-// 	go func() {
-// 		<-timer.C
-// 		log.Fatal("TestLBTCPOffice: Test timeout")
-// 	}()
+	go func() {
+		<-timer.C
+		log.Fatal("TestLBTCPOffice: Test timeout")
+	}()
 
-// 	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("update"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("update"), plugins.GetType("office"))
 
-// 	var e transistor.Event
-// 	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
-// 	assert.Equal(suite.T(), plugins.GetState("complete"), e.State, e.StateMessage)
-// 	if e.State != plugins.GetState("complete") {
-// 		return
-// 	}
+	var e transistor.Event
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
+	assert.Equal(suite.T(), plugins.GetState("complete"), e.State, e.StateMessage)
+	if e.State != plugins.GetState("complete") {
+		return
+	}
 
-// 	for {
-// 		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
-// 		if e.State != "running" {
-// 			break
-// 		}
-// 	}
+	for {
+		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
+		if e.State != "running" {
+			break
+		}
+	}
 
-// 	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
 
-// 	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 10)
-// 	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State)
-// }
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 10)
+	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State)
+}
 
 func strMapKeys(strMap map[string]string) string {
 	keys := make([]string, len(strMap))
@@ -245,10 +246,8 @@ func LBTCPEvent(action transistor.Action, t plugins.Type) transistor.Event {
 	payload := LBDataForTCP(action, t)
 	event := transistor.NewEvent(plugins.GetEventName("kubernetes:loadbalancer"), action, payload)
 
-	var kubeConfigPath string
-	if kubeConfigPath = os.Getenv("KUBECONFIG_PATH"); kubeConfigPath == "" {
-		kubeConfigPath = path.Join(os.Getenv("HOME"), ".kube", "config")
-	}
+	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
+	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
 
 	event.AddArtifact("service", "nginx-test-service-asdf", false)
 	event.AddArtifact("name", "nginx-test-lb-asdf1234", false)
@@ -257,7 +256,7 @@ func LBTCPEvent(action transistor.Action, t plugins.Type) transistor.Event {
 	event.AddArtifact("type", fmt.Sprintf("%v", t), false)
 
 	// For Kube connectivity
-	event.AddArtifact("kubeconfig", kubeConfigPath, false)
+	event.AddArtifact("kubeconfig", string(kubeConfig), false)
 	event.AddArtifact("client_certificate", "", false)
 	event.AddArtifact("client_key", "", false)
 	event.AddArtifact("certificate_authority", "", false)
@@ -289,10 +288,8 @@ func BasicFailedReleaseEvent() transistor.Event {
 }
 
 func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
-	var kubeConfigPath string
-	if kubeConfigPath = os.Getenv("KUBECONFIG_PATH"); kubeConfigPath == "" {
-		kubeConfigPath = path.Join(os.Getenv("HOME"), ".kube", "config")
-	}
+	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
+	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
 
 	event.AddArtifact("user", "test", false)
 	event.AddArtifact("password", "test", false)
@@ -304,7 +301,7 @@ func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event
 		event.Artifacts[idx].Source = "dockerbuilder"
 	}
 
-	event.AddArtifact("kubeconfig", kubeConfigPath, false)
+	event.AddArtifact("kubeconfig", string(kubeConfig), false)
 	event.AddArtifact("client_certificate", "", false)
 	event.AddArtifact("client_key", "", false)
 	event.AddArtifact("certificate_authority", "", false)

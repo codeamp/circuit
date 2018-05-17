@@ -24,7 +24,6 @@ func init() {
 
 func (x *Kubernetes) Description() string {
 	return "Kubernetes"
-
 }
 
 func (x *Kubernetes) SampleConfig() string {
@@ -46,11 +45,11 @@ func (x *Kubernetes) Subscribe() []string {
 	return []string{
 		"kubernetes:deployment:create",
 		"kubernetes:deployment:update",
-		"kubernetes:deployment:delete",
+		"kubernetes:deployment:destroy",
 
 		"kubernetes:loadbalancer:create",
 		"kubernetes:loadbalancer:update",
-		"kubernetes:loadbalancer:delete",
+		"kubernetes:loadbalancer:destroy",
 	}
 }
 
@@ -69,7 +68,7 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 }
 
 func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.State, artifacts []transistor.Artifact) {
-	event := e.NewEvent(e.Name, plugins.GetAction("status"), e.Payload)
+	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
 	event.SetState(plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	event.Artifacts = artifacts
 
@@ -77,14 +76,14 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 }
 
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
-	event := e.NewEvent(e.Name, plugins.GetAction("status"), e.Payload)
+	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
 	event.SetState(plugins.GetState("failed"), msg)
 
 	x.events <- event
 }
 
 func (x *Kubernetes) sendInProgress(e transistor.Event, msg string) {
-	event := e.NewEvent(e.Name, plugins.GetAction("status"), e.Payload)
+	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
 	event.SetState(plugins.GetState("running"), msg)
 
 	x.events <- event
