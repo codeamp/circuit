@@ -656,22 +656,45 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	// Create/Emit Release ProjectExtensions
+	_, err = r.createReleaseExtensions(plugins.GetType("workflow"), release, projectExtensions, servicesSig, secretsSig)
+	if err != nil {
+		return &ReleaseResolver{}, err
+	}
+	
+	_, err = r.createReleaseExtensions(plugins.GetType("deployment"), release, projectExtensions, servicesSig, secretsSig)
+	if err != nil {
+		return &ReleaseResolver{}, err
+	}	
+
+	if waitingRelease.State != "" {
+		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
+		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
+	} else {
+		r.Events <- transistor.NewEvent(releaseEvent, nil)
+
+		return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
+	}
+}
+
+func (r *Resolver) createReleaseExtensions(extensionType plugins.Type, release Release, projectExtensions []ProjectExtension, servicesSig []byte, secretsSig []byte) ([]ReleaseExtension, error) {
+	releaseExtensions := []ReleaseExtension{}
+
 	for _, projectExtension := range projectExtensions {
 		extension := Extension{}
 		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.ErrorWithFields("extension spec not found", log.Fields{
 				"id": projectExtension.ExtensionID,
 			})
-			return &ReleaseResolver{}, errors.New("extension spec not found")
+			return []ReleaseExtension{}, errors.New("extension spec not found")
 		}
 
-		if plugins.Type(extension.Type) == plugins.GetType("workflow") || plugins.Type(extension.Type) == plugins.GetType("deployment") {
+		if plugins.Type(extension.Type) == extensionType {
 			var headFeature Feature
 			if r.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 				log.ErrorWithFields("head feature not found", log.Fields{
 					"id": release.HeadFeatureID,
 				})
-				return &ReleaseResolver{}, errors.New("head feature not found")
+				return []ReleaseExtension{}, errors.New("head feature not found")
 			}
 
 			// create ReleaseExtension
@@ -686,17 +709,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			}
 
 			r.DB.Create(&releaseExtension)
+
+			releaseExtensions = append(releaseExtensions, releaseExtension)
 		}
-	}
-
-	if waitingRelease.State != "" {
-		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
-		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
-	} else {
-		r.Events <- transistor.NewEvent(releaseEvent, nil)
-
-		return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
-	}
+	}	
+	return releaseExtensions, nil
 }
 
 // CreateService Create service

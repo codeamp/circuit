@@ -164,7 +164,7 @@ func (r *ReleaseResolver) ReleaseExtensions() []*ReleaseExtensionResolver {
 	var rows []ReleaseExtension
 	var results []*ReleaseExtensionResolver
 
-	r.DB.Where("release_id = ?", r.Release.ID).Find(&rows)
+	r.DB.Where("release_id = ?", r.Release.ID).Order("created_at desc").Find(&rows)
 	for _, releaseExtension := range rows {
 		results = append(results, &ReleaseExtensionResolver{DB: r.DB, ReleaseExtension: releaseExtension})
 	}
