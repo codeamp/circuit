@@ -78,7 +78,7 @@ type Status struct {
 }
 
 type StatusResponse struct {
-	State string `json:"state:"`
+	State string `json:"state"`
 	Statuses []Status `json:"statuses"`
 }
 
@@ -244,7 +244,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					payload.State = plugins.GetState("complete")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "All status checks successful."					
-					evt.Payload = payload
+					evt = e.NewEvent(payload, nil)
 
 					x.events <- evt
 					break
@@ -252,7 +252,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					payload.State = plugins.GetState("failed")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "One or more status checks failed."
-					evt.Payload = payload
+					evt = e.NewEvent(payload, nil)
 
 					x.events <- evt					
 					break
@@ -260,7 +260,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					payload.State = plugins.GetState("running")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = "One or more status checks are running."
-					evt.Payload = payload
+					evt = e.NewEvent(payload, nil)
 
 					x.events <- evt
 				}
@@ -275,7 +275,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 					payload.State = plugins.GetState("failed")
 					payload.Action = plugins.GetAction("status")
 					payload.StateMessage = timeoutErrMsg
-					evt.Payload = payload
+					evt = e.NewEvent(payload, nil)
 
 					x.events <- evt
 					break
@@ -291,7 +291,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						payload.State = plugins.GetState("failed")
 						payload.Action = plugins.GetAction("status")
 						payload.StateMessage = err.Error()
-						evt.Payload = payload
+						evt = e.NewEvent(payload, nil)
 	
 						x.events <- evt
 						break
