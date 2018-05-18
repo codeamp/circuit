@@ -213,7 +213,7 @@ func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 	var rows []ProjectExtension
 	var results []*ProjectExtensionResolver
 
-	r.DB.Debug().Where("project_extensions.project_id = ? and project_extensions.environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Joins(`INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
+	r.DB.Where("project_extensions.project_id = ? and project_extensions.environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Joins(`INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
 		CASE extensions.type
 			WHEN 'workflow' THEN 1
 			WHEN 'deployment' THEN 2
