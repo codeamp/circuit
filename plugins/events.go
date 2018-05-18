@@ -10,14 +10,6 @@ import (
 )
 
 func init() {
-	// transistor.RegisterEvent(Project{})
-	// transistor.RegisterEvent(GitCommit{})
-	// transistor.RegisterEvent(GitSync{})
-	// transistor.RegisterEvent(WebsocketMsg{})
-	// transistor.RegisterEvent(HeartBeat{})
-	// transistor.RegisterEvent(Release{})
-	// transistor.RegisterEvent(ProjectExtension{})
-	// transistor.RegisterEvent(ReleaseExtension{})
 }
 
 func GetEventName(s string) transistor.EventName {
@@ -25,6 +17,8 @@ func GetEventName(s string) transistor.EventName {
 		"kubernetes:deployment",
 		"kubernetes:loadbalancer",
 		"githubstatus",
+		"gitsync",
+		"gitsync:commit",
 	}
 
 	for _, t := range eventNames {
