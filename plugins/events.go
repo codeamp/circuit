@@ -22,6 +22,8 @@ func GetEventName(s string) transistor.EventName {
 		"heartbeat",
 		"dockerbuilder",
 		"route53",
+		"release",
+		"project",
 	}
 
 	for _, t := range eventNames {
@@ -222,6 +224,9 @@ type ReleaseExtension struct {
 	Project     Project `json:"project"`
 	Release     Release `json:"release"`
 	Environment string  `json:"environment"`
+
+	State  State             `json:"state"`
+	Action transistor.Action `json:"action"`
 }
 
 type ProjectExtension struct {
