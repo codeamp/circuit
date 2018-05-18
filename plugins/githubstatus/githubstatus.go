@@ -313,8 +313,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 }
 
 func (x *GithubStatus) reportFailureEvent(e transistor.Event, err error) {
-	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
-	event.SetState(plugins.GetState("failed"), err.Error())
+	event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
 	x.events <- event
 }
 
@@ -335,16 +334,21 @@ func isValidGithubCredentials(username string, token string) (bool, error) {
 
 func (x *GithubStatus) createProjectExtension(e transistor.Event, username transistor.Artifact, token transistor.Artifact) error {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	log.InfoWithFields(fmt.Sprintf("Process GithubStatus project extension event: %s", e.Event()), log.Fields{})
 
 	event := e.NewEvent(plugins.GetEventName("githubstatus"), plugins.GetAction("status"), e.Payload)
 =======
 	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
 >>>>>>> WIP on Event Refactor
+=======
+
+	var event transistor.Event
+>>>>>>> WIP on GithubStatus
 	if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-		event.SetState(plugins.GetState("complete"), "Successfully installed!")
+		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully installed!")
 	} else {
-		event.SetState(plugins.GetState("failed"), err.Error())
+		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
 	}
 
 	x.events <- event
@@ -352,11 +356,11 @@ func (x *GithubStatus) createProjectExtension(e transistor.Event, username trans
 }
 
 func (x *GithubStatus) updateProjectExtension(e transistor.Event, username transistor.Artifact, token transistor.Artifact) error {
-	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
+	var event transistor.Event
 	if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-		event.SetState(plugins.GetState("complete"), "Successfully updated!")
+		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully updated!")
 	} else {
-		event.SetState(plugins.GetState("failed"), err.Error())
+		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
 	}
 
 	x.events <- event
@@ -526,13 +530,13 @@ func (x *GithubStatus) createReleaseExtension(e transistor.Event, username trans
 		log.Debug("Looping through again and checking statuses")
 =======
 
-			evt := e.NewEvent(plugins.GetAction("status"), payload)
+			var evt transistor.Event
 			if status.State == "success" {
-				evt.SetState(plugins.GetState("complete"), "All status checks successful.")
+				evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "All status checks successful.")
 			} else if status.State == "failure" {
-				evt.SetState(plugins.GetState("failed"), "One or more status checks failed.")
+				evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), "One or more status checks failed.")
 			} else {
-				evt.SetState(plugins.GetState("running"), "One or more status checks are running.")
+				evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("running"), "One or more status checks are running.")
 			}
 
 			for _, _status := range status.Statuses {
