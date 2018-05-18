@@ -23,7 +23,8 @@ func GetEventName(s string) transistor.EventName {
 		"dockerbuilder",
 		"route53",
 		"release",
-		"project",
+		"releaseextension",
+		"projectextension",
 	}
 
 	for _, t := range eventNames {

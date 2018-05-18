@@ -165,16 +165,11 @@ func (x *CodeAmp) Stop() {
 
 func (x *CodeAmp) Subscribe() []string {
 	return []string{
-		"plugins.GitCommit",
-		"plugins.HeartBeat",
-		"plugins.WebsocketMsg",
-		"plugins.ProjectExtension:status",
-		"plugins.ProjectExtension:update",
-		"plugins.ProjectExtension:complete",
-		"plugins.ReleaseExtension:status",
-		"plugins.Release:status",
-		"plugins.Release:create",
-		"plugins.Release:complete",
+		"gitcommit",
+		"heartbeat",
+		"websocket",
+		"project",
+		"release",
 	}
 }
 
@@ -270,9 +265,12 @@ func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
 						})
 					}
 
-					x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+					payload := plugins.WebsocketMsg{
 						Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
-					}, nil)
+					}
+					event := transistor.NewEvent(plugins.GetEventName("websocket"), plugins.GetAction("status"), payload)
+					event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key), false)
+					x.Events <- event
 				}
 			}
 		}
@@ -303,7 +301,7 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 	var extension resolvers.ProjectExtension
 	var project resolvers.Project
 
-	if e.Matches("plugins.ProjectExtension:status") {
+	if e.Matches("project:status") {
 		if x.DB.Where("id = ?", payload.ID).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found", log.Fields{
 				"id": payload.ID,
@@ -318,10 +316,7 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because Project not found given payload id: %s.", extension.ProjectID))
 		}
 
-		extension.State = payload.State
-		extension.StateMessage = payload.StateMessage
-
-		if payload.State == plugins.GetState("complete") {
+		if e.State == plugins.GetState("complete") {
 			if len(e.Artifacts) > 0 {
 				marshalledReArtifacts, err := json.Marshal(e.Artifacts)
 				if err != nil {
@@ -333,10 +328,9 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 
 		x.DB.Save(&extension)
 
-		x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
-			Event:   fmt.Sprintf("projects/%s/%s/extensions", project.Slug, payload.Environment),
-			Payload: extension,
-		}, nil)
+		event := transistor.NewEvent(plugins.GetEventName("websocket"), plugins.GetAction("status"), extension)
+		event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/extensions", project.Slug, payload.Environment), false)
+		x.Events <- event
 	}
 
 	return nil
@@ -385,12 +379,10 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				artifacts := []transistor.Artifact{}
 
 				eventAction := plugins.GetAction("create")
-				eventState := plugins.GetState("waiting")
 
 				// check if can cache workflows
 				if !release.ForceRebuild && !x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
 					eventAction = plugins.GetAction("status")
-					eventState = lastReleaseExtension.State
 
 					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
 					if err != nil {
@@ -403,15 +395,15 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 					}
 				}
 
-				ev := transistor.NewEvent(plugins.ReleaseExtension{
+				payload := plugins.ReleaseExtension{
 					ID:      releaseExtension.Model.ID.String(),
-					Action:  eventAction,
 					Slug:    extension.Key,
-					State:   eventState,
 					Release: payload,
-				}, nil)
+				}
 
+				ev := transistor.NewEvent(plugins.GetEventName("releaseextension"), eventAction, payload)
 				ev.Artifacts = artifacts
+
 				x.Events <- ev
 			}
 		}
@@ -440,8 +432,6 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			return fmt.Errorf("Release extension %s not found", payload.ID)
 		}
 
-		releaseExtension.State = payload.State
-		releaseExtension.StateMessage = payload.StateMessage
 		marshalledReArtifacts, err := json.Marshal(e.Artifacts)
 		if err != nil {
 			log.Info(err.Error(), log.Fields{})
@@ -486,9 +476,7 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 	// get branches of entire environments
 	projectSettingsCollection := []resolvers.ProjectSettings{}
 	if x.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectSettingsCollection).RecordNotFound() {
-		gitSync := plugins.GitSync{
-			Action: plugins.GetAction("update"),
-			State:  plugins.GetState("waiting"),
+		payload := plugins.GitSync{
 			Project: plugins.Project{
 				ID:         project.Model.ID.String(),
 				Repository: project.Repository,
@@ -503,12 +491,10 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 			From: hash,
 		}
 
-		x.Events <- transistor.NewEvent(gitSync, nil)
+		x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("update"), payload)
 	} else {
 		for _, projectSettings := range projectSettingsCollection {
-			gitSync := plugins.GitSync{
-				Action: plugins.GetAction("update"),
-				State:  plugins.GetState("waiting"),
+			payload := plugins.GitSync{
 				Project: plugins.Project{
 					ID:         project.Model.ID.String(),
 					Repository: project.Repository,
@@ -523,7 +509,7 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 				From: hash,
 			}
 
-			x.Events <- transistor.NewEvent(gitSync, nil)
+			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("update"), payload)
 		}
 	}
 
@@ -563,10 +549,13 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *resolvers.ReleaseExtension) {
 		})
 	}
 
-	x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+	payload := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/%s/releases/reCompleted", project.Slug, environment.Key),
 		Payload: release,
-	}, nil)
+	}
+	event := transistor.NewEvent(plugins.GetEventName("websocket"), plugins.GetAction("status"), payload)
+	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases/reCompleted", project.Slug, environment.Key), false)
+	x.Events <- transistor.NewEvent(plugins.GetEventName("websocket"), plugins.GetAction("status"), payload)
 
 	// loop through and check if all same-type elease extensions are completed
 	done := true
@@ -790,7 +779,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 	}
 
 	for _, releaseExtension := range releaseExtensions {
-		releaseExtensionAction := plugins.Action("create")
+		releaseExtensionAction := plugins.GetAction("create")
 		if releaseExtension.Type == plugins.GetType("deployment") {
 			_artifacts := artifacts
 
@@ -835,7 +824,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 				State:  releaseExtension.State,
 				Release: plugins.Release{
 					ID:          release.Model.ID.String(),
-					State:       release.State,
 					Environment: environment.Key,
 					HeadFeature: plugins.Feature{
 						Hash:       headFeature.Hash,
@@ -866,12 +854,12 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 					Secrets:  pluginSecrets,
 					Services: pluginServices,
 				},
-				StateMessage: releaseExtension.StateMessage,
 			}
 
-			ev := transistor.NewEvent(releaseExtensionEvent, nil)
+			ev := transistor.NewEvent(plugins.GetEventName("releaseextension"), releaseExtensionAction, releaseExtensionEvent)
 			ev.Artifacts = _artifacts
 			x.Events <- ev
+
 			releaseExtensionDeploymentsCount++
 		}
 	}
@@ -1080,8 +1068,6 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) error {
 
 	releaseEvent := plugins.Release{
 		ID:          nextQueuedRelease.Model.ID.String(),
-		Action:      plugins.GetAction("create"),
-		State:       plugins.GetState("waiting"),
 		Environment: environment.Key,
 		HeadFeature: plugins.Feature{
 			ID:         headFeature.Model.ID.String(),
@@ -1113,7 +1099,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) error {
 		Secrets: pluginSecrets,
 	}
 
-	x.Events <- transistor.NewEvent(releaseEvent, nil)
+	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), plugins.GetAction("create"), releaseEvent, nil)
 	return nil
 }
 
