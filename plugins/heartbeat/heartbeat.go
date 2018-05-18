@@ -23,22 +23,21 @@ func (x *Heartbeat) Start(e chan transistor.Event) error {
 	x.events = e
 
 	cron.NewCronJob(cron.ANY, cron.ANY, cron.ANY, cron.ANY, cron.ANY, 0, func(time.Time) {
-		event := transistor.NewEvent(plugins.HeartBeat{Tick: "minute"}, nil)
+		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), plugins.GetAction("status"), plugins.HeartBeat{Tick: "minute"})
 		x.events <- event
 	})
 
 	cron.NewCronJob(cron.ANY, cron.ANY, cron.ANY, cron.ANY, 0, 0, func(time.Time) {
-		event := transistor.NewEvent(plugins.HeartBeat{Tick: "hour"}, nil)
+		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), plugins.GetAction("status"), plugins.HeartBeat{Tick: "hour"})
 		x.events <- event
 	})
 
-	log.Println("Started Heartbeat")
-
+	log.Info("Started Heartbeat")
 	return nil
 }
 
 func (x *Heartbeat) Stop() {
-	log.Println("Stopping Heartbeat")
+	log.Info("Stopping Heartbeat")
 }
 
 func (x *Heartbeat) Subscribe() []string {
