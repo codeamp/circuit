@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -38,11 +39,23 @@ func (x *GitSync) SampleConfig() string {
 func (x *GitSync) Start(e chan transistor.Event) error {
 	x.events = e
 	log.Info("Started GitSync")
-	// create global gitconfig file
-	err := ioutil.WriteFile("/root/.gitconfig", []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
+
+	usr, err := user.Current()
 	if err != nil {
-		log.Debug(err)
-		return err
+		log.Fatal(err)
+	}
+
+	// create global gitconfig file
+	gitconfigPath := fmt.Sprintf("%s/.gitconfig", usr.HomeDir)
+	log.Info(gitconfigPath)
+
+	if _, err := os.Stat(gitconfigPath); os.IsNotExist(err) {
+		log.Warn("Local .gitconfig file not found! Writing default.")
+		err = ioutil.WriteFile(gitconfigPath, []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
+		if err != nil {
+			log.Debug(err)
+			return err
+		}
 	}
 
 	return nil
@@ -54,8 +67,8 @@ func (x *GitSync) Stop() {
 
 func (x *GitSync) Subscribe() []string {
 	return []string{
-		"plugins.GitPing",
-		"plugins.GitSync:update",
+		"gitsync:update",
+		"gitsync:create",
 	}
 }
 
@@ -137,7 +150,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 		output, err := x.git(env, "clone", git.Url, repoPath)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return nil, err
 		}
 
@@ -204,41 +217,46 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 func (x *GitSync) Process(e transistor.Event) error {
 	log.InfoWithFields("Process GitSync event", log.Fields{
-		"event": e.Name,
+		"event": e.Event(),
 	})
 
-	var err error
-
-	gitSyncEvent := e.Payload.(plugins.GitSync)
-	gitSyncEvent.Action = plugins.GetAction("status")
-	gitSyncEvent.State = plugins.GetState("fetching")
-	gitSyncEvent.StateMessage = ""
-	x.events <- e.NewEvent(gitSyncEvent, nil)
-
-	commits, err := x.commits(gitSyncEvent.Project, gitSyncEvent.Git)
-	if err != nil {
-		gitSyncEvent.State = plugins.GetState("failed")
-		gitSyncEvent.StateMessage = fmt.Sprintf("%v (Action: %v)", err.Error(), gitSyncEvent.State)
-		event := e.NewEvent(gitSyncEvent, err)
+	if e.Event() == "gitsync:create" {
+		payload := e.Payload.(plugins.GitSync)
+		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("fetching"), "Fetching resource")
 		x.events <- event
-		return err
-	}
 
-	for i := range commits {
-		c := commits[i]
-		c.Repository = gitSyncEvent.Project.Repository
-		c.Ref = fmt.Sprintf("refs/heads/%s", gitSyncEvent.Git.Branch)
+		commits, err := x.commits(payload.Project, payload.Git)
+		if err != nil {
+			log.Error(err)
 
-		if c.Hash == gitSyncEvent.From {
-			break
+			errEvent := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v)", err.Error(), "failed"))
+			x.events <- errEvent
+
+			return err
 		}
 
-		x.events <- e.NewEvent(c, nil)
-	}
+		// Previously this was being sent to push the payload to be handled by
+		// the receiver in CodeAmp by the 'GitCommitEventHandler'
+		// The payload did not have an action or state so it was being handled
+		// by matching the suffix which used to be 'plugins.GitCommit'
+		// ADB
+		for i := range commits {
+			c := commits[i]
+			c.Repository = payload.Project.Repository
+			c.Ref = fmt.Sprintf("refs/heads/%s", payload.Git.Branch)
 
-	gitSyncEvent.State = plugins.GetState("complete")
-	gitSyncEvent.StateMessage = ""
-	x.events <- e.NewEvent(gitSyncEvent, nil)
+			if c.Hash == payload.From {
+				break
+			}
+
+			event = transistor.NewEvent(plugins.GetEventName("gitsync:commit"), plugins.GetAction("create"), c.Ref)
+			event.OverridePayload(c)
+			x.events <- event
+		}
+
+		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Operation Complete")
+		x.events <- event
+	}
 
 	return nil
 }
