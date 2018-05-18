@@ -353,7 +353,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 		projectExtensionsJsonb = postgres.Jsonb{projectExtensionsMarshaled}
 	} else {
-		log.Info(fmt.Sprintf("Existing Release. Rolling back %s", args.Release.ID))
+		log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
 		// Rollback
 		release := Release{}
 
