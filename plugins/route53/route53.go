@@ -47,8 +47,8 @@ func (x *Route53) Stop() {
 
 func (x *Route53) Subscribe() []string {
 	return []string{
-		"plugins.ProjectExtension:create:route53",
-		"plugins.ProjectExtension:update:route53",
+		"route53:create",
+		"route53:update",
 	}
 }
 

@@ -21,6 +21,7 @@ func GetEventName(s string) transistor.EventName {
 		"gitsync:commit",
 		"heartbeat",
 		"dockerbuilder",
+		"route53",
 	}
 
 	for _, t := range eventNames {
