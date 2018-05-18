@@ -164,7 +164,14 @@ func (r *ReleaseResolver) ReleaseExtensions() []*ReleaseExtensionResolver {
 	var rows []ReleaseExtension
 	var results []*ReleaseExtensionResolver
 
-	r.DB.Where("release_id = ?", r.Release.ID).Find(&rows)
+	r.DB.Where("release_extensions.release_id = ?", r.Release.Model.ID).Joins(`INNER JOIN project_extensions ON release_extensions.project_extension_id = project_extensions.id 
+		INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
+			CASE extensions.type
+				WHEN 'workflow' THEN 1
+				WHEN 'deployment' THEN 2
+				ELSE 3
+			END, key ASC`).Find(&rows)
+
 	for _, releaseExtension := range rows {
 		results = append(results, &ReleaseExtensionResolver{DB: r.DB, ReleaseExtension: releaseExtension})
 	}

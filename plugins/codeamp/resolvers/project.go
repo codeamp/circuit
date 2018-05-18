@@ -212,7 +212,14 @@ func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error
 func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 	var rows []ProjectExtension
 	var results []*ProjectExtensionResolver
-	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
+
+	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Joins(`INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
+		CASE extensions.type
+			WHEN 'workflow' THEN 1
+			WHEN 'deployment' THEN 2
+			ELSE 3
+		END, key ASC`).Find(&rows)	
+
 	for _, extension := range rows {
 		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
 	}

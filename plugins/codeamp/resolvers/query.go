@@ -267,9 +267,19 @@ func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *
 	var results []*ExtensionResolver
 
 	if args.EnvironmentID != nil {
-		r.DB.Where("environment_id = ?", args.EnvironmentID).Order("created_at desc").Find(&rows)
+		r.DB.Where("environment_id = ?", args.EnvironmentID).Order(`
+			CASE extensions.type
+				WHEN 'workflow' THEN 1
+				WHEN 'deployment' THEN 2
+				ELSE 3
+			END, key ASC`).Find(&rows)
 	} else {
-		r.DB.Order("created_at desc").Find(&rows)
+		r.DB.Order(`
+			CASE extensions.type
+				WHEN 'workflow' THEN 1
+				WHEN 'deployment' THEN 2
+				ELSE 3
+			END, key ASC`).Find(&rows)
 	}
 
 	for _, ext := range rows {
