@@ -140,21 +140,32 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 			log.Debug(err)
 			return nil, err
 		}
+
 		log.Info(string(output))
 	}
 
-	// output, err = x.git(env, "-C", repoPath, "reset", "", git.Branch)
-	// if err != nil {
-	// 	log.Debug(err)
-	// 	return nil, err
-	// }
-	// log.Info(string(output))
+	output, err = x.git(env, "-C", repoPath, "reset", "--hard", fmt.Sprintf("origin/%s", git.Branch))
+	if err != nil {
+		log.Debug(err)
+		return nil, err
+	}
+
+	log.Info(string(output))
+	
+	output, err = x.git(env, "-C", repoPath, "clean", "-fd")
+	if err != nil {
+		log.Debug(err)
+		return nil, err
+	}
+
+	log.Info(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
 		log.Debug(err)
 		return nil, err
 	}
+
 	log.Info(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "checkout", git.Branch)
@@ -162,6 +173,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		log.Debug(err)
 		return nil, err
 	}
+
 	log.Info(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "log", "--first-parent", "--date=iso-strict", "-n", "50", "--pretty=format:%H#@#%P#@#%s#@#%cN#@#%cd", git.Branch)
