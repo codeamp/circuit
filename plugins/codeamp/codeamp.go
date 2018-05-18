@@ -783,13 +783,12 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		if releaseExtension.Type == plugins.GetType("deployment") {
 			_artifacts := artifacts
 
-			// ADB Needs another look
 			// Fail deployment if the release is in a failed state
-			// if release.State == plugins.GetState("failed") {
-			// 	releaseExtensionAction = plugins.GetAction("status")
-			// 	releaseExtension.State = plugins.GetState("failed")
-			// 	releaseExtension.StateMessage = release.StateMessage
-			// }
+			if release.State == plugins.GetState("failed") {
+				releaseExtensionAction = plugins.GetAction("status")
+				releaseExtension.State = plugins.GetState("failed")
+				releaseExtension.StateMessage = release.StateMessage
+			}
 
 			projectExtension := resolvers.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
@@ -1104,25 +1103,16 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) error {
 }
 
 func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string) {
-	// ADB Please look at
-	// release.State = plugins.GetState("failed")
-	// release.StateMessage = stateMessage
+	release.State = plugins.GetState("failed")
+	release.StateMessage = stateMessage
 	x.DB.Save(release)
 
 	releaseExtensions := []resolvers.ReleaseExtension{}
 	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
-<<<<<<< HEAD
 	for _, re := range releaseExtensions {
 		re.State = plugins.GetState("failed")
 		x.DB.Save(&re)
 	}
-=======
-	// ADB Please look at
-	// for _, re := range releaseExtensions {
-	// 	re.State = plugins.GetState("failed")
-	// 	re.StateMessage = stateMessage
-	// }
->>>>>>> WIP on codeamp. This commit and the last DEFINITELY need review
 
 	x.RunQueuedReleases(release)
 }
@@ -1143,10 +1133,9 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 		})
 	}
 
-	// ADB Please look at
 	// mark release as complete
-	// release.State = plugins.GetState("complete")
-	// release.StateMessage = "Completed"
+	release.State = plugins.GetState("complete")
+	release.StateMessage = "Completed"
 
 	x.DB.Save(release)
 
