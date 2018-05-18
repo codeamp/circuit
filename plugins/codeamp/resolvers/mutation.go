@@ -224,8 +224,8 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		return nil, errors.New("Release Not Found")
 	}
 
-	release.State = plugins.GetState("failed")
-	release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
+	// release.State = plugins.GetState("failed")
+	// release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
 	r.DB.Save(&release)
 
 	for _, releaseExtension := range releaseExtensions {
@@ -254,14 +254,13 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		}
 
 		if releaseExtension.State == plugins.GetState("waiting") {
-
 			releaseExtensionEvent := plugins.ReleaseExtension{
-				ID:           releaseExtension.ID.String(),
-				Action:       plugins.GetAction("status"),
-				Slug:         extension.Key,
-				State:        plugins.GetState("failed"),
-				StateMessage: fmt.Sprintf("Deployment Stopped By User %s", user.Email),
-				Project:      plugins.Project{},
+				ID: releaseExtension.ID.String(),
+				// Action:       plugins.GetAction("status"),
+				Slug: extension.Key,
+				// State:        plugins.GetState("failed"),
+				// StateMessage: fmt.Sprintf("Deployment Stopped By User %s", user.Email),
+				Project: plugins.Project{},
 				Release: plugins.Release{
 					ID: releaseExtension.ReleaseID.String(),
 				},

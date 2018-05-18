@@ -74,7 +74,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 		},
 	}
 
-	ev := transistor.NewEvent(dockerBuildEvent, nil)
+	ev := transistor.NewEvent(plugins.GetAction("create"), plugins.GetState("waiting"), "TestDockerBuilder")
 	ev.AddArtifact("USER", "test", false)
 	ev.AddArtifact("PASSWORD", "test", false)
 	ev.AddArtifact("EMAIL", "test@checkr.com", false)
@@ -82,15 +82,15 @@ func (suite *TestSuite) TestDockerBuilder() {
 	ev.AddArtifact("ORG", "testorg", false)
 	suite.transistor.Events <- ev
 
-	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 60)
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("dockerbuilder"), plugins.GetAction("status"), 60)
 	payload := e.Payload.(plugins.ReleaseExtension)
-	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
-	assert.Equal(suite.T(), string(plugins.GetState("fetching")), string(payload.State))
+	assert.Equal(suite.T(), plugins.GetAction("status"), payload.Action)
+	assert.Equal(suite.T(), plugins.GetState("fetching"), payload.State)
 
 	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 600)
 	payload = e.Payload.(plugins.ReleaseExtension)
-	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
-	assert.Equal(suite.T(), string(plugins.GetState("complete")), string(payload.State))
+	assert.Equal(suite.T(), plugins.GetAction("status"), payload.Action)
+	assert.Equal(suite.T(), plugins.GetState("complete"), payload.State)
 
 	image, err := e.GetArtifact("image")
 	if err != nil {

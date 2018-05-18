@@ -47,8 +47,6 @@ func (x *GitSync) Start(e chan transistor.Event) error {
 
 	// create global gitconfig file
 	gitconfigPath := fmt.Sprintf("%s/.gitconfig", usr.HomeDir)
-	log.Info(gitconfigPath)
-
 	if _, err := os.Stat(gitconfigPath); os.IsNotExist(err) {
 		log.Warn("Local .gitconfig file not found! Writing default.")
 		err = ioutil.WriteFile(gitconfigPath, []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)

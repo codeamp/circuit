@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -21,7 +22,6 @@ import (
 
 type DockerBuilder struct {
 	events chan transistor.Event
-	event  transistor.Event
 	Socket string
 }
 
@@ -41,19 +41,29 @@ func (x *DockerBuilder) SampleConfig() string {
 
 func (x *DockerBuilder) Start(e chan transistor.Event) error {
 	x.events = e
-	log.Info("Started DockerBuilder")
+
 	// create global gitconfig file
-	err := ioutil.WriteFile("/root/.gitconfig", []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
+	usr, err := user.Current()
 	if err != nil {
-		log.Debug(err)
-		return err
+		log.Fatal(err)
 	}
-	
+
+	gitconfigPath := fmt.Sprintf("%s/.gitconfig", usr.HomeDir)
+	if _, err := os.Stat(gitconfigPath); os.IsNotExist(err) {
+		log.Warn("Local .gitconfig file not found! Writing default.")
+		err = ioutil.WriteFile(gitconfigPath, []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
+		if err != nil {
+			log.Debug(err)
+			return err
+		}
+	}
+
+	log.Info("Started DockerBuilder")
 	return nil
 }
 
 func (x *DockerBuilder) Stop() {
-	log.Println("Stopping DockerBuilder")
+	log.Info("Stopping DockerBuilder")
 }
 
 func (x *DockerBuilder) Subscribe() []string {
@@ -89,13 +99,15 @@ func (x *DockerBuilder) git(env []string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
-func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtension) error {
+func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error {
+	payload := event.Payload.(plugins.ReleaseExtension)
+
 	var err error
 	var output []byte
 
-	// idRsaPath := fmt.Sprintf("%s/%s_id_rsa", event.Release.Git.Workdir, event.Release.Project.Repository)
-	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository)
-	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository, event.Release.Git.Branch)
+	// idRsaPath := fmt.Sprintf("%s/%s_id_rsa", payload.Release.Git.Workdir, payload.Release.Project.Repository)
+	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.dockerbuilder.workdir"), payload.Release.Project.Repository)
+	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), payload.Release.Project.Repository, payload.Release.Git.Branch)
 	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
 
 	// Git Env
@@ -112,7 +124,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 			"path": idRsaPath,
 		})
 
-		err := ioutil.WriteFile(idRsaPath, []byte(event.Release.Git.RsaPrivateKey), 0600)
+		err := ioutil.WriteFile(idRsaPath, []byte(payload.Release.Git.RsaPrivateKey), 0600)
 		if err != nil {
 			log.Debug(err)
 			return err
@@ -124,7 +136,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 			"path": repoPath,
 		})
 
-		output, err := x.git(env, "clone", event.Release.Git.Url, repoPath)
+		output, err := x.git(env, "clone", payload.Release.Git.Url, repoPath)
 		if err != nil {
 			log.Debug(err)
 			return err
@@ -132,14 +144,14 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 		log.Info(string(output))
 	}
 
-	output, err = x.git(env, "-C", repoPath, "checkout", event.Release.Git.Branch)
+	output, err = x.git(env, "-C", repoPath, "checkout", payload.Release.Git.Branch)
 	if err != nil {
 		log.Info(err)
 		return err
 	}
 	log.Info(string(output))
 
-	output, err = x.git(env, "-C", repoPath, "pull", "origin", event.Release.Git.Branch)
+	output, err = x.git(env, "-C", repoPath, "pull", "origin", payload.Release.Git.Branch)
 	if err != nil {
 		log.Info(err)
 		return err
@@ -149,9 +161,11 @@ func (x *DockerBuilder) bootstrap(repoPath string, event plugins.ReleaseExtensio
 	return nil
 }
 
-func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, dockerBuildOut io.Writer) error {
-	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), event.Release.Project.Repository, event.Release.Git.Branch)
-	gitArchive := exec.Command("git", "archive", event.Release.HeadFeature.Hash)
+func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBuildOut io.Writer) error {
+	payload := event.Payload.(plugins.ReleaseExtension)
+
+	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), payload.Release.Project.Repository, payload.Release.Git.Branch)
+	gitArchive := exec.Command("git", "archive", payload.Release.HeadFeature.Hash)
 	gitArchive.Dir = repoPath
 	gitArchiveOut, err := gitArchive.StdoutPipe()
 	if err != nil {
@@ -185,7 +199,7 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	}
 
 	buildArgs := []docker.BuildArg{}
-	for _, secret := range event.Release.Secrets {
+	for _, secret := range payload.Release.Secrets {
 		if secret.Type == plugins.GetType("build") {
 			ba := docker.BuildArg{
 				Name:  secret.Key,
@@ -194,7 +208,7 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 			buildArgs = append(buildArgs, ba)
 		}
 	}
-	fullImagePath := fullImagePath(x.event)
+	fullImagePath := fullImagePath(event)
 	buildOptions := docker.BuildImageOptions{
 		Dockerfile:   fmt.Sprintf("Dockerfile"),
 		Name:         fullImagePath,
@@ -218,30 +232,30 @@ func (x *DockerBuilder) build(repoPath string, event plugins.ReleaseExtension, d
 	return nil
 }
 
-func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, buildlog io.Writer) error {
+func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog io.Writer) error {
 	var err error
 
-	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(x.event))))
+	buildlog.Write([]byte(fmt.Sprintf("Pushing %s\n", imagePathGen(event))))
 
-	user, err := x.event.GetArtifact("user")
+	user, err := event.GetArtifact("user")
 	if err != nil {
 		return err
 	}
 
-	password, err := x.event.GetArtifact("password")
+	password, err := event.GetArtifact("password")
 	if err != nil {
 		return err
 	}
 
-	email, err := x.event.GetArtifact("email")
+	email, err := event.GetArtifact("email")
 	if err != nil {
 		return err
 	}
 
 	dockerClient, err := docker.NewClient(x.Socket)
 	err = dockerClient.PushImage(docker.PushImageOptions{
-		Name:         imagePathGen(x.event),
-		Tag:          imageTagGen(x.event),
+		Name:         imagePathGen(event),
+		Tag:          imageTagGen(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
 		Username: user.String(),
@@ -253,20 +267,20 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 	}
 
 	tagOptions := docker.TagImageOptions{
-		Repo:  imagePathGen(x.event),
-		Tag:   imageTagLatest(x.event),
+		Repo:  imagePathGen(event),
+		Tag:   imageTagLatest(event),
 		Force: true,
 	}
 
-	fullImagePath := imagePathGen(x.event) + ":" + imageTagGen(x.event)
+	fullImagePath := imagePathGen(event) + ":" + imageTagGen(event)
 
 	if err = dockerClient.TagImage(fullImagePath, tagOptions); err != nil {
 		return err
 	}
 
 	err = dockerClient.PushImage(docker.PushImageOptions{
-		Name:         imagePathGen(x.event),
-		Tag:          imageTagLatest(x.event),
+		Name:         imagePathGen(event),
+		Tag:          imageTagLatest(event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
 		Username: user.String(),
@@ -281,108 +295,83 @@ func (x *DockerBuilder) push(repoPath string, event plugins.ReleaseExtension, bu
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
-	x.event = e
-	if e.Name == "plugins.ProjectExtension:create:dockerbuilder" {
-		var extensionEvent plugins.ProjectExtension
-		extensionEvent = e.Payload.(plugins.ProjectExtension)
-		extensionEvent.Action = plugins.GetAction("status")
-		extensionEvent.State = plugins.GetState("complete")
-		extensionEvent.StateMessage = "installation complete"
-		ev := e.NewEvent(extensionEvent, nil)
+	if e.Name == "dockerbuilder:create" {
+		ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Installation complete.")
 		x.events <- ev
 		return nil
 	}
 
-	if e.Name == "plugins.ProjectExtension:update:dockerbuilder" {
-		var extensionEvent plugins.ProjectExtension
-		extensionEvent = e.Payload.(plugins.ProjectExtension)
-		extensionEvent.Action = plugins.GetAction("status")
-		extensionEvent.State = plugins.GetState("complete")
-		extensionEvent.StateMessage = "update complete"
-		ev := e.NewEvent(extensionEvent, nil)
+	if e.Name == "dockerbuilder:update" {
+		ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Update complete.")
 		x.events <- ev
 		return nil
 	}
 
-	event := e.Payload.(plugins.ReleaseExtension)
+	x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("fetching"), "Fetching resources.")
+	payload := e.Payload.(plugins.ReleaseExtension)
 
-	var err error
-
-	event.Action = plugins.GetAction("status")
-	event.State = plugins.GetState("fetching")
-	event.StateMessage = ""
-	x.events <- e.NewEvent(event, nil)
-
-	// repoPath := fmt.Sprintf("%s/%s_%s", event.Release.Git.Workdir, event.Release.Project.Repository, event.Release.Git.Branch)
-	repoPath := fmt.Sprintf("%s", event.Release.Project.Repository)
+	// repoPath := fmt.Sprintf("%s/%s_%s", payload.Release.Git.Workdir, payload.Release.Project.Repository, payload.Release.Git.Branch)
+	repoPath := fmt.Sprintf("%s", payload.Release.Project.Repository)
 
 	buildlogBuf := bytes.NewBuffer(nil)
 	buildlog := io.MultiWriter(buildlogBuf, os.Stdout)
 
-	err = x.bootstrap(repoPath, event)
+	var err error
+	err = x.bootstrap(repoPath, e)
 	if err != nil {
-		log.Debug(err)
-		event.State = plugins.GetState("failed")
-		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: bootstrap)", err.Error(), event.State)
-		x.events <- e.NewEvent(event, nil)
+		log.Error(err)
+		x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: bootstrap)", err.Error(), e.State))
 		return err
 	}
 
-	err = x.build(repoPath, event, buildlog)
+	err = x.build(repoPath, e, buildlog)
 	if err != nil {
-		log.Debug(err)
-		event.State = plugins.GetState("failed")
-		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), event.State)
+		log.Error(err)
 
-		ev := e.NewEvent(event, nil)
+		ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), e.State))
 		ev.AddArtifact("build_log", buildlogBuf.String(), false)
 		x.events <- ev
 
 		return err
 	}
 
-	err = x.push(repoPath, event, buildlog)
+	err = x.push(repoPath, e, buildlog)
 	if err != nil {
-		log.Debug(err)
-		event.State = plugins.GetState("failed")
-		event.StateMessage = fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), event.State)
+		log.Error(err)
 
-		ev := e.NewEvent(event, nil)
+		ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), e.State))
 		ev.AddArtifact("build_log", buildlogBuf.String(), false)
 		x.events <- ev
 
 		return err
 	}
 
-	event.State = plugins.GetState("complete")
-	event.StateMessage = "Completed"
-
-	user, err := x.event.GetArtifact("user")
+	user, err := e.GetArtifact("user")
 	if err != nil {
 		return err
 	}
 
-	password, err := x.event.GetArtifact("password")
+	password, err := e.GetArtifact("password")
 	if err != nil {
 		return err
 	}
 
-	email, err := x.event.GetArtifact("email")
+	email, err := e.GetArtifact("email")
 	if err != nil {
 		return err
 	}
 
-	registryHost, err := x.event.GetArtifact("host")
+	registryHost, err := e.GetArtifact("host")
 	if err != nil {
 		log.Error(err)
 	}
 
-	ev := e.NewEvent(event, nil)
+	ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Completed")
 	ev.AddArtifact("user", user.String(), user.Secret)
 	ev.AddArtifact("password", password.String(), password.Secret)
 	ev.AddArtifact("email", email.String(), email.Secret)
 	ev.AddArtifact("host", registryHost.String(), registryHost.Secret)
-	ev.AddArtifact("image", fullImagePath(x.event), false)
+	ev.AddArtifact("image", fullImagePath(e), false)
 	ev.AddArtifact("build_log", buildlogBuf.String(), false)
 	x.events <- ev
 
@@ -391,14 +380,16 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 // generate image tag name
 func imageTagGen(event transistor.Event) string {
-	return (fmt.Sprintf("%s.%s", event.Payload.(plugins.ReleaseExtension).Release.HeadFeature.Hash, event.Payload.(plugins.ReleaseExtension).Release.Environment))
+	payload := event.Payload.(plugins.ReleaseExtension)
+	return (fmt.Sprintf("%s.%s", payload.Release.HeadFeature.Hash, payload.Release.Environment))
 }
 
 func imageTagLatest(event transistor.Event) string {
-	if event.Payload.(plugins.ReleaseExtension).Release.Environment == "production" {
+	payload := event.Payload.(plugins.ReleaseExtension)
+	if payload.Release.Environment == "production" {
 		return ("latest")
 	}
-	return (fmt.Sprintf("%s.%s", "latest", event.Payload.(plugins.ReleaseExtension).Release.Environment))
+	return (fmt.Sprintf("%s.%s", "latest", payload.Release.Environment))
 }
 
 // rengerate image path name
@@ -413,7 +404,8 @@ func imagePathGen(event transistor.Event) string {
 		log.Error(err)
 	}
 
-	return (fmt.Sprintf("%s/%s/%s", registryHost.String(), registryOrg.String(), slug.Slug(event.Payload.(plugins.ReleaseExtension).Release.Project.Repository)))
+	payload := event.Payload.(plugins.ReleaseExtension)
+	return (fmt.Sprintf("%s/%s/%s", registryHost.String(), registryOrg.String(), slug.Slug(payload.Release.Project.Repository)))
 }
 
 // return the full image path with featureHash tag

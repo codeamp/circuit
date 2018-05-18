@@ -346,9 +346,9 @@ func (x *GithubStatus) createProjectExtension(e transistor.Event, username trans
 	var event transistor.Event
 >>>>>>> WIP on GithubStatus
 	if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully installed!")
+		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully installed!")
 	} else {
-		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
+		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
 	}
 
 	x.events <- event
