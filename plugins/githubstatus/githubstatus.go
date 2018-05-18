@@ -19,22 +19,6 @@ type GithubStatus struct {
 	events chan transistor.Event
 }
 
-type Status struct {
-	Url         string    `json:"url"`
-	Id          int       `json:"id"`
-	State       string    `json:"state"`
-	Description string    `json:"description"`
-	TargetUrl   string    `json:"target_url"`
-	Context     string    `json:"context"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-type StatusResponse struct {
-	State    string   `json:"state"`
-	Statuses []Status `json:"statuses"`
-}
-
 func init() {
 	transistor.RegisterPlugin("githubstatus", func() transistor.Plugin {
 		return &GithubStatus{}
@@ -51,12 +35,12 @@ func (x *GithubStatus) SampleConfig() string {
 
 func (x *GithubStatus) Start(e chan transistor.Event) error {
 	x.events = e
-	log.Println("Started GithubStatus")
+	log.Info("Started GithubStatus")
 	return nil
 }
 
 func (x *GithubStatus) Stop() {
-	log.Println("Stopping GithubStatus")
+	log.Info("Stopping GithubStatus")
 }
 
 func (x *GithubStatus) Subscribe() []string {
@@ -66,6 +50,7 @@ func (x *GithubStatus) Subscribe() []string {
 	}
 }
 
+<<<<<<< HEAD
 type Status struct {
 	Url         string    `json:"url"`
 	Id          int       `json:"id"`
@@ -317,6 +302,8 @@ func (x *GithubStatus) reportFailureEvent(e transistor.Event, err error) {
 	x.events <- event
 }
 
+=======
+>>>>>>> Started over on githubstatus
 func isValidGithubCredentials(username string, token string) (bool, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/user"), nil)
@@ -332,6 +319,7 @@ func isValidGithubCredentials(username string, token string) (bool, error) {
 	}
 }
 
+<<<<<<< HEAD
 func (x *GithubStatus) createProjectExtension(e transistor.Event, username transistor.Artifact, token transistor.Artifact) error {
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -353,18 +341,22 @@ func (x *GithubStatus) createProjectExtension(e transistor.Event, username trans
 
 	x.events <- event
 	return nil
+=======
+type Status struct {
+	Url         string    `json:"url"`
+	Id          int       `json:"id"`
+	State       string    `json:"state"`
+	Description string    `json:"description"`
+	TargetUrl   string    `json:"target_url"`
+	Context     string    `json:"context"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+>>>>>>> Started over on githubstatus
 }
 
-func (x *GithubStatus) updateProjectExtension(e transistor.Event, username transistor.Artifact, token transistor.Artifact) error {
-	var event transistor.Event
-	if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully updated!")
-	} else {
-		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
-	}
-
-	x.events <- event
-	return nil
+type StatusResponse struct {
+	State    string   `json:"state"`
+	Statuses []Status `json:"statuses"`
 }
 
 <<<<<<< HEAD
@@ -383,9 +375,6 @@ func getStatus(e transistor.Event) (StatusResponse, error) {
 	}
 
 	payload := e.Payload.(plugins.ReleaseExtension)
-
-	log.Info("Payload: ", payload)
-	log.Info(fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", payload.Release.Project.Repository, payload.Release.HeadFeature.Hash))
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", payload.Release.Project.Repository, payload.Release.HeadFeature.Hash), nil)
 	if err != nil {
 		return StatusResponse{}, err
@@ -404,8 +393,6 @@ func getStatus(e transistor.Event) (StatusResponse, error) {
 		return StatusResponse{}, err
 	}
 
-	log.Info("RespBody: ", resp.StatusCode)
-
 	if resp.StatusCode == 200 {
 		status := StatusResponse{}
 		err = json.Unmarshal(respBody, &status)
@@ -419,9 +406,10 @@ func getStatus(e transistor.Event) (StatusResponse, error) {
 	}
 }
 
-func (x *GithubStatus) createReleaseExtension(e transistor.Event, username transistor.Artifact, token transistor.Artifact, timeoutLimitInt int, timeoutInterval int) error {
-	payload := e.Payload.(plugins.ReleaseExtension)
+func (x *GithubStatus) Process(e transistor.Event) error {
+	log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
 
+<<<<<<< HEAD
 >>>>>>> WIP on Event Refactor
 	// get status and check if complete
 	client := &http.Client{}
@@ -529,32 +517,135 @@ func (x *GithubStatus) createReleaseExtension(e transistor.Event, username trans
 
 		log.Debug("Looping through again and checking statuses")
 =======
+=======
+	timeoutInterval := 5
+	userTimeoutInterval, err := e.GetArtifact("timeout_interval")
+	if err != nil {
+		log.Error(err.Error())
+	} else {
+		timeoutInterval, err = strconv.Atoi(userTimeoutInterval.String())
+		if err != nil {
+			log.Error(err.Error())
+		}
+	}
 
-			var evt transistor.Event
-			if status.State == "success" {
-				evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "All status checks successful.")
-			} else if status.State == "failure" {
-				evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), "One or more status checks failed.")
-			} else {
-				evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("running"), "One or more status checks are running.")
-			}
+	timeoutLimit, err := e.GetArtifact("timeout_seconds")
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
 
-			for _, _status := range status.Statuses {
-				evt.AddArtifact(fmt.Sprintf("%d_%s_target_url", _status.Id, _status.Context), _status.TargetUrl, false)
-				evt.AddArtifact(fmt.Sprintf("%d_%s_created_at", _status.Id, _status.Context), _status.CreatedAt.String(), false)
-				evt.AddArtifact(fmt.Sprintf("%d_%s_state", _status.Id, _status.Context), _status.State, false)
-				evt.AddArtifact(fmt.Sprintf("%d_%s_description", _status.Id, _status.Context), _status.Description, false)
-			}
+	username, err := e.GetArtifact("username")
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
 
-			x.events <- evt
+	token, err := e.GetArtifact("personal_access_token")
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+>>>>>>> Started over on githubstatus
 
-			if status.State == "success" || status.State == "failure" {
+	timeoutLimitInt, err := strconv.Atoi(timeoutLimit.String())
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+
+	if e.Matches("githubstatus") {
+		if e.PayloadModel == "plugins.ProjectExtension" {
+			switch e.Action {
+			case plugins.GetAction("create"):
+				if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
+					x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully installed!")
+					return nil
+				} else {
+					x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
+					return nil
+				}
+			case plugins.GetAction("update"):
+				if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
+					x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully installed!")
+					return nil
+				} else {
+					x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
+					return nil
+				}
+			default:
+				log.InfoWithFields(fmt.Sprintf("GithubStatus ProjectExtension event not handled: %s", e.Event()), log.Fields{})
 				return nil
 			}
 		}
 
+		if e.PayloadModel == "plugins.ReleaseExtension" {
+			payload := e.Payload.(plugins.ReleaseExtension)
+			switch e.Action {
+			case plugins.GetAction("create"):
+				log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{
+					"hash": payload.Release.HeadFeature.Hash,
+				})
+
+				timeout := 0
+				for {
+					var evt transistor.Event
+					var breakTheLoop bool
+
+					log.DebugWithFields("Checking statuses", log.Fields{
+						"hash": payload.Release.HeadFeature.Hash,
+					})
+
+					status, err := getStatus(e)
+					if err != nil {
+						log.ErrorWithFields(err.Error(), log.Fields{
+							"hash": payload.Release.HeadFeature.Hash,
+						})
+
+						x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
+						return nil
+					}
+
+					if status.State == "success" {
+						breakTheLoop = true
+						evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "All status checks successful.")
+					} else if status.State == "failure" {
+						breakTheLoop = true
+						evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), "One or more status checks failed.")
+					} else if timeout >= timeoutLimitInt {
+						breakTheLoop = true
+						evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt))
+					} else {
+						breakTheLoop = false
+						evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("running"), "One or more status checks are running.")
+					}
+
+					// Collect artifacts
+					for _, _status := range status.Statuses {
+						evt.AddArtifact(fmt.Sprintf("%d_%s_target_url", _status.Id, _status.Context), _status.TargetUrl, false)
+						evt.AddArtifact(fmt.Sprintf("%d_%s_created_at", _status.Id, _status.Context), _status.CreatedAt.String(), false)
+						evt.AddArtifact(fmt.Sprintf("%d_%s_state", _status.Id, _status.Context), _status.State, false)
+						evt.AddArtifact(fmt.Sprintf("%d_%s_description", _status.Id, _status.Context), _status.Description, false)
+					}
+
+					x.events <- evt
+
+					if breakTheLoop {
+						break
+					}
+
+					timeout += timeoutInterval
+					time.Sleep(time.Duration(timeoutInterval) * time.Second)
+				}
+			}
+		}
+<<<<<<< HEAD
+
 		timeout += timeoutInterval
 		time.Sleep(time.Duration(timeoutInterval) * time.Second)
 >>>>>>> WIP on Event Refactor
+=======
+>>>>>>> Started over on githubstatus
 	}
+	return nil
 }
