@@ -35,19 +35,21 @@ func (x *GithubStatus) SampleConfig() string {
 
 func (x *GithubStatus) Start(e chan transistor.Event) error {
 	x.events = e
-	log.Println("Started GithubStatus")
+	log.Info("Started GithubStatus")
 	return nil
 }
 
 func (x *GithubStatus) Stop() {
-	log.Println("Stopping GithubStatus")
+	log.Info("Stopping GithubStatus")
 }
 
 func (x *GithubStatus) Subscribe() []string {
 	return []string{
-		"plugins.ProjectExtension:create:githubstatus",
-		"plugins.ProjectExtension:update:githubstatus",
-		"plugins.ReleaseExtension:create:githubstatus",
+		"githubstatus:create",
+		"githubstatus:update",
+		"githubstatus:destroy",
+		"projectextension",
+		"releaseextension",
 	}
 }
 
@@ -131,7 +133,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 	timeoutInterval := 5
 	userTimeoutInterval, err := e.GetArtifact("timeout_interval")
 	if err != nil {
-		log.Debug(err.Error())
+		log.Error(err.Error())
 	} else {
 		timeoutInterval, err = strconv.Atoi(userTimeoutInterval.String())
 		if err != nil {
@@ -163,55 +165,37 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		return err
 	}
 
-	if e.Matches("plugins.ProjectExtension") {
-		event := e.Payload.(plugins.ProjectExtension)
-
-		switch event.Action {
+	if e.Matches("projectextension") {
+		switch e.Action {
 		case plugins.GetAction("create"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Name), log.Fields{})
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
 			if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-				responseEvent := e.Payload.(plugins.ProjectExtension)
-				responseEvent.State = plugins.GetState("complete")
-				responseEvent.Action = plugins.GetAction("status")
-				responseEvent.StateMessage = "Successfully installed!"
-				x.events <- e.NewEvent(responseEvent, nil)
+				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully installed!")
 				return nil
 			} else {
-				failedEvent := e.Payload.(plugins.ProjectExtension)
-				failedEvent.State = plugins.GetState("failed")
-				failedEvent.Action = plugins.GetAction("status")
-				failedEvent.StateMessage = err.Error()
-				x.events <- e.NewEvent(failedEvent, err)
+				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
 				return nil
 			}
 		case plugins.GetAction("update"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Name), log.Fields{})
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
 			if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-				responseEvent := e.Payload.(plugins.ProjectExtension)
-				responseEvent.State = plugins.GetState("complete")
-				responseEvent.Action = plugins.GetAction("status")
-				responseEvent.StateMessage = "Successfully updated!"
-				x.events <- e.NewEvent(responseEvent, nil)
+				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully updated!")
 				return nil
 			} else {
-				failedEvent := e.Payload.(plugins.ProjectExtension)
-				failedEvent.State = plugins.GetState("failed")
-				failedEvent.Action = plugins.GetAction("status")
-				failedEvent.StateMessage = err.Error()
-				x.events <- e.NewEvent(failedEvent, err)
+				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
 				return nil
 			}
 		default:
-			log.InfoWithFields(fmt.Sprintf("GithubStatus ProjectExtension event not handled: %s", e.Name), log.Fields{})
+			log.WarnWithFields(fmt.Sprintf("GithubStatus ProjectExtension event not handled: %s", e.Event()), log.Fields{})
 			return nil
 		}
 	}
 
-	if e.Matches("plugins.ReleaseExtension") {
+	if e.Matches("releaseextension") {
 		payload := e.Payload.(plugins.ReleaseExtension)
 		switch payload.Action {
 		case plugins.GetAction("create"):
-			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Name), log.Fields{
+			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{
 				"hash": payload.Release.HeadFeature.Hash,
 			})
 
@@ -230,38 +214,22 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						"hash": payload.Release.HeadFeature.Hash,
 					})
 
-					payload.State = plugins.GetState("failed")
-					payload.Action = plugins.GetAction("status")
-					payload.StateMessage = err.Error()
-					evt = e.NewEvent(payload, nil)
-					x.events <- e.NewEvent(payload, err)
+					x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
 					return nil
 				}
 
 				if status.State == "success" {
 					breakTheLoop = true
-					payload.State = plugins.GetState("complete")
-					payload.Action = plugins.GetAction("status")
-					payload.StateMessage = "All status checks successful."
-					evt = e.NewEvent(payload, nil)
+					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("status"), "All status checks successful.")
 				} else if status.State == "failure" {
 					breakTheLoop = true
-					payload.State = plugins.GetState("failed")
-					payload.Action = plugins.GetAction("status")
-					payload.StateMessage = "One or more status checks failed."
-					evt = e.NewEvent(payload, nil)
+					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), "One or more status checks failed.")
 				} else if timeout >= timeoutLimitInt {
 					breakTheLoop = true
-					payload.State = plugins.GetState("failed")
-					payload.Action = plugins.GetAction("status")
-					payload.StateMessage = fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt)
-					evt = e.NewEvent(payload, nil)
+					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt))
 				} else {
 					breakTheLoop = false
-					payload.State = plugins.GetState("running")
-					payload.Action = plugins.GetAction("status")
-					payload.StateMessage = "One or more status checks are running."
-					evt = e.NewEvent(payload, nil)
+					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("running"), "One or more status checks are running.")
 				}
 
 				// Collect artifacts
