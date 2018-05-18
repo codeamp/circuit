@@ -42,8 +42,7 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 	// }
 
 	if e.Event() == "kubernetes:deployment:update" {
-		event := e.NewEvent(plugins.GetAction("status"), e.Payload)
-		event.SetState(plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Name))
+		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Name))
 		x.events <- event
 
 		return

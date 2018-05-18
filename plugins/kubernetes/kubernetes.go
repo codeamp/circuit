@@ -68,24 +68,19 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 }
 
 func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.State, artifacts []transistor.Artifact) {
-	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
-	event.SetState(plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+	event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	event.Artifacts = artifacts
 
 	x.events <- event
 }
 
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
-	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
-	event.SetState(plugins.GetState("failed"), msg)
-
+	event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), msg)
 	x.events <- event
 }
 
 func (x *Kubernetes) sendInProgress(e transistor.Event, msg string) {
-	event := e.NewEvent(plugins.GetAction("status"), e.Payload)
-	event.SetState(plugins.GetState("running"), msg)
-
+	event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("running"), msg)
 	x.events <- event
 }
 
