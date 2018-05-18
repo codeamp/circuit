@@ -417,7 +417,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	var releaseExtension resolvers.ReleaseExtension
 	var release resolvers.Release
 
-	if e.Matches("plugins.ReleaseExtension:status") {
+	if e.Matches("releaseextension:status") {
 		if x.DB.Where("id = ?", payload.Release.ID).Find(&release).RecordNotFound() {
 			log.InfoWithFields("release", log.Fields{
 				"id": payload.Release.ID,
@@ -441,12 +441,12 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		x.DB.Save(&releaseExtension)
 
-		if payload.State == plugins.GetState("complete") {
+		if e.State == plugins.GetState("complete") {
 			x.ReleaseExtensionCompleted(&releaseExtension)
 		}
 
-		if payload.State == plugins.GetState("failed") {
-			x.ReleaseFailed(&release, payload.StateMessage)
+		if e.State == plugins.GetState("failed") {
+			x.ReleaseFailed(&release, e.StateMessage)
 		}
 	}
 
@@ -783,12 +783,13 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		if releaseExtension.Type == plugins.GetType("deployment") {
 			_artifacts := artifacts
 
+			// ADB Needs another look
 			// Fail deployment if the release is in a failed state
-			if release.State == plugins.GetState("failed") {
-				releaseExtensionAction = plugins.GetAction("status")
-				releaseExtension.State = plugins.GetState("failed")
-				releaseExtension.StateMessage = release.StateMessage
-			}
+			// if release.State == plugins.GetState("failed") {
+			// 	releaseExtensionAction = plugins.GetAction("status")
+			// 	releaseExtension.State = plugins.GetState("failed")
+			// 	releaseExtension.StateMessage = release.StateMessage
+			// }
 
 			projectExtension := resolvers.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
@@ -821,7 +822,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 				ID:     releaseExtension.Model.ID.String(),
 				Action: releaseExtensionAction,
 				Slug:   extension.Key,
-				State:  releaseExtension.State,
 				Release: plugins.Release{
 					ID:          release.Model.ID.String(),
 					Environment: environment.Key,
@@ -1099,21 +1099,30 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) error {
 		Secrets: pluginSecrets,
 	}
 
-	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), plugins.GetAction("create"), releaseEvent, nil)
+	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), plugins.GetAction("create"), releaseEvent)
 	return nil
 }
 
 func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string) {
-	release.State = plugins.GetState("failed")
-	release.StateMessage = stateMessage
+	// ADB Please look at
+	// release.State = plugins.GetState("failed")
+	// release.StateMessage = stateMessage
 	x.DB.Save(release)
 
 	releaseExtensions := []resolvers.ReleaseExtension{}
 	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+<<<<<<< HEAD
 	for _, re := range releaseExtensions {
 		re.State = plugins.GetState("failed")
 		x.DB.Save(&re)
 	}
+=======
+	// ADB Please look at
+	// for _, re := range releaseExtensions {
+	// 	re.State = plugins.GetState("failed")
+	// 	re.StateMessage = stateMessage
+	// }
+>>>>>>> WIP on codeamp. This commit and the last DEFINITELY need review
 
 	x.RunQueuedReleases(release)
 }
@@ -1134,16 +1143,20 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 		})
 	}
 
+	// ADB Please look at
 	// mark release as complete
-	release.State = plugins.GetState("complete")
-	release.StateMessage = "Completed"
+	// release.State = plugins.GetState("complete")
+	// release.StateMessage = "Completed"
 
 	x.DB.Save(release)
 
-	x.Events <- transistor.NewEvent(plugins.WebsocketMsg{
+	payload := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 		Payload: release,
-	}, nil)
+	}
+	event := transistor.NewEvent(plugins.GetEventName("websocket"), plugins.GetAction("status"), payload)
+	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
+	x.Events <- event
 
 	x.RunQueuedReleases(release)
 }

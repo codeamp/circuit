@@ -23,6 +23,7 @@ func GetEventName(s string) transistor.EventName {
 		"dockerbuilder",
 		"route53",
 		"release",
+		"project",
 		"releaseextension",
 		"projectextension",
 	}
@@ -226,7 +227,7 @@ type ReleaseExtension struct {
 	Release     Release `json:"release"`
 	Environment string  `json:"environment"`
 
-	State  State             `json:"state"`
+	State  transistor.State  `json:"state"`
 	Action transistor.Action `json:"action"`
 }
 
