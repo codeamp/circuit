@@ -143,12 +143,12 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		log.Info(string(output))
 	}
 
-	// output, err = x.git(env, "-C", repoPath, "reset", "", git.Branch)
-	// if err != nil {
-	// 	log.Debug(err)
-	// 	return nil, err
-	// }
-	// log.Info(string(output))
+	output, err = x.git(env, "-C", repoPath, "reset", "", git.Branch)
+	if err != nil {
+		log.Debug(err)
+		return nil, err
+	}
+	log.Info(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
