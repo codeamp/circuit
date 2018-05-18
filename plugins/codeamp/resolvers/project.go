@@ -213,12 +213,12 @@ func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 	var rows []ProjectExtension
 	var results []*ProjectExtensionResolver
 
-	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Joins(`INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
+	r.DB.Debug().Where("project_extensions.project_id = ? and project_extensions.environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Joins(`INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
 		CASE extensions.type
 			WHEN 'workflow' THEN 1
 			WHEN 'deployment' THEN 2
 			ELSE 3
-		END, key ASC`).Find(&rows)	
+		END, extensions.key ASC`).Find(&rows)	
 
 	for _, extension := range rows {
 		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
