@@ -222,7 +222,8 @@ func getContainerPorts(service plugins.Service) []v1.ContainerPort {
 	return deployPorts
 }
 
-func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec {
+func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string) v1.PodTemplateSpec {
+	releaseExtension := e.Payload.(plugins.ReleaseExtension)
 	container := v1.Container{
 		Name:  strings.ToLower(podConfig.Service.Name),
 		Image: podConfig.Image,
@@ -248,8 +249,13 @@ func genPodTemplateSpec(podConfig SimplePodSpec, kind string) v1.PodTemplateSpec
 	}
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:   podConfig.Name,
-			Labels: map[string]string{"app": podConfig.Name},
+			Name: podConfig.Name,
+			Labels: map[string]string{
+				"app":                podConfig.Name,
+				"environment":        releaseExtension.Release.Environment,
+				"releaseFeatureHash": releaseExtension.Release.HeadFeature.Hash,
+				"releaseID":          releaseExtension.Release.ID,
+			},
 		},
 		Spec: v1.PodSpec{
 			NodeSelector:                  podConfig.NodeSelector,
@@ -533,7 +539,13 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			Volumes:       deployVolumes,
 		}
 
-		podTemplateSpec := genPodTemplateSpec(simplePod, "Job")
+		jobSelector := meta_v1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": oneShotServiceName,
+			},
+		}
+
+		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Job")
 
 		numParallelPods := int32(1)
 		numCompletionsToTerminate := int32(service.Replicas)
@@ -552,6 +564,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				Parallelism: &numParallelPods,
 				Completions: &numCompletionsToTerminate,
 				Template:    podTemplateSpec,
+				Selector:    &jobSelector,
 			},
 		}
 
@@ -755,9 +768,15 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
 		}
-		podTemplateSpec := genPodTemplateSpec(simplePod, "Deployment")
+		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Deployment")
 
 		var deployParams *v1beta1.Deployment
+
+		deploySelector := meta_v1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": deploymentName,
+			},
+		}
 
 		deployParams = &v1beta1.Deployment{
 			TypeMeta: meta_v1.TypeMeta{
@@ -773,6 +792,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				Strategy:                deployStrategy,
 				RevisionHistoryLimit:    &revisionHistoryLimit,
 				Template:                podTemplateSpec,
+				Selector:                &deploySelector,
 			},
 		}
 
