@@ -251,10 +251,10 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name: podConfig.Name,
 			Labels: map[string]string{
-				"app":            podConfig.Name,
-				"imagePostfix":   releaseExtension.Release.Environment,
-				"releaseFeature": releaseExtension.Release.HeadFeature.Hash,
-				"releaseID":      releaseExtension.Release.ID,
+				"app":                podConfig.Name,
+				"environment":        releaseExtension.Release.Environment,
+				"releaseFeatureHash": releaseExtension.Release.HeadFeature.Hash,
+				"releaseID":          releaseExtension.Release.ID,
 			},
 		},
 		Spec: v1.PodSpec{
