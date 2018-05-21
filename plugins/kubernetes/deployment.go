@@ -539,12 +539,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			Volumes:       deployVolumes,
 		}
 
-		jobSelector := meta_v1.LabelSelector{
-			MatchLabels: map[string]string{
-				"app": oneShotServiceName,
-			},
-		}
-
 		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Job")
 
 		numParallelPods := int32(1)
@@ -564,7 +558,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				Parallelism: &numParallelPods,
 				Completions: &numCompletionsToTerminate,
 				Template:    podTemplateSpec,
-				Selector:    &jobSelector,
 			},
 		}
 
