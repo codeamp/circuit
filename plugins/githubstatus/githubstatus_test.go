@@ -158,12 +158,9 @@ func (suite *TestSuite) TestGithubStatus() {
 
 	suite.transistor.Events <- ev
 
-	for {
-		e = suite.transistor.GetTestEvent(plugins.GetEventName("githubstatus"), plugins.GetAction("status"), 15)
-		if e.State != "running" {
-			break
-		}
-	}
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("githubstatus"), plugins.GetAction("status"), 10)
+	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)
+	assert.Equal(suite.T(), plugins.GetState("running"), e.State)
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", githubStatusPayload.Release.Project.Repository, githubStatusPayload.Release.HeadFeature.Hash),
 		httpmock.NewStringResponder(200, githubSuccessStatusResponse))

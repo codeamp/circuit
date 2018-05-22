@@ -191,7 +191,8 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 	if e.PayloadModel() == "plugins.ReleaseExtension" {
 		payload := e.Payload().(plugins.ReleaseExtension)
-		switch payload.Action {
+
+		switch e.Action {
 		case plugins.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{
 				"hash": payload.Release.HeadFeature.Hash,
@@ -218,7 +219,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 				if status.State == "success" {
 					breakTheLoop = true
-					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("status"), "All status checks successful.")
+					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "All status checks successful.")
 				} else if status.State == "failure" {
 					breakTheLoop = true
 					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), "One or more status checks failed.")
