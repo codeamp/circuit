@@ -293,13 +293,13 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
-	if e.Name == "dockerbuilder:create" {
+	if e.Event() == "dockerbuilder:create" {
 		ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Installation complete.")
 		x.events <- ev
 		return nil
 	}
 
-	if e.Name == "dockerbuilder:update" {
+	if e.Event() == "dockerbuilder:update" {
 		ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Update complete.")
 		x.events <- ev
 		return nil

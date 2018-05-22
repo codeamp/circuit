@@ -81,7 +81,7 @@ func (x *Route53) sendRoute53Response(e transistor.Event, action transistor.Acti
 	}
 
 	event := e.NewEvent(action, state, stateMessage)
-	event.AddArtifact("plugins.ProjectExtension", projectExtension, false)
+	event.SetPayload(projectExtension)
 	x.events <- event
 }
 

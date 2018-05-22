@@ -65,8 +65,8 @@ func (x *GitSync) Stop() {
 
 func (x *GitSync) Subscribe() []string {
 	return []string{
-		"gitsync:update",
 		"gitsync:create",
+		"gitsync:update",
 	}
 }
 
@@ -254,6 +254,10 @@ func (x *GitSync) Process(e transistor.Event) error {
 
 		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Operation Complete")
 		x.events <- event
+	}
+
+	if e.Event() == "gitsync:update" {
+		log.WarnWithFields("Event received by githubsync yet unhandled!", log.Fields{"event": e})
 	}
 
 	return nil
