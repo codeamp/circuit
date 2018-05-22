@@ -68,10 +68,8 @@ func (x *DockerBuilder) Stop() {
 
 func (x *DockerBuilder) Subscribe() []string {
 	return []string{
-		"plugins.ReleaseExtension:create:dockerbuilder",
-		"plugins.ReleaseExtension:update:dockerbuilder",
-		"plugins.ProjectExtension:create:dockerbuilder",
-		"plugins.ProjectExtension:update:dockerbuilder",
+		"dockerbuilder:create",
+		"dockerbuilder:update",
 	}
 }
 
