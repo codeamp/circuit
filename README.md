@@ -1,4 +1,5 @@
 # Circuit
+[![CircleCI](https://circleci.com/gh/codeamp/circuit.svg?style=svg)](https://circleci.com/gh/codeamp/circuit)
 
 This is the API layer of the overall Codeamp project. It is built with Golang, GraphQL, GORM and Socket-IO.
 
