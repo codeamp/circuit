@@ -349,7 +349,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 		return fmt.Errorf("release %s not found", payload.ID)
 	}
 
-	if e.Matches("plugins.Release:create") {
+	if e.Matches("release:create") {
 		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 
 		for _, releaseExtension := range releaseExtensions {
