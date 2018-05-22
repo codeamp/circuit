@@ -219,7 +219,7 @@ func (x *GitSync) Process(e transistor.Event) error {
 	})
 
 	if e.Event() == "gitsync:create" {
-		payload := e.Payload.(plugins.GitSync)
+		payload := e.Payload().(plugins.GitSync)
 		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("fetching"), "Fetching resource")
 		x.events <- event
 
@@ -248,7 +248,7 @@ func (x *GitSync) Process(e transistor.Event) error {
 			}
 
 			event = transistor.NewEvent(plugins.GetEventName("gitsync:commit"), plugins.GetAction("create"), c.Ref)
-			event.OverridePayload(c)
+			event.SetPayload(c)
 			x.events <- event
 		}
 

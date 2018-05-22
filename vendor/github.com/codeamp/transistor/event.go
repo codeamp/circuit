@@ -53,8 +53,8 @@ type Event struct {
 	State        State  `json:"state"`
 	StateMessage string `json:"stateMessage"`
 
-	Payload      interface{} `json:"payload"`
-	PayloadModel string      `json:"payloadModel"`
+	payload      interface{} `json:"payload"`
+	payloadModel string      `json:"payloadModel"`
 	CreatedAt    time.Time   `json:"createdAt"`
 	Caller       Caller      `json:"caller"`
 	Artifacts    []Artifact  `json:"artifacts"`
@@ -109,16 +109,13 @@ func NewEvent(eventName EventName, action Action, payload interface{}) Event {
 	event := Event{
 		ID:           uuid.NewV4(),
 		Name:         eventName,
-		Payload:      payload,
 		CreatedAt:    time.Now(),
 		Action:       action,
 		State:        State("waiting"),
 		StateMessage: "Waiting for event to run",
 	}
 
-	if payload != nil {
-		event.PayloadModel = reflect.TypeOf(payload).String()
-	}
+	event.SetPayload(payload)
 
 	// for debugging purposes
 	_, file, no, ok := runtime.Caller(1)
@@ -155,11 +152,19 @@ func (e *Event) NewEvent(action Action, state State, stateMessage string) Event 
 	return event
 }
 
-func (e *Event) OverridePayload(payload interface{}) {
-	e.Payload = payload
+func (e *Event) Payload() interface{} {
+	return e.payload
+}
+
+func (e *Event) SetPayload(payload interface{}) {
+	e.payload = payload
 	if payload != nil {
-		e.PayloadModel = reflect.TypeOf(payload).String()
+		e.payloadModel = reflect.TypeOf(payload).String()
 	}
+}
+
+func (e *Event) PayloadModel() string {
+	return e.payloadModel
 }
 
 func (e *Event) Dump() {

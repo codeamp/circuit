@@ -98,7 +98,7 @@ func (x *DockerBuilder) git(env []string, args ...string) ([]byte, error) {
 }
 
 func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error {
-	payload := event.Payload.(plugins.ReleaseExtension)
+	payload := event.Payload().(plugins.ReleaseExtension)
 
 	var err error
 	var output []byte
@@ -160,7 +160,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 }
 
 func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBuildOut io.Writer) error {
-	payload := event.Payload.(plugins.ReleaseExtension)
+	payload := event.Payload().(plugins.ReleaseExtension)
 
 	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), payload.Release.Project.Repository, payload.Release.Git.Branch)
 	gitArchive := exec.Command("git", "archive", payload.Release.HeadFeature.Hash)
@@ -306,7 +306,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 	}
 
 	x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("fetching"), "Fetching resources.")
-	payload := e.Payload.(plugins.ReleaseExtension)
+	payload := e.Payload().(plugins.ReleaseExtension)
 
 	// repoPath := fmt.Sprintf("%s/%s_%s", payload.Release.Git.Workdir, payload.Release.Project.Repository, payload.Release.Git.Branch)
 	repoPath := fmt.Sprintf("%s", payload.Release.Project.Repository)
@@ -378,12 +378,12 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 // generate image tag name
 func imageTagGen(event transistor.Event) string {
-	payload := event.Payload.(plugins.ReleaseExtension)
+	payload := event.Payload().(plugins.ReleaseExtension)
 	return (fmt.Sprintf("%s.%s", payload.Release.HeadFeature.Hash, payload.Release.Environment))
 }
 
 func imageTagLatest(event transistor.Event) string {
-	payload := event.Payload.(plugins.ReleaseExtension)
+	payload := event.Payload().(plugins.ReleaseExtension)
 	if payload.Release.Environment == "production" {
 		return ("latest")
 	}
@@ -402,7 +402,7 @@ func imagePathGen(event transistor.Event) string {
 		log.Error(err)
 	}
 
-	payload := event.Payload.(plugins.ReleaseExtension)
+	payload := event.Payload().(plugins.ReleaseExtension)
 	return (fmt.Sprintf("%s/%s/%s", registryHost.String(), registryOrg.String(), slug.Slug(payload.Release.Project.Repository)))
 }
 

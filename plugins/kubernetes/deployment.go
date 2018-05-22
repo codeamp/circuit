@@ -34,7 +34,7 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 	// ADB
 	// if e.Name == "kubernetes:deployment:create" {
 	// 	log.Info(e)
-	// 	event := e.NewEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("status"), e.Payload)
+	// 	event := e.NewEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("status"), e.Payload())
 	// 	event.SetState(plugins.GetState("complete"), fmt.Sprintf("%s 1 has completed successfully", e.Name))
 	// 	x.events <- event
 
@@ -261,9 +261,9 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 }
 
 func (x *Kubernetes) doDeploy(e transistor.Event) error {
-	log.Info(e.Payload)
+	log.Info(e.Payload())
 	// write kubeconfig
-	reData := e.Payload.(plugins.ReleaseExtension)
+	reData := e.Payload().(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
 	kubeconfig, err := x.SetupKubeConfig(e)
@@ -299,7 +299,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 	successfulDeploys := 0
 	// TODO: get timeout from formValues
-	//timeout := e.Payload.(plugins.ReleaseExtension).Release.Timeout
+	//timeout := e.Payload().(plugins.ReleaseExtension).Release.Timeout
 	// Set default timeout to 600 seconds if not specified.
 	//if timeout == 0 {
 	timeout := 600
