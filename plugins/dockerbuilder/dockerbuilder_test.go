@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -76,7 +77,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 	ev.AddArtifact("USER", "test", false)
 	ev.AddArtifact("PASSWORD", "test", false)
 	ev.AddArtifact("EMAIL", "test@checkr.com", false)
-	ev.AddArtifact("HOST", "registry-testing.checkrhq-dev.net:5000", false)
+	ev.AddArtifact("HOST", "0.0.0.0:5000", false)
 	ev.AddArtifact("ORG", "testorg", false)
 	suite.transistor.Events <- ev
 
@@ -88,12 +89,13 @@ func (suite *TestSuite) TestDockerBuilder() {
 	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)
 	assert.Equal(suite.T(), plugins.GetState("complete"), e.State)
 
+	spew.Dump(e)
 	image, err := e.GetArtifact("image")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	assert.Equal(suite.T(), image.String(), "registry-testing.checkrhq-dev.net:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
+	assert.Equal(suite.T(), image.String(), "0.0.0.0:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
 }
 
 func TestDockerBuilder(t *testing.T) {
