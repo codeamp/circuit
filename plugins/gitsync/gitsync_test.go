@@ -3,11 +3,9 @@ package gitsync_test
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/gitsync"
-	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -69,23 +67,12 @@ func (suite *TestSuite) TestGitSync() {
 	suite.transistor.Events <- event
 
 	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 30)
-	log.Info("fetching")
 	assert.Equal(suite.T(), e.State, plugins.GetState("fetching"))
 
-	created := time.Now()
-	for i := 0; i < 5; i++ {
-		e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync:commit"), plugins.GetAction("create"), 60)
-		payload := e.Payload().(plugins.GitCommit)
-
-		log.Info(payload)
-
-		// assert.Equal(suite.T(), payload.Repository, payload.Project.Repository)
-		// assert.Equal(suite.T(), payload.Ref, fmt.Sprintf("refs/heads/%s", payload.Git.Branch))
-		assert.True(suite.T(), payload.Created.Before(created), "Commit created time is older than previous commit")
-	}
-
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 60)
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 30)
 	assert.Equal(suite.T(), e.State, plugins.GetState("complete"))
+	assert.NotNil(suite.T(), e.Payload().(plugins.GitSync).Commits)
+	assert.NotEqual(suite.T(), 0, len(e.Payload().(plugins.GitSync).Commits), "commits should not be empty")
 }
 
 func TestGitSync(t *testing.T) {

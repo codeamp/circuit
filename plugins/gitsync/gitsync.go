@@ -162,7 +162,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	}
 
 	log.Info(string(output))
-	
+
 	output, err = x.git(env, "-C", repoPath, "clean", "-fd")
 	if err != nil {
 		log.Debug(err)
@@ -233,26 +233,24 @@ func (x *GitSync) Process(e transistor.Event) error {
 			return err
 		}
 
-		// Previously this was being sent to push the payload to be handled by
-		// the receiver in CodeAmp by the 'GitCommitEventHandler'
-		// The payload did not have an action or state so it was being handled
-		// by matching the suffix which used to be 'plugins.GitCommit'
-		// ADB
+		var _commits []plugins.GitCommit
 		for i := range commits {
 			c := commits[i]
 			c.Repository = payload.Project.Repository
 			c.Ref = fmt.Sprintf("refs/heads/%s", payload.Git.Branch)
 
+			_commits = append(_commits, c)
+
 			if c.Hash == payload.From {
 				break
 			}
-
-			event = transistor.NewEvent(plugins.GetEventName("gitsync:commit"), plugins.GetAction("create"), c.Ref)
-			event.SetPayload(c)
-			x.events <- event
 		}
 
+		payload.Commits = _commits
+
 		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Operation Complete")
+		event.SetPayload(payload)
+
 		x.events <- event
 	}
 

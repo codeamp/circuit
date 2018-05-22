@@ -156,9 +156,10 @@ type GitCommit struct {
 }
 
 type GitSync struct {
-	Project Project `json:"project"`
-	Git     Git     `json:"git"`
-	From    string  `json:"from"`
+	Project Project     `json:"project"`
+	Git     Git         `json:"git"`
+	From    string      `json:"from"`
+	Commits []GitCommit `json:"commits"`
 }
 
 type Feature struct {

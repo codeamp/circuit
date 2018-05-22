@@ -264,7 +264,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			},
 			Environment: "",
 		}
-		event := transistor.NewEvent(plugins.GetEventName("releaseextension"), plugins.GetAction("create"), releaseExtensionEvent)
+		event := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("create"), releaseExtensionEvent)
 		event.State = plugins.GetState("failed")
 		event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
 		r.Events <- event
@@ -686,7 +686,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
 		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
 	} else {
-		r.Events <- transistor.NewEvent(plugins.GetEventName("releaseextension"), plugins.GetAction("create"), releaseEvent)
+		r.Events <- transistor.NewEvent(transistor.EventName("release"), plugins.GetAction("create"), releaseEvent)
 
 		return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
 	}
@@ -1280,7 +1280,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			},
 			Environment: env.Key,
 		}
-		ev := transistor.NewEvent(plugins.GetEventName("projectextension"), plugins.GetAction("create"), projectExtensionEvent)
+		ev := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("create"), projectExtensionEvent)
 		ev.Artifacts = artifacts
 		r.Events <- ev
 
@@ -1396,7 +1396,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 		Environment: env.Key,
 	}
 
-	ev := transistor.NewEvent(plugins.GetEventName("projectextension"), plugins.GetAction("update"), projectExtensionEvent)
+	ev := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("update"), projectExtensionEvent)
 	ev.Artifacts = artifacts
 
 	r.Events <- ev
@@ -1468,7 +1468,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 		},
 		Environment: env.Key,
 	}
-	ev := transistor.NewEvent(plugins.GetEventName("projectextension"), plugins.GetAction("destroy"), projectExtensionEvent)
+	ev := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("destroy"), projectExtensionEvent)
 	ev.Artifacts = artifacts
 	r.Events <- ev
 

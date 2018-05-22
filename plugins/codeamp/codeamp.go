@@ -165,7 +165,7 @@ func (x *CodeAmp) Stop() {
 
 func (x *CodeAmp) Subscribe() []string {
 	return []string{
-		"gitcommit",
+		"gitsync:complete",
 		"heartbeat",
 		"websocket",
 		"project",
@@ -206,79 +206,83 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 	}
 }
 
-func (x *CodeAmp) GitCommitEventHandler(e transistor.Event) error {
-	payload := e.Payload().(plugins.GitCommit)
+func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
+	payload := e.Payload().(plugins.GitSync)
 
 	var project resolvers.Project
 	var environment resolvers.Environment
 	var feature resolvers.Feature
 	var projectSettings []resolvers.ProjectSettings
 
-	if x.DB.Where("repository = ?", payload.Repository).First(&project).RecordNotFound() {
-		log.InfoWithFields("project not found", log.Fields{
-			"repository": payload.Repository,
-		})
-		return nil
-	}
-
-	if x.DB.Where("project_id = ? AND hash = ?", project.ID, payload.Hash).First(&feature).RecordNotFound() {
-		feature = resolvers.Feature{
-			ProjectID:  project.ID,
-			Message:    payload.Message,
-			User:       payload.User,
-			Hash:       payload.Hash,
-			ParentHash: payload.ParentHash,
-			Ref:        payload.Ref,
-			Created:    payload.Created,
+	if e.State == plugins.GetState("complete") {
+		if x.DB.Where("repository = ?", payload.Project.Repository).First(&project).RecordNotFound() {
+			log.InfoWithFields("project not found", log.Fields{
+				"repository": payload.Project.Repository,
+			})
+			return nil
 		}
 
-		x.DB.Save(&feature)
-
-		if payload.Head {
-			if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
-				log.InfoWithFields("No continuous deploys found", log.Fields{
-					"continuous_deploy": true,
-					"project_id":        project.Model.ID,
-				})
-			} else {
-				// call CreateRelease for each env that has cd turned on
-				for _, setting := range projectSettings {
-					if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
-						adminContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
-							UserID:      uuid.FromStringOrNil("codeamp").String(),
-							Email:       "codeamp",
-							Permissions: []string{"admin"},
-						})
-
-						x.Resolver.CreateRelease(adminContext, &struct{ Release *resolvers.ReleaseInput }{
-							Release: &resolvers.ReleaseInput{
-								HeadFeatureID: feature.Model.ID.String(),
-								ProjectID:     setting.ProjectID.String(),
-								EnvironmentID: setting.EnvironmentID.String(),
-							},
-						})
-					}
-
-					if x.DB.Where("id = ?", setting.EnvironmentID).First(&environment).RecordNotFound() {
-						log.InfoWithFields("Environment not found", log.Fields{
-							"id": setting.EnvironmentID,
-						})
-					}
-
-					payload := plugins.WebsocketMsg{
-						Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
-					}
-					event := transistor.NewEvent(plugins.GetEventName("websocket"), plugins.GetAction("status"), payload)
-					event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key), false)
-					x.Events <- event
+		for _, commit := range payload.Commits {
+			if x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
+				feature = resolvers.Feature{
+					ProjectID:  project.ID,
+					Message:    commit.Message,
+					User:       commit.User,
+					Hash:       commit.Hash,
+					ParentHash: commit.ParentHash,
+					Ref:        commit.Ref,
+					Created:    commit.Created,
 				}
+
+				x.DB.Save(&feature)
+
+				if commit.Head {
+					if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
+						log.InfoWithFields("No continuous deploys found", log.Fields{
+							"continuous_deploy": true,
+							"project_id":        project.Model.ID,
+						})
+					} else {
+						// call CreateRelease for each env that has cd turned on
+						for _, setting := range projectSettings {
+							if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
+								adminContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+									UserID:      uuid.FromStringOrNil("codeamp").String(),
+									Email:       "codeamp",
+									Permissions: []string{"admin"},
+								})
+
+								x.Resolver.CreateRelease(adminContext, &struct{ Release *resolvers.ReleaseInput }{
+									Release: &resolvers.ReleaseInput{
+										HeadFeatureID: feature.Model.ID.String(),
+										ProjectID:     setting.ProjectID.String(),
+										EnvironmentID: setting.EnvironmentID.String(),
+									},
+								})
+							}
+
+							if x.DB.Where("id = ?", setting.EnvironmentID).First(&environment).RecordNotFound() {
+								log.InfoWithFields("Environment not found", log.Fields{
+									"id": setting.EnvironmentID,
+								})
+							}
+
+							payload := plugins.WebsocketMsg{
+								Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
+							}
+							event := transistor.NewEvent(plugins.GetEventName("websocket"), plugins.GetAction("status"), payload)
+							event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key), false)
+							x.Events <- event
+						}
+					}
+				}
+			} else {
+				log.InfoWithFields("feature already exists", log.Fields{
+					"repository": commit.Repository,
+					"hash":       commit.Hash,
+				})
 			}
 		}
-	} else {
-		log.InfoWithFields("feature already exists", log.Fields{
-			"repository": payload.Repository,
-			"hash":       payload.Hash,
-		})
 	}
 
 	return nil
@@ -401,7 +405,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 					Release: payload,
 				}
 
-				ev := transistor.NewEvent(plugins.GetEventName("releaseextension"), eventAction, payload)
+				ev := transistor.NewEvent(transistor.EventName(extension.Key), eventAction, payload)
 				ev.Artifacts = artifacts
 
 				x.Events <- ev
@@ -491,7 +495,7 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 			From: hash,
 		}
 
-		x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("update"), payload)
+		x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("create"), payload)
 	} else {
 		for _, projectSettings := range projectSettingsCollection {
 			payload := plugins.GitSync{
@@ -509,7 +513,7 @@ func (x *CodeAmp) GitSync(project *resolvers.Project) error {
 				From: hash,
 			}
 
-			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("update"), payload)
+			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("create"), payload)
 		}
 	}
 
