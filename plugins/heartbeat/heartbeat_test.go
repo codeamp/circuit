@@ -48,7 +48,7 @@ func (suite *TestSuite) TestHeartbeat() {
 	var e transistor.Event
 
 	e = suite.transistor.GetTestEvent(plugins.GetEventName("heartbeat"), plugins.GetAction("status"), 61)
-	payload := e.Payload.(plugins.HeartBeat)
+	payload := e.Payload().(plugins.HeartBeat)
 	assert.Equal(suite.T(), "minute", payload.Tick)
 }
 
