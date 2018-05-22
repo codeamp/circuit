@@ -75,7 +75,7 @@ func (suite *TestSuite) TestGitSync() {
 	created := time.Now()
 	for i := 0; i < 5; i++ {
 		e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync:commit"), plugins.GetAction("create"), 60)
-		payload := e.Payload.(plugins.GitCommit)
+		payload := e.Payload().(plugins.GitCommit)
 
 		log.Info(payload)
 
