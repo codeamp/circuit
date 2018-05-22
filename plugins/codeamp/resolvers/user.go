@@ -1,11 +1,11 @@
 package codeamp_resolvers
 
 import (
-	"encoding/json"
 	"context"
+	"encoding/json"
 
-	"github.com/jinzhu/gorm"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
 

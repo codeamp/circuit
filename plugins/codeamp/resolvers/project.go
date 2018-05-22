@@ -218,7 +218,7 @@ func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 			WHEN 'workflow' THEN 1
 			WHEN 'deployment' THEN 2
 			ELSE 3
-		END, extensions.key ASC`).Find(&rows)	
+		END, extensions.key ASC`).Find(&rows)
 
 	for _, extension := range rows {
 		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})

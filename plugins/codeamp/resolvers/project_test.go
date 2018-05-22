@@ -110,7 +110,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	projectEnvironmentsInput := resolvers.ProjectEnvironmentsInput{
 		ProjectID: project.Model.ID.String(),
 		Permissions: []resolvers.ProjectEnvironmentInput{
-			resolvers.ProjectEnvironmentInput{
+			{
 				EnvironmentID: env.Model.ID.String(),
 				Grant:         true,
 			},

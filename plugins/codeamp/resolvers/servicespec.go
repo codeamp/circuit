@@ -3,8 +3,8 @@ package codeamp_resolvers
 import (
 	"encoding/json"
 
-	"github.com/jinzhu/gorm"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/jinzhu/gorm"
 )
 
 // ServiceSpec

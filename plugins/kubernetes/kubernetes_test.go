@@ -333,7 +333,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 			Workdir:       "/tmp/something",
 		},
 		Services: []plugins.Service{
-			plugins.Service{
+			{
 				Name: "www",
 				Listeners: []plugins.Listener{
 					{
