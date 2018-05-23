@@ -41,7 +41,7 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	log.Info("doLoadBalancer")
-	payload := e.Payload().(plugins.ProjectExtension)
+	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
 		log.Warn("missing service")
@@ -319,7 +319,7 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 	log.Info("deleteLoadBalancer")
 	var err error
-	payload := e.Payload().(plugins.ProjectExtension)
+	payload := e.Payload.(plugins.ProjectExtension)
 
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {

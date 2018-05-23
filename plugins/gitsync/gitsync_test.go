@@ -71,8 +71,8 @@ func (suite *TestSuite) TestGitSync() {
 
 	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 30)
 	assert.Equal(suite.T(), e.State, plugins.GetState("complete"))
-	assert.NotNil(suite.T(), e.Payload().(plugins.GitSync).Commits)
-	assert.NotEqual(suite.T(), 0, len(e.Payload().(plugins.GitSync).Commits), "commits should not be empty")
+	assert.NotNil(suite.T(), e.Payload.(plugins.GitSync).Commits)
+	assert.NotEqual(suite.T(), 0, len(e.Payload.(plugins.GitSync).Commits), "commits should not be empty")
 }
 
 func TestGitSync(t *testing.T) {

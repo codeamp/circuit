@@ -86,7 +86,7 @@ func (x *Route53) sendRoute53Response(e transistor.Event, action transistor.Acti
 }
 
 func (x *Route53) updateRoute53(e transistor.Event) error {
-	payload := e.Payload().(plugins.ProjectExtension)
+	payload := e.Payload.(plugins.ProjectExtension)
 
 	elbFQDN, err := e.GetArtifact("loadbalancer_fqdn")
 	if err != nil {

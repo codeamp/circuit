@@ -53,8 +53,8 @@ type Event struct {
 	State        State  `json:"state"`
 	StateMessage string `json:"stateMessage"`
 
-	payload      interface{} `json:"payload"`
-	payloadModel string      `json:"payloadModel"`
+	Payload      interface{} `json:"payload"`
+	PayloadModel string      `json:"payloadModel"`
 	CreatedAt    time.Time   `json:"createdAt"`
 	Caller       Caller      `json:"caller"`
 	Artifacts    []Artifact  `json:"artifacts"`
@@ -152,19 +152,13 @@ func (e *Event) NewEvent(action Action, state State, stateMessage string) Event 
 	return event
 }
 
-func (e *Event) Payload() interface{} {
-	return e.payload
-}
-
 func (e *Event) SetPayload(payload interface{}) {
-	e.payload = payload
+	e.Payload = payload
 	if payload != nil {
-		e.payloadModel = reflect.TypeOf(payload).String()
+		e.PayloadModel = reflect.TypeOf(payload).String()
+	} else {
+		e.PayloadModel = ""
 	}
-}
-
-func (e *Event) PayloadModel() string {
-	return e.payloadModel
 }
 
 func (e *Event) Dump() {

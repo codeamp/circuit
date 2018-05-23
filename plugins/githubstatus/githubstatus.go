@@ -93,7 +93,7 @@ func getStatus(e transistor.Event) (StatusResponse, error) {
 		return StatusResponse{}, err
 	}
 
-	payload := e.Payload().(plugins.ReleaseExtension)
+	payload := e.Payload.(plugins.ReleaseExtension)
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", payload.Release.Project.Repository, payload.Release.HeadFeature.Hash), nil)
 	if err != nil {
 		return StatusResponse{}, err
@@ -163,7 +163,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		return err
 	}
 
-	if e.PayloadModel() == "plugins.ProjectExtension" {
+	if e.PayloadModel == "plugins.ProjectExtension" {
 		switch e.Action {
 		case plugins.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
@@ -189,8 +189,8 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		}
 	}
 
-	if e.PayloadModel() == "plugins.ReleaseExtension" {
-		payload := e.Payload().(plugins.ReleaseExtension)
+	if e.PayloadModel == "plugins.ReleaseExtension" {
+		payload := e.Payload.(plugins.ReleaseExtension)
 
 		switch e.Action {
 		case plugins.GetAction("create"):

@@ -60,7 +60,7 @@ or respond to existing one and keep track of parent event
 ```go
 func (x *ExamplePlugin2) Process(e transistor.Event) error {
 	if e.Name == "exampleplugin2:create" {
-		hello := e.Payload.(Hello)
+		hello := e.Payload().(Hello)
 		log.Info("ExamplePlugin2 received a message:", hello)
 	}
 	return nil

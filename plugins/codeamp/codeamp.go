@@ -177,14 +177,14 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	log.Info("Processing CodeAmp event")
 	e.Dump()
 
-	methodName := fmt.Sprintf("%sEventHandler", strings.Split(e.PayloadModel(), ".")[1])
+	methodName := fmt.Sprintf("%sEventHandler", strings.Split(e.PayloadModel, ".")[1])
 
 	if _, ok := reflect.TypeOf(x).MethodByName(methodName); ok {
 		reflect.ValueOf(x).MethodByName(methodName).Call([]reflect.Value{reflect.ValueOf(e)})
 	} else {
 		log.InfoWithFields("*EventHandler not implemented", log.Fields{
 			"event_name":    e.Name,
-			"payload_model": e.PayloadModel(),
+			"payload_model": e.PayloadModel,
 			"method_name":   methodName,
 		})
 	}
@@ -193,7 +193,7 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 }
 
 func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
-	payload := e.Payload().(plugins.HeartBeat)
+	payload := e.Payload.(plugins.HeartBeat)
 
 	var projects []resolvers.Project
 
@@ -207,7 +207,7 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 }
 
 func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
-	payload := e.Payload().(plugins.GitSync)
+	payload := e.Payload.(plugins.GitSync)
 
 	var project resolvers.Project
 	var environment resolvers.Environment
@@ -289,7 +289,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) WebsocketMsgEventHandler(e transistor.Event) error {
-	payload := e.Payload().(plugins.WebsocketMsg)
+	payload := e.Payload.(plugins.WebsocketMsg)
 
 	if payload.Channel == "" {
 		payload.Channel = "general"
@@ -301,7 +301,7 @@ func (x *CodeAmp) WebsocketMsgEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
-	payload := e.Payload().(plugins.ProjectExtension)
+	payload := e.Payload.(plugins.ProjectExtension)
 	var extension resolvers.ProjectExtension
 	var project resolvers.Project
 
@@ -342,7 +342,7 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	var err error
-	payload := e.Payload().(plugins.Release)
+	payload := e.Payload.(plugins.Release)
 	release := resolvers.Release{}
 	releaseExtensions := []resolvers.ReleaseExtension{}
 
@@ -416,7 +416,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
-	payload := e.Payload().(plugins.ReleaseExtension)
+	payload := e.Payload.(plugins.ReleaseExtension)
 
 	var releaseExtension resolvers.ReleaseExtension
 	var release resolvers.Release
@@ -859,7 +859,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 				},
 			}
 
-			ev := transistor.NewEvent(plugins.GetEventName("releaseextension"), releaseExtensionAction, releaseExtensionEvent)
+			ev := transistor.NewEvent(transistor.EventName(extension.Key), releaseExtensionAction, releaseExtensionEvent)
 			ev.Artifacts = _artifacts
 			x.Events <- ev
 

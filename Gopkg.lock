@@ -107,7 +107,7 @@
   branch = "refactor/events-have-event-info"
   name = "github.com/codeamp/transistor"
   packages = ["."]
-  revision = "4d5808a4f10f78a88bc992a7abb2f09297049156"
+  revision = "6aef95d399b5c6298fe5f0a8fe17611599d1daa4"
 
 [[projects]]
   branch = "master"
@@ -823,6 +823,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "73d5d88e989e3532e219cf27e0942bee9739e9500a5808619e0a15f592b65cca"
+  inputs-digest = "673a17b20c2bfc2a03f1fd2ce9dc5288bdc5b5ff340ecade938b23b93077915e"
   solver-name = "gps-cdcl"
   solver-version = 1
