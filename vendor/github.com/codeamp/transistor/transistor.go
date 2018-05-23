@@ -119,6 +119,9 @@ func (t *Transistor) addPlugin(name string) error {
 		e, _ := json.Marshal(message.Args())
 		event := Event{}
 		json.Unmarshal([]byte(e), &event)
+		if err := MapPayload(event.PayloadModel, &event); err != nil {
+			log.Fatal(fmt.Errorf("PayloadModel not found: %s. Did you add it to ApiRegistry?", event.PayloadModel))
+		}
 
 		//event.Dump()
 

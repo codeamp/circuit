@@ -22,7 +22,7 @@ type GithubStatus struct {
 func init() {
 	transistor.RegisterPlugin("githubstatus", func() transistor.Plugin {
 		return &GithubStatus{}
-	})
+	}, plugins.ReleaseExtension{})
 }
 
 func (x *GithubStatus) Description() string {

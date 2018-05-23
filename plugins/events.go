@@ -9,9 +9,6 @@ import (
 	"github.com/codeamp/transistor"
 )
 
-func init() {
-}
-
 func GetEventName(s string) transistor.EventName {
 	eventNames := []string{
 		"kubernetes:deployment",

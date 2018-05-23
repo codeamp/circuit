@@ -28,7 +28,7 @@ type DockerBuilder struct {
 func init() {
 	transistor.RegisterPlugin("dockerbuilder", func() transistor.Plugin {
 		return &DockerBuilder{Socket: "unix:///var/run/docker.sock"}
-	})
+	}, plugins.ReleaseExtension{})
 }
 
 func (x *DockerBuilder) Description() string {

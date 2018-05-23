@@ -19,7 +19,7 @@ import (
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &Kubernetes{}
-	})
+	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
 func (x *Kubernetes) Description() string {

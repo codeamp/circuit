@@ -25,7 +25,7 @@ type GitSync struct {
 func init() {
 	transistor.RegisterPlugin("gitsync", func() transistor.Plugin {
 		return &GitSync{}
-	})
+	}, plugins.GitSync{})
 }
 
 func (x *GitSync) Description() string {

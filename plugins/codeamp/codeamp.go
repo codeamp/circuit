@@ -32,7 +32,16 @@ import (
 )
 
 func init() {
-	transistor.RegisterPlugin("codeamp", func() transistor.Plugin { return NewCodeAmp() })
+	transistor.RegisterPlugin("codeamp", func() transistor.Plugin {
+		return &CodeAmp{}
+	},
+		plugins.Project{},
+		plugins.HeartBeat{},
+		plugins.GitSync{},
+		plugins.WebsocketMsg{},
+		plugins.ProjectExtension{},
+		plugins.ReleaseExtension{},
+		plugins.Release{})
 }
 
 type CodeAmp struct {
@@ -43,10 +52,6 @@ type CodeAmp struct {
 	DB             *gorm.DB
 	Redis          *redis.Client
 	Resolver       *resolvers.Resolver
-}
-
-func NewCodeAmp() *CodeAmp {
-	return &CodeAmp{}
 }
 
 //Custom server which basically only contains a socketio variable
@@ -165,7 +170,7 @@ func (x *CodeAmp) Stop() {
 
 func (x *CodeAmp) Subscribe() []string {
 	return []string{
-		"gitsync:complete",
+		"gitsync:status",
 		"heartbeat",
 		"websocket",
 		"project",

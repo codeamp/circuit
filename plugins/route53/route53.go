@@ -24,7 +24,7 @@ type Route53 struct {
 func init() {
 	transistor.RegisterPlugin("route53", func() transistor.Plugin {
 		return &Route53{}
-	})
+	}, plugins.ProjectExtension{})
 }
 
 func (x *Route53) Description() string {

@@ -107,7 +107,7 @@
   branch = "refactor/events-have-event-info"
   name = "github.com/codeamp/transistor"
   packages = ["."]
-  revision = "6aef95d399b5c6298fe5f0a8fe17611599d1daa4"
+  revision = "805ee56a440c34f281908674f7e43eea7b007c01"
 
 [[projects]]
   branch = "master"

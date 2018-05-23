@@ -12,6 +12,7 @@ import (
 
 	json "github.com/bww/go-json"
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -27,6 +28,7 @@ func GetAction(s string) Action {
 		"status",
 	}
 
+	spew.Dump()
 	for _, action := range actions {
 		if s == action {
 			return Action(action)

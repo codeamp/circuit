@@ -1,7 +1,10 @@
 package transistor
 
 import (
+	"encoding/json"
+	"errors"
 	"math/rand"
+	"reflect"
 	"regexp"
 	"time"
 
@@ -44,4 +47,15 @@ func SliceContains(name string, list []string) bool {
 	})
 
 	return false
+}
+
+func MapPayload(name string, event *Event) error {
+	if typ, ok := EventRegistry[name]; ok {
+		d, _ := json.Marshal(event.Payload)
+		val := reflect.New(reflect.TypeOf(typ))
+		json.Unmarshal(d, val.Interface())
+		event.Payload = val.Elem().Interface()
+		return nil
+	}
+	return errors.New("no match")
 }
