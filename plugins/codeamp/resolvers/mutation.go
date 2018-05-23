@@ -224,8 +224,8 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		return nil, errors.New("Release Not Found")
 	}
 
-	// release.State = plugins.GetState("failed")
-	// release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
+	release.State = plugins.GetState("failed")
+	release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
 	r.DB.Save(&release)
 
 	for _, releaseExtension := range releaseExtensions {
@@ -253,22 +253,21 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			return nil, errors.New("Extension Not Found")
 		}
 
-		// ADB Leaving here temporarily until this is determined safe to remove
-		//if releaseExtension.State == plugins.GetState("waiting") {
-		releaseExtensionEvent := plugins.ReleaseExtension{
-			ID:      releaseExtension.ID.String(),
-			Slug:    extension.Key,
-			Project: plugins.Project{},
-			Release: plugins.Release{
-				ID: releaseExtension.ReleaseID.String(),
-			},
-			Environment: "",
+		if releaseExtension.State == plugins.GetState("waiting") {
+			releaseExtensionEvent := plugins.ReleaseExtension{
+				ID:      releaseExtension.ID.String(),
+				Slug:    extension.Key,
+				Project: plugins.Project{},
+				Release: plugins.Release{
+					ID: releaseExtension.ReleaseID.String(),
+				},
+				Environment: "",
+			}
+			event := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("create"), releaseExtensionEvent)
+			event.State = plugins.GetState("failed")
+			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
+			r.Events <- event
 		}
-		event := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("create"), releaseExtensionEvent)
-		event.State = plugins.GetState("failed")
-		event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
-		r.Events <- event
-		//}
 	}
 
 	return &ReleaseResolver{DB: r.DB, Release: release}, nil

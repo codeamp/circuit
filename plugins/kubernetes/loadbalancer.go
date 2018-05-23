@@ -20,22 +20,36 @@ import (
 )
 
 func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
-	log.Info("ProcessLoadBalancer")
-	log.Info(e)
-	var err error
-	switch e.Action {
-	case plugins.GetAction("destroy"):
-		err = x.doDeleteLoadBalancer(e)
-	case plugins.GetAction("create"):
-		err = x.doLoadBalancer(e)
-	case plugins.GetAction("update"):
-		err = x.doLoadBalancer(e)
+	if e.PayloadModel == "plugins.ProjectExtension" {
+		if e.Name == "kubernetes:loadbalancer:create" {
+			event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			x.events <- event
+			return
+		}
+
+		if e.Event() == "kubernetes:loadbalancer:update" {
+			event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			x.events <- event
+			return
+		}
 	}
 
-	if err != nil {
-		log.Error(err)
-		//x.sendErrorResponse(e, fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State))
-		x.sendErrorResponse(e, err.Error())
+	if e.PayloadModel == "plugins.ReleaseExtension" {
+		var err error
+		switch e.Action {
+		case plugins.GetAction("destroy"):
+			err = x.doDeleteLoadBalancer(e)
+		case plugins.GetAction("create"):
+			err = x.doLoadBalancer(e)
+		case plugins.GetAction("update"):
+			err = x.doLoadBalancer(e)
+		}
+
+		if err != nil {
+			log.Error(err)
+			//x.sendErrorResponse(e, fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State))
+			x.sendErrorResponse(e, err.Error())
+		}
 	}
 }
 

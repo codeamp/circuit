@@ -28,33 +28,30 @@ import (
 )
 
 func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
-	// There used to be a handler for a plugins.ReleaseExtension and a plugins.ProjectExtension
-	// but one of them didn't really do anything. Not sure if there are any events that are sent
-	// with those extensions or if handling them differently is important downstream
-	// ADB
-	// if e.Name == "kubernetes:deployment:create" {
-	// 	log.Info(e)
-	// 	event := e.NewEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("status"), e.Payload)
-	// 	event.SetState(plugins.GetState("complete"), fmt.Sprintf("%s 1 has completed successfully", e.Name))
-	// 	x.events <- event
-
-	// 	return
-	// }
-
-	if e.Event() == "kubernetes:deployment:update" {
-		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
-		x.events <- event
-
-		return
-	}
-
-	if e.Event() == "kubernetes:deployment:create" {
-		err := x.doDeploy(e)
-		if err != nil {
-			log.Error(err)
+	if e.PayloadModel == "plugins.ProjectExtension" {
+		if e.Name == "kubernetes:deployment:create" {
+			event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			x.events <- event
+			return
 		}
 
-		return
+		if e.Event() == "kubernetes:deployment:update" {
+			event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			x.events <- event
+
+			return
+		}
+	}
+
+	if e.PayloadModel == "plugins.ReleaseExtension" {
+		if e.Event() == "kubernetes:deployment:create" {
+			err := x.doDeploy(e)
+			if err != nil {
+				log.Error(err)
+			}
+
+			return
+		}
 	}
 }
 

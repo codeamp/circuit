@@ -56,18 +56,20 @@ func (x *Route53) Process(e transistor.Event) error {
 	var err error
 	log.Info("Processing route53 event")
 
-	switch e.Action {
-	case plugins.GetAction("create"):
-		log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
-		err = x.updateRoute53(e)
-	case plugins.GetAction("update"):
-		log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
-		err = x.updateRoute53(e)
-	}
+	if e.PayloadModel == "plugins.ProjectExtension" {
+		switch e.Action {
+		case plugins.GetAction("create"):
+			log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
+			err = x.updateRoute53(e)
+		case plugins.GetAction("update"):
+			log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
+			err = x.updateRoute53(e)
+		}
 
-	if err != nil {
-		x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: Route53", err.Error(), e.State))
-		return nil
+		if err != nil {
+			x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: Route53", err.Error(), e.State))
+			return nil
+		}
 	}
 
 	return nil

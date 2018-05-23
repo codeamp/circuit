@@ -46,7 +46,6 @@ func (x *Kubernetes) Subscribe() []string {
 		"kubernetes:deployment:create",
 		"kubernetes:deployment:update",
 		"kubernetes:deployment:destroy",
-
 		"kubernetes:loadbalancer:create",
 		"kubernetes:loadbalancer:update",
 		"kubernetes:loadbalancer:destroy",
