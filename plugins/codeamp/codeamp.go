@@ -1119,7 +1119,7 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 	x.DB.Save(release)
 
 	releaseExtensions := []resolvers.ReleaseExtension{}
-	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+	x.DB.Where("release_id = ? AND state <> ?", release.Model.ID, transistor.GetState("complete")).Find(&releaseExtensions)
 	for _, re := range releaseExtensions {
 		re.State = transistor.GetState("failed")
 		x.DB.Save(&re)
