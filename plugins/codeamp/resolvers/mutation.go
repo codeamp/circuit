@@ -464,6 +464,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	// Create Release
 	release := Release{
 		State:             transistor.GetState("waiting"),
+		StateMessage:      "Release created",
 		ProjectID:         projectID,
 		EnvironmentID:     environmentID,
 		UserID:            uuid.FromStringOrNil(userID),
@@ -669,13 +670,14 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 			// create ReleaseExtension
 			releaseExtension := ReleaseExtension{
+				State:              transistor.GetState("waiting"),
+				StateMessage:       "",
 				ReleaseID:          release.Model.ID,
 				FeatureHash:        headFeature.Hash,
 				ServicesSignature:  fmt.Sprintf("%x", servicesSig),
 				SecretsSignature:   fmt.Sprintf("%x", secretsSig),
 				ProjectExtensionID: projectExtension.Model.ID,
 				Type:               extension.Type,
-				State:              transistor.GetState("waiting"),
 			}
 
 			r.DB.Create(&releaseExtension)
@@ -1256,6 +1258,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 		}
 
 		projectExtension = ProjectExtension{
+			State:         transistor.GetState("waiting"),
 			ExtensionID:   extension.Model.ID,
 			ProjectID:     project.Model.ID,
 			EnvironmentID: env.Model.ID,
@@ -1376,6 +1379,8 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 
 	projectExtension.Config = postgres.Jsonb{args.ProjectExtension.Config.RawMessage}
 	projectExtension.CustomConfig = postgres.Jsonb{args.ProjectExtension.CustomConfig.RawMessage}
+	projectExtension.State = transistor.GetState("waiting")
+	projectExtension.StateMessage = ""
 
 	r.DB.Save(&projectExtension)
 
