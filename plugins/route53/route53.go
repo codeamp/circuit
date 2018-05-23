@@ -47,8 +47,9 @@ func (x *Route53) Stop() {
 
 func (x *Route53) Subscribe() []string {
 	return []string{
-		"route53:create",
-		"route53:update",
+		"project:route53:create",
+		"project:route53:update",
+		"project:route53:delete",
 	}
 }
 
@@ -56,7 +57,7 @@ func (x *Route53) Process(e transistor.Event) error {
 	var err error
 	log.Info("Processing route53 event")
 
-	if e.PayloadModel == "plugins.ProjectExtension" {
+	if e.Matches("project:route53") {
 		switch e.Action {
 		case transistor.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
@@ -64,6 +65,8 @@ func (x *Route53) Process(e transistor.Event) error {
 		case transistor.GetAction("update"):
 			log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
 			err = x.updateRoute53(e)
+		default:
+			log.InfoWithFields(fmt.Sprintf("Unhandled Route53 event: %s", e.Event()), log.Fields{})
 		}
 
 		if err != nil {

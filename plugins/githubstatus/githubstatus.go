@@ -45,9 +45,10 @@ func (x *GithubStatus) Stop() {
 
 func (x *GithubStatus) Subscribe() []string {
 	return []string{
-		"githubstatus:create",
-		"githubstatus:update",
-		"githubstatus:delete",
+		"project:githubstatus:create",
+		"project:githubstatus:update",
+		"project:githubstatus:delete",
+		"release:githubstatus:create",
 	}
 }
 
@@ -163,7 +164,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		return err
 	}
 
-	if e.PayloadModel == "plugins.ProjectExtension" {
+	if e.Matches("project:githubstatus") {
 		switch e.Action {
 		case transistor.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
@@ -189,7 +190,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		}
 	}
 
-	if e.PayloadModel == "plugins.ReleaseExtension" {
+	if e.Matches("release:githubstatus") {
 		payload := e.Payload.(plugins.ReleaseExtension)
 
 		switch e.Action {

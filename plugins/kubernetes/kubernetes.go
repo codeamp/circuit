@@ -43,24 +43,27 @@ func (x *Kubernetes) Stop() {
 
 func (x *Kubernetes) Subscribe() []string {
 	return []string{
-		"kubernetes:deployment:create",
-		"kubernetes:deployment:update",
-		"kubernetes:deployment:delete",
-		"kubernetes:loadbalancer:create",
-		"kubernetes:loadbalancer:update",
-		"kubernetes:loadbalancer:delete",
+		"project:kubernetes:deployment:create",
+		"project:kubernetes:deployment:update",
+		"project:kubernetes:deployment:delete",
+		"project:kubernetes:loadbalancer:create",
+		"project:kubernetes:loadbalancer:update",
+		"project:kubernetes:loadbalancer:delete",
+		"release:kubernetes:deployment:create",
 	}
 }
 
 func (x *Kubernetes) Process(e transistor.Event) error {
-	log.DebugWithFields("Processing kubernetes event", log.Fields{
-		"event": e,
-	})
+	log.Debug("Processing kubernetes event")
 
-	if e.Matches("kubernetes:deployment") == true {
+	if e.Matches(".*:kubernetes:deployment") == true {
 		x.ProcessDeployment(e)
-	} else if e.Matches("kubernetes:loadbalancer") == true {
+		return nil
+	}
+
+	if e.Matches(".*:kubernetes:loadbalancer") == true {
 		x.ProcessLoadBalancer(e)
+		return nil
 	}
 
 	return nil

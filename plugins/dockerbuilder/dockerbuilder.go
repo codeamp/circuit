@@ -68,8 +68,9 @@ func (x *DockerBuilder) Stop() {
 
 func (x *DockerBuilder) Subscribe() []string {
 	return []string{
-		"dockerbuilder:create",
-		"dockerbuilder:update",
+		"project:dockerbuilder:create",
+		"project:dockerbuilder:update",
+		"release:dockerbuilder:create",
 	}
 }
 
@@ -293,21 +294,21 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
-	if e.PayloadModel == "plugins.ProjectExtension" {
-		if e.Event() == "dockerbuilder:create" {
+	if e.Matches("project:dockerbuilder") {
+		if e.Action == transistor.GetAction("create") {
 			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Installation complete.")
 			x.events <- ev
 			return nil
 		}
 
-		if e.Event() == "dockerbuilder:update" {
+		if e.Action == transistor.GetAction("update") {
 			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Update complete.")
 			x.events <- ev
 			return nil
 		}
 	}
 
-	if e.PayloadModel == "plugins.ReleaseExtension" {
+	if e.Matches("release:dockerbuilder") {
 		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), "Fetching resources.")
 		payload := e.Payload.(plugins.ReleaseExtension)
 

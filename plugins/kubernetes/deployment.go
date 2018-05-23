@@ -28,14 +28,14 @@ import (
 )
 
 func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
-	if e.PayloadModel == "plugins.ProjectExtension" {
-		if e.Name == "kubernetes:deployment:create" {
+	if e.Matches("project:") {
+		if e.Action == transistor.GetAction("create") {
 			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 			x.events <- event
 			return
 		}
 
-		if e.Event() == "kubernetes:deployment:update" {
+		if e.Action == transistor.GetAction("update") {
 			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 			x.events <- event
 
@@ -43,8 +43,8 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 		}
 	}
 
-	if e.PayloadModel == "plugins.ReleaseExtension" {
-		if e.Event() == "kubernetes:deployment:create" {
+	if e.Matches("release:") {
+		if e.Action == transistor.GetAction("create") {
 			err := x.doDeploy(e)
 			if err != nil {
 				log.Error(err)
