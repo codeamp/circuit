@@ -25,7 +25,7 @@
   name = "github.com/codeamp/logger"
 
 [[constraint]]
-  branch = "refactor/events-have-event-info"
+  branch = "master"
   name = "github.com/codeamp/transistor"
 
 [[constraint]]

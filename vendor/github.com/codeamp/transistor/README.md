@@ -1,4 +1,4 @@
-# Transistor
+# Transistor [![CircleCI](https://circleci.com/gh/codeamp/transistor.svg?style=svg)](https://circleci.com/gh/codeamp/transistor) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Coverage Status](https://coveralls.io/repos/github/codeamp/transistor/badge.svg?branch=master)](https://coveralls.io/github/codeamp/transistor?branch=master) [![Go Report Card](https://goreportcard.com/badge/codeamp/transistor)](https://goreportcard.com/report/codeamp/transistor) [![codebeat badge](https://codebeat.co/badges/b977a7e7-1e94-43e1-9e58-463cff99add3)](https://codebeat.co/projects/github-com-codeamp-transistor-master)
 
 Transistor allows you to run distributed workload on one or accross multiple hosts. It's a plugin based system that allows plugins to subscribe to multiple events and internal scheduler takes care of delivery. This allows multiple plugins to recieve same message do some work and respond with updated or different message.
 
