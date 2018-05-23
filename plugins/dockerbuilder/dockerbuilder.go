@@ -295,20 +295,20 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 func (x *DockerBuilder) Process(e transistor.Event) error {
 	if e.PayloadModel == "plugins.ProjectExtension" {
 		if e.Event() == "dockerbuilder:create" {
-			ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Installation complete.")
+			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Installation complete.")
 			x.events <- ev
 			return nil
 		}
 
 		if e.Event() == "dockerbuilder:update" {
-			ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Update complete.")
+			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Update complete.")
 			x.events <- ev
 			return nil
 		}
 	}
 
 	if e.PayloadModel == "plugins.ReleaseExtension" {
-		x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("fetching"), "Fetching resources.")
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), "Fetching resources.")
 		payload := e.Payload.(plugins.ReleaseExtension)
 
 		repoPath := fmt.Sprintf("%s", payload.Release.Project.Repository)
@@ -319,7 +319,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		err = x.bootstrap(repoPath, e)
 		if err != nil {
 			log.Error(err)
-			x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: bootstrap)", err.Error(), e.State))
+			x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: bootstrap)", err.Error(), e.State))
 			return err
 		}
 
@@ -327,7 +327,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		if err != nil {
 			log.Error(err)
 
-			ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), e.State))
+			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: build)", err.Error(), e.State))
 			ev.AddArtifact("build_log", buildlogBuf.String(), false)
 			x.events <- ev
 
@@ -338,7 +338,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		if err != nil {
 			log.Error(err)
 
-			ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), e.State))
+			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: push)", err.Error(), e.State))
 			ev.AddArtifact("build_log", buildlogBuf.String(), false)
 			x.events <- ev
 
@@ -365,7 +365,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 			log.Error(err)
 		}
 
-		ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Completed")
+		ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Completed")
 		ev.AddArtifact("user", user.String(), user.Secret)
 		ev.AddArtifact("password", password.String(), password.Secret)
 		ev.AddArtifact("email", email.String(), email.Secret)

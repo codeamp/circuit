@@ -58,16 +58,16 @@ func (x *Route53) Process(e transistor.Event) error {
 
 	if e.PayloadModel == "plugins.ProjectExtension" {
 		switch e.Action {
-		case plugins.GetAction("create"):
+		case transistor.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
 			err = x.updateRoute53(e)
-		case plugins.GetAction("update"):
+		case transistor.GetAction("update"):
 			log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
 			err = x.updateRoute53(e)
 		}
 
 		if err != nil {
-			x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: Route53", err.Error(), e.State))
+			x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: Route53", err.Error(), e.State))
 			return nil
 		}
 	}
@@ -77,7 +77,6 @@ func (x *Route53) Process(e transistor.Event) error {
 
 func (x *Route53) sendRoute53Response(e transistor.Event, action transistor.Action, state transistor.State, stateMessage string, lbPayload plugins.ProjectExtension) {
 	projectExtension := plugins.ProjectExtension{
-		Slug:        "route53",
 		Environment: lbPayload.Environment,
 		Project:     lbPayload.Project,
 	}
@@ -92,56 +91,56 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 
 	elbFQDN, err := e.GetArtifact("loadbalancer_fqdn")
 	if err != nil {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	elbType, err := e.GetArtifact("loadbalancer_type")
 	if err != nil {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	subdomain, err := e.GetArtifact("subdomain")
 	if err != nil {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	hostedZoneName, err := e.GetArtifact("hosted_zone_name")
 	if err != nil {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	hostedZoneId, err := e.GetArtifact("hosted_zone_id")
 	if err != nil {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	awsAccessKeyId, err := e.GetArtifact("aws_access_key_id")
 	if err != nil {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	awsSecretKey, err := e.GetArtifact("aws_secret_key")
 	if err != nil {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), err.Error(), payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
 		return nil
 	}
 
 	// Sanity checks
 	if elbFQDN.String() == "" {
 		failMessage := fmt.Sprintf("DNS was blank for %s, skipping Route53.", payload.Project.Repository)
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), failMessage, payload)
 		return nil
 	}
 
 	if subdomain.String() == "" {
 		failMessage := fmt.Sprintf("Subdomain was blank for %s, skipping Route53.", payload.Project.Repository)
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), failMessage, payload)
 	}
 
 	if plugins.GetType(elbType.String()) == plugins.GetType("internal") {
@@ -181,7 +180,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		fmt.Println(failMessage + ".. Retrying in 10s")
 	}
 	if dnsValid == false {
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), failMessage, payload)
 		return nil
 	}
 	fmt.Printf("DNS for %s resolved to: %s\n", elbFQDN.String(), strings.Join(dnsLookup, ","))
@@ -251,13 +250,13 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 	_, err = client.ChangeResourceRecordSets(updateParams)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR '%s' setting Route53 DNS for %s", err, route53Name)
-		x.sendRoute53Response(e, plugins.GetAction("status"), plugins.GetState("failed"), failMessage, payload)
+		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), failMessage, payload)
 		return nil
 	}
 
 	log.Info(fmt.Sprintf("Route53 record UPSERTed for %s: %s", route53Name, elbFQDN.String()))
 
-	ev := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("Route53 record UPSERTed for %s: %s", route53Name, elbFQDN.String()))
+	ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("Route53 record UPSERTed for %s: %s", route53Name, elbFQDN.String()))
 	ev.AddArtifact("fqdn", fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String()), false)
 	ev.AddArtifact("lb_fqdn", elbFQDN.String(), false)
 	x.events <- ev

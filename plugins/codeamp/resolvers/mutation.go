@@ -224,7 +224,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		return nil, errors.New("Release Not Found")
 	}
 
-	release.State = plugins.GetState("failed")
+	release.State = transistor.GetState("failed")
 	release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
 	r.DB.Save(&release)
 
@@ -253,18 +253,17 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			return nil, errors.New("Extension Not Found")
 		}
 
-		if releaseExtension.State == plugins.GetState("waiting") {
+		if releaseExtension.State == transistor.GetState("waiting") {
 			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:      releaseExtension.ID.String(),
-				Slug:    extension.Key,
 				Project: plugins.Project{},
 				Release: plugins.Release{
 					ID: releaseExtension.ReleaseID.String(),
 				},
 				Environment: "",
 			}
-			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), plugins.GetAction("create"), releaseExtensionEvent)
-			event.State = plugins.GetState("failed")
+			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
+			event.State = transistor.GetState("failed")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
 			r.Events <- event
 		}
@@ -335,7 +334,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 		servicesJsonb = postgres.Jsonb{servicesMarshaled}
 		// check if any project extensions that are not 'once' exists
-		r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, plugins.GetState("complete")).Find(&projectExtensions)
+		r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, transistor.GetState("complete")).Find(&projectExtensions)
 
 		if len(projectExtensions) == 0 {
 			log.InfoWithFields("project has no extensions", log.Fields{
@@ -400,8 +399,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	waitingRelease := Release{}
 
-	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(plugins.GetState("waiting")),
-		string(plugins.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
+	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("waiting")),
+		string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
 
 	wrSecretsSha1 := sha1.New()
 	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
@@ -452,7 +451,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	// the tail feature id is the current release's head feature id
 	currentRelease := Release{}
 	tailFeatureID := headFeatureID
-	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", plugins.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
+	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
 	} else {
 		tailFeatureID = currentRelease.HeadFeatureID
 	}
@@ -464,6 +463,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	// Create Release
 	release := Release{
+		State:             transistor.GetState("waiting"),
 		ProjectID:         projectID,
 		EnvironmentID:     environmentID,
 		UserID:            uuid.FromStringOrNil(userID),
@@ -675,7 +675,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				SecretsSignature:   fmt.Sprintf("%x", secretsSig),
 				ProjectExtensionID: projectExtension.Model.ID,
 				Type:               extension.Type,
-				State:              plugins.GetState("waiting"),
+				State:              transistor.GetState("waiting"),
 			}
 
 			r.DB.Create(&releaseExtension)
@@ -686,7 +686,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
 		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
 	} else {
-		r.Events <- transistor.NewEvent(transistor.EventName("release"), plugins.GetAction("create"), releaseEvent)
+		r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 
 		return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
 	}
@@ -1271,8 +1271,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 		}
 
 		projectExtensionEvent := plugins.ProjectExtension{
-			ID:   projectExtension.Model.ID.String(),
-			Slug: extension.Key,
+			ID: projectExtension.Model.ID.String(),
 			Project: plugins.Project{
 				ID:         project.Model.ID.String(),
 				Slug:       project.Slug,
@@ -1280,7 +1279,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			},
 			Environment: env.Key,
 		}
-		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), plugins.GetAction("create"), projectExtensionEvent)
+		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("create"), projectExtensionEvent)
 		ev.Artifacts = artifacts
 		r.Events <- ev
 
@@ -1386,8 +1385,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 	}
 
 	projectExtensionEvent := plugins.ProjectExtension{
-		ID:   projectExtension.Model.ID.String(),
-		Slug: extension.Key,
+		ID: projectExtension.Model.ID.String(),
 		Project: plugins.Project{
 			ID:         project.Model.ID.String(),
 			Slug:       project.Slug,
@@ -1396,7 +1394,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 		Environment: env.Key,
 	}
 
-	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), plugins.GetAction("update"), projectExtensionEvent)
+	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("update"), projectExtensionEvent)
 	ev.Artifacts = artifacts
 
 	r.Events <- ev
@@ -1459,8 +1457,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 	}
 
 	projectExtensionEvent := plugins.ProjectExtension{
-		ID:   projectExtension.Model.ID.String(),
-		Slug: extension.Key,
+		ID: projectExtension.Model.ID.String(),
 		Project: plugins.Project{
 			ID:         project.Model.ID.String(),
 			Slug:       project.Slug,
@@ -1468,7 +1465,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 		},
 		Environment: env.Key,
 	}
-	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), plugins.GetAction("destroy"), projectExtensionEvent)
+	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("delete"), projectExtensionEvent)
 	ev.Artifacts = artifacts
 	r.Events <- ev
 

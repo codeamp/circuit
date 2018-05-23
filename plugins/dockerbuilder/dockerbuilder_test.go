@@ -83,7 +83,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	e = suite.transistor.GetTestEvent(plugins.GetEventName("dockerbuilder"), plugins.GetAction("status"), 60)
 	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), plugins.GetState("fetching"), e.State)
+	assert.Equal(suite.T(), plugins.GetState("running"), e.State)
 
 	e = suite.transistor.GetTestEvent(plugins.GetEventName("dockerbuilder"), plugins.GetAction("status"), 600)
 	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)

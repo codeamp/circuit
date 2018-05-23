@@ -22,13 +22,13 @@ import (
 func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 	if e.PayloadModel == "plugins.ProjectExtension" {
 		if e.Name == "kubernetes:loadbalancer:create" {
-			event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 			x.events <- event
 			return
 		}
 
 		if e.Event() == "kubernetes:loadbalancer:update" {
-			event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 			x.events <- event
 			return
 		}
@@ -37,11 +37,11 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 	if e.PayloadModel == "plugins.ReleaseExtension" {
 		var err error
 		switch e.Action {
-		case plugins.GetAction("destroy"):
+		case transistor.GetAction("delete"):
 			err = x.doDeleteLoadBalancer(e)
-		case plugins.GetAction("create"):
+		case transistor.GetAction("create"):
 			err = x.doLoadBalancer(e)
-		case plugins.GetAction("update"):
+		case transistor.GetAction("update"):
 			err = x.doLoadBalancer(e)
 		}
 
@@ -312,7 +312,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	artifacts[0] = transistor.Artifact{Key: "dns", Value: ELBDNS, Secret: false}
 	artifacts[1] = transistor.Artifact{Key: "name", Value: lbName.String(), Secret: false}
 
-	x.sendSuccessResponse(e, plugins.GetState("complete"), artifacts)
+	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 	return nil
 }
 
@@ -324,7 +324,7 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 		x.sendErrorResponse(e, err.Error())
 	} else {
 		log.Warn("sending success deleted")
-		x.sendSuccessResponse(e, plugins.GetState("deleted"), nil)
+		x.sendSuccessResponse(e, transistor.GetState("deleted"), nil)
 	}
 
 	return nil

@@ -45,10 +45,10 @@ func (x *Kubernetes) Subscribe() []string {
 	return []string{
 		"kubernetes:deployment:create",
 		"kubernetes:deployment:update",
-		"kubernetes:deployment:destroy",
+		"kubernetes:deployment:delete",
 		"kubernetes:loadbalancer:create",
 		"kubernetes:loadbalancer:update",
-		"kubernetes:loadbalancer:destroy",
+		"kubernetes:loadbalancer:delete",
 	}
 }
 
@@ -67,19 +67,19 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 }
 
 func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.State, artifacts []transistor.Artifact) {
-	event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	event.Artifacts = artifacts
 
 	x.events <- event
 }
 
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
-	event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), msg)
+	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), msg)
 	x.events <- event
 }
 
 func (x *Kubernetes) sendInProgress(e transistor.Event, msg string) {
-	event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("running"), msg)
+	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), msg)
 	x.events <- event
 }
 

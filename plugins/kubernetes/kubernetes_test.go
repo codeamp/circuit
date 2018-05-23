@@ -54,7 +54,7 @@ func (suite *TestSuite) SetupSuite() {
 
 // Load Balancers Tests
 func (suite *TestSuite) TestCleanupLBOffice() {
-	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("delete"), plugins.GetType("office"))
 
 	e := suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 60)
 	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State, e.StateMessage)
@@ -85,7 +85,7 @@ func (suite *TestSuite) TestLBTCPOffice() {
 		}
 	}
 
-	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("delete"), plugins.GetType("office"))
 
 	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 10)
 	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State)

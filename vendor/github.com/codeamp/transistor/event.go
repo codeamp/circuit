@@ -12,7 +12,6 @@ import (
 
 	json "github.com/bww/go-json"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -28,7 +27,6 @@ func GetAction(s string) Action {
 		"status",
 	}
 
-	spew.Dump()
 	for _, action := range actions {
 		if s == action {
 			return Action(action)
@@ -44,6 +42,31 @@ func GetAction(s string) Action {
 	log.Panic(errMsg)
 
 	return Action("unknown")
+}
+
+func GetState(s string) State {
+	states := []string{
+		"waiting",
+		"running",
+		"complete",
+		"failed",
+	}
+
+	for _, state := range states {
+		if s == state {
+			return State(state)
+		}
+	}
+
+	errMsg := fmt.Sprintf("State not found: '%s' ", s)
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		errMsg += fmt.Sprintf("%s : ln %d", file, line)
+	}
+
+	log.Panic(errMsg)
+
+	return State("unknown")
 }
 
 type Event struct {

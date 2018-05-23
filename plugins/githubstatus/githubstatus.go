@@ -47,7 +47,7 @@ func (x *GithubStatus) Subscribe() []string {
 	return []string{
 		"githubstatus:create",
 		"githubstatus:update",
-		"githubstatus:destroy",
+		"githubstatus:delete",
 	}
 }
 
@@ -165,22 +165,22 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 
 	if e.PayloadModel == "plugins.ProjectExtension" {
 		switch e.Action {
-		case plugins.GetAction("create"):
+		case transistor.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
 			if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully installed!")
+				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Successfully installed!")
 				return nil
 			} else {
-				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
+				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
 				return nil
 			}
-		case plugins.GetAction("update"):
+		case transistor.GetAction("update"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
 			if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
-				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Successfully updated!")
+				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Successfully updated!")
 				return nil
 			} else {
-				x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
+				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
 				return nil
 			}
 		default:
@@ -193,7 +193,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		payload := e.Payload.(plugins.ReleaseExtension)
 
 		switch e.Action {
-		case plugins.GetAction("create"):
+		case transistor.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{
 				"hash": payload.Release.HeadFeature.Hash,
 			})
@@ -213,22 +213,22 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 						"hash": payload.Release.HeadFeature.Hash,
 					})
 
-					x.events <- e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), err.Error())
+					x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
 					return nil
 				}
 
 				if status.State == "success" {
 					breakTheLoop = true
-					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "All status checks successful.")
+					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "All status checks successful.")
 				} else if status.State == "failure" {
 					breakTheLoop = true
-					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), "One or more status checks failed.")
+					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), "One or more status checks failed.")
 				} else if timeout >= timeoutLimitInt {
 					breakTheLoop = true
-					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt))
+					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt))
 				} else {
 					breakTheLoop = false
-					evt = e.NewEvent(plugins.GetAction("status"), plugins.GetState("running"), "One or more status checks are running.")
+					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), "One or more status checks are running.")
 				}
 
 				// Collect artifacts

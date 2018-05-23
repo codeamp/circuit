@@ -220,14 +220,14 @@ func (x *GitSync) Process(e transistor.Event) error {
 
 	if e.Event() == "gitsync:create" {
 		payload := e.Payload.(plugins.GitSync)
-		event := e.NewEvent(plugins.GetAction("status"), plugins.GetState("fetching"), "Fetching resource")
+		event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), "Fetching resource")
 		x.events <- event
 
 		commits, err := x.commits(payload.Project, payload.Git)
 		if err != nil {
 			log.Error(err)
 
-			errEvent := e.NewEvent(plugins.GetAction("status"), plugins.GetState("failed"), fmt.Sprintf("%v (Action: %v)", err.Error(), "failed"))
+			errEvent := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v)", err.Error(), "failed"))
 			x.events <- errEvent
 
 			return err
@@ -248,7 +248,7 @@ func (x *GitSync) Process(e transistor.Event) error {
 
 		payload.Commits = _commits
 
-		event = e.NewEvent(plugins.GetAction("status"), plugins.GetState("complete"), "Operation Complete")
+		event = e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Operation Complete")
 		event.SetPayload(payload)
 
 		x.events <- event

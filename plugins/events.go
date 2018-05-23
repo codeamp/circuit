@@ -21,6 +21,7 @@ func GetEventName(s string) transistor.EventName {
 		"route53",
 		"release",
 		"project",
+		"websocket",
 	}
 
 	for _, t := range eventNames {
@@ -37,37 +38,6 @@ func GetEventName(s string) transistor.EventName {
 
 	log.Panic(errMsg)
 	return transistor.EventName("unknown")
-}
-
-type State string
-
-func GetState(s string) transistor.State {
-	states := []string{
-		"waiting",
-		"running",
-		"fetching",
-		"building",
-		"pushing",
-		"complete",
-		"failed",
-		"deleting",
-		"deleted",
-	}
-
-	for _, state := range states {
-		if s == state {
-			return transistor.State(state)
-		}
-	}
-
-	errMsg := fmt.Sprintf("State not found: '%s' ", s)
-	_, file, line, ok := runtime.Caller(1)
-	if ok {
-		errMsg += fmt.Sprintf("%s : ln %d", file, line)
-	}
-
-	log.Panic(errMsg)
-	return transistor.State("unknown")
 }
 
 type Type string
@@ -103,32 +73,6 @@ func GetType(s string) Type {
 
 	log.Panic(errMsg)
 	return Type("unknown")
-}
-
-func GetAction(s string) transistor.Action {
-	actions := []string{
-		"create",
-		"run",
-		"update",
-		"destroy",
-		"rollback",
-		"status",
-	}
-
-	for _, action := range actions {
-		if s == action {
-			return transistor.Action(action)
-		}
-	}
-
-	errMsg := fmt.Sprintf("Action not found: '%s' ", s)
-	_, file, line, ok := runtime.Caller(1)
-	if ok {
-		errMsg += fmt.Sprintf("%s : ln %d", file, line)
-	}
-
-	log.Panic(errMsg)
-	return transistor.Action("unknown")
 }
 
 type Git struct {
@@ -187,8 +131,9 @@ type Service struct {
 	Spec      ServiceSpec `json:"spec"`
 	Type      string      `json:"type"`
 
-	State  transistor.State  `json:"state"`
-	Action transistor.Action `json:"action"`
+	State        transistor.State  `json:"state"`
+	StateMessage string            `json:"stateMessage"`
+	Action       transistor.Action `json:"action"`
 }
 
 type ServiceSpec struct {
@@ -218,25 +163,19 @@ type WebsocketMsg struct {
 
 type ReleaseExtension struct {
 	ID          string  `json:"id"`
-	Slug        string  `json:"slug"`
 	Project     Project `json:"project"`
 	Release     Release `json:"release"`
 	Environment string  `json:"environment"`
-
-	State  transistor.State  `json:"state"`
-	Action transistor.Action `json:"action"`
 }
 
 type ProjectExtension struct {
 	ID          string  `json:"id"`
-	Slug        string  `json:"slug"`
 	Project     Project `json:"project"`
 	Environment string  `json:"environment"`
 }
 
 type Release struct {
-	ID string `json:"id"`
-
+	ID          string    `json:"id"`
 	Project     Project   `json:"project"`
 	Git         Git       `json:"git"`
 	HeadFeature Feature   `json:"headFeature"`
