@@ -216,7 +216,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 	var project resolvers.Project
 	var environment resolvers.Environment
-	var feature resolvers.Feature
 	var projectSettings []resolvers.ProjectSettings
 
 	if e.State == transistor.GetState("complete") {
@@ -228,6 +227,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		}
 
 		for _, commit := range payload.Commits {
+			var feature resolvers.Feature
 			if x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
 				feature = resolvers.Feature{
 					ProjectID:  project.ID,
@@ -282,7 +282,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 					}
 				}
 			} else {
-				log.InfoWithFields("feature already exists", log.Fields{
+				log.DebugWithFields("feature already exists", log.Fields{
 					"repository": commit.Repository,
 					"hash":       commit.Hash,
 				})
@@ -391,10 +391,14 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				artifacts := []transistor.Artifact{}
 
 				eventAction := transistor.GetAction("create")
+				eventState := transistor.GetState("waiting")
+				eventStateMessage := ""
 
 				// check if can cache workflows
 				if !release.ForceRebuild && !x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
 					eventAction = transistor.GetAction("status")
+					eventState = lastReleaseExtension.State
+					eventStateMessage = lastReleaseExtension.StateMessage
 
 					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
 					if err != nil {
@@ -413,6 +417,8 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				}
 
 				ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), eventAction, payload)
+				ev.State = eventState
+				ev.StateMessage = eventStateMessage
 				ev.Artifacts = artifacts
 
 				x.Events <- ev

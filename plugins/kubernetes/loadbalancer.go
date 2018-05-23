@@ -20,21 +20,7 @@ import (
 )
 
 func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
-	if e.Matches("project:") {
-		if e.Action == transistor.GetAction("create") {
-			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
-			x.events <- event
-			return
-		}
-
-		if e.Action == transistor.GetAction("update") {
-			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
-			x.events <- event
-			return
-		}
-	}
-
-	if e.Matches("release:") {
+	if e.Matches("project:kubernetes:loadbalancer") {
 		var err error
 		switch e.Action {
 		case transistor.GetAction("delete"):

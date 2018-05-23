@@ -398,8 +398,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		},
 	})
 
-	x.sendInProgress(e, "Secrets added to deployVolumes")
-
 	// Do update/create of deployments and services
 	depInterface := clientset.Extensions()
 	batchv1DepInterface := clientset.BatchV1()
