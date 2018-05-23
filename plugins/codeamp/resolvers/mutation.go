@@ -263,7 +263,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 				},
 				Environment: "",
 			}
-			event := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("create"), releaseExtensionEvent)
+			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), plugins.GetAction("create"), releaseExtensionEvent)
 			event.State = plugins.GetState("failed")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
 			r.Events <- event
@@ -675,6 +675,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 				SecretsSignature:   fmt.Sprintf("%x", secretsSig),
 				ProjectExtensionID: projectExtension.Model.ID,
 				Type:               extension.Type,
+				State:              plugins.GetState("waiting"),
 			}
 
 			r.DB.Create(&releaseExtension)
@@ -1279,7 +1280,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			},
 			Environment: env.Key,
 		}
-		ev := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("create"), projectExtensionEvent)
+		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), plugins.GetAction("create"), projectExtensionEvent)
 		ev.Artifacts = artifacts
 		r.Events <- ev
 
@@ -1395,7 +1396,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 		Environment: env.Key,
 	}
 
-	ev := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("update"), projectExtensionEvent)
+	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), plugins.GetAction("update"), projectExtensionEvent)
 	ev.Artifacts = artifacts
 
 	r.Events <- ev
@@ -1467,7 +1468,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 		},
 		Environment: env.Key,
 	}
-	ev := transistor.NewEvent(transistor.EventName(extension.Key), plugins.GetAction("destroy"), projectExtensionEvent)
+	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), plugins.GetAction("destroy"), projectExtensionEvent)
 	ev.Artifacts = artifacts
 	r.Events <- ev
 
