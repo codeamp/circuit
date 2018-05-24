@@ -27,6 +27,7 @@ services:
         pull: 1
     environment:
       DOCKER_COMPOSE_POSTGRES_PORT: ${DOCKER_COMPOSE_POSTGRES_PORT}
+      CODEAMP_LOG_FORMAT: "standard"
     ports:
       - "${DOCKER_COMPOSE_CIRCUIT_PORT}:3011"
       - "${DOCKER_COMPOSE_DEX_PORT}:5556"

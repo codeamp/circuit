@@ -101,7 +101,7 @@
   branch = "master"
   name = "github.com/codeamp/logger"
   packages = ["."]
-  revision = "3af44e5f22c2a3ace490347b8f65e51db8d28126"
+  revision = "0cff94f5cc2f062a76ac98a29c7de0c86c654334"
 
 [[projects]]
   branch = "master"
@@ -823,6 +823,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b4d0de6698558ea2ef0a3beef70c14bf3ae0735372dae1daf6768dfce013990b"
+  inputs-digest = "db420a28398ea784bb9f845fc97dfb51bffbbaa716512f2a6fb6086e05135231"
   solver-name = "gps-cdcl"
   solver-version = 1

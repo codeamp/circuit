@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"strings"
+	"time"
 
 	log "github.com/codeamp/logger"
 	"github.com/sirupsen/logrus"
@@ -57,13 +58,24 @@ func initConfig() {
 		})
 	}
 
-	if _logLevel := viper.GetString("LOG_LEVEL"); _logLevel != "" {
-		logLevel, err := logrus.ParseLevel(_logLevel)
+	if _logLevel := viper.GetString("log_level"); _logLevel != "" {
+		logLevel, err := log.ParseLevel(_logLevel)
 
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		log.SetLogLevel(logLevel)
+	}
+
+	if logFormat := viper.GetString("log_format"); logFormat != "" {
+		switch strings.ToLower(logFormat) {
+		case "standard":
+			break
+		case "json":
+			fallthrough
+		default:
+			log.SetLogFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
+		}
 	}
 }
