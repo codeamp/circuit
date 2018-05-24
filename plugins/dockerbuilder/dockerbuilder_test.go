@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -49,9 +50,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
 
 	dockerBuildEvent := plugins.ReleaseExtension{
-		Slug:   "dockerbuilder",
-		Action: plugins.GetAction("create"),
-		State:  plugins.GetState("waiting"),
+		Slug: "dockerbuilder",
 		Release: plugins.Release{
 			Project: plugins.Project{
 				Repository: "checkr/deploy-test",
@@ -74,30 +73,29 @@ func (suite *TestSuite) TestDockerBuilder() {
 		},
 	}
 
-	ev := transistor.NewEvent(dockerBuildEvent, nil)
+	ev := transistor.NewEvent(plugins.GetEventName("dockerbuilder"), plugins.GetAction("create"), dockerBuildEvent)
 	ev.AddArtifact("USER", "test", false)
 	ev.AddArtifact("PASSWORD", "test", false)
 	ev.AddArtifact("EMAIL", "test@checkr.com", false)
-	ev.AddArtifact("HOST", "registry-testing.checkrhq-dev.net:5000", false)
+	ev.AddArtifact("HOST", "0.0.0.0:5000", false)
 	ev.AddArtifact("ORG", "testorg", false)
 	suite.transistor.Events <- ev
 
-	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 60)
-	payload := e.Payload.(plugins.ReleaseExtension)
-	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
-	assert.Equal(suite.T(), string(plugins.GetState("fetching")), string(payload.State))
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("dockerbuilder"), plugins.GetAction("status"), 60)
+	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)
+	assert.Equal(suite.T(), plugins.GetState("running"), e.State)
 
-	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status:dockerbuilder", 600)
-	payload = e.Payload.(plugins.ReleaseExtension)
-	assert.Equal(suite.T(), string(plugins.GetAction("status")), string(payload.Action))
-	assert.Equal(suite.T(), string(plugins.GetState("complete")), string(payload.State))
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("dockerbuilder"), plugins.GetAction("status"), 600)
+	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)
+	assert.Equal(suite.T(), plugins.GetState("complete"), e.State)
 
+	spew.Dump(e)
 	image, err := e.GetArtifact("image")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	assert.Equal(suite.T(), image.String(), "registry-testing.checkrhq-dev.net:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
+	assert.Equal(suite.T(), image.String(), "0.0.0.0:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
 }
 
 func TestDockerBuilder(t *testing.T) {

@@ -2,11 +2,10 @@ package gitsync_test
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/gitsync"
 	"github.com/codeamp/transistor"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -26,14 +25,17 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	viper.SetConfigType("YAML")
+	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(viperConfig))
-	viper.SetConfigType("yaml") // or viper.SetConfigType("YAML")
 
 	config := transistor.Config{
 		Plugins:        viper.GetStringMap("plugins"),
 		EnabledPlugins: []string{"gitsync"},
 	}
+
+	transistor.RegisterPlugin("gitsync", func() transistor.Plugin {
+		return &gitsync.GitSync{}
+	})
 
 	ag, _ := transistor.NewTestTransistor(config)
 	suite.transistor = ag
@@ -48,8 +50,6 @@ func (suite *TestSuite) TestGitSync() {
 	var e transistor.Event
 
 	gitSync := plugins.GitSync{
-		Action: plugins.Update,
-		State:  plugins.GetState("waiting"),
 		Project: plugins.Project{
 			Repository: "codeamp/circuit",
 		},
@@ -63,16 +63,16 @@ func (suite *TestSuite) TestGitSync() {
 		From: "",
 	}
 
-	suite.transistor.Events <- transistor.NewEvent(gitSync, nil)
+	event := transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("create"), gitSync)
+	suite.transistor.Events <- event
 
-	created := time.Now()
-	for i := 0; i < 5; i++ {
-		e = suite.transistor.GetTestEvent("plugins.GitCommit", 60)
-		payload := e.Payload.(plugins.GitCommit)
-		assert.Equal(suite.T(), payload.Repository, gitSync.Project.Repository)
-		assert.Equal(suite.T(), payload.Ref, fmt.Sprintf("refs/heads/%s", gitSync.Git.Branch))
-		assert.True(suite.T(), payload.Created.Before(created), "Commit created time is older than previous commit")
-	}
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 30)
+	assert.Equal(suite.T(), e.State, plugins.GetState("fetching"))
+
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 30)
+	assert.Equal(suite.T(), e.State, plugins.GetState("complete"))
+	assert.NotNil(suite.T(), e.Payload.(plugins.GitSync).Commits)
+	assert.NotEqual(suite.T(), 0, len(e.Payload.(plugins.GitSync).Commits), "commits should not be empty")
 }
 
 func TestGitSync(t *testing.T) {

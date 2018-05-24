@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/heartbeat"
 	"github.com/codeamp/transistor"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -23,9 +24,12 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	viper.SetConfigType("YAML")
+	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(viperConfig))
-	viper.SetConfigType("yaml") // or viper.SetConfigType("YAML")
+
+	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
+		return &heartbeat.Heartbeat{}
+	})
 
 	config := transistor.Config{
 		Plugins:        viper.GetStringMap("plugins"),
@@ -43,7 +47,7 @@ func (suite *TestSuite) TearDownSuite() {
 func (suite *TestSuite) TestHeartbeat() {
 	var e transistor.Event
 
-	e = suite.transistor.GetTestEvent("plugins.HeartBeat", 61)
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("heartbeat"), plugins.GetAction("status"), 61)
 	payload := e.Payload.(plugins.HeartBeat)
 	assert.Equal(suite.T(), "minute", payload.Tick)
 }

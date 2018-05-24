@@ -19,12 +19,12 @@ func init() {
 func (x *ExamplePlugin2) Start(e chan transistor.Event) error {
 	log.Info("starting ExamplePlugin2")
 
-	event := Hello{
-		Action:  "examplePlugin1",
+	payload := Hello{
+		Action:  "examplePlugin2",
 		Message: "Hello World from ExamplePlugin2",
 	}
 
-	e <- transistor.NewEvent(event, nil)
+	e <- transistor.CreateEvent(transistor.EventName("examplePlugin2"), payload)
 
 	return nil
 }
@@ -35,12 +35,12 @@ func (x *ExamplePlugin2) Stop() {
 
 func (x *ExamplePlugin2) Subscribe() []string {
 	return []string{
-		"plugins.Hello:examplePlugin1",
+		"examplePlugin1:create",
 	}
 }
 
 func (x *ExamplePlugin2) Process(e transistor.Event) error {
-	if e.Name == "plugins.Hello:examplePlugin1" {
+	if e.Event() == "examplePlugin2:create" {
 		hello := e.Payload.(Hello)
 		log.Info("ExamplePlugin2 received a message:", hello)
 	}

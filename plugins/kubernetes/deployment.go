@@ -28,37 +28,30 @@ import (
 )
 
 func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
-	log.InfoWithFields("Processing Kubernetes Deployments event", log.Fields{
-		"event": e,
-	})
-
-	if e.Name == "plugins.ProjectExtension:create:kubernetesdeployments" {
-		var extensionEvent plugins.ProjectExtension
-		extensionEvent = e.Payload.(plugins.ProjectExtension)
-		extensionEvent.Action = plugins.GetAction("status")
-		extensionEvent.State = plugins.GetState("complete")
-
-		x.events <- e.NewEvent(extensionEvent, nil)
-		return
-	}
-
-	if e.Name == "plugins.ProjectExtension:update:kubernetesdeployments" {
-		var extensionEvent plugins.ProjectExtension
-		extensionEvent = e.Payload.(plugins.ProjectExtension)
-		extensionEvent.Action = plugins.GetAction("status")
-		extensionEvent.State = plugins.GetState("complete")
-
-		x.events <- e.NewEvent(extensionEvent, nil)
-		return
-	}
-
-	if e.Name == "plugins.ReleaseExtension:create:kubernetesdeployments" {
-		err := x.doDeploy(e)
-		if err != nil {
-			log.Error(err)
+	if e.Matches("project:") {
+		if e.Action == transistor.GetAction("create") {
+			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			x.events <- event
+			return
 		}
 
-		return
+		if e.Action == transistor.GetAction("update") {
+			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+			x.events <- event
+
+			return
+		}
+	}
+
+	if e.Matches("release:") {
+		if e.Action == transistor.GetAction("create") {
+			err := x.doDeploy(e)
+			if err != nil {
+				log.Error(err)
+			}
+
+			return
+		}
 	}
 }
 
@@ -193,18 +186,6 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 	return "", false
 }
 
-// Returns an array of services with all Waiting statuses re-set to Failed
-func setFailServices(deploymentServices []plugins.Service) []plugins.Service {
-	var deploymentServicesFailed []plugins.Service
-	for index := range deploymentServices {
-		if deploymentServices[index].State == plugins.GetState("waiting") {
-			deploymentServices[index].State = plugins.GetState("failed")
-			deploymentServices[index].StateMessage = "Failed from waiting too long"
-		}
-	}
-	return deploymentServicesFailed
-}
-
 func getContainerPorts(service plugins.Service) []v1.ContainerPort {
 	var deployPorts []v1.ContainerPort
 
@@ -277,6 +258,7 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 }
 
 func (x *Kubernetes) doDeploy(e transistor.Event) error {
+	log.Info(e.Payload)
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
@@ -416,8 +398,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		},
 	})
 
-	x.sendInProgress(e, "Secrets added to deployVolumes")
-
 	// Do update/create of deployments and services
 	depInterface := clientset.Extensions()
 	batchv1DepInterface := clientset.BatchV1()
@@ -467,19 +447,16 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		existingJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
-			oneShotServices[index].State = plugins.GetState("failed")
-			oneShotServices[index].StateMessage = errMsg
-			x.sendErrorResponse(e, oneShotServices[index].StateMessage)
+			x.sendErrorResponse(e, errMsg)
 			return nil
 		}
 
-		for index, job := range existingJobs.Items {
+		for _, job := range existingJobs.Items {
 			if *job.Spec.Completions > 0 {
 				if (job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0) || job.Status.Active > 0 {
-					oneShotServices[index].State = plugins.GetState("failed")
-					oneShotServices[index].StateMessage = fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
-					x.sendErrorResponse(e, oneShotServices[index].StateMessage)
-					return fmt.Errorf(oneShotServices[index].StateMessage)
+					errMsg := fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
+					x.sendErrorResponse(e, errMsg)
+					return fmt.Errorf(errMsg)
 				}
 			}
 
@@ -564,9 +541,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
 		if err != nil {
 			log.Error(fmt.Sprintf("Failed to create service job %s, with error: %s", createdJob.Name, err))
-			oneShotServices[index].State = plugins.GetState("failed")
-			oneShotServices[index].StateMessage = fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
-			x.sendErrorResponse(e, oneShotServices[index].StateMessage)
+			errMsg := fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
+			x.sendErrorResponse(e, errMsg)
 			return nil
 		}
 
@@ -598,38 +574,32 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 					log.Error(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
 				}
 
-				oneShotServices[index].State = plugins.GetState("failed")
-				oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
-				x.sendErrorResponse(e, oneShotServices[index].StateMessage)
-				return fmt.Errorf(oneShotServices[index].StateMessage)
+				errMsg := fmt.Sprintf("Error job has failed %s", oneShotServiceName)
+				x.sendErrorResponse(e, errMsg)
+				return fmt.Errorf(errMsg)
 			}
 
 			if job.Status.Active == int32(0) {
 				// Check for success
 				if job.Status.Succeeded == int32(service.Replicas) {
-					oneShotServices[index].State = plugins.GetState("complete")
+					oneShotServices[index].State = transistor.GetState("complete")
 					break
 				} else {
 					// Job has failed!
-					oneShotServices[index].State = plugins.GetState("failed")
-					oneShotServices[index].StateMessage = fmt.Sprintf("Error job has failed %s", oneShotServiceName)
-					x.sendErrorResponse(e, oneShotServices[index].StateMessage)
-					return fmt.Errorf(oneShotServices[index].StateMessage)
+					errMsg := fmt.Sprintf("Error job has failed %s", oneShotServiceName)
+					x.sendErrorResponse(e, errMsg)
+					return fmt.Errorf(errMsg)
 				}
 			}
 
 			// Check Job's Pod status
 			if pods, err := clientset.Core().Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
-				log.Error(fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err))
-				oneShotServices[index].State = plugins.GetState("failed")
-				oneShotServices[index].StateMessage = fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
-				x.sendErrorResponse(e, oneShotServices[index].StateMessage)
+				errMsg := fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
+				x.sendErrorResponse(e, errMsg)
 			} else {
 				for _, item := range pods.Items {
 					if message, result := detectPodFailure(item); result {
 						// Job has failed
-						oneShotServices[index].State = plugins.GetState("failed")
-						oneShotServices[index].StateMessage = fmt.Sprintf(message)
 						x.sendErrorResponse(e, message)
 						return fmt.Errorf(message)
 					}
@@ -639,7 +609,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		}
 	}
 
-	for index, service := range deploymentServices {
+	for _, service := range deploymentServices {
 		deploymentName := genDeploymentName(projectSlug, service.Name)
 		deployPorts := getContainerPorts(service)
 
@@ -726,7 +696,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 		// Deployment
 		replicas := int32(service.Replicas)
-		if service.Action == plugins.GetAction("destroy") {
+		if service.Action == transistor.GetAction("delete") {
 			replicas = 0
 		}
 
@@ -813,11 +783,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			if myError != nil {
 				// send failed status
 				log.Error(fmt.Sprintf("Failed to create service deployment %s, with error: %s", deploymentName, myError))
-				deploymentServices[index].State = plugins.GetState("failed")
-				deploymentServices[index].StateMessage = fmt.Sprintf("Error creating deployment: %s", myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
-				x.sendErrorResponse(e, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
+
+				errMsg := fmt.Sprintf("Error creating deployment: %s", myError)
+				x.sendErrorResponse(e, errMsg)
 				return myError
 			}
 		} else {
@@ -825,11 +795,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
 				log.Error(fmt.Sprintf("Failed to update service deployment %s, with error: %s", deploymentName, myError))
-				deploymentServices[index].State = plugins.GetState("failed")
-				deploymentServices[index].StateMessage = fmt.Sprintf("Failed to update deployment %s, with error: %s", deploymentName, myError)
+
+				errMsg := fmt.Sprintf("Failed to update deployment %s, with error: %s", deploymentName, myError)
 				// shorten the timeout in this case so that we can fail without waiting
 				curTime = timeout
-				x.sendErrorResponse(e, fmt.Sprintf("Service deployment failed: %s.", myError.Error()))
+				x.sendErrorResponse(e, errMsg)
 				return myError
 			}
 		}
@@ -838,7 +808,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 	log.Info(fmt.Sprintf("Waiting %d seconds for deployment to succeed.", timeout))
 	for i := range deploymentServices {
-		deploymentServices[i].State = plugins.GetState("waiting")
+		deploymentServices[i].State = transistor.GetState("waiting")
 	}
 
 	if len(deploymentServices) > 0 {
@@ -855,10 +825,10 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d", deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas, deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
 				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation && deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas && deployment.Status.AvailableReplicas >= deployment.Status.UpdatedReplicas && deployment.Status.UnavailableReplicas == 0 {
 					// deployment success
-					deploymentServices[index].State = plugins.GetState("complete")
+					deploymentServices[index].State = transistor.GetState("complete")
 					successfulDeploys = 0
 					for _, d := range deploymentServices {
-						if d.State == plugins.GetState("complete") {
+						if d.State == transistor.GetState("complete") {
 							successfulDeploys++
 						}
 					}
@@ -927,7 +897,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 	}
 
-	x.sendSuccessResponse(e, plugins.GetState("complete"), nil)
+	x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 
 	// all success!
 	log.Info(fmt.Sprintf("All deployments successful."))

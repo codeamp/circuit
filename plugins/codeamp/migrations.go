@@ -219,11 +219,11 @@ func (x *CodeAmp) Migrate() {
 					db.Where("key = ? AND environment_id = ?", "DOCKER_PASS", environment.Model.ID).FirstOrInit(&dockerPass)
 
 					config = []map[string]interface{}{
-						map[string]interface{}{"key": "ORG", "value": dockerOrg.Model.ID.String()},
-						map[string]interface{}{"key": "HOST", "value": dockerHost.Model.ID.String()},
-						map[string]interface{}{"key": "USER", "value": dockerUser.Model.ID.String()},
-						map[string]interface{}{"key": "EMAIL", "value": dockerEmail.Model.ID.String()},
-						map[string]interface{}{"key": "PASSWORD", "value": dockerPass.Model.ID.String()},
+						{"key": "ORG", "value": dockerOrg.Model.ID.String()},
+						{"key": "HOST", "value": dockerHost.Model.ID.String()},
+						{"key": "USER", "value": dockerUser.Model.ID.String()},
+						{"key": "EMAIL", "value": dockerEmail.Model.ID.String()},
+						{"key": "PASSWORD", "value": dockerPass.Model.ID.String()},
 					}
 
 					marshalledConfig, err = json.Marshal(config)
@@ -271,15 +271,15 @@ func (x *CodeAmp) Migrate() {
 					db.Where("key = ? AND environment_id = ?", "CERTIFICATE_AUTHORITY", environment.Model.ID).FirstOrInit(&certificateAuthority)
 
 					config = []map[string]interface{}{
-						map[string]interface{}{"key": "SSL_CERT_ARN", "value": sslArn.Model.ID.String()},
-						map[string]interface{}{"key": "ACCESS_LOG_S3_BUCKET", "value": s3Bucket.Model.ID.String()},
-						map[string]interface{}{"key": "HOSTED_ZONE_ID", "value": hostedZoneID.Model.ID.String()},
-						map[string]interface{}{"key": "HOSTED_ZONE_NAME", "value": hostedZoneName.Model.ID.String()},
-						map[string]interface{}{"key": "AWS_ACCESS_KEY_ID", "value": awsAccessKeyID.Model.ID.String()},
-						map[string]interface{}{"key": "AWS_SECRET_KEY", "value": awsSecretKey.Model.ID.String()},
-						map[string]interface{}{"key": "CLIENT_CERTIFICATE", "value": clientCert.Model.ID.String()},
-						map[string]interface{}{"key": "CLIENT_KEY", "value": clientKey.Model.ID.String()},
-						map[string]interface{}{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthority.Model.ID.String()},
+						{"key": "SSL_CERT_ARN", "value": sslArn.Model.ID.String()},
+						{"key": "ACCESS_LOG_S3_BUCKET", "value": s3Bucket.Model.ID.String()},
+						{"key": "HOSTED_ZONE_ID", "value": hostedZoneID.Model.ID.String()},
+						{"key": "HOSTED_ZONE_NAME", "value": hostedZoneName.Model.ID.String()},
+						{"key": "AWS_ACCESS_KEY_ID", "value": awsAccessKeyID.Model.ID.String()},
+						{"key": "AWS_SECRET_KEY", "value": awsSecretKey.Model.ID.String()},
+						{"key": "CLIENT_CERTIFICATE", "value": clientCert.Model.ID.String()},
+						{"key": "CLIENT_KEY", "value": clientKey.Model.ID.String()},
+						{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthority.Model.ID.String()},
 					}
 
 					marshalledConfig, err = json.Marshal(config)
@@ -309,10 +309,10 @@ func (x *CodeAmp) Migrate() {
 					db.Where("key = ? AND environment_id = ?", "CERTIFICATE_AUTHORITY", environment.Model.ID).FirstOrInit(&certificateAuthority)
 
 					config = []map[string]interface{}{
-						map[string]interface{}{"key": "KUBECONFIG", "value": kubeConfig.Model.ID.String()},
-						map[string]interface{}{"key": "CLIENT_CERTIFICATE", "value": clientCert.Model.ID.String()},
-						map[string]interface{}{"key": "CLIENT_KEY", "value": clientKey.Model.ID.String()},
-						map[string]interface{}{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthority.Model.ID.String()},
+						{"key": "KUBECONFIG", "value": kubeConfig.Model.ID.String()},
+						{"key": "CLIENT_CERTIFICATE", "value": clientCert.Model.ID.String()},
+						{"key": "CLIENT_KEY", "value": clientKey.Model.ID.String()},
+						{"key": "CERTIFICATE_AUTHORITY", "value": certificateAuthority.Model.ID.String()},
 					}
 
 					marshalledConfig, err = json.Marshal(config)

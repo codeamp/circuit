@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -51,14 +52,14 @@ func (suite *TestSuite) SetupSuite() {
 	go suite.transistor.Run()
 }
 
-// func (suite *TestSuite) TestCleanupLBOffice() {
-// 	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
-
-// 	e := suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 60)
-// 	assert.Equal(suite.T(), plugins.GetState("deleted"), e.Payload.(plugins.ProjectExtension).State, e.Payload.(plugins.ProjectExtension).StateMessage)
-// }
-
 // Load Balancers Tests
+func (suite *TestSuite) TestCleanupLBOffice() {
+	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("delete"), plugins.GetType("office"))
+
+	e := suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 60)
+	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State, e.StateMessage)
+}
+
 func (suite *TestSuite) TestLBTCPOffice() {
 	timer := time.NewTimer(time.Second * 100)
 	defer timer.Stop()
@@ -70,25 +71,24 @@ func (suite *TestSuite) TestLBTCPOffice() {
 
 	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("update"), plugins.GetType("office"))
 
-	e := suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 120)
-	assert.Equal(suite.T(), plugins.GetState("complete"), e.Payload.(plugins.ProjectExtension).State, e.Payload.(plugins.ProjectExtension).StateMessage)
-	if e.Payload.(plugins.ProjectExtension).State != plugins.GetState("complete") {
+	var e transistor.Event
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
+	assert.Equal(suite.T(), plugins.GetState("complete"), e.State, e.StateMessage)
+	if e.State != plugins.GetState("complete") {
 		return
 	}
 
-	LBTCPEvent(plugins.GetAction("update"), plugins.GetType("office"))
-
 	for {
-		e = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 120)
-		if e.Payload.(plugins.ReleaseExtension).State != "running" {
+		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
+		if e.State != "running" {
 			break
 		}
 	}
 
-	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("destroy"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("delete"), plugins.GetType("office"))
 
-	e = suite.transistor.GetTestEvent("plugins.ProjectExtension:status", 10)
-	assert.Equal(suite.T(), string(plugins.GetState("deleted")), string(e.Payload.(plugins.ProjectExtension).State))
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 10)
+	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State)
 }
 
 func strMapKeys(strMap map[string]string) string {
@@ -108,25 +108,23 @@ func (suite *TestSuite) TestBasicSuccessDeploy() {
 	timer := time.NewTimer(time.Second * 60)
 	defer timer.Stop()
 
-	var e transistor.Event
 	suite.transistor.Events <- BasicReleaseEvent()
-	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 5)
-	assert.Equal(suite.T(), plugins.GetState("running"), e.Payload.(plugins.ReleaseExtension).State)
 
 	go func() {
 		<-timer.C
 		log.Fatal("TestBasicSuccessDeploy: Test timeout")
 	}()
 
+	var e transistor.Event
 	for {
-		e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 30)
-		if e.Payload.(plugins.ReleaseExtension).State != "running" {
+		e = suite.transistor.GetTestEvent("kubernetes:deployment", plugins.GetAction("status"), 30)
+		if e.State != "running" {
 			break
 		}
 	}
 
-	suite.T().Log(e.Payload.(plugins.ReleaseExtension).StateMessage)
-	assert.Equal(suite.T(), plugins.GetState("complete"), e.Payload.(plugins.ReleaseExtension).State)
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), plugins.GetState("complete"), e.State)
 }
 
 func (suite *TestSuite) TestBasicFailedDeploy() {
@@ -138,21 +136,18 @@ func (suite *TestSuite) TestBasicFailedDeploy() {
 		log.Fatal("TestBasicFailedDeploy: Test timeout")
 	}()
 
-	var e transistor.Event
 	suite.transistor.Events <- BasicFailedReleaseEvent()
 
-	e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 5)
-	assert.Equal(suite.T(), plugins.GetState("running"), e.Payload.(plugins.ReleaseExtension).State)
-
+	var e transistor.Event
 	for {
-		e = suite.transistor.GetTestEvent("plugins.ReleaseExtension:status", 30)
-		if e.Payload.(plugins.ReleaseExtension).State != "running" {
+		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("status"), 30)
+		if e.State != "running" {
 			break
 		}
 	}
 
-	suite.T().Log(e.Payload.(plugins.ReleaseExtension).StateMessage)
-	assert.Equal(suite.T(), plugins.GetState("failed"), e.Payload.(plugins.ReleaseExtension).State)
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), plugins.GetState("failed"), e.State)
 }
 
 func TestDeployments(t *testing.T) {
@@ -233,50 +228,13 @@ func verifyLoadBalancerArtifacts() error {
 	return nil
 }
 
-func GetCreateProjectExtension() plugins.ProjectExtension {
-	d := GetBasicProjectExtension()
-	d.Action = plugins.GetAction("create")
-	d.State = plugins.GetState("waiting")
-	return d
-}
-
-func GetDestroyProjectExtension() plugins.ProjectExtension {
-	d := GetBasicProjectExtension()
-	d.Action = plugins.GetAction("destroy")
-	d.State = plugins.GetState("waiting")
-	return d
-}
-
-func GetBasicProjectExtension() plugins.ProjectExtension {
-	var kubeconfig string
-	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
-		kubeconfig = path.Join(os.Getenv("HOME"), ".kube", "config")
-	}
-
-	extensionEvent := plugins.ProjectExtension{
-		Slug:        "kubernetesloadbalancers",
-		Environment: "testing",
-		Action:      plugins.GetAction("create"),
-		State:       plugins.GetState("waiting"),
-		Project: plugins.Project{
-			Repository: "checkr/deploy-test",
-			// Services: []plugins.Service{
-			// 	plugins.Service{},
-			// },
-		},
-	}
-
-	return extensionEvent
-}
-
-func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.ProjectExtension {
+func LBDataForTCP(action transistor.Action, t plugins.Type) plugins.ProjectExtension {
 	project := plugins.Project{
 		Repository: "checkr/nginx-test-success",
 	}
 
 	lbe := plugins.ProjectExtension{
 		Slug:        "kubernetesloadbalancers",
-		Action:      action,
 		Environment: "testing",
 		Project:     project,
 		ID:          "nginx-test-lb-asdf1234",
@@ -284,14 +242,12 @@ func LBDataForTCP(action plugins.Action, t plugins.Type) plugins.ProjectExtensio
 	return lbe
 }
 
-func LBTCPEvent(action plugins.Action, t plugins.Type) transistor.Event {
-	data := LBDataForTCP(action, t)
-	event := transistor.NewEvent(data, nil)
+func LBTCPEvent(action transistor.Action, t plugins.Type) transistor.Event {
+	payload := LBDataForTCP(action, t)
+	event := transistor.NewEvent(plugins.GetEventName("kubernetes:loadbalancer"), action, payload)
 
-	var kubeConfigPath string
-	if kubeConfigPath = os.Getenv("KUBECONFIG_PATH"); kubeConfigPath == "" {
-		kubeConfigPath = path.Join(os.Getenv("HOME"), ".kube", "config")
-	}
+	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
+	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
 
 	event.AddArtifact("service", "nginx-test-service-asdf", false)
 	event.AddArtifact("name", "nginx-test-lb-asdf1234", false)
@@ -300,7 +256,7 @@ func LBTCPEvent(action plugins.Action, t plugins.Type) transistor.Event {
 	event.AddArtifact("type", fmt.Sprintf("%v", t), false)
 
 	// For Kube connectivity
-	event.AddArtifact("kubeconfig", kubeConfigPath, false)
+	event.AddArtifact("kubeconfig", string(kubeConfig), false)
 	event.AddArtifact("client_certificate", "", false)
 	event.AddArtifact("client_key", "", false)
 	event.AddArtifact("certificate_authority", "", false)
@@ -325,17 +281,15 @@ func BasicFailedReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 	extension.Release.Services[0].Command = "/bin/false"
 
-	event := transistor.NewEvent(extension, nil)
+	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("create"), extension)
 	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
 }
 
 func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
-	var kubeConfigPath string
-	if kubeConfigPath = os.Getenv("KUBECONFIG_PATH"); kubeConfigPath == "" {
-		kubeConfigPath = path.Join(os.Getenv("HOME"), ".kube", "config")
-	}
+	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
+	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
 
 	event.AddArtifact("user", "test", false)
 	event.AddArtifact("password", "test", false)
@@ -347,7 +301,7 @@ func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event
 		event.Artifacts[idx].Source = "dockerbuilder"
 	}
 
-	event.AddArtifact("kubeconfig", kubeConfigPath, false)
+	event.AddArtifact("kubeconfig", string(kubeConfig), false)
 	event.AddArtifact("client_certificate", "", false)
 	event.AddArtifact("client_key", "", false)
 	event.AddArtifact("certificate_authority", "", false)
@@ -356,7 +310,7 @@ func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event
 func BasicReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 
-	event := transistor.NewEvent(extension, nil)
+	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("create"), extension)
 	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
@@ -379,7 +333,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 			Workdir:       "/tmp/something",
 		},
 		Services: []plugins.Service{
-			plugins.Service{
+			{
 				Name: "www",
 				Listeners: []plugins.Listener{
 					{
@@ -410,8 +364,6 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 
 	releaseExtension := plugins.ReleaseExtension{
 		Slug:    "kubernetesdeployments",
-		Action:  plugins.GetAction("create"),
-		State:   plugins.GetState("waiting"),
 		Release: release,
 	}
 

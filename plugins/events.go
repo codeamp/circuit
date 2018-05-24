@@ -2,47 +2,42 @@ package plugins
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
-func init() {
-	transistor.RegisterEvent(Project{})
-	transistor.RegisterEvent(GitCommit{})
-	transistor.RegisterEvent(GitSync{})
-	transistor.RegisterEvent(WebsocketMsg{})
-	transistor.RegisterEvent(HeartBeat{})
-	transistor.RegisterEvent(Release{})
-	transistor.RegisterEvent(ProjectExtension{})
-	transistor.RegisterEvent(ReleaseExtension{})
-}
-
-type State string
-
-func GetState(s string) State {
-	states := []string{
-		"waiting",
-		"running",
-		"fetching",
-		"building",
-		"pushing",
-		"complete",
-		"failed",
-		"deleting",
-		"deleted",
+func GetEventName(s string) transistor.EventName {
+	eventNames := []string{
+		"kubernetes:deployment",
+		"kubernetes:loadbalancer",
+		"githubstatus",
+		"gitsync",
+		"gitsync:commit",
+		"heartbeat",
+		"dockerbuilder",
+		"route53",
+		"release",
+		"project",
+		"websocket",
 	}
 
-	for _, state := range states {
-		if s == state {
-			return State(state)
+	for _, t := range eventNames {
+		if s == t {
+			return transistor.EventName(t)
 		}
 	}
 
-	log.Info(fmt.Sprintf("State not found: %s", s))
+	errMsg := fmt.Sprintf("EventName not found: '%s' ", s)
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		errMsg += fmt.Sprintf("%s : ln %d", file, line)
+	}
 
-	return State("unknown")
+	log.Panic(errMsg)
+	return transistor.EventName("unknown")
 }
 
 type Type string
@@ -70,32 +65,14 @@ func GetType(s string) Type {
 		}
 	}
 
-	log.Info(fmt.Sprintf("Type not found: %s", s))
+	errMsg := fmt.Sprintf("Type not found: '%s' ", s)
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		errMsg += fmt.Sprintf("%s : ln %d", file, line)
+	}
 
+	log.Panic(errMsg)
 	return Type("unknown")
-}
-
-type Action string
-
-func GetAction(s string) Action {
-	actions := []string{
-		"create",
-		"run",
-		"update",
-		"destroy",
-		"rollback",
-		"status",
-	}
-
-	for _, action := range actions {
-		if s == action {
-			return Action(action)
-		}
-	}
-
-	log.Info(fmt.Sprintf("Action not found: %s", s))
-
-	return Action("unknown")
 }
 
 type Git struct {
@@ -120,12 +97,10 @@ type GitCommit struct {
 }
 
 type GitSync struct {
-	Action       Action  `json:"action"`
-	State        State   `json:"state"`
-	StateMessage string  `json:"stateMessage"`
-	Project      Project `json:"project"`
-	Git          Git     `json:"git"`
-	From         string  `json:"from"`
+	Project Project     `json:"project"`
+	Git     Git         `json:"git"`
+	From    string      `json:"from"`
+	Commits []GitCommit `json:"commits"`
 }
 
 type Feature struct {
@@ -148,16 +123,17 @@ type ListenerPair struct {
 }
 
 type Service struct {
-	ID           string      `json:"id"`
-	Action       Action      `json:"action"`
-	Name         string      `json:"name"`
-	Command      string      `json:"command"`
-	Listeners    []Listener  `json:"listeners"`
-	Replicas     int64       `json:"replicas"`
-	State        State       `json:"state"`
-	StateMessage string      `json:"stateMessage"`
-	Spec         ServiceSpec `json:"spec"`
-	Type         string      `json:"type"`
+	ID        string      `json:"id"`
+	Name      string      `json:"name"`
+	Command   string      `json:"command"`
+	Listeners []Listener  `json:"listeners"`
+	Replicas  int64       `json:"replicas"`
+	Spec      ServiceSpec `json:"spec"`
+	Type      string      `json:"type"`
+
+	State        transistor.State  `json:"state"`
+	StateMessage string            `json:"stateMessage"`
+	Action       transistor.Action `json:"action"`
 }
 
 type ServiceSpec struct {
@@ -186,39 +162,28 @@ type WebsocketMsg struct {
 }
 
 type ReleaseExtension struct {
-	ID           string  `json:"id"`
-	Action       Action  `json:"action"`
-	Slug         string  `json:"slug"`
-	State        State   `json:"state"`
-	StateMessage string  `json:"stateMessage"`
-	Project      Project `json:"project"`
-	Release      Release `json:"release"`
-	Environment  string  `json:"environment"`
+	ID          string  `json:"id"`
+	Project     Project `json:"project"`
+	Release     Release `json:"release"`
+	Environment string  `json:"environment"`
 }
 
 type ProjectExtension struct {
-	ID           string  `json:"id"`
-	Action       Action  `json:"action"`
-	Slug         string  `json:"slug"`
-	State        State   `json:"state"`
-	StateMessage string  `json:"stateMessage"`
-	Project      Project `json:"project"`
-	Environment  string  `json:"environment"`
+	ID          string  `json:"id"`
+	Project     Project `json:"project"`
+	Environment string  `json:"environment"`
 }
 
 type Release struct {
-	ID           string    `json:"id"`
-	Action       Action    `json:"action"`
-	State        State     `json:"state"`
-	StateMessage string    `json:"stateMessage"`
-	Project      Project   `json:"project"`
-	Git          Git       `json:"git"`
-	HeadFeature  Feature   `json:"headFeature"`
-	User         string    `json:"user"`
-	TailFeature  Feature   `json:"tailFeature"`
-	Services     []Service `json:"services"`
-	Secrets      []Secret  `json:"secrets" role:"secret"`
-	Environment  string    `json:"environment"`
+	ID          string    `json:"id"`
+	Project     Project   `json:"project"`
+	Git         Git       `json:"git"`
+	HeadFeature Feature   `json:"headFeature"`
+	User        string    `json:"user"`
+	TailFeature Feature   `json:"tailFeature"`
+	Services    []Service `json:"services"`
+	Secrets     []Secret  `json:"secrets" role:"secret"`
+	Environment string    `json:"environment"`
 }
 
 type Project struct {

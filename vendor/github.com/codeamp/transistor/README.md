@@ -1,4 +1,4 @@
-# Transistor
+# Transistor [![CircleCI](https://circleci.com/gh/codeamp/transistor.svg?style=svg)](https://circleci.com/gh/codeamp/transistor) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Coverage Status](https://coveralls.io/repos/github/codeamp/transistor/badge.svg?branch=master)](https://coveralls.io/github/codeamp/transistor?branch=master) [![Go Report Card](https://goreportcard.com/badge/codeamp/transistor)](https://goreportcard.com/report/codeamp/transistor) [![codebeat badge](https://codebeat.co/badges/b977a7e7-1e94-43e1-9e58-463cff99add3)](https://codebeat.co/projects/github-com-codeamp-transistor-master)
 
 Transistor allows you to run distributed workload on one or accross multiple hosts. It's a plugin based system that allows plugins to subscribe to multiple events and internal scheduler takes care of delivery. This allows multiple plugins to recieve same message do some work and respond with updated or different message.
 
@@ -10,7 +10,6 @@ package plugins
 import "github.com/codeamp/transistor"
 
 func init() {
-    transistor.RegisterApi(Hello{})
 }
 
 type Hello struct {
@@ -46,11 +45,11 @@ func (x *ExamplePlugin1) Start(e chan transistor.Event) error {
 	log.Info("starting ExamplePlugin")
 
 	event := Hello{
-		Action:  "examplePlugin2",
+		Action:  "examplePlugin1",
 		Message: "Hello World from ExamplePlugin1",
 	}
 
-	e <- transistor.NewEvent(event, nil)
+	e <- transistor.NewEvent(transistor.EventName("exampleplugin1"), transistor.Action("create"), nil)
 
 	return nil
 }
@@ -59,10 +58,10 @@ func (x *ExamplePlugin1) Start(e chan transistor.Event) error {
 or respond to existing one and keep track of parent event
 
 ```go
-func (x *ExamplePlugin1) Process(e transistor.Event) error {
-	if e.Name == "plugins.Hello:examplePlugin2" {
-		hello := e.Payload.(Hello)
-		log.Info("ExamplePlugin1 received a message:", hello)
+func (x *ExamplePlugin2) Process(e transistor.Event) error {
+	if e.Name == "exampleplugin2:create" {
+		hello := e.Payload().(Hello)
+		log.Info("ExamplePlugin2 received a message:", hello)
 	}
 	return nil
 }
@@ -79,16 +78,16 @@ func main() {
 		Process:  "1",
 		Queueing: true,
 		Plugins: map[string]interface{}{
-			"examplePlugin1": map[string]interface{}{
+			"exampleplugin1": map[string]interface{}{
 				"hello":   "world1",
 				"workers": 1,
 			},
-			"examplePlugin2": map[string]interface{}{
+			"exampleplugin2": map[string]interface{}{
 				"hello":   "world2",
 				"workers": 1,
 			},
 		},
-		EnabledPlugins: []string{"examplePlugin1", "examplePlugin2"},
+		EnabledPlugins: []string{"exampleplugin1", "exampleplugin2"},
 	}
 
 	t, err := transistor.NewTransistor(config)

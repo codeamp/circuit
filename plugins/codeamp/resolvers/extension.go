@@ -6,9 +6,9 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
-	graphql "github.com/graph-gophers/graphql-go"
 	uuid "github.com/satori/go.uuid"
 )
 

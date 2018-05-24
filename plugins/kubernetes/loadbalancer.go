@@ -20,30 +20,27 @@ import (
 )
 
 func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
-	log.InfoWithFields("Processing load balancer event", log.Fields{
-		"event": e,
-	})
+	if e.Matches("project:kubernetes:loadbalancer") {
+		var err error
+		switch e.Action {
+		case transistor.GetAction("delete"):
+			err = x.doDeleteLoadBalancer(e)
+		case transistor.GetAction("create"):
+			err = x.doLoadBalancer(e)
+		case transistor.GetAction("update"):
+			err = x.doLoadBalancer(e)
+		}
 
-	event := e.Payload.(plugins.ProjectExtension)
-
-	var err error
-	switch event.Action {
-	case plugins.GetAction("destroy"):
-		err = x.doDeleteLoadBalancer(e)
-	case plugins.GetAction("create"):
-		err = x.doLoadBalancer(e)
-	case plugins.GetAction("update"):
-		err = x.doLoadBalancer(e)
-	}
-
-	if err != nil {
-		log.Error(err)
-		//x.sendErrorResponse(e, fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State))
-		x.sendErrorResponse(e, err.Error())
+		if err != nil {
+			log.Error(err)
+			//x.sendErrorResponse(e, fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State))
+			x.sendErrorResponse(e, err.Error())
+		}
 	}
 }
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
+	log.Info("doLoadBalancer")
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
@@ -301,23 +298,26 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	artifacts[0] = transistor.Artifact{Key: "dns", Value: ELBDNS, Secret: false}
 	artifacts[1] = transistor.Artifact{Key: "name", Value: lbName.String(), Secret: false}
 
-	x.sendSuccessResponse(e, plugins.GetState("complete"), artifacts)
+	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 	return nil
 }
 
 func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
+	log.Info("doDeleteLoadBalancer")
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 	} else {
-		x.sendSuccessResponse(e, plugins.GetState("deleted"), nil)
+		log.Warn("sending success deleted")
+		x.sendSuccessResponse(e, transistor.GetState("deleted"), nil)
 	}
 
 	return nil
 }
 
 func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
+	log.Info("deleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 

@@ -7,9 +7,10 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
+	"github.com/codeamp/transistor"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
-	graphql "github.com/graph-gophers/graphql-go"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -27,7 +28,7 @@ type ReleaseExtension struct {
 	// ProjectExtensionID
 	ProjectExtensionID uuid.UUID `json:"extensionID" gorm:"type:uuid"`
 	// State
-	State plugins.State `json:"state"`
+	State transistor.State `json:"state"`
 	// StateMessage
 	StateMessage string `json:"stateMessage"`
 	// Type

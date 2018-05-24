@@ -120,7 +120,7 @@ func (t *Transistor) addPlugin(name string) error {
 		event := Event{}
 		json.Unmarshal([]byte(e), &event)
 		if err := MapPayload(event.PayloadModel, &event); err != nil {
-			event.Error = fmt.Errorf("PayloadModel not found: %s. Did you add it to ApiRegistry?", event.PayloadModel)
+			log.Fatal(fmt.Errorf("PayloadModel not found: %s. Did you add it to ApiRegistry?", event.PayloadModel))
 		}
 
 		//event.Dump()
@@ -181,11 +181,11 @@ func (t *Transistor) flusher() {
 			for _, plugin := range t.Plugins {
 				if plugin.Workers > 0 {
 					subscribedTo := plugin.Plugin.Subscribe()
-					if SliceContains(e.PayloadModel, subscribedTo) || SliceContains(e.Name, subscribedTo) {
+					if SliceContains(e.Event(), subscribedTo) {
 						ev_handled = true
 						if t.Config.Queueing {
-							log.InfoWithFields("Enqueue event", log.Fields{
-								"event_name":  e.Name,
+							log.DebugWithFields("Enqueue event", log.Fields{
+								"event_name":  e.Event(),
 								"plugin_name": plugin.Name,
 							})
 
@@ -208,7 +208,7 @@ func (t *Transistor) flusher() {
 			if t.TestEvents != nil {
 				t.TestEvents <- e
 			} else if !ev_handled {
-				log.InfoWithFields("Event not handled by any plugin", log.Fields{
+				log.WarnWithFields("Event not handled by any plugin", log.Fields{
 					"event_name": e.Name,
 				})
 				e.Dump()
@@ -297,7 +297,8 @@ func (t *Transistor) Stop() {
 }
 
 // GetTestEvent listens and returns requested event
-func (t *Transistor) GetTestEvent(name string, timeout time.Duration) Event {
+func (t *Transistor) GetTestEvent(name EventName, action Action, timeout time.Duration) Event {
+	eventName := fmt.Sprintf("%s:%s", name, action)
 	// timeout in the case that we don't get requested event
 	timer := time.NewTimer(time.Second * timeout)
 	go func() {
@@ -309,9 +310,9 @@ func (t *Transistor) GetTestEvent(name string, timeout time.Duration) Event {
 	}()
 
 	for e := range t.TestEvents {
-		matched, err := regexp.MatchString(name, e.Name)
+		matched, err := regexp.MatchString(eventName, e.Event())
 		if err != nil {
-			log.InfoWithFields("GetTestEvent regex match encountered an error", log.Fields{
+			log.ErrorWithFields("GetTestEvent regex match encountered an error", log.Fields{
 				"regex":  name,
 				"string": e.Name,
 				"error":  err,
@@ -322,12 +323,11 @@ func (t *Transistor) GetTestEvent(name string, timeout time.Duration) Event {
 			timer.Stop()
 			return e
 		}
-
-		log.DebugWithFields("GetTestEvent regex not matched", log.Fields{
-			"regex":  name,
-			"string": e.Name,
-		})
 	}
+
+	log.WarnWithFields("GetTestEvent regex not matched", log.Fields{
+		"regex": name,
+	})
 
 	return Event{}
 }
