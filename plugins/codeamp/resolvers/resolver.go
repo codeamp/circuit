@@ -62,7 +62,7 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		bearerToken := authString[7:len(authString)]
+		bearerToken := authString[7:]
 
 		// Initialize a provider by specifying dex's issuer URL.
 		provider, err := oidc.NewProvider(ctx, viper.GetString("plugins.codeamp.oidc_uri"))

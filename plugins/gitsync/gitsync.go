@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ type GitSync struct {
 func init() {
 	transistor.RegisterPlugin("gitsync", func() transistor.Plugin {
 		return &GitSync{}
-	})
+	}, plugins.GitSync{})
 }
 
 func (x *GitSync) Description() string {
@@ -38,11 +39,21 @@ func (x *GitSync) SampleConfig() string {
 func (x *GitSync) Start(e chan transistor.Event) error {
 	x.events = e
 	log.Info("Started GitSync")
-	// create global gitconfig file
-	err := ioutil.WriteFile("/root/.gitconfig", []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
+
+	usr, err := user.Current()
 	if err != nil {
-		log.Debug(err)
-		return err
+		log.Fatal(err)
+	}
+
+	// create global gitconfig file
+	gitconfigPath := fmt.Sprintf("%s/.gitconfig", usr.HomeDir)
+	if _, err := os.Stat(gitconfigPath); os.IsNotExist(err) {
+		log.Warn("Local .gitconfig file not found! Writing default.")
+		err = ioutil.WriteFile(gitconfigPath, []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
+		if err != nil {
+			log.Debug(err)
+			return err
+		}
 	}
 
 	return nil
@@ -54,8 +65,8 @@ func (x *GitSync) Stop() {
 
 func (x *GitSync) Subscribe() []string {
 	return []string{
-		"plugins.GitPing",
-		"plugins.GitSync:update",
+		"gitsync:create",
+		"gitsync:update",
 	}
 }
 
@@ -137,7 +148,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 		output, err := x.git(env, "clone", git.Url, repoPath)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return nil, err
 		}
 
@@ -151,7 +162,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	}
 
 	log.Info(string(output))
-	
+
 	output, err = x.git(env, "-C", repoPath, "clean", "-fd")
 	if err != nil {
 		log.Debug(err)
@@ -204,41 +215,48 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 func (x *GitSync) Process(e transistor.Event) error {
 	log.InfoWithFields("Process GitSync event", log.Fields{
-		"event": e.Name,
+		"event": e.Event(),
 	})
 
-	var err error
-
-	gitSyncEvent := e.Payload.(plugins.GitSync)
-	gitSyncEvent.Action = plugins.GetAction("status")
-	gitSyncEvent.State = plugins.GetState("fetching")
-	gitSyncEvent.StateMessage = ""
-	x.events <- e.NewEvent(gitSyncEvent, nil)
-
-	commits, err := x.commits(gitSyncEvent.Project, gitSyncEvent.Git)
-	if err != nil {
-		gitSyncEvent.State = plugins.GetState("failed")
-		gitSyncEvent.StateMessage = fmt.Sprintf("%v (Action: %v)", err.Error(), gitSyncEvent.State)
-		event := e.NewEvent(gitSyncEvent, err)
+	if e.Event() == "gitsync:create" {
+		payload := e.Payload.(plugins.GitSync)
+		event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), "Fetching resource")
 		x.events <- event
-		return err
-	}
 
-	for i := range commits {
-		c := commits[i]
-		c.Repository = gitSyncEvent.Project.Repository
-		c.Ref = fmt.Sprintf("refs/heads/%s", gitSyncEvent.Git.Branch)
+		commits, err := x.commits(payload.Project, payload.Git)
+		if err != nil {
+			log.Error(err)
 
-		if c.Hash == gitSyncEvent.From {
-			break
+			errEvent := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v)", err.Error(), "failed"))
+			x.events <- errEvent
+
+			return err
 		}
 
-		x.events <- e.NewEvent(c, nil)
+		var _commits []plugins.GitCommit
+		for i := range commits {
+			c := commits[i]
+			c.Repository = payload.Project.Repository
+			c.Ref = fmt.Sprintf("refs/heads/%s", payload.Git.Branch)
+
+			_commits = append(_commits, c)
+
+			if c.Hash == payload.From {
+				break
+			}
+		}
+
+		payload.Commits = _commits
+
+		event = e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Operation Complete")
+		event.SetPayload(payload)
+
+		x.events <- event
 	}
 
-	gitSyncEvent.State = plugins.GetState("complete")
-	gitSyncEvent.StateMessage = ""
-	x.events <- e.NewEvent(gitSyncEvent, nil)
+	if e.Event() == "gitsync:update" {
+		log.WarnWithFields("Event received by githubsync yet unhandled!", log.Fields{"event": e})
+	}
 
 	return nil
 }

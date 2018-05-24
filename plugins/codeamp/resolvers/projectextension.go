@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
+	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -20,7 +20,7 @@ type ProjectExtension struct {
 	// ExtensionID
 	ExtensionID uuid.UUID `json:"extID" gorm:"type:uuid"`
 	// State
-	State plugins.State `json:"state"`
+	State transistor.State `json:"state"`
 	// StateMessage
 	StateMessage string `json:"stateMessage"`
 	// Artifacts

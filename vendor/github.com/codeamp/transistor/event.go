@@ -12,16 +12,74 @@ import (
 
 	json "github.com/bww/go-json"
 	log "github.com/codeamp/logger"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
+type Action string
+type State string
+type EventName string
+
+func GetAction(s string) Action {
+	actions := []string{
+		"create",
+		"update",
+		"delete",
+		"status",
+	}
+
+	for _, action := range actions {
+		if s == action {
+			return Action(action)
+		}
+	}
+
+	errMsg := fmt.Sprintf("Action not found: '%s' ", s)
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		errMsg += fmt.Sprintf("%s : ln %d", file, line)
+	}
+
+	log.Panic(errMsg)
+
+	return Action("unknown")
+}
+
+func GetState(s string) State {
+	states := []string{
+		"waiting",
+		"running",
+		"complete",
+		"failed",
+	}
+
+	for _, state := range states {
+		if s == state {
+			return State(state)
+		}
+	}
+
+	errMsg := fmt.Sprintf("State not found: '%s' ", s)
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		errMsg += fmt.Sprintf("%s : ln %d", file, line)
+	}
+
+	log.Panic(errMsg)
+
+	return State("unknown")
+}
+
 type Event struct {
-	ID           uuid.UUID   `json:"id"`
-	ParentID     uuid.UUID   `json:"parentId"`
-	Name         string      `json:"name"`
+	ID       uuid.UUID `json:"id"`
+	ParentID uuid.UUID `json:"parentId"`
+	Name     EventName `json:"name"`
+
+	Action       Action `json:"action"`
+	State        State  `json:"state"`
+	StateMessage string `json:"stateMessage"`
+
 	Payload      interface{} `json:"payload"`
 	PayloadModel string      `json:"payloadModel"`
-	Error        error       `json:"error"`
 	CreatedAt    time.Time   `json:"createdAt"`
 	Caller       Caller      `json:"caller"`
 	Artifacts    []Artifact  `json:"artifacts"`
@@ -60,43 +118,29 @@ func (a *Artifact) StringSlice() []interface{} {
 	return a.Value.([]interface{})
 }
 
-func name(payload interface{}) string {
-	s := reflect.ValueOf(payload)
-
-	if s.Kind() != reflect.Struct {
-		return reflect.TypeOf(payload).String()
-	}
-
-	name := reflect.TypeOf(payload).String()
-
-	f := s.FieldByName("Action")
-	if f.IsValid() {
-		action := f.String()
-		if action != "" {
-			name = fmt.Sprintf("%v:%v", name, action)
-		}
-	}
-
-	f = s.FieldByName("Slug")
-	if f.IsValid() {
-		slug := f.String()
-		if slug != "" {
-			name = fmt.Sprintf("%v:%v", name, slug)
-		}
-	}
-
-	return name
+func CreateEvent(eventName EventName, payload interface{}) Event {
+	return NewEvent(eventName, GetAction("create"), payload)
 }
 
-func NewEvent(payload interface{}, err error) Event {
+func UpdateEvent(eventName EventName, payload interface{}) Event {
+	return NewEvent(eventName, GetAction("update"), payload)
+}
+
+func DeleteEvent(eventName EventName, payload interface{}) Event {
+	return NewEvent(eventName, GetAction("delete"), payload)
+}
+
+func NewEvent(eventName EventName, action Action, payload interface{}) Event {
 	event := Event{
 		ID:           uuid.NewV4(),
-		Name:         name(payload),
-		Payload:      payload,
-		PayloadModel: reflect.TypeOf(payload).String(),
-		Error:        err,
+		Name:         eventName,
 		CreatedAt:    time.Now(),
+		Action:       action,
+		State:        State("waiting"),
+		StateMessage: "Waiting for event to run",
 	}
+
+	event.SetPayload(payload)
 
 	// for debugging purposes
 	_, file, no, ok := runtime.Caller(1)
@@ -110,27 +154,36 @@ func NewEvent(payload interface{}, err error) Event {
 	return event
 }
 
-func (e *Event) NewEvent(payload interface{}, err error) Event {
-	event := Event{
-		ID:           uuid.NewV4(),
-		ParentID:     e.ID,
-		Name:         name(payload),
-		Payload:      payload,
-		PayloadModel: reflect.TypeOf(payload).String(),
-		Error:        err,
-		CreatedAt:    time.Now(),
-	}
+func (e *Event) CreateEvent(action Action, state State, stateMessage string) Event {
+	return e.NewEvent(GetAction("create"), state, stateMessage)
+}
 
-	// for debugging purposes
-	_, file, no, ok := runtime.Caller(1)
-	if ok {
-		event.Caller = Caller{
-			File:       file,
-			LineNumber: no,
-		}
-	}
+func (e *Event) UpdateEvent(action Action, state State, stateMessage string) Event {
+	return e.NewEvent(GetAction("update"), state, stateMessage)
+}
+func (e *Event) DeleteEvent(action Action, state State, stateMessage string) Event {
+	return e.NewEvent(GetAction("delete"), state, stateMessage)
+}
 
+func (e *Event) StatusEvent(action Action, state State, stateMessage string) Event {
+	return e.NewEvent(GetAction("status"), state, stateMessage)
+}
+
+func (e *Event) NewEvent(action Action, state State, stateMessage string) Event {
+	event := NewEvent(e.Name, action, e.Payload)
+	event.ParentID = e.ID
+	event.State = state
+	event.StateMessage = stateMessage
 	return event
+}
+
+func (e *Event) SetPayload(payload interface{}) {
+	e.Payload = payload
+	if payload != nil {
+		e.PayloadModel = reflect.TypeOf(payload).String()
+	} else {
+		e.PayloadModel = ""
+	}
 }
 
 func (e *Event) Dump() {
@@ -138,12 +191,16 @@ func (e *Event) Dump() {
 	log.Info(string(event))
 }
 
+func (e *Event) Event() string {
+	return fmt.Sprintf("%s:%s", e.Name, e.Action)
+}
+
 func (e *Event) Matches(name string) bool {
-	matched, err := regexp.MatchString(name, e.Name)
+	matched, err := regexp.MatchString(name, e.Event())
 	if err != nil {
-		log.InfoWithFields("Event regex match encountered an error", log.Fields{
+		log.ErrorWithFields("Event regex match encountered an error", log.Fields{
 			"regex":  name,
-			"string": e.Name,
+			"string": e.Event(),
 			"error":  err,
 		})
 	}
@@ -152,10 +209,14 @@ func (e *Event) Matches(name string) bool {
 		return true
 	}
 
-	log.DebugWithFields("Event regex not matched", log.Fields{
-		"regex":  name,
-		"string": e.Name,
-	})
+	// Not that important because there will be events that will
+	// fail without being an error condition because there will obviously
+	// be some events that do not match. Leaving here for future debugging, but disabling for sake of DEBUG channel
+	// ADB
+	// log.DebugWithFields("Event regex not matched", log.Fields{
+	// 	"regex":  name,
+	// 	"string": e.Event(),
+	// })
 
 	return false
 }

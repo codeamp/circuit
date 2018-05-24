@@ -17,7 +17,7 @@
   branch = "master"
   name = "github.com/codeamp/logger"
   packages = ["."]
-  revision = "3af44e5f22c2a3ace490347b8f65e51db8d28126"
+  revision = "02beb4f2edb3743a722a3997f48fc5e67c6abd0c"
 
 [[projects]]
   name = "github.com/garyburd/redigo"

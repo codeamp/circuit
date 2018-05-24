@@ -107,7 +107,7 @@
   branch = "master"
   name = "github.com/codeamp/transistor"
   packages = ["."]
-  revision = "34f9ff3b17c118401b6ba140ae4c261cac1b2dcd"
+  revision = "cb56a5a2ec001b68022ad1072f001cb089920495"
 
 [[projects]]
   branch = "master"
