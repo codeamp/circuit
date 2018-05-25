@@ -13,7 +13,10 @@ func GetEventName(s string) transistor.EventName {
 	eventNames := []string{
 		"kubernetes:deployment",
 		"kubernetes:loadbalancer",
-		"githubstatus",
+		"project:githubstatus",
+		"project:dockerbuilder",
+		"release:dockerbuilder",
+		"release:githubstatus",
 		"gitsync",
 		"gitsync:commit",
 		"heartbeat",

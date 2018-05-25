@@ -294,6 +294,8 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
+	log.DebugWithFields("DockerBuilder Processing Event", log.Fields{"event": e})
+
 	if e.Matches("project:dockerbuilder") {
 		if e.Action == transistor.GetAction("create") {
 			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Installation complete.")
