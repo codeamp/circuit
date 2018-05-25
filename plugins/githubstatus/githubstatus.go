@@ -127,7 +127,7 @@ func getStatus(e transistor.Event) (StatusResponse, error) {
 }
 
 func (x *GithubStatus) Process(e transistor.Event) error {
-	log.Info("Processing GithubStatus event")
+	log.Debug("Processing GithubStatus event")
 
 	timeoutInterval := 5
 	userTimeoutInterval, err := e.GetArtifact("timeout_interval")

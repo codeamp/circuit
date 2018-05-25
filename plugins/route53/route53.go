@@ -55,7 +55,7 @@ func (x *Route53) Subscribe() []string {
 
 func (x *Route53) Process(e transistor.Event) error {
 	var err error
-	log.Info("Processing route53 event")
+	log.Debug("Processing route53 event")
 
 	if e.Matches("project:route53") {
 		switch e.Action {
@@ -66,7 +66,7 @@ func (x *Route53) Process(e transistor.Event) error {
 			log.InfoWithFields(fmt.Sprintf("Process Route53 event: %s", e.Event()), log.Fields{})
 			err = x.updateRoute53(e)
 		default:
-			log.InfoWithFields(fmt.Sprintf("Unhandled Route53 event: %s", e.Event()), log.Fields{})
+			log.WarnWithFields(fmt.Sprintf("Unhandled Route53 event: %s", e.Event()), log.Fields{})
 		}
 
 		if err != nil {
@@ -180,13 +180,13 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			break
 		}
 		time.Sleep(time.Second * 10)
-		fmt.Println(failMessage + ".. Retrying in 10s")
+		log.Warn(failMessage + ".. Retrying in 10s")
 	}
 	if dnsValid == false {
 		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), failMessage, payload)
 		return nil
 	}
-	fmt.Printf("DNS for %s resolved to: %s\n", elbFQDN.String(), strings.Join(dnsLookup, ","))
+	log.Info("DNS for %s resolved to: %s\n", elbFQDN.String(), strings.Join(dnsLookup, ","))
 	// Create the client
 	sess := awssession.Must(awssession.NewSessionWithOptions(
 		awssession.Options{
@@ -218,7 +218,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 			return false
 		})
 	if errList != nil {
-		log.Info(fmt.Sprintf("Error listing ResourceRecordSets for Route53: %s", errList))
+		log.Error(fmt.Sprintf("Error listing ResourceRecordSets for Route53: %s", errList))
 		return errList
 	}
 

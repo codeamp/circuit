@@ -146,7 +146,7 @@ func (x *Kubernetes) GetTempDir() (string, error) {
 func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 	randomDirectory, err := x.GetTempDir()
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 		return "", err
 	}
 
