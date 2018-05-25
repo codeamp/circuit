@@ -171,8 +171,10 @@ func (e *Event) StatusEvent(action Action, state State, stateMessage string) Eve
 
 func (e *Event) NewEvent(action Action, state State, stateMessage string) Event {
 	event := NewEvent(e.Name, action, e.Payload)
+
 	event.ParentID = e.ID
 	event.State = state
+	event.Action = action
 	event.StateMessage = stateMessage
 	return event
 }
