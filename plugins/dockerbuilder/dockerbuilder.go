@@ -53,7 +53,7 @@ func (x *DockerBuilder) Start(e chan transistor.Event) error {
 		log.Warn("Local .gitconfig file not found! Writing default.")
 		err = ioutil.WriteFile(gitconfigPath, []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return err
 		}
 	}
@@ -77,7 +77,7 @@ func (x *DockerBuilder) Subscribe() []string {
 func (x *DockerBuilder) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 
-	log.InfoWithFields("executing command", log.Fields{
+	log.DebugWithFields("executing command", log.Fields{
 		"path": cmd.Path,
 		"args": strings.Join(cmd.Args, " "),
 	})
@@ -125,7 +125,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 
 		err := ioutil.WriteFile(idRsaPath, []byte(payload.Release.Git.RsaPrivateKey), 0600)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return err
 		}
 	}
@@ -137,7 +137,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 
 		output, err := x.git(env, "clone", payload.Release.Git.Url, repoPath)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return err
 		}
 		log.Info(string(output))
@@ -145,14 +145,14 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 
 	output, err = x.git(env, "-C", repoPath, "checkout", payload.Release.Git.Branch)
 	if err != nil {
-		log.Info(err)
+		log.Error(err)
 		return err
 	}
 	log.Info(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", payload.Release.Git.Branch)
 	if err != nil {
-		log.Info(err)
+		log.Error(err)
 		return err
 	}
 	log.Info(string(output))
@@ -168,13 +168,13 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 	gitArchive.Dir = repoPath
 	gitArchiveOut, err := gitArchive.StdoutPipe()
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return err
 	}
 
 	gitArchiveErr, err := gitArchive.StderrPipe()
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return err
 	}
 
@@ -193,7 +193,7 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 
 	err = gitArchive.Wait()
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return err
 	}
 
@@ -218,13 +218,13 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 
 	dockerClient, err := docker.NewClient(x.Socket)
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return err
 	}
 
 	err = dockerClient.BuildImage(buildOptions)
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return err
 	}
 

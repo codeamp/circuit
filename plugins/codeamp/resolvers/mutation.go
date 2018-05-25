@@ -44,7 +44,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
 	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
 	if r.DB.Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
-		log.InfoWithFields("[+] Project not found", log.Fields{
+		log.WarnWithFields("[+] Project not found", log.Fields{
 			"repository": repository,
 		})
 	} else {
@@ -146,7 +146,7 @@ func (r *Resolver) UpdateProject(args *struct {
 	}
 
 	if r.DB.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
-		log.InfoWithFields("Project not found", log.Fields{
+		log.WarnWithFields("Project not found", log.Fields{
 			"id": args.Project.ID,
 		})
 		return nil, fmt.Errorf("Project not found.")
@@ -213,11 +213,11 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 
 	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
 	if len(releaseExtensions) < 1 {
-		log.Info("No release extensions found for release")
+		log.Warn("No release extensions found for release")
 	}
 
 	if r.DB.Where("id = ?", args.ID).Find(&release).RecordNotFound() {
-		log.InfoWithFields("Release not found", log.Fields{
+		log.WarnWithFields("Release not found", log.Fields{
 			"id": args.ID,
 		})
 
@@ -231,7 +231,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 	for _, releaseExtension := range releaseExtensions {
 		var projectExtension ProjectExtension
 		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
-			log.InfoWithFields("Associated project extension not found", log.Fields{
+			log.WarnWithFields("Associated project extension not found", log.Fields{
 				"id": args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
@@ -243,7 +243,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		// find associated ProjectExtension Extension
 		var extension Extension
 		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
-			log.InfoWithFields("Associated extension not found", log.Fields{
+			log.WarnWithFields("Associated extension not found", log.Fields{
 				"id": args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
@@ -1270,7 +1270,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 
 		artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 		if err != nil {
-			log.Info(err.Error())
+			log.Error(err.Error())
 		}
 
 		projectExtensionEvent := plugins.ProjectExtension{
@@ -1386,7 +1386,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 
 	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 	}
 
 	projectExtensionEvent := plugins.ProjectExtension{
@@ -1458,7 +1458,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 
 	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 	}
 
 	projectExtensionEvent := plugins.ProjectExtension{
@@ -1596,19 +1596,19 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 	extensionConfig := []ExtConfig{}
 	err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 	}
 
 	projectConfig := []ExtConfig{}
 	err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 	}
 
 	existingArtifacts := []transistor.Artifact{}
 	err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 	}
 
 	for i, ec := range extensionConfig {
@@ -1646,7 +1646,7 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 	projectCustomConfig := make(map[string]interface{})
 	err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 	}
 
 	for key, val := range projectCustomConfig {

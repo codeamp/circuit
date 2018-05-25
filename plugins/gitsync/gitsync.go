@@ -51,7 +51,7 @@ func (x *GitSync) Start(e chan transistor.Event) error {
 		log.Warn("Local .gitconfig file not found! Writing default.")
 		err = ioutil.WriteFile(gitconfigPath, []byte("[user]\n  name = codeamp \n  email = codeamp@codeamp.com"), 0600)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return err
 		}
 	}
@@ -73,7 +73,7 @@ func (x *GitSync) Subscribe() []string {
 func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 
-	log.InfoWithFields("executing command", log.Fields{
+	log.DebugWithFields("executing command", log.Fields{
 		"path": cmd.Path,
 		"args": strings.Join(cmd.Args, " "),
 	})
@@ -136,7 +136,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 		err := ioutil.WriteFile(idRsaPath, []byte(git.RsaPrivateKey), 0600)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return nil, err
 		}
 	}
@@ -157,7 +157,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 	output, err = x.git(env, "-C", repoPath, "reset", "--hard", fmt.Sprintf("origin/%s", git.Branch))
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -165,7 +165,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 	output, err = x.git(env, "-C", repoPath, "clean", "-fd")
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -173,7 +173,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -181,7 +181,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 	output, err = x.git(env, "-C", repoPath, "checkout", git.Branch)
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -190,7 +190,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	output, err = x.git(env, "-C", repoPath, "log", "--first-parent", "--date=iso-strict", "-n", "50", "--pretty=format:%H#@#%P#@#%s#@#%cN#@#%cd", git.Branch)
 
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -203,7 +203,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		}
 		commit, err := x.toGitCommit(line, head)
 		if err != nil {
-			log.Debug(err)
+			log.Error(err)
 			return nil, err
 		}
 
@@ -214,7 +214,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 }
 
 func (x *GitSync) Process(e transistor.Event) error {
-	log.InfoWithFields("Process GitSync event", log.Fields{
+	log.DebugWithFields("Process GitSync event", log.Fields{
 		"event": e.Event(),
 	})
 
