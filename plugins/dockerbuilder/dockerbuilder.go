@@ -197,6 +197,8 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 		return err
 	}
 
+	log.Info("issues")
+
 	buildArgs := []docker.BuildArg{}
 	for _, secret := range payload.Release.Secrets {
 		if secret.Type == plugins.GetType("build") {
@@ -218,13 +220,13 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 
 	dockerClient, err := docker.NewClient(x.Socket)
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return err
 	}
 
 	err = dockerClient.BuildImage(buildOptions)
 	if err != nil {
-		log.Debug(err)
+		log.Error(err)
 		return err
 	}
 

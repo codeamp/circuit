@@ -150,8 +150,6 @@ func (suite *TestSuite) TestGithubStatus() {
 	httpmock.RegisterResponder("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", githubStatusPayload.Release.Project.Repository, githubStatusPayload.Release.HeadFeature.Hash),
 		httpmock.NewStringResponder(200, githubRunningStatusResponse))
 
-	httpmock.RegisterResponder("GET", "https://api.github.com/user", httpmock.NewStringResponder(200, "Validated Credentials"))
-
 	ev := transistor.NewEvent(plugins.GetEventName("release:githubstatus"), transistor.GetAction("create"), githubStatusPayload)
 	ev.AddArtifact("timeout_seconds", "100", false)
 	ev.AddArtifact("timeout_interval", "5", false)
