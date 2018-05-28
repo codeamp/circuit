@@ -31,16 +31,18 @@ plugins:
     workers: 1
 `)
 
+func init() {
+	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
+		return &kubernetes.Kubernetes{}
+	})
+}
+
 func (suite *TestSuite) SetupSuite() {
 	viper.SetConfigType("YAML")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.SetEnvPrefix("CODEAMP")
 	viper.AutomaticEnv()
 	viper.ReadConfig(bytes.NewBuffer(viperConfig))
-
-	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &kubernetes.Kubernetes{}
-	})
 
 	config := transistor.Config{
 		Plugins:        viper.GetStringMap("plugins"),
@@ -54,10 +56,10 @@ func (suite *TestSuite) SetupSuite() {
 
 // Load Balancers Tests
 func (suite *TestSuite) TestCleanupLBOffice() {
-	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("delete"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	e := suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 60)
-	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State, e.StateMessage)
+	e := suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 60)
+	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State, e.StateMessage)
 }
 
 func (suite *TestSuite) TestLBTCPOffice() {
@@ -69,26 +71,26 @@ func (suite *TestSuite) TestLBTCPOffice() {
 		log.Fatal("TestLBTCPOffice: Test timeout")
 	}()
 
-	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("update"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
 	var e transistor.Event
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
-	assert.Equal(suite.T(), plugins.GetState("complete"), e.State, e.StateMessage)
-	if e.State != plugins.GetState("complete") {
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 120)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
+	if e.State != transistor.GetState("complete") {
 		return
 	}
 
 	for {
-		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 120)
+		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 120)
 		if e.State != "running" {
 			break
 		}
 	}
 
-	suite.transistor.Events <- LBTCPEvent(plugins.GetAction("delete"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), plugins.GetAction("status"), 10)
-	assert.Equal(suite.T(), plugins.GetState("deleted"), e.State)
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 10)
+	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State)
 }
 
 func strMapKeys(strMap map[string]string) string {
@@ -117,14 +119,14 @@ func (suite *TestSuite) TestBasicSuccessDeploy() {
 
 	var e transistor.Event
 	for {
-		e = suite.transistor.GetTestEvent("kubernetes:deployment", plugins.GetAction("status"), 30)
+		e = suite.transistor.GetTestEvent("kubernetes:deployment", transistor.GetAction("status"), 30)
 		if e.State != "running" {
 			break
 		}
 	}
 
 	suite.T().Log(e.StateMessage)
-	assert.Equal(suite.T(), plugins.GetState("complete"), e.State)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
 func (suite *TestSuite) TestBasicFailedDeploy() {
@@ -140,14 +142,14 @@ func (suite *TestSuite) TestBasicFailedDeploy() {
 
 	var e transistor.Event
 	for {
-		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("status"), 30)
+		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:deployment"), transistor.GetAction("status"), 30)
 		if e.State != "running" {
 			break
 		}
 	}
 
 	suite.T().Log(e.StateMessage)
-	assert.Equal(suite.T(), plugins.GetState("failed"), e.State)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
 }
 
 func TestDeployments(t *testing.T) {
@@ -202,7 +204,7 @@ func verifyDeploymentArtifacts() error {
 }
 
 func verifyLoadBalancerArtifacts() error {
-	e := LBTCPEvent(plugins.GetAction("update"), plugins.GetType("office"))
+	e := LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
 	lbTCPArtifacts := map[string]string{
 		"service":               "",
@@ -230,11 +232,11 @@ func verifyLoadBalancerArtifacts() error {
 
 func LBDataForTCP(action transistor.Action, t plugins.Type) plugins.ProjectExtension {
 	project := plugins.Project{
+		Slug:       "kubernetesloadbalancers",
 		Repository: "checkr/nginx-test-success",
 	}
 
 	lbe := plugins.ProjectExtension{
-		Slug:        "kubernetesloadbalancers",
 		Environment: "testing",
 		Project:     project,
 		ID:          "nginx-test-lb-asdf1234",
@@ -281,7 +283,7 @@ func BasicFailedReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 	extension.Release.Services[0].Command = "/bin/false"
 
-	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("create"), extension)
+	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), transistor.GetAction("create"), extension)
 	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
@@ -310,7 +312,7 @@ func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event
 func BasicReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 
-	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), plugins.GetAction("create"), extension)
+	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), transistor.GetAction("create"), extension)
 	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
@@ -322,6 +324,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 
 	release := plugins.Release{
 		Project: plugins.Project{
+			Slug:       "kubernetesdeployments",
 			Repository: "checkr/deploy-test",
 		},
 		Git: plugins.Git{
@@ -341,7 +344,7 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 						Protocol: "TCP",
 					},
 				},
-				State: plugins.GetState("waiting"),
+				State: transistor.GetState("waiting"),
 				Spec: plugins.ServiceSpec{
 
 					CpuRequest:                    "10m",
@@ -363,7 +366,6 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 	}
 
 	releaseExtension := plugins.ReleaseExtension{
-		Slug:    "kubernetesdeployments",
 		Release: release,
 	}
 

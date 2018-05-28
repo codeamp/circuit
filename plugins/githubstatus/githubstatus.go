@@ -59,10 +59,14 @@ func isValidGithubCredentials(username string, token string) (bool, error) {
 		return false, err
 	}
 	req.SetBasicAuth(username, token)
-	resp, _ := client.Do(req)
-	if resp.StatusCode == 200 {
+	resp, err := client.Do(req)
+
+	if err == nil && resp.StatusCode == 200 {
+		log.Info("valid!")
+		log.Info(resp.Body)
 		return true, nil
 	} else {
+		log.Info("invalid")
 		return false, fmt.Errorf("Github credentials are not valid. Please check them and re-install.")
 	}
 }
@@ -168,10 +172,12 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 		switch e.Action {
 		case transistor.GetAction("create"):
 			log.InfoWithFields(fmt.Sprintf("Process GithubStatus event: %s", e.Event()), log.Fields{})
+			log.Info(username, token)
 			if _, err := isValidGithubCredentials(username.String(), token.String()); err == nil {
 				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Successfully installed!")
 				return nil
 			} else {
+				log.Info("sending failed response1")
 				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
 				return nil
 			}
@@ -181,6 +187,7 @@ func (x *GithubStatus) Process(e transistor.Event) error {
 				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Successfully updated!")
 				return nil
 			} else {
+				log.Info("sending failed response2")
 				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
 				return nil
 			}

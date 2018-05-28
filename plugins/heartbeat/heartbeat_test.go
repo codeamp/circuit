@@ -47,9 +47,10 @@ func (suite *TestSuite) TearDownSuite() {
 func (suite *TestSuite) TestHeartbeat() {
 	var e transistor.Event
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("heartbeat"), plugins.GetAction("status"), 61)
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), 61)
 	payload := e.Payload.(plugins.HeartBeat)
-	assert.Equal(suite.T(), "minute", payload.Tick)
+
+	assert.Subset(suite.T(), []string{"minute", "hourly"}, []string{payload.Tick})
 }
 
 func TestHeartbeat(t *testing.T) {

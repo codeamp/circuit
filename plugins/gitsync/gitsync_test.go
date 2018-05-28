@@ -63,14 +63,14 @@ func (suite *TestSuite) TestGitSync() {
 		From: "",
 	}
 
-	event := transistor.NewEvent(plugins.GetEventName("gitsync"), plugins.GetAction("create"), gitSync)
+	event := transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), gitSync)
 	suite.transistor.Events <- event
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 30)
-	assert.Equal(suite.T(), e.State, plugins.GetState("fetching"))
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 30)
+	assert.Equal(suite.T(), e.State, transistor.GetState("fetching"))
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), plugins.GetAction("status"), 30)
-	assert.Equal(suite.T(), e.State, plugins.GetState("complete"))
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 30)
+	assert.Equal(suite.T(), e.State, transistor.GetState("complete"))
 	assert.NotNil(suite.T(), e.Payload.(plugins.GitSync).Commits)
 	assert.NotEqual(suite.T(), 0, len(e.Payload.(plugins.GitSync).Commits), "commits should not be empty")
 }

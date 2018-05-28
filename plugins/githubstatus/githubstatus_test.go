@@ -68,9 +68,9 @@ func (suite *TestSuite) TestGithubStatus() {
 	log.SetLogLevel(logrus.DebugLevel)
 
 	githubStatusPayload := plugins.ReleaseExtension{
-		Slug: "githubstatus",
 		Release: plugins.Release{
 			Project: plugins.Project{
+				Slug:       "githubstatus",
 				Repository: "checkr/deploy-test",
 			},
 			Git: plugins.Git{
@@ -150,7 +150,7 @@ func (suite *TestSuite) TestGithubStatus() {
 	httpmock.RegisterResponder("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", githubStatusPayload.Release.Project.Repository, githubStatusPayload.Release.HeadFeature.Hash),
 		httpmock.NewStringResponder(200, githubRunningStatusResponse))
 
-	ev := transistor.NewEvent(plugins.GetEventName("githubstatus"), plugins.GetAction("create"), githubStatusPayload)
+	ev := transistor.NewEvent(plugins.GetEventName("release:githubstatus"), transistor.GetAction("create"), githubStatusPayload)
 	ev.AddArtifact("timeout_seconds", "100", false)
 	ev.AddArtifact("timeout_interval", "5", false)
 	ev.AddArtifact("personal_access_token", "test", false)
@@ -158,16 +158,20 @@ func (suite *TestSuite) TestGithubStatus() {
 
 	suite.transistor.Events <- ev
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("githubstatus"), plugins.GetAction("status"), 10)
-	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), plugins.GetState("running"), e.State)
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("release:githubstatus"), transistor.GetAction("status"), 10)
+	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
+	assert.Equal(suite.T(), transistor.GetState("running"), e.State)
+	if e.State != "running" {
+		suite.T().Log(e.StateMessage)
+		return
+	}
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", githubStatusPayload.Release.Project.Repository, githubStatusPayload.Release.HeadFeature.Hash),
 		httpmock.NewStringResponder(200, githubSuccessStatusResponse))
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("githubstatus"), plugins.GetAction("status"), 10)
-	assert.Equal(suite.T(), plugins.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), plugins.GetState("complete"), e.State)
+	e = suite.transistor.GetTestEvent(plugins.GetEventName("release:githubstatus"), transistor.GetAction("status"), 10)
+	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
 func TestDockerBuilder(t *testing.T) {
