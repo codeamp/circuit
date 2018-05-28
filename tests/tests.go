@@ -3,8 +3,11 @@ package tests
 import (
 	"bytes"
 	"strings"
+	"time"
 
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -20,6 +23,27 @@ func SetupPluginTest(pluginName string, viperConfig []byte, creator transistor.C
 	config := transistor.Config{
 		Plugins:        viper.GetStringMap("plugins"),
 		EnabledPlugins: []string{pluginName},
+	}
+
+	if _logLevel := viper.GetString("log_level"); _logLevel != "" {
+		logLevel, err := log.ParseLevel(_logLevel)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.SetLogLevel(logLevel)
+	}
+
+	if logFormat := viper.GetString("log_format"); logFormat != "" {
+		switch strings.ToLower(logFormat) {
+		case "standard":
+			break
+		case "json":
+			fallthrough
+		default:
+			log.SetLogFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
+		}
 	}
 
 	return transistor.NewTestTransistor(config)

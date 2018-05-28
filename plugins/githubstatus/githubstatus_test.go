@@ -3,14 +3,11 @@ package githubstatus_test
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/githubstatus"
 	"github.com/codeamp/circuit/tests"
-	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	httpmock "gopkg.in/jarcoal/httpmock.v1"
@@ -39,21 +36,13 @@ func (suite *TestSuite) TearDownSuite() {
 }
 
 func (suite *TestSuite) TestGithubStatus() {
-	timer := time.NewTimer(time.Second * 120)
-	defer timer.Stop()
-
-	go func() {
-		<-timer.C
-		log.Fatal("TestGithubStatus: Test timeout")
-	}()
-
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
 
 	var e transistor.Event
-	log.SetLogLevel(logrus.DebugLevel)
+	var err error
 
 	githubStatusPayload := plugins.ReleaseExtension{
 		Release: plugins.Release{
@@ -138,7 +127,7 @@ func (suite *TestSuite) TestGithubStatus() {
 	httpmock.RegisterResponder("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", githubStatusPayload.Release.Project.Repository, githubStatusPayload.Release.HeadFeature.Hash),
 		httpmock.NewStringResponder(200, githubRunningStatusResponse))
 
-	ev := transistor.NewEvent(plugins.GetEventName("githubstatus"), transistor.GetAction("create"), githubStatusPayload)
+	ev := transistor.NewEvent(plugins.GetEventName("release:githubstatus"), transistor.GetAction("create"), githubStatusPayload)
 	ev.AddArtifact("timeout_seconds", "100", false)
 	ev.AddArtifact("timeout_interval", "5", false)
 	ev.AddArtifact("personal_access_token", "test", false)
@@ -146,18 +135,26 @@ func (suite *TestSuite) TestGithubStatus() {
 
 	suite.transistor.Events <- ev
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("githubstatus"), transistor.GetAction("status"), 10)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:githubstatus"), transistor.GetAction("status"), 10)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error)
+		return
+	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
 	assert.Equal(suite.T(), transistor.GetState("running"), e.State)
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("https://api.github.com/repos/%s/commits/%s/status", githubStatusPayload.Release.Project.Repository, githubStatusPayload.Release.HeadFeature.Hash),
 		httpmock.NewStringResponder(200, githubSuccessStatusResponse))
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("githubstatus"), transistor.GetAction("status"), 10)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:githubstatus"), transistor.GetAction("status"), 10)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error)
+		return
+	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
-func TestDockerBuilder(t *testing.T) {
+func TestGithubStatus(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }

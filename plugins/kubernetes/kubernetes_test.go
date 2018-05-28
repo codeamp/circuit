@@ -8,12 +8,10 @@ import (
 	"path"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/kubernetes"
 	"github.com/codeamp/circuit/tests"
-	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -42,30 +40,37 @@ func (suite *TestSuite) SetupSuite() {
 func (suite *TestSuite) TestCleanupLBOffice() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	e := suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 60)
+	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 10)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
 	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State, e.StateMessage)
 }
 
 func (suite *TestSuite) TestLBTCPOffice() {
-	timer := time.NewTimer(time.Second * 100)
-	defer timer.Stop()
-
-	go func() {
-		<-timer.C
-		log.Fatal("TestLBTCPOffice: Test timeout")
-	}()
-
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
 	var e transistor.Event
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 120)
+	var err error
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
 	if e.State != transistor.GetState("complete") {
 		return
 	}
 
 	for {
-		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 120)
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
 		if e.State != "running" {
 			break
 		}
@@ -73,7 +78,11 @@ func (suite *TestSuite) TestLBTCPOffice() {
 
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:loadbalancer"), transistor.GetAction("status"), 10)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 10)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
 	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State)
 }
 
@@ -91,19 +100,17 @@ func strMapKeys(strMap map[string]string) string {
 
 // Deploys Tests
 func (suite *TestSuite) TestBasicSuccessDeploy() {
-	timer := time.NewTimer(time.Second * 60)
-	defer timer.Stop()
-
 	suite.transistor.Events <- BasicReleaseEvent()
 
-	go func() {
-		<-timer.C
-		log.Fatal("TestBasicSuccessDeploy: Test timeout")
-	}()
-
 	var e transistor.Event
+	var err error
 	for {
-		e = suite.transistor.GetTestEvent("kubernetes:deployment", transistor.GetAction("status"), 30)
+		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
 		if e.State != "running" {
 			break
 		}
@@ -114,19 +121,18 @@ func (suite *TestSuite) TestBasicSuccessDeploy() {
 }
 
 func (suite *TestSuite) TestBasicFailedDeploy() {
-	timer := time.NewTimer(time.Second * 60)
-	defer timer.Stop()
-
-	go func() {
-		<-timer.C
-		log.Fatal("TestBasicFailedDeploy: Test timeout")
-	}()
-
 	suite.transistor.Events <- BasicFailedReleaseEvent()
 
 	var e transistor.Event
+	var err error
 	for {
-		e = suite.transistor.GetTestEvent(plugins.GetEventName("kubernetes:deployment"), transistor.GetAction("status"), 30)
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 30)
+
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
 		if e.State != "running" {
 			break
 		}
@@ -230,7 +236,7 @@ func LBDataForTCP(action transistor.Action, t plugins.Type) plugins.ProjectExten
 
 func LBTCPEvent(action transistor.Action, t plugins.Type) transistor.Event {
 	payload := LBDataForTCP(action, t)
-	event := transistor.NewEvent(plugins.GetEventName("kubernetes:loadbalancer"), action, payload)
+	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), action, payload)
 
 	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
 	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
@@ -267,7 +273,7 @@ func BasicFailedReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 	extension.Release.Services[0].Command = "/bin/false"
 
-	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), transistor.GetAction("create"), extension)
+	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("create"), extension)
 	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
@@ -296,7 +302,7 @@ func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event
 func BasicReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 
-	event := transistor.NewEvent(plugins.GetEventName("kubernetes:deployment"), transistor.GetAction("create"), extension)
+	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("create"), extension)
 	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event

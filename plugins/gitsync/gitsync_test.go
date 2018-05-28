@@ -36,6 +36,7 @@ func (suite *TestSuite) TearDownSuite() {
 
 func (suite *TestSuite) TestGitSync() {
 	var e transistor.Event
+	var err error
 
 	gitSync := plugins.GitSync{
 		Project: plugins.Project{
@@ -54,10 +55,18 @@ func (suite *TestSuite) TestGitSync() {
 	event := transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), gitSync)
 	suite.transistor.Events <- event
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 30)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 30)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
 	assert.Equal(suite.T(), e.State, transistor.GetState("running"))
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 30)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 30)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
 	assert.Equal(suite.T(), e.State, transistor.GetState("complete"))
 	assert.NotNil(suite.T(), e.Payload.(plugins.GitSync).Commits)
 	assert.NotEqual(suite.T(), 0, len(e.Payload.(plugins.GitSync).Commits), "commits should not be empty")
