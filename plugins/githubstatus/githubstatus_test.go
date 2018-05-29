@@ -6,7 +6,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/githubstatus"
-	"github.com/codeamp/circuit/tests"
+	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -25,7 +25,7 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = tests.SetupPluginTest("githubstatus", viperConfig, func() transistor.Plugin {
+	suite.transistor, _ = test.SetupPluginTest("githubstatus", viperConfig, func() transistor.Plugin {
 		return &githubstatus.GithubStatus{}
 	})
 	go suite.transistor.Run()

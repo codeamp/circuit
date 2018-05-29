@@ -5,7 +5,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/dockerbuilder"
-	"github.com/codeamp/circuit/tests"
+	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -24,7 +24,7 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = tests.SetupPluginTest("dockerbuilder", viperConfig, func() transistor.Plugin {
+	suite.transistor, _ = test.SetupPluginTest("dockerbuilder", viperConfig, func() transistor.Plugin {
 		return &dockerbuilder.DockerBuilder{Socket: "unix:///var/run/docker.sock"}
 	})
 	go suite.transistor.Run()
