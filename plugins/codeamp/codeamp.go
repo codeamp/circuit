@@ -108,7 +108,7 @@ func (x *CodeAmp) initPostGres() (*gorm.DB, error) {
 	return db, nil
 }
 
-func (x *CodeAmp) initGraphQL(resolver *resolvers.Resolver) {
+func (x *CodeAmp) initGraphQL(resolver *interface{}) {
 	schema, err := assets.Asset("plugins/codeamp/schema.graphql")
 	if err != nil {
 		log.Panic(err)

@@ -28,6 +28,9 @@ type Resolver struct {
 	Redis *redis.Client
 }
 
+type GraphQLResolver struct {
+}
+
 // Default fields for a model
 type Model struct {
 	// ID
