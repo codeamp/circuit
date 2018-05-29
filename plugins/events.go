@@ -20,6 +20,7 @@ func GetEventName(s string) transistor.EventName {
 		"gitsync",
 		"gitsync:commit",
 		"heartbeat",
+		"release",
 		"project:dockerbuilder",
 		"release:dockerbuilder",
 		"route53",
