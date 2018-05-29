@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -283,7 +282,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		}
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := x.makeKubernetesInterface(config)
 	if err != nil {
 		log.Error("Error getting cluster config.  Aborting!")
 		x.sendErrorResponse(e, err.Error())

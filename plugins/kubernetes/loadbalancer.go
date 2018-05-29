@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/codeamp/circuit/plugins"
@@ -33,14 +32,12 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 
 		if err != nil {
 			log.Error(err)
-			//x.sendErrorResponse(e, fmt.Sprintf("%v (Action: %v, Step: LoadBalancer", err.Error(), event.State))
 			x.sendErrorResponse(e, err.Error())
 		}
 	}
 }
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
-	log.Info("doLoadBalancer")
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
@@ -111,7 +108,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := x.makeKubernetesInterface(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Error(failMessage)
@@ -284,7 +281,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 					break
 				}
 				if timeout <= 0 {
-					return errors.New(fmt.Sprintf("Error: timeout waiting for ELB DNS name for: %s", lbName.String()))
+					return fmt.Errorf("Error: timeout waiting for ELB DNS name for: %s", lbName.String())
 				}
 			}
 			time.Sleep(time.Second * 5)
@@ -303,13 +300,11 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 }
 
 func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
-	log.Info("doDeleteLoadBalancer")
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 	} else {
-		log.Warn("sending success deleted")
 		x.sendSuccessResponse(e, transistor.GetState("deleted"), nil)
 	}
 
@@ -317,7 +312,6 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 }
 
 func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
-	log.Info("deleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
@@ -334,7 +328,7 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 		return errors.New(fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := x.makeKubernetesInterface(config)
 	if err != nil {
 		return errors.New(fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error()))
 	}

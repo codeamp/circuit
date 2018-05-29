@@ -2,11 +2,9 @@ package kubernetes_test
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
@@ -17,27 +15,27 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TestSuite struct {
+type TestSuiteDeployments struct {
 	suite.Suite
 	transistor *transistor.Transistor
 }
 
-var viperConfig = []byte(`
+var viperConfigDeployments = []byte(`
 plugins:
   kubernetes:
     workers: 1
 `)
 
-func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = tests.SetupPluginTest("kubernetes", viperConfig, func() transistor.Plugin {
-		return &kubernetes.Kubernetes{}
+func (suite *TestSuiteDeployments) SetupSuite() {
+	suite.transistor, _ = tests.SetupPluginTest("kubernetes", viperConfigDeployments, func() transistor.Plugin {
+		return &kubernetes.Kubernetes{Simulated: true}
 	})
 
 	go suite.transistor.Run()
 }
 
 // Load Balancers Tests
-func (suite *TestSuite) TestCleanupLBOffice() {
+func (suite *TestSuiteDeployments) TestCleanupLBOffice() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
 	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 10)
@@ -48,7 +46,7 @@ func (suite *TestSuite) TestCleanupLBOffice() {
 	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State, e.StateMessage)
 }
 
-func (suite *TestSuite) TestLBTCPOffice() {
+func (suite *TestSuiteDeployments) TestLBTCPOffice() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
 	var e transistor.Event
@@ -86,20 +84,8 @@ func (suite *TestSuite) TestLBTCPOffice() {
 	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State)
 }
 
-func strMapKeys(strMap map[string]string) string {
-	keys := make([]string, len(strMap))
-
-	i := 0
-	for k := range strMap {
-		keys[i] = k
-		i++
-	}
-
-	return strings.Join(keys, "\n")
-}
-
 // Deploys Tests
-func (suite *TestSuite) TestBasicSuccessDeploy() {
+func (suite *TestSuiteDeployments) TestBasicSuccessDeploy() {
 	suite.transistor.Events <- BasicReleaseEvent()
 
 	var e transistor.Event
@@ -120,7 +106,7 @@ func (suite *TestSuite) TestBasicSuccessDeploy() {
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
-func (suite *TestSuite) TestBasicFailedDeploy() {
+func (suite *TestSuiteDeployments) TestBasicFailedDeploy() {
 	suite.transistor.Events <- BasicFailedReleaseEvent()
 
 	var e transistor.Event
@@ -150,17 +136,12 @@ func TestDeployments(t *testing.T) {
 		assert.Nil(t, err, err.Error())
 	}
 
-	if err := verifyLoadBalancerArtifacts(); err != nil {
-		proceed = false
-		assert.Nil(t, err, err.Error())
-	}
-
 	if proceed {
-		suite.Run(t, new(TestSuite))
+		suite.Run(t, new(TestSuiteDeployments))
 	}
 }
 
-func (suite *TestSuite) TearDownSuite() {
+func (suite *TestSuiteDeployments) TearDownSuite() {
 	// TODO:
 	// teardown docker-io secret?
 	// teardown the deployment / namespaces
@@ -191,82 +172,6 @@ func verifyDeploymentArtifacts() error {
 	}
 
 	return nil
-}
-
-func verifyLoadBalancerArtifacts() error {
-	e := LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
-
-	lbTCPArtifacts := map[string]string{
-		"service":               "",
-		"name":                  "",
-		"ssl_cert_arn":          "",
-		"access_log_s3_bucket":  "",
-		"type":                  "",
-		"kubeconfig":            "",
-		"client_certificate":    "",
-		"client_key":            "",
-		"certificate_authority": "",
-		"listener_pairs":        "",
-	}
-
-	for _, artifact := range e.Artifacts {
-		delete(lbTCPArtifacts, artifact.Key)
-	}
-
-	if len(lbTCPArtifacts) != 0 {
-		return errors.New("LoadBalancer\nMissing Artifacts:\n" + strMapKeys(lbTCPArtifacts))
-	}
-
-	return nil
-}
-
-func LBDataForTCP(action transistor.Action, t plugins.Type) plugins.ProjectExtension {
-	project := plugins.Project{
-		Repository: "checkr/nginx-test-success",
-	}
-
-	lbe := plugins.ProjectExtension{
-		//		Slug:        "kubernetesloadbalancers",
-		Environment: "testing",
-		Project:     project,
-		ID:          "nginx-test-lb-asdf1234",
-	}
-	return lbe
-}
-
-func LBTCPEvent(action transistor.Action, t plugins.Type) transistor.Event {
-	payload := LBDataForTCP(action, t)
-	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), action, payload)
-
-	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
-	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
-
-	event.AddArtifact("service", "nginx-test-service-asdf", false)
-	event.AddArtifact("name", "nginx-test-lb-asdf1234", false)
-	event.AddArtifact("ssl_cert_arn", "arn:1234:arnid", false)
-	event.AddArtifact("access_log_s3_bucket", "test-s3-logs-bucket", false)
-	event.AddArtifact("type", fmt.Sprintf("%v", t), false)
-
-	// For Kube connectivity
-	event.AddArtifact("kubeconfig", string(kubeConfig), false)
-	event.AddArtifact("client_certificate", "", false)
-	event.AddArtifact("client_key", "", false)
-	event.AddArtifact("certificate_authority", "", false)
-
-	var listener_pairs []interface{} = make([]interface{}, 2, 2)
-	listener_pairs[0] = map[string]interface{}{
-		"serviceProtocol": "TCP",
-		"port":            "443",
-		"containerPort":   "3000",
-	}
-	listener_pairs[1] = map[string]interface{}{
-		"serviceProtocol": "TCP",
-		"port":            "444",
-		"containerPort":   "3001",
-	}
-	event.AddArtifact("listener_pairs", listener_pairs, false)
-
-	return event
 }
 
 func BasicFailedReleaseEvent() transistor.Event {

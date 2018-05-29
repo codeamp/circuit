@@ -31,5 +31,6 @@ type SimplePodSpec struct {
 }
 
 type Kubernetes struct {
-	events chan transistor.Event
+	Simulated bool
+	events    chan transistor.Event
 }
