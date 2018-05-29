@@ -65,6 +65,42 @@ func (r *Resolver) setupServices(services []Service) ([]plugins.Service, error) 
 	return pluginServices, nil
 }
 
+func BuildReleasePayload(release Release, project Project, environment Environment, branch string, headFeature Feature, tailFeature Feature, services []plugins.Service, secrets []plugins.Secret) plugins.Release {
+	return plugins.Release{
+		ID:          release.Model.ID.String(),
+		Environment: environment.Key,
+		HeadFeature: plugins.Feature{
+			ID:         headFeature.Model.ID.String(),
+			Hash:       headFeature.Hash,
+			ParentHash: headFeature.ParentHash,
+			User:       headFeature.User,
+			Message:    headFeature.Message,
+			Created:    headFeature.Created,
+		},
+		TailFeature: plugins.Feature{
+			ID:         tailFeature.Model.ID.String(),
+			Hash:       tailFeature.Hash,
+			ParentHash: tailFeature.ParentHash,
+			User:       tailFeature.User,
+			Message:    tailFeature.Message,
+			Created:    tailFeature.Created,
+		},
+		User: release.User.Email,
+		Project: plugins.Project{
+			ID:         project.Model.ID.String(),
+			Slug:       project.Slug,
+			Repository: project.Repository,
+		},
+		Git: plugins.Git{
+			Url:           project.GitUrl,
+			Branch:        branch,
+			RsaPrivateKey: project.RsaPrivateKey,
+		},
+		Secrets:  secrets,
+		Services: services,
+	}
+}
+
 func (r *Resolver) handleExtensionRoute53(args *struct{ ProjectExtension *ProjectExtensionInput }, projectExtension *ProjectExtension) error {
 	extension := Extension{}
 

@@ -303,40 +303,8 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) error {
 	}
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
-	releaseEvent := plugins.Release{
-		ID:          nextQueuedRelease.Model.ID.String(),
-		Environment: environment.Key,
-		HeadFeature: plugins.Feature{
-			ID:         headFeature.Model.ID.String(),
-			Hash:       headFeature.Hash,
-			ParentHash: headFeature.ParentHash,
-			User:       headFeature.User,
-			Message:    headFeature.Message,
-			Created:    headFeature.Created,
-		},
-		TailFeature: plugins.Feature{
-			ID:         tailFeature.Model.ID.String(),
-			Hash:       tailFeature.Hash,
-			ParentHash: tailFeature.ParentHash,
-			User:       tailFeature.User,
-			Message:    tailFeature.Message,
-			Created:    tailFeature.Created,
-		},
-		User: nextQueuedRelease.User.Email,
-		Project: plugins.Project{
-			ID:         project.Model.ID.String(),
-			Slug:       project.Slug,
-			Repository: project.Repository,
-		},
-		Git: plugins.Git{
-			Url:           project.GitUrl,
-			Branch:        branch,
-			RsaPrivateKey: project.RsaPrivateKey,
-		},
-		Secrets:  pluginSecrets,
-		Services: pluginServices, // ADB Added this
-	}
+	releasePayload := resolvers.BuildReleasePayload(nextQueuedRelease, project, environment, branch, headFeature, tailFeature, pluginServices, pluginSecrets)
 
-	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), transistor.GetAction("create"), releaseEvent)
+	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), transistor.GetAction("create"), releasePayload)
 	return nil
 }
