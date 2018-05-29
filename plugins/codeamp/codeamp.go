@@ -65,7 +65,7 @@ func (s *socketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.Server.ServeHTTP(w, r)
 }
 
-func (x *CodeAmp) Listen() {
+func (x *CodeAmp) GraphQLListen() {
 	x.SocketIO.On("connection", func(so socketio.Socket) {
 		so.Join("general")
 	})
@@ -82,17 +82,13 @@ func (x *CodeAmp) Listen() {
 	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
 	http.Handle("/", fs)
 
-	r := &resolvers.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
-	x.Resolver = r
-	http.Handle("/query", resolvers.CorsMiddleware(r.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
+	http.Handle("/query", resolvers.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
 
 	log.Info(fmt.Sprintf("running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
 }
 
-func (x *CodeAmp) Start(events chan transistor.Event) error {
-	var err error
-
+func (x *CodeAmp) initPostGres() (*gorm.DB, error) {
 	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		viper.GetString("plugins.codeamp.postgres.host"),
 		viper.GetString("plugins.codeamp.postgres.port"),
@@ -101,18 +97,32 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 		viper.GetString("plugins.codeamp.postgres.sslmode"),
 		viper.GetString("plugins.codeamp.postgres.password"),
 	))
-	//defer x.DB.Close()
+	if err != nil {
+		return nil, err
+	}
 
+	// DEBUG
+	//db.LogMode(false)
+
+	x.DB = db
+	return db, nil
+}
+
+func (x *CodeAmp) initGraphQL(resolver *resolvers.Resolver) {
 	schema, err := assets.Asset("plugins/codeamp/schema.graphql")
 	if err != nil {
 		log.Panic(err)
 	}
 
-	parsedSchema, err := graphql.ParseSchema(string(schema), &resolvers.Resolver{DB: db, Events: events})
+	parsedSchema, err := graphql.ParseSchema(string(schema), resolver)
 	if err != nil {
 		log.Panic(err)
 	}
 
+	x.Schema = parsedSchema
+}
+
+func (x *CodeAmp) initRedis() {
 	// Socket-io
 	sio, err := socketio.NewServer(nil)
 	if err != nil {
@@ -144,17 +154,24 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 		log.Fatal(err)
 	}
 
-	x.Events = events
 	x.SocketIO = sio
-	x.Schema = parsedSchema
 	x.Redis = redisClient
+}
 
-	// DEBUG
-	db.LogMode(false)
+func (x *CodeAmp) Start(events chan transistor.Event) error {
+	_, err := x.initPostGres()
+	if err != nil {
+		return err
+	}
 
-	x.DB = db
+	x.initRedis()
 
-	go x.Listen()
+	x.Resolver = &resolvers.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
+	x.initGraphQL(x.Resolver)
+
+	x.Events = events
+
+	go x.GraphQLListen()
 
 	log.Info("Starting CodeAmp service")
 	return nil
