@@ -3,7 +3,6 @@ package codeamp
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -86,20 +85,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			return
 		}
 
-		listeners := []plugins.Listener{}
-		for _, l := range service.Ports {
-			p, err := strconv.ParseInt(l.Port, 10, 32)
-			if err != nil {
-				panic(err)
-			}
-			listener := plugins.Listener{
-				Port:     int32(p),
-				Protocol: l.Protocol,
-			}
-			listeners = append(listeners, listener)
-		}
-
-		pluginServices = resolvers.AppendPluginService(pluginServices, service, listeners, spec)
+		pluginServices = resolvers.AppendPluginService(pluginServices, service, spec)
 	}
 
 	var pluginSecrets []plugins.Secret

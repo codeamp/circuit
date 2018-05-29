@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -24,60 +23,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/ssh"
 )
-
-func AppendPluginService(pluginServices []plugins.Service, service Service, listeners []plugins.Listener, spec ServiceSpec) []plugins.Service {
-	count, _ := strconv.ParseInt(service.Count, 10, 64)
-	terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
-
-	return append(pluginServices, plugins.Service{
-		ID:        service.Model.ID.String(),
-		Action:    transistor.GetAction("create"),
-		State:     transistor.GetState("waiting"),
-		Name:      service.Name,
-		Command:   service.Command,
-		Listeners: listeners,
-		Replicas:  count,
-		Spec: plugins.ServiceSpec{
-			ID:                            spec.Model.ID.String(),
-			CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
-			CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
-			MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
-			MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
-			TerminationGracePeriodSeconds: terminationGracePeriod,
-		},
-		Type: string(service.Type),
-	})
-}
-
-func (r *Resolver) setupServices(services []Service) ([]plugins.Service, error) {
-	var pluginServices []plugins.Service
-	for _, service := range services {
-		var spec ServiceSpec
-		if r.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
-			log.WarnWithFields("servicespec not found", log.Fields{
-				"id": service.ServiceSpecID,
-			})
-			return []plugins.Service{}, fmt.Errorf("ServiceSpec not found")
-		}
-
-		listeners := []plugins.Listener{}
-		for _, l := range service.Ports {
-			p, err := strconv.ParseInt(l.Port, 10, 32)
-			if err != nil {
-				panic(err)
-			}
-			listener := plugins.Listener{
-				Port:     int32(p),
-				Protocol: l.Protocol,
-			}
-			listeners = append(listeners, listener)
-		}
-
-		pluginServices = AppendPluginService(pluginServices, service, listeners, spec)
-	}
-
-	return pluginServices, nil
-}
 
 // CreateProject Create project
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
@@ -1224,53 +1169,9 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	// ignore if the extension type is 'once' (installable many times)
 	if extension.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
 		if extension.Key == "route53" {
-			// HOTFIX: check for existing subdomains for route53
-			unmarshaledCustomConfig := make(map[string]interface{})
-			err := json.Unmarshal(args.ProjectExtension.CustomConfig.RawMessage, &unmarshaledCustomConfig)
-			if err != nil {
-				return &ProjectExtensionResolver{}, errors.New("Could not unmarshal custom config")
-			}
-
-			artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
+			err := r.handleExtensionRoute53(args, &projectExtension)
 			if err != nil {
 				return &ProjectExtensionResolver{}, err
-			}
-
-			hostedZoneId := ""
-			for _, artifact := range artifacts {
-				if artifact.Key == "HOSTED_ZONE_ID" {
-					hostedZoneId = strings.ToUpper(artifact.Value.(string))
-					break
-				}
-			}
-
-			existingProjectExtensions := GetProjectExtensionsWithRoute53Subdomain(strings.ToUpper(unmarshaledCustomConfig["subdomain"].(string)), r.DB)
-			for _, existingProjectExtension := range existingProjectExtensions {
-				if existingProjectExtension.Model.ID.String() != "" {
-					// check if HOSTED_ZONE_ID is the same
-					var tmpExtension Extension
-
-					r.DB.Where("id = ?", existingProjectExtension.ExtensionID).First(&tmpExtension)
-
-					tmpExtensionArtifacts, err := ExtractArtifacts(existingProjectExtension, tmpExtension, r.DB)
-					if err != nil {
-						return &ProjectExtensionResolver{}, err
-					}
-
-					for _, artifact := range tmpExtensionArtifacts {
-						if artifact.Key == "HOSTED_ZONE_ID" &&
-							strings.ToUpper(artifact.Value.(string)) == hostedZoneId {
-							errMsg := "There is a route53 project extension with inputted subdomain already."
-							log.InfoWithFields(errMsg, log.Fields{
-								"project_extension_id":          projectExtension.Model.ID.String(),
-								"existing_project_extension_id": existingProjectExtension.Model.ID.String(),
-								"environment_id":                projectExtension.EnvironmentID.String(),
-								"hosted_zone_id":                hostedZoneId,
-							})
-							return &ProjectExtensionResolver{}, errors.New(errMsg)
-						}
-					}
-				}
 			}
 		}
 
@@ -1344,53 +1245,9 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 	}
 
 	if extension.Key == "route53" {
-		// HOTFIX: check for existing subdomains for route53
-		unmarshaledCustomConfig := make(map[string]interface{})
-		err := json.Unmarshal(args.ProjectExtension.CustomConfig.RawMessage, &unmarshaledCustomConfig)
-		if err != nil {
-			return &ProjectExtensionResolver{}, errors.New("Could not unmarshal custom config")
-		}
-
-		artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
+		err := r.handleExtensionRoute53(args, &projectExtension)
 		if err != nil {
 			return &ProjectExtensionResolver{}, err
-		}
-
-		hostedZoneId := ""
-		for _, artifact := range artifacts {
-			if artifact.Key == "HOSTED_ZONE_ID" {
-				hostedZoneId = strings.ToUpper(artifact.Value.(string))
-				break
-			}
-		}
-
-		existingProjectExtensions := GetProjectExtensionsWithRoute53Subdomain(strings.ToUpper(unmarshaledCustomConfig["subdomain"].(string)), r.DB)
-		for _, existingProjectExtension := range existingProjectExtensions {
-			if existingProjectExtension.Model.ID.String() != "" {
-				// check if HOSTED_ZONE_ID is the same
-				var tmpExtension Extension
-
-				r.DB.Where("id = ?", existingProjectExtension.ExtensionID).First(&tmpExtension)
-
-				tmpExtensionArtifacts, err := ExtractArtifacts(existingProjectExtension, tmpExtension, r.DB)
-				if err != nil {
-					return &ProjectExtensionResolver{}, err
-				}
-
-				for _, artifact := range tmpExtensionArtifacts {
-					if artifact.Key == "HOSTED_ZONE_ID" &&
-						strings.ToUpper(artifact.Value.(string)) == hostedZoneId {
-						errMsg := "There is a route53 project extension with inputted subdomain already."
-						log.InfoWithFields(errMsg, log.Fields{
-							"project_extension_id":          projectExtension.Model.ID.String(),
-							"existing_project_extension_id": existingProjectExtension.Model.ID.String(),
-							"environment_id":                projectExtension.EnvironmentID.String(),
-							"hosted_zone_id":                hostedZoneId,
-						})
-						return &ProjectExtensionResolver{}, errors.New(errMsg)
-					}
-				}
-			}
 		}
 	}
 
