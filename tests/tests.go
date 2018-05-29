@@ -12,12 +12,7 @@ import (
 )
 
 func SetupPluginTest(pluginName string, viperConfig []byte, creator transistor.Creator) (*transistor.Transistor, error) {
-	viper.SetConfigType("yaml")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.SetEnvPrefix("CODEAMP")
-	viper.AutomaticEnv()
-	viper.ReadConfig(bytes.NewBuffer(viperConfig))
-
+	setupViperConfig(viperConfig)
 	transistor.RegisterPlugin(pluginName, creator)
 
 	config := transistor.Config{
@@ -25,6 +20,22 @@ func SetupPluginTest(pluginName string, viperConfig []byte, creator transistor.C
 		EnabledPlugins: []string{pluginName},
 	}
 
+	configLogLevel()
+	configLogFormat()
+
+	return transistor.NewTestTransistor(config)
+}
+
+func setupViperConfig(viperConfig []byte) {
+	viper.SetConfigType("yaml")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetEnvPrefix("CODEAMP")
+	viper.AutomaticEnv()
+
+	viper.ReadConfig(bytes.NewBuffer(viperConfig))
+}
+
+func configLogLevel() {
 	if _logLevel := viper.GetString("log_level"); _logLevel != "" {
 		logLevel, err := log.ParseLevel(_logLevel)
 
@@ -34,7 +45,9 @@ func SetupPluginTest(pluginName string, viperConfig []byte, creator transistor.C
 
 		log.SetLogLevel(logLevel)
 	}
+}
 
+func configLogFormat() {
 	if logFormat := viper.GetString("log_format"); logFormat != "" {
 		switch strings.ToLower(logFormat) {
 		case "standard":
@@ -45,6 +58,4 @@ func SetupPluginTest(pluginName string, viperConfig []byte, creator transistor.C
 			log.SetLogFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
 		}
 	}
-
-	return transistor.NewTestTransistor(config)
 }
