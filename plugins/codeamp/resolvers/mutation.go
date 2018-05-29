@@ -25,6 +25,60 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+func AppendPluginService(pluginServices []plugins.Service, service Service, listeners []plugins.Listener, spec ServiceSpec) []plugins.Service {
+	count, _ := strconv.ParseInt(service.Count, 10, 64)
+	terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
+
+	return append(pluginServices, plugins.Service{
+		ID:        service.Model.ID.String(),
+		Action:    transistor.GetAction("create"),
+		State:     transistor.GetState("waiting"),
+		Name:      service.Name,
+		Command:   service.Command,
+		Listeners: listeners,
+		Replicas:  count,
+		Spec: plugins.ServiceSpec{
+			ID:                            spec.Model.ID.String(),
+			CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
+			CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
+			MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
+			MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
+			TerminationGracePeriodSeconds: terminationGracePeriod,
+		},
+		Type: string(service.Type),
+	})
+}
+
+func (r *Resolver) setupServices(services []Service) ([]plugins.Service, error) {
+	var pluginServices []plugins.Service
+	for _, service := range services {
+		var spec ServiceSpec
+		if r.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
+			log.WarnWithFields("servicespec not found", log.Fields{
+				"id": service.ServiceSpecID,
+			})
+			return []plugins.Service{}, fmt.Errorf("ServiceSpec not found")
+		}
+
+		listeners := []plugins.Listener{}
+		for _, l := range service.Ports {
+			p, err := strconv.ParseInt(l.Port, 10, 32)
+			if err != nil {
+				panic(err)
+			}
+			listener := plugins.Listener{
+				Port:     int32(p),
+				Protocol: l.Protocol,
+			}
+			listeners = append(listeners, listener)
+		}
+
+		pluginServices = AppendPluginService(pluginServices, service, listeners, spec)
+	}
+
+	return pluginServices, nil
+}
+
 // CreateProject Create project
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	Project *ProjectInput
@@ -520,47 +574,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	var pluginServices []plugins.Service
-	for _, service := range services {
-		var spec ServiceSpec
-		if r.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
-			log.InfoWithFields("servicespec not found", log.Fields{
-				"id": service.ServiceSpecID,
-			})
-			return &ReleaseResolver{}, errors.New("ServiceSpec not found")
-		}
-
-		count, _ := strconv.ParseInt(service.Count, 10, 64)
-		terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
-
-		listeners := []plugins.Listener{}
-		for _, l := range service.Ports {
-			p, err := strconv.ParseInt(l.Port, 10, 32)
-			if err != nil {
-				panic(err)
-			}
-			listener := plugins.Listener{
-				Port:     int32(p),
-				Protocol: l.Protocol,
-			}
-			listeners = append(listeners, listener)
-		}
-
-		pluginServices = append(pluginServices, plugins.Service{
-			ID:        service.Model.ID.String(),
-			Name:      service.Name,
-			Command:   service.Command,
-			Listeners: listeners,
-			Replicas:  count,
-			Spec: plugins.ServiceSpec{
-				ID:                            spec.Model.ID.String(),
-				CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
-				CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
-				MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
-				MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
-				TerminationGracePeriodSeconds: terminationGracePeriod,
-			},
-			Type: string(service.Type),
-		})
+	pluginServices, err = r.setupServices(services)
+	if err != nil {
+		return &ReleaseResolver{}, err
 	}
 
 	var pluginSecrets []plugins.Secret
@@ -646,7 +662,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
-		Secrets: pluginSecrets,
+		Secrets:  pluginSecrets,
+		Services: pluginServices, // ADB Added this
 	}
 
 	// Create/Emit Release ProjectExtensions

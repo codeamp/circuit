@@ -86,9 +86,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			return
 		}
 
-		count, _ := strconv.ParseInt(service.Count, 10, 64)
-		terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
-
 		listeners := []plugins.Listener{}
 		for _, l := range service.Ports {
 			p, err := strconv.ParseInt(l.Port, 10, 32)
@@ -102,24 +99,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			listeners = append(listeners, listener)
 		}
 
-		pluginServices = append(pluginServices, plugins.Service{
-			ID:        service.Model.ID.String(),
-			Action:    transistor.GetAction("create"),
-			State:     transistor.GetState("waiting"),
-			Name:      service.Name,
-			Command:   service.Command,
-			Listeners: listeners,
-			Replicas:  count,
-			Spec: plugins.ServiceSpec{
-				ID:                            spec.Model.ID.String(),
-				CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
-				CpuLimit:                      fmt.Sprintf("%sm", spec.CpuLimit),
-				MemoryRequest:                 fmt.Sprintf("%sMi", spec.MemoryRequest),
-				MemoryLimit:                   fmt.Sprintf("%sMi", spec.MemoryLimit),
-				TerminationGracePeriodSeconds: terminationGracePeriod,
-			},
-			Type: string(service.Type),
-		})
+		pluginServices = resolvers.AppendPluginService(pluginServices, service, listeners, spec)
 	}
 
 	var pluginSecrets []plugins.Secret
