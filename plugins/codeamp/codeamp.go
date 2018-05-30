@@ -3,7 +3,10 @@ package codeamp
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -15,7 +18,9 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	redis "github.com/go-redis/redis"
+	"github.com/gorilla/handlers"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/spf13/viper"
@@ -58,6 +63,29 @@ func (s *socketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 	w.Header().Set("Access-Control-Allow-Origin", origin)
 	s.Server.ServeHTTP(w, r)
+}
+
+func (x *CodeAmp) GraphQLListen() {
+	x.SocketIO.On("connection", func(so socketio.Socket) {
+		so.Join("general")
+	})
+
+	x.SocketIO.On("error", func(so socketio.Socket, err error) {
+		log.Println("socket-io error:", err)
+	})
+
+	sIOServer := new(socketIOServer)
+	sIOServer.Server = x.SocketIO
+	http.Handle("/socket.io/", sIOServer)
+
+	_, filename, _, _ := runtime.Caller(0)
+	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
+	http.Handle("/", fs)
+
+	http.Handle("/query", resolver.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
+
+	log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
 }
 
 func (x *CodeAmp) initPostGres() (*gorm.DB, error) {
