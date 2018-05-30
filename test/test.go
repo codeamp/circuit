@@ -12,12 +12,22 @@ import (
 )
 
 func SetupPluginTest(pluginName string, viperConfig []byte, creator transistor.Creator) (*transistor.Transistor, error) {
+	pluginMap := map[string]transistor.Creator{pluginName: creator}
+	return SetupMultiPluginTest(viperConfig, pluginMap)
+}
+
+func SetupMultiPluginTest(viperConfig []byte, creatorsMap map[string]transistor.Creator) (*transistor.Transistor, error) {
 	setupViperConfig(viperConfig)
-	transistor.RegisterPlugin(pluginName, creator)
+
+	enabledPlugins := make([]string, 1, 1)
+	for pluginName, creator := range creatorsMap {
+		transistor.RegisterPlugin(pluginName, creator)
+		enabledPlugins = append(enabledPlugins, pluginName)
+	}
 
 	config := transistor.Config{
 		Plugins:        viper.GetStringMap("plugins"),
-		EnabledPlugins: []string{pluginName},
+		EnabledPlugins: enabledPlugins,
 	}
 
 	configLogLevel()
