@@ -5,16 +5,16 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
+	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
 )
 
-func (x *CodeAmp) GitSync(project *resolver.Project) error {
-	var feature resolver.Feature
-	var release resolver.Release
-	var headFeature resolver.Feature
+func (x *CodeAmp) GitSync(project *graphql_resolver.Project) error {
+	var feature graphql_resolver.Feature
+	var release graphql_resolver.Release
+	var headFeature graphql_resolver.Feature
 	hash := ""
 
 	// Get latest release and deployed feature hash
@@ -32,7 +32,7 @@ func (x *CodeAmp) GitSync(project *resolver.Project) error {
 	}
 
 	// get branches of entire environments
-	projectSettingsCollection := []resolver.ProjectSettings{}
+	projectSettingsCollection := []graphql_resolver.ProjectSettings{}
 	if x.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectSettingsCollection).RecordNotFound() {
 		payload := plugins.GitSync{
 			Project: plugins.Project{
@@ -77,9 +77,9 @@ func (x *CodeAmp) GitSync(project *resolver.Project) error {
 func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.GitSync)
 
-	var project resolver.Project
-	var environment resolver.Environment
-	var projectSettings []resolver.ProjectSettings
+	var project graphql_resolver.Project
+	var environment graphql_resolver.Environment
+	var projectSettings []graphql_resolver.ProjectSettings
 
 	if e.State == transistor.GetState("complete") {
 		if x.DB.Where("repository = ?", payload.Project.Repository).First(&project).RecordNotFound() {
@@ -90,9 +90,9 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		}
 
 		for _, commit := range payload.Commits {
-			var feature resolver.Feature
+			var feature graphql_resolver.Feature
 			if x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
-				feature = resolver.Feature{
+				feature = graphql_resolver.Feature{
 					ProjectID:  project.ID,
 					Message:    commit.Message,
 					User:       commit.User,
@@ -114,14 +114,16 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 						// call CreateRelease for each env that has cd turned on
 						for _, setting := range projectSettings {
 							if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
-								adminContext := context.WithValue(context.Background(), "jwt", resolver.Claims{
+								adminContext := context.WithValue(context.Background(), "jwt", graphql_resolver.Claims{
 									UserID:      uuid.FromStringOrNil("codeamp").String(),
 									Email:       "codeamp",
 									Permissions: []string{"admin"},
 								})
 
-								x.Resolver.CreateRelease(adminContext, &struct{ Release *resolver.ReleaseInput }{
-									Release: &resolver.ReleaseInput{
+								x.Resolver.CreateRelease(adminContext, &struct {
+									Release *graphql_resolver.ReleaseInput
+								}{
+									Release: &graphql_resolver.ReleaseInput{
 										HeadFeatureID: feature.Model.ID.String(),
 										ProjectID:     setting.ProjectID.String(),
 										EnvironmentID: setting.EnvironmentID.String(),

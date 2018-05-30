@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
+	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -30,23 +30,23 @@ func (x *CodeAmp) Migrate() {
 	db.Set("gorm:auto_preload", true)
 
 	db.AutoMigrate(
-		&resolver.User{},
-		&resolver.UserPermission{},
-		&resolver.Project{},
-		&resolver.ProjectSettings{},
-		&resolver.Release{},
-		&resolver.Feature{},
-		&resolver.Service{},
-		&resolver.ServicePort{},
-		&resolver.ServiceSpec{},
-		&resolver.Extension{},
-		&resolver.ProjectExtension{},
-		&resolver.Secret{},
-		&resolver.SecretValue{},
-		&resolver.ReleaseExtension{},
-		&resolver.Environment{},
-		&resolver.ProjectEnvironment{},
-		&resolver.ProjectBookmark{},
+		&graphql_resolver.User{},
+		&graphql_resolver.UserPermission{},
+		&graphql_resolver.Project{},
+		&graphql_resolver.ProjectSettings{},
+		&graphql_resolver.Release{},
+		&graphql_resolver.Feature{},
+		&graphql_resolver.Service{},
+		&graphql_resolver.ServicePort{},
+		&graphql_resolver.ServiceSpec{},
+		&graphql_resolver.Extension{},
+		&graphql_resolver.ProjectExtension{},
+		&graphql_resolver.Secret{},
+		&graphql_resolver.SecretValue{},
+		&graphql_resolver.ReleaseExtension{},
+		&graphql_resolver.Environment{},
+		&graphql_resolver.ProjectEnvironment{},
+		&graphql_resolver.ProjectBookmark{},
 	)
 
 	m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
@@ -59,12 +59,12 @@ func (x *CodeAmp) Migrate() {
 				}
 
 				for _, email := range emails {
-					user := resolver.User{
+					user := graphql_resolver.User{
 						Email: email,
 					}
 					db.Save(&user)
 
-					userPermission := resolver.UserPermission{
+					userPermission := graphql_resolver.UserPermission{
 						UserID: user.Model.ID,
 						Value:  "admin",
 					}
@@ -74,7 +74,7 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Delete(&resolver.Environment{}).Error
+				return db.Delete(&graphql_resolver.Environment{}).Error
 			},
 		},
 		// create environments
@@ -87,7 +87,7 @@ func (x *CodeAmp) Migrate() {
 				}
 
 				for _, name := range environments {
-					environment := resolver.Environment{
+					environment := graphql_resolver.Environment{
 						Name:  name,
 						Color: "red",
 					}
@@ -97,7 +97,7 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Delete(&resolver.Environment{}).Error
+				return db.Delete(&graphql_resolver.Environment{}).Error
 			},
 		},
 		// create extension secrets
@@ -129,8 +129,8 @@ func (x *CodeAmp) Migrate() {
 					"KUBECONFIG",
 				}
 
-				var user resolver.User
-				var environments []resolver.Environment
+				var user graphql_resolver.User
+				var environments []graphql_resolver.Environment
 
 				db.First(&user)
 
@@ -138,15 +138,15 @@ func (x *CodeAmp) Migrate() {
 				for _, environment := range environments {
 					// ENV
 					for _, name := range envSecrets {
-						secret := resolver.Secret{
+						secret := graphql_resolver.Secret{
 							Key:           name,
 							Type:          "env",
-							Scope:         resolver.GetSecretScope("extension"),
+							Scope:         graphql_resolver.GetSecretScope("extension"),
 							EnvironmentID: environment.Model.ID,
 						}
 						db.Save(&secret)
 
-						secretValue := resolver.SecretValue{
+						secretValue := graphql_resolver.SecretValue{
 							SecretID: secret.Model.ID,
 							UserID:   user.Model.ID,
 							Value:    "",
@@ -155,10 +155,10 @@ func (x *CodeAmp) Migrate() {
 					}
 					// FILE
 					for _, name := range fileSecrets {
-						secret := resolver.Secret{
+						secret := graphql_resolver.Secret{
 							Key:           name,
 							Type:          "file",
-							Scope:         resolver.GetSecretScope("extension"),
+							Scope:         graphql_resolver.GetSecretScope("extension"),
 							EnvironmentID: environment.Model.ID,
 						}
 						db.Save(&secret)
@@ -168,14 +168,14 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Delete(&resolver.Secret{}).Error
+				return db.Delete(&graphql_resolver.Secret{}).Error
 			},
 		},
 		// create Service Spec
 		{
 			ID: "201803031530",
 			Migrate: func(tx *gorm.DB) error {
-				serviceSpec := resolver.ServiceSpec{
+				serviceSpec := graphql_resolver.ServiceSpec{
 					Name:                   "default",
 					CpuRequest:             "500",
 					CpuLimit:               "500",
@@ -188,34 +188,34 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Delete(&resolver.ServiceSpec{}).Error
+				return db.Delete(&graphql_resolver.ServiceSpec{}).Error
 			},
 		},
 		// create extensions
 		{
 			ID: "201803021531",
 			Migrate: func(tx *gorm.DB) error {
-				var environments []resolver.Environment
+				var environments []graphql_resolver.Environment
 				var config []map[string]interface{}
 				var marshalledConfig []byte
-				var extension resolver.Extension
+				var extension graphql_resolver.Extension
 
 				db.Find(&environments)
 				for _, environment := range environments {
 					// dockerbuilder
-					var dockerOrg resolver.Secret
+					var dockerOrg graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "DOCKER_ORG", environment.Model.ID).FirstOrInit(&dockerOrg)
 
-					var dockerHost resolver.Secret
+					var dockerHost graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "DOCKER_HOST", environment.Model.ID).FirstOrInit(&dockerHost)
 
-					var dockerUser resolver.Secret
+					var dockerUser graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "DOCKER_USER", environment.Model.ID).FirstOrInit(&dockerUser)
 
-					var dockerEmail resolver.Secret
+					var dockerEmail graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "DOCKER_EMAIL", environment.Model.ID).FirstOrInit(&dockerEmail)
 
-					var dockerPass resolver.Secret
+					var dockerPass graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "DOCKER_PASS", environment.Model.ID).FirstOrInit(&dockerPass)
 
 					config = []map[string]interface{}{
@@ -231,7 +231,7 @@ func (x *CodeAmp) Migrate() {
 						log.Error("could not marshal config")
 					}
 
-					extension = resolver.Extension{
+					extension = graphql_resolver.Extension{
 						Type:          plugins.GetType("workflow"),
 						Key:           "dockerbuilder",
 						Name:          "Docker Builder",
@@ -243,31 +243,31 @@ func (x *CodeAmp) Migrate() {
 					db.Save(&extension)
 
 					// loadbalancer
-					var sslArn resolver.Secret
+					var sslArn graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "SSL_CERT_ARN", environment.Model.ID).FirstOrInit(&sslArn)
 
-					var s3Bucket resolver.Secret
+					var s3Bucket graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "ACCESS_LOG_S3_BUCKET", environment.Model.ID).FirstOrInit(&s3Bucket)
 
-					var hostedZoneID resolver.Secret
+					var hostedZoneID graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "HOSTED_ZONE_ID", environment.Model.ID).FirstOrInit(&hostedZoneID)
 
-					var hostedZoneName resolver.Secret
+					var hostedZoneName graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "HOSTED_ZONE_NAME", environment.Model.ID).FirstOrInit(&hostedZoneName)
 
-					var awsAccessKeyID resolver.Secret
+					var awsAccessKeyID graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "AWS_ACCESS_KEY_ID", environment.Model.ID).FirstOrInit(&awsAccessKeyID)
 
-					var awsSecretKey resolver.Secret
+					var awsSecretKey graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "AWS_SECRET_KEY", environment.Model.ID).FirstOrInit(&awsSecretKey)
 
-					var clientCert resolver.Secret
+					var clientCert graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "CLIENT_CERTIFICATE", environment.Model.ID).FirstOrInit(&clientCert)
 
-					var clientKey resolver.Secret
+					var clientKey graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "CLIENT_KEY", environment.Model.ID).FirstOrInit(&clientKey)
 
-					var certificateAuthority resolver.Secret
+					var certificateAuthority graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "CERTIFICATE_AUTHORITY", environment.Model.ID).FirstOrInit(&certificateAuthority)
 
 					config = []map[string]interface{}{
@@ -287,7 +287,7 @@ func (x *CodeAmp) Migrate() {
 						log.Error("could not marshal config")
 					}
 
-					extension = resolver.Extension{
+					extension = graphql_resolver.Extension{
 						Type:          plugins.GetType("once"),
 						Key:           "kubernetesloadbalancers",
 						Name:          "Load Balancer",
@@ -299,7 +299,7 @@ func (x *CodeAmp) Migrate() {
 					db.Save(&extension)
 
 					// kubernetes
-					var kubeConfig resolver.Secret
+					var kubeConfig graphql_resolver.Secret
 					db.Where("key = ? AND environment_id = ?", "KUBECONFIG", environment.Model.ID).FirstOrInit(&kubeConfig)
 
 					db.Where("key = ? AND environment_id = ?", "CLIENT_CERTIFICATE", environment.Model.ID).FirstOrInit(&clientCert)
@@ -320,7 +320,7 @@ func (x *CodeAmp) Migrate() {
 						log.Error("could not marshal config")
 					}
 
-					extension = resolver.Extension{
+					extension = graphql_resolver.Extension{
 						Type:          plugins.GetType("deployment"),
 						Key:           "kubernetesdeployments",
 						Name:          "Kubernetes",
@@ -335,7 +335,7 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Delete(&resolver.Extension{}).Error
+				return db.Delete(&graphql_resolver.Extension{}).Error
 			},
 		},
 		// create ProjectEnvironments
@@ -344,19 +344,19 @@ func (x *CodeAmp) Migrate() {
 			Migrate: func(tx *gorm.DB) error {
 
 				// create default project permission for projects that don't have it
-				projects := []resolver.Project{}
+				projects := []graphql_resolver.Project{}
 
 				db.Find(&projects)
 
 				// give permission to all environments
 				// for each project
-				envs := []resolver.Environment{}
+				envs := []graphql_resolver.Environment{}
 
 				db.Find(&envs)
 
 				for _, env := range envs {
 					for _, project := range projects {
-						db.FirstOrCreate(&resolver.ProjectEnvironment{
+						db.FirstOrCreate(&graphql_resolver.ProjectEnvironment{
 							EnvironmentID: env.Model.ID,
 							ProjectID:     project.Model.ID,
 						})
@@ -365,14 +365,14 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.DropTable(&resolver.ProjectEnvironment{}).Error
+				return db.DropTable(&graphql_resolver.ProjectEnvironment{}).Error
 			},
 		},
 		// add key attribute to environment
 		{
 			ID: "201803081103",
 			Migrate: func(tx *gorm.DB) error {
-				var environments []resolver.Environment
+				var environments []graphql_resolver.Environment
 				db.Find(&environments)
 				for _, env := range environments {
 					if env.Key == "" {
@@ -383,14 +383,14 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Model(&resolver.Environment{}).DropColumn("key").Error
+				return db.Model(&graphql_resolver.Environment{}).DropColumn("key").Error
 			},
 		},
 		// add is_default attribute to environment
 		{
 			ID: "201803191507",
 			Migrate: func(tx *gorm.DB) error {
-				var environments []resolver.Environment
+				var environments []graphql_resolver.Environment
 				db.Find(&environments)
 				for _, env := range environments {
 					env.IsDefault = true
@@ -399,7 +399,7 @@ func (x *CodeAmp) Migrate() {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Model(&resolver.Environment{}).DropColumn("is_default").Error
+				return db.Model(&graphql_resolver.Environment{}).DropColumn("is_default").Error
 			},
 		},
 		// migrate ProjectExtension config to customConfig
@@ -407,7 +407,7 @@ func (x *CodeAmp) Migrate() {
 			ID: "201803271507",
 			Migrate: func(tx *gorm.DB) error {
 
-				var projectExtensions []resolver.ProjectExtension
+				var projectExtensions []graphql_resolver.ProjectExtension
 				db.Find(&projectExtensions)
 
 				for _, projectExtension := range projectExtensions {

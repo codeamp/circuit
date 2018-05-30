@@ -14,7 +14,7 @@ import (
 	sioredis "github.com/azhao1981/go-socket.io-redis"
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
-	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
+	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	redis "github.com/go-redis/redis"
@@ -46,7 +46,7 @@ type CodeAmp struct {
 	SocketIO       *socketio.Server
 	DB             *gorm.DB
 	Redis          *redis.Client
-	Resolver       *resolver.Resolver
+	Resolver       *graphql_resolver.Resolver
 }
 
 //Custom server which basically only contains a socketio variable
@@ -82,7 +82,7 @@ func (x *CodeAmp) GraphQLListen() {
 	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
 	http.Handle("/", fs)
 
-	http.Handle("/query", resolver.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
+	http.Handle("/query", graphql_resolver.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
 
 	log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
@@ -166,7 +166,7 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 
 	x.initRedis()
 
-	x.Resolver = &resolver.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
+	x.Resolver = &graphql_resolver.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
 	x.initGraphQL(x.Resolver)
 
 	x.Events = events
