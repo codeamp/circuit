@@ -24,9 +24,13 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = test.SetupPluginTest("dockerbuilder", viperConfig, func() transistor.Plugin {
-		return &dockerbuilder.DockerBuilder{Socket: "unix:///var/run/docker.sock"}
-	})
+	creatorsMap := map[string]transistor.Creator{
+		"dockerbuilder": func() transistor.Plugin {
+			return &dockerbuilder.DockerBuilder{Socket: "unix:///var/run/docker.sock"}
+		},
+	}
+
+	suite.transistor, _ = test.SetupPluginTest(viperConfig, creatorsMap)
 	go suite.transistor.Run()
 }
 

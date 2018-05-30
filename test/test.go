@@ -11,23 +11,19 @@ import (
 	"github.com/spf13/viper"
 )
 
-func SetupPluginTest(pluginName string, viperConfig []byte, creator transistor.Creator) (*transistor.Transistor, error) {
-	pluginMap := map[string]transistor.Creator{pluginName: creator}
-	return SetupMultiPluginTest(viperConfig, pluginMap)
-}
-
-func SetupMultiPluginTest(viperConfig []byte, creatorsMap map[string]transistor.Creator) (*transistor.Transistor, error) {
+func SetupPluginTest(viperConfig []byte, creatorsMap map[string]transistor.Creator) (*transistor.Transistor, error) {
 	setupViperConfig(viperConfig)
 
-	enabledPlugins := make([]string, 1, 1)
-	for pluginName, creator := range creatorsMap {
-		transistor.RegisterPlugin(pluginName, creator)
-		enabledPlugins = append(enabledPlugins, pluginName)
+	pluginConfig := viper.GetStringMap("plugins")
+	enabledPluginNames := make([]string, 0, len(pluginConfig))
+
+	for pluginName, _ := range pluginConfig {
+		enabledPluginNames = append(enabledPluginNames, pluginName)
 	}
 
 	config := transistor.Config{
-		Plugins:        viper.GetStringMap("plugins"),
-		EnabledPlugins: enabledPlugins,
+		Plugins:        pluginConfig,
+		EnabledPlugins: enabledPluginNames,
 	}
 
 	configLogLevel()

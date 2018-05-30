@@ -25,9 +25,13 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = test.SetupPluginTest("githubstatus", viperConfig, func() transistor.Plugin {
-		return &githubstatus.GithubStatus{}
-	})
+	creatorsMap := map[string]transistor.Creator{
+		"githubstatus": func() transistor.Plugin {
+			return &githubstatus.GithubStatus{}
+		},
+	}
+
+	suite.transistor, _ = test.SetupPluginTest(viperConfig, creatorsMap)
 	go suite.transistor.Run()
 }
 

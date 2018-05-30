@@ -24,9 +24,13 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = test.SetupPluginTest("gitsync", viperConfig, func() transistor.Plugin {
-		return &gitsync.GitSync{}
-	})
+	creatorsMap := map[string]transistor.Creator{
+		"gitsync": func() transistor.Plugin {
+			return &gitsync.GitSync{}
+		},
+	}
+
+	suite.transistor, _ = test.SetupPluginTest(viperConfig, creatorsMap)
 	go suite.transistor.Run()
 }
 

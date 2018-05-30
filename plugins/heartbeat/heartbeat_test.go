@@ -23,9 +23,13 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = test.SetupPluginTest("heartbeat", viperConfig, func() transistor.Plugin {
-		return &heartbeat.Heartbeat{}
-	})
+	creatorsMap := map[string]transistor.Creator{
+		"heartbeat": func() transistor.Plugin {
+			return &heartbeat.Heartbeat{}
+		},
+	}
+
+	suite.transistor, _ = test.SetupPluginTest(viperConfig, creatorsMap)
 	go suite.transistor.Run()
 }
 

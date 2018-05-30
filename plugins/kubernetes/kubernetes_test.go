@@ -29,10 +29,13 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	suite.transistor, _ = test.SetupPluginTest("kubernetes", viperConfig, func() transistor.Plugin {
-		return &kubernetes.Kubernetes{}
-	})
+	creatorsMap := map[string]transistor.Creator{
+		"kubernetes": func() transistor.Plugin {
+			return &kubernetes.Kubernetes{}
+		},
+	}
 
+	suite.transistor, _ = test.SetupPluginTest(viperConfig, creatorsMap)
 	go suite.transistor.Run()
 }
 
