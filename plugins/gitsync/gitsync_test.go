@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
-	"github.com/codeamp/circuit/plugins/gitsync"
+	_ "github.com/codeamp/circuit/plugins/gitsync"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
@@ -24,13 +24,7 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	creatorsMap := map[string]transistor.Creator{
-		"gitsync": func() transistor.Plugin {
-			return &gitsync.GitSync{}
-		},
-	}
-
-	suite.transistor, _ = test.SetupPluginTest(viperConfig, creatorsMap)
+	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
 }
 

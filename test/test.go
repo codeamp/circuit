@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func SetupPluginTest(viperConfig []byte, creatorsMap map[string]transistor.Creator) (*transistor.Transistor, error) {
+func SetupPluginTest(viperConfig []byte) (*transistor.Transistor, error) {
 	setupViperConfig(viperConfig)
 
 	pluginConfig := viper.GetStringMap("plugins")
