@@ -14,5 +14,5 @@ WORKDIR $APP_PATH
 COPY . $APP_PATH
 RUN mkdir -p assets/
 
-RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema.graphql
+RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/graphql/schema.graphql
 RUN go build -i -o /go/bin/codeamp-circuit .

@@ -15,7 +15,7 @@ destroy:
 
 assets:
 	docker-compose run --rm ${SERVICE} go-bindata -pkg assets -o assets/assets.go \
-		plugins/codeamp/schema.graphql \
-		plugins/codeamp/static/
+		plugins/codeamp/graphql/schema.graphql \
+		plugins/codeamp/graphql/static/
 
 .PHONY: up build destroy assets

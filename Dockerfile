@@ -13,5 +13,5 @@ COPY . $APP_PATH
 
 RUN go get -u github.com/jteeuwen/go-bindata/...
 RUN mkdir -p assets/
-RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/graphql/schema.graphql
+RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/graphql/schema.graphql
 RUN go build -i -o /go/bin/codeamp-circuit .
