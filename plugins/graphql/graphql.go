@@ -4,7 +4,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/jinzhu/gorm"
 )
 
 type GraphQL struct {
@@ -15,6 +14,29 @@ func init() {
 	transistor.RegisterPlugin("graphql", func() transistor.Plugin {
 		return &GraphQL{}
 	}, plugins.Project{})
+}
+
+func (x *GraphQL) GraphQLListen() {
+	// x.SocketIO.On("connection", func(so socketio.Socket) {
+	// 	so.Join("general")
+	// })
+
+	// x.SocketIO.On("error", func(so socketio.Socket, err error) {
+	// 	log.Println("socket-io error:", err)
+	// })
+
+	// sIOServer := new(socketIOServer)
+	// sIOServer.Server = x.SocketIO
+	// http.Handle("/socket.io/", sIOServer)
+
+	// _, filename, _, _ := runtime.Caller(0)
+	// fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
+	// http.Handle("/", fs)
+
+	// http.Handle("/query", resolver.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
+
+	// log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
+	// log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
 }
 
 func (x *GraphQL) Start(events chan transistor.Event) error {
@@ -41,9 +63,5 @@ func (x *GraphQL) Subscribe() []string {
 func (x *GraphQL) Process(e transistor.Event) error {
 	log.DebugWithFields("Processing GraphQL event", log.Fields{"event": e})
 
-	return nil
-}
-
-func (x *Resolver) DB() *gorm.DB {
 	return nil
 }

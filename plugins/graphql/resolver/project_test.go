@@ -1,4 +1,4 @@
-package codeamp_resolvers_test
+package graphql_resolver_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"log"
 	"testing"
 
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
@@ -17,7 +17,7 @@ import (
 
 type ProjectTestSuite struct {
 	suite.Suite
-	Resolver *resolvers.Resolver
+	Resolver *resolver.Resolver
 }
 
 func (suite *ProjectTestSuite) SetupTest() {
@@ -39,20 +39,20 @@ func (suite *ProjectTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 	db.AutoMigrate(
-		&resolvers.Project{},
-		&resolvers.ProjectEnvironment{},
-		&resolvers.ProjectBookmark{},
-		&resolvers.UserPermission{},
-		&resolvers.ProjectSettings{},
-		&resolvers.Environment{},
+		&resolver.Project{},
+		&resolver.ProjectEnvironment{},
+		&resolver.ProjectBookmark{},
+		&resolver.UserPermission{},
+		&resolver.ProjectSettings{},
+		&resolver.Environment{},
 	)
-	suite.Resolver = &resolvers.Resolver{DB: db}
+	suite.Resolver = &resolver.Resolver{DB: db}
 }
 
 /*
 func (suite *ProjectTestSuite) TestCreateProject() {
 	// setup
-	env := resolvers.Environment{
+	env := resolver.Environment{
 		Name:      "dev",
 		Color:     "purple",
 		Key:       "dev",
@@ -60,19 +60,19 @@ func (suite *ProjectTestSuite) TestCreateProject() {
 	}
 	suite.Resolver.DB.Create(&env)
 
-	projectInput := resolvers.ProjectInput{
+	projectInput := resolver.ProjectInput{
 		GitProtocol:   "HTTPS",
 		GitUrl:        "https://github.com/foo/goo.git",
 		EnvironmentID: env.Model.ID.String(),
 	}
-	authContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+	authContext := context.WithValue(context.Background(), "jwt", resolver.Claims{
 		UserID:      "foo",
 		Email:       "foo@gmail.com",
 		Permissions: []string{"admin"},
 	})
 
 	createProjectResolver, err := suite.Resolver.CreateProject(authContext, &struct {
-		Project *resolvers.ProjectInput
+		Project *resolver.ProjectInput
 	}{Project: &projectInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -87,7 +87,7 @@ func (suite *ProjectTestSuite) TestCreateProject() {
 /* Test successful project permissions update */
 func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	// setup
-	project := resolvers.Project{
+	project := resolver.Project{
 		Name:          "foo",
 		Slug:          "foo",
 		Repository:    "foo/foo",
@@ -99,7 +99,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	}
 	suite.Resolver.DB.Create(&project)
 
-	env := resolvers.Environment{
+	env := resolver.Environment{
 		Name:      "dev",
 		Color:     "purple",
 		Key:       "dev",
@@ -107,9 +107,9 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	}
 	suite.Resolver.DB.Create(&env)
 
-	projectEnvironmentsInput := resolvers.ProjectEnvironmentsInput{
+	projectEnvironmentsInput := resolver.ProjectEnvironmentsInput{
 		ProjectID: project.Model.ID.String(),
-		Permissions: []resolvers.ProjectEnvironmentInput{
+		Permissions: []resolver.ProjectEnvironmentInput{
 			{
 				EnvironmentID: env.Model.ID.String(),
 				Grant:         true,
@@ -118,7 +118,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	}
 
 	updateProjectEnvironmentsResp, err := suite.Resolver.UpdateProjectEnvironments(nil, &struct {
-		ProjectEnvironments *resolvers.ProjectEnvironmentsInput
+		ProjectEnvironments *resolver.ProjectEnvironmentsInput
 	}{ProjectEnvironments: &projectEnvironmentsInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -128,7 +128,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	assert.Equal(suite.T(), 1, len(updateProjectEnvironmentsResp))
 	assert.Equal(suite.T(), env.Model.ID, updateProjectEnvironmentsResp[0].Environment.Model.ID)
 
-	projectEnvironments := []resolvers.ProjectEnvironment{}
+	projectEnvironments := []resolver.ProjectEnvironment{}
 	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)
 
 	assert.Equal(suite.T(), 1, len(projectEnvironments))
@@ -137,7 +137,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	// take away access
 	projectEnvironmentsInput.Permissions[0].Grant = false
 	updateProjectEnvironmentsResp, err = suite.Resolver.UpdateProjectEnvironments(nil, &struct {
-		ProjectEnvironments *resolvers.ProjectEnvironmentsInput
+		ProjectEnvironments *resolver.ProjectEnvironmentsInput
 	}{ProjectEnvironments: &projectEnvironmentsInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -145,7 +145,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 
 	assert.Equal(suite.T(), 0, len(updateProjectEnvironmentsResp))
 
-	projectEnvironments = []resolvers.ProjectEnvironment{}
+	projectEnvironments = []resolver.ProjectEnvironment{}
 	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)
 
 	assert.Equal(suite.T(), 0, len(projectEnvironments))
@@ -165,7 +165,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	deleteIds := []string{}
 
 	for _, name := range projectNames {
-		project := resolvers.Project{
+		project := resolver.Project{
 			Name:          name,
 			Slug:          name,
 			Repository:    fmt.Sprintf("test/%s", name),
@@ -178,7 +178,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 		suite.Resolver.DB.Create(&project)
 
-		projectBookmark := resolvers.ProjectBookmark{
+		projectBookmark := resolver.ProjectBookmark{
 			UserID:    userId,
 			ProjectID: project.Model.ID,
 		}
@@ -188,13 +188,13 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 			projectBookmark.Model.ID.String())
 	}
 
-	adminContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+	adminContext := context.WithValue(context.Background(), "jwt", resolver.Claims{
 		UserID:      userId.String(),
 		Email:       "codeamp",
 		Permissions: []string{"admin"},
 	})
-	projects, err := suite.Resolver.Projects(adminContext, &struct{ ProjectSearch *resolvers.ProjectSearchInput }{
-		ProjectSearch: &resolvers.ProjectSearchInput{
+	projects, err := suite.Resolver.Projects(adminContext, &struct{ ProjectSearch *resolver.ProjectSearchInput }{
+		ProjectSearch: &resolver.ProjectSearchInput{
 			Bookmarked: true,
 		},
 	})
@@ -206,8 +206,8 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 	// do a search for 'foo'
 	searchQuery := "foo"
-	projects, err = suite.Resolver.Projects(adminContext, &struct{ ProjectSearch *resolvers.ProjectSearchInput }{
-		ProjectSearch: &resolvers.ProjectSearchInput{
+	projects, err = suite.Resolver.Projects(adminContext, &struct{ ProjectSearch *resolver.ProjectSearchInput }{
+		ProjectSearch: &resolver.ProjectSearchInput{
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
@@ -222,9 +222,9 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 }
 
 func (suite *ProjectTestSuite) TearDownTest(ids []string) {
-	suite.Resolver.DB.Delete(&resolvers.Project{})
-	suite.Resolver.DB.Delete(&resolvers.ProjectEnvironment{})
-	suite.Resolver.DB.Delete(&resolvers.Environment{})
+	suite.Resolver.DB.Delete(&resolver.Project{})
+	suite.Resolver.DB.Delete(&resolver.ProjectEnvironment{})
+	suite.Resolver.DB.Delete(&resolver.Environment{})
 }
 
 func TestProjectTestSuite(t *testing.T) {

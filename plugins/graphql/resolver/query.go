@@ -1,4 +1,4 @@
-package graphql_resolvers
+package graphql_resolver
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 // User
-func (r *gql.Resolver) User(ctx context.Context, args *struct {
+func (r *Resolver) User(ctx context.Context, args *struct {
 	ID *graphql.ID
 }) (*UserResolver, error) {
 	var userID string
@@ -30,7 +30,7 @@ func (r *gql.Resolver) User(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	if err = r.DB().Where("id = ?", userID).First(&user).Error; err != nil {
+	if err = r.DB.Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -38,11 +38,11 @@ func (r *gql.Resolver) User(ctx context.Context, args *struct {
 }
 
 // Users
-func (r *gql.Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
+func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 	var rows []User
 	var results []*UserResolver
 
-	r.DB().Order("created_at desc").Find(&rows)
+	r.DB.Order("created_at desc").Find(&rows)
 
 	for _, user := range rows {
 		results = append(results, &UserResolver{DB: r.DB, User: user})
@@ -52,7 +52,7 @@ func (r *gql.Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 }
 
 // Project
-func (r *gql.Resolver) Project(ctx context.Context, args *struct {
+func (r *Resolver) Project(ctx context.Context, args *struct {
 	ID            *graphql.ID
 	Slug          *string
 	Name          *string
@@ -67,11 +67,11 @@ func (r *gql.Resolver) Project(ctx context.Context, args *struct {
 	var query *gorm.DB
 
 	if args.ID != nil {
-		query = r.DB().Where("id = ?", *args.ID)
+		query = r.DB.Where("id = ?", *args.ID)
 	} else if args.Slug != nil {
-		query = r.DB().Where("slug = ?", *args.Slug)
+		query = r.DB.Where("slug = ?", *args.Slug)
 	} else if args.Name != nil {
-		query = r.DB().Where("name = ?", *args.Name)
+		query = r.DB.Where("name = ?", *args.Name)
 	} else {
 		return nil, fmt.Errorf("Missing argument id or slug")
 	}
@@ -91,7 +91,7 @@ func (r *gql.Resolver) Project(ctx context.Context, args *struct {
 
 	// check if project has permissions to requested environment
 	var permission ProjectEnvironment
-	if r.DB().Where("project_id = ? AND environment_id = ?", project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
+	if r.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
 		log.InfoWithFields("Environment not found", log.Fields{
 			"args": args,
 		})
@@ -99,7 +99,7 @@ func (r *gql.Resolver) Project(ctx context.Context, args *struct {
 	}
 
 	// get environment
-	if r.DB().Where("id = ?", *args.EnvironmentID).Find(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", *args.EnvironmentID).Find(&environment).RecordNotFound() {
 		log.InfoWithFields("Environment not found", log.Fields{
 			"args": args,
 		})
@@ -110,7 +110,7 @@ func (r *gql.Resolver) Project(ctx context.Context, args *struct {
 }
 
 // Projects
-func (r *gql.Resolver) Projects(ctx context.Context, args *struct {
+func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *ProjectSearchInput
 }) ([]*ProjectResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
@@ -121,18 +121,18 @@ func (r *gql.Resolver) Projects(ctx context.Context, args *struct {
 	var results []*ProjectResolver
 	if args.ProjectSearch.Repository != nil {
 
-		r.DB().Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
+		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
 
 	} else {
 		var projectBookmarks []ProjectBookmark
 
-		r.DB().Where("user_id = ?", ctx.Value("jwt").(Claims).UserID).Find(&projectBookmarks)
+		r.DB.Where("user_id = ?", ctx.Value("jwt").(Claims).UserID).Find(&projectBookmarks)
 
 		var projectIds []uuid.UUID
 		for _, bookmark := range projectBookmarks {
 			projectIds = append(projectIds, bookmark.ProjectID)
 		}
-		r.DB().Where("id in (?)", projectIds).Find(&rows)
+		r.DB.Where("id in (?)", projectIds).Find(&rows)
 	}
 
 	for _, project := range rows {
@@ -142,7 +142,7 @@ func (r *gql.Resolver) Projects(ctx context.Context, args *struct {
 	return results, nil
 }
 
-func (r *gql.Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
+func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (r *gql.Resolver) Features(ctx context.Context) ([]*FeatureResolver, error)
 	var rows []Feature
 	var results []*FeatureResolver
 
-	r.DB().Order("created_at desc").Find(&rows)
+	r.DB.Order("created_at desc").Find(&rows)
 	for _, feature := range rows {
 		results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})
 	}
@@ -158,7 +158,7 @@ func (r *gql.Resolver) Features(ctx context.Context) ([]*FeatureResolver, error)
 	return results, nil
 }
 
-func (r *gql.Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
+func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (r *gql.Resolver) Services(ctx context.Context) ([]*ServiceResolver, error)
 	var rows []Service
 	var results []*ServiceResolver
 
-	r.DB().Order("created_at desc").Find(&rows)
+	r.DB.Order("created_at desc").Find(&rows)
 	for _, service := range rows {
 		results = append(results, &ServiceResolver{DB: r.DB, Service: service})
 	}
@@ -174,7 +174,7 @@ func (r *gql.Resolver) Services(ctx context.Context) ([]*ServiceResolver, error)
 	return results, nil
 }
 
-func (r *gql.Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
+func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (r *gql.Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver
 	var rows []ServiceSpec
 	var results []*ServiceSpecResolver
 
-	r.DB().Order("created_at desc").Find(&rows)
+	r.DB.Order("created_at desc").Find(&rows)
 	for _, serviceSpec := range rows {
 		results = append(results, &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec})
 	}
@@ -190,7 +190,7 @@ func (r *gql.Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver
 	return results, nil
 }
 
-func (r *gql.Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
+func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (r *gql.Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error)
 	var rows []Release
 	var results []*ReleaseResolver
 
-	r.DB().Order("created_at desc").Find(&rows)
+	r.DB.Order("created_at desc").Find(&rows)
 	for _, release := range rows {
 		results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
 	}
@@ -206,7 +206,7 @@ func (r *gql.Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error)
 	return results, nil
 }
 
-func (r *gql.Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
+func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -218,21 +218,21 @@ func (r *gql.Resolver) Environments(ctx context.Context, args *struct{ ProjectSl
 		var project Project
 		var permissions []ProjectEnvironment
 
-		if err := r.DB().Where("slug = ?", *args.ProjectSlug).First(&project).Error; err != nil {
+		if err := r.DB.Where("slug = ?", *args.ProjectSlug).First(&project).Error; err != nil {
 			return nil, err
 		}
 
-		r.DB().Where("project_id = ?", project.Model.ID).Find(&permissions)
+		r.DB.Where("project_id = ?", project.Model.ID).Find(&permissions)
 		for _, permission := range permissions {
 			var environment Environment
-			r.DB().Where("id = ?", permission.EnvironmentID).Find(&environment)
+			r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
 			results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
 		}
 
 		return results, nil
 	}
 
-	r.DB().Order("created_at desc").Find(&environments)
+	r.DB.Order("created_at desc").Find(&environments)
 	for _, environment := range environments {
 		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
 	}
@@ -240,7 +240,7 @@ func (r *gql.Resolver) Environments(ctx context.Context, args *struct{ ProjectSl
 	return results, nil
 }
 
-func (r *gql.Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
+func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil, err
 	}
@@ -248,17 +248,17 @@ func (r *gql.Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	var rows []Secret
 	var results []*SecretResolver
 
-	r.DB().Where("scope != ?", "project").Order("created_at desc").Find(&rows)
+	r.DB.Where("scope != ?", "project").Order("created_at desc").Find(&rows)
 	for _, secret := range rows {
 		var secretValue SecretValue
-		r.DB().Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
+		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
 		results = append(results, &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue})
 	}
 
 	return results, nil
 }
 
-func (r *gql.Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
+func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -267,14 +267,14 @@ func (r *gql.Resolver) Extensions(ctx context.Context, args *struct{ Environment
 	var results []*ExtensionResolver
 
 	if args.EnvironmentID != nil {
-		r.DB().Where("extensions.environment_id = ?", args.EnvironmentID).Order(`
+		r.DB.Where("extensions.environment_id = ?", args.EnvironmentID).Order(`
 			CASE extensions.type
 				WHEN 'workflow' THEN 1
 				WHEN 'deployment' THEN 2
 				ELSE 3
 			END, extensions.key ASC`).Find(&rows)
 	} else {
-		r.DB().Order(`
+		r.DB.Order(`
 			CASE extensions.type
 				WHEN 'workflow' THEN 1
 				WHEN 'deployment' THEN 2
@@ -289,7 +289,7 @@ func (r *gql.Resolver) Extensions(ctx context.Context, args *struct{ Environment
 	return results, nil
 }
 
-func (r *gql.Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionResolver, error) {
+func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -297,7 +297,7 @@ func (r *gql.Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensi
 	var rows []ProjectExtension
 	var results []*ProjectExtensionResolver
 
-	r.DB().Order("created_at desc").Find(&rows)
+	r.DB.Order("created_at desc").Find(&rows)
 	for _, extension := range rows {
 		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
 	}
@@ -305,7 +305,7 @@ func (r *gql.Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensi
 	return results, nil
 }
 
-func (r *gql.Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
+func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
 	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (r *gql.Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensi
 	var rows []ReleaseExtension
 	var results []*ReleaseExtensionResolver
 
-	r.DB().Order("created_at desc").Find(&rows)
+	r.DB.Order("created_at desc").Find(&rows)
 	for _, releaseExtension := range rows {
 		results = append(results, &ReleaseExtensionResolver{DB: r.DB, ReleaseExtension: releaseExtension})
 	}
@@ -322,11 +322,11 @@ func (r *gql.Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensi
 }
 
 // Permissions
-func (r *gql.Resolver) Permissions(ctx context.Context) (JSON, error) {
+func (r *Resolver) Permissions(ctx context.Context) (JSON, error) {
 	var rows []UserPermission
 	var results = make(map[string]bool)
 
-	r.DB().Unscoped().Select("DISTINCT(value)").Find(&rows)
+	r.DB.Unscoped().Select("DISTINCT(value)").Find(&rows)
 
 	for _, userPermission := range rows {
 		if _, err := CheckAuth(ctx, []string{userPermission.Value}); err != nil {

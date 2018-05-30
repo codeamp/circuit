@@ -2,14 +2,14 @@ package codeamp
 
 import (
 	"github.com/codeamp/circuit/plugins"
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
 	"github.com/codeamp/transistor"
 )
 
 func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 	payload := e.Payload.(plugins.HeartBeat)
 
-	var projects []resolvers.Project
+	var projects []resolver.Project
 
 	x.DB.Find(&projects)
 	for _, project := range projects {

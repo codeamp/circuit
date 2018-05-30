@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
-func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release) {
-	project := resolvers.Project{}
+func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolver.Release) {
+	project := resolver.Project{}
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"id": release.ProjectID,
@@ -20,7 +20,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		return
 	}
 
-	headFeature := resolvers.Feature{}
+	headFeature := resolver.Feature{}
 	if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 		log.InfoWithFields("head feature not found", log.Fields{
 			"id": release.HeadFeatureID,
@@ -28,7 +28,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		return
 	}
 
-	tailFeature := resolvers.Feature{}
+	tailFeature := resolver.Feature{}
 	if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
 		log.InfoWithFields("tail feature not found", log.Fields{
 			"id": release.TailFeatureID,
@@ -36,7 +36,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		return
 	}
 
-	environment := resolvers.Environment{}
+	environment := resolver.Environment{}
 	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
 			"id": release.EnvironmentID,
@@ -44,7 +44,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		return
 	}
 
-	user := resolvers.User{}
+	user := resolver.User{}
 	if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
 		log.InfoWithFields("user not found", log.Fields{
 			"id": release.UserID,
@@ -53,7 +53,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 
 	// get all branches relevant for the projec
 	branch := "master"
-	projectSettings := resolvers.ProjectSettings{}
+	projectSettings := resolver.ProjectSettings{}
 	if x.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
 		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.WarnWithFields("no env project branch found", log.Fields{})
@@ -61,14 +61,14 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 		branch = projectSettings.GitBranch
 	}
 
-	var secrets []resolvers.Secret
+	var secrets []resolver.Secret
 	err := json.Unmarshal(release.Secrets.RawMessage, &secrets)
 	if err != nil {
 		log.Error(err.Error(), log.Fields{})
 		return
 	}
 
-	var services []resolvers.Service
+	var services []resolver.Service
 	err = json.Unmarshal(release.Services.RawMessage, &services)
 	if err != nil {
 		log.Error(err.Error(), log.Fields{})
@@ -77,7 +77,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 
 	var pluginServices []plugins.Service
 	for _, service := range services {
-		var spec resolvers.ServiceSpec
+		var spec resolver.ServiceSpec
 		if x.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
 				"id": service.ServiceSpecID,
@@ -85,7 +85,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 			return
 		}
 
-		pluginServices = resolvers.AppendPluginService(pluginServices, service, spec)
+		pluginServices = resolver.AppendPluginService(pluginServices, service, spec)
 	}
 
 	var pluginSecrets []plugins.Secret
@@ -142,14 +142,14 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseExtensionDeploymentsCount := 0
-	releaseExtensions := []resolvers.ReleaseExtension{}
+	releaseExtensions := []resolver.ReleaseExtension{}
 	artifacts := []transistor.Artifact{}
 
 	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 	for _, releaseExtension := range releaseExtensions {
 		// collect workflow artifacts
 		if releaseExtension.Type == plugins.GetType("workflow") {
-			projectExtension := resolvers.ProjectExtension{}
+			projectExtension := resolver.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
 					"id": releaseExtension.ProjectExtensionID,
@@ -158,7 +158,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 				return
 			}
 
-			extension := resolvers.Extension{}
+			extension := resolver.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
 					"id": projectExtension.Model.ID,
@@ -193,7 +193,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 				releaseExtension.StateMessage = release.StateMessage
 			}
 
-			projectExtension := resolvers.ProjectExtension{}
+			projectExtension := resolver.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
 					"id": releaseExtension.ProjectExtensionID,
@@ -202,7 +202,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 				return
 			}
 
-			extension := resolvers.Extension{}
+			extension := resolver.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
 					"id": projectExtension.Model.ID,
@@ -211,7 +211,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *resolvers.Release)
 				return
 			}
 
-			projectExtensionArtifacts, err := resolvers.ExtractArtifacts(projectExtension, extension, x.DB)
+			projectExtensionArtifacts, err := resolver.ExtractArtifacts(projectExtension, extension, x.DB)
 			if err != nil {
 				log.Error(err.Error())
 			}

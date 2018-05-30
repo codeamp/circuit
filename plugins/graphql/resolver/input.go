@@ -1,4 +1,4 @@
-package codeamp_resolvers
+package graphql_resolver
 
 // ServicePortInput
 type ServicePortInput struct {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -14,8 +14,8 @@ import (
 func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.ReleaseExtension)
 
-	var releaseExtension resolvers.ReleaseExtension
-	var release resolvers.Release
+	var releaseExtension resolver.ReleaseExtension
+	var release resolver.Release
 
 	if e.Matches("release:.*:status") {
 		if x.DB.Where("id = ?", payload.Release.ID).Find(&release).RecordNotFound() {
@@ -55,11 +55,11 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	return nil
 }
 
-func (x *CodeAmp) ReleaseExtensionCompleted(re *resolvers.ReleaseExtension) {
-	project := resolvers.Project{}
-	release := resolvers.Release{}
-	environment := resolvers.Environment{}
-	releaseExtensions := []resolvers.ReleaseExtension{}
+func (x *CodeAmp) ReleaseExtensionCompleted(re *resolver.ReleaseExtension) {
+	project := resolver.Project{}
+	release := resolver.Release{}
+	environment := resolver.Environment{}
+	releaseExtensions := []resolver.ReleaseExtension{}
 
 	if x.DB.Where("id = ?", re.ReleaseID).First(&release).RecordNotFound() {
 		log.ErrorWithFields("release not found", log.Fields{

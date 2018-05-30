@@ -1,4 +1,4 @@
-package codeamp_resolvers
+package graphql_resolver
 
 import (
 	"context"
@@ -26,9 +26,6 @@ type Resolver struct {
 	Events chan transistor.Event
 	// Redis
 	Redis *redis.Client
-}
-
-type GraphQLResolver struct {
 }
 
 // Default fields for a model

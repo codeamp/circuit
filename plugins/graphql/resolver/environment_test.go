@@ -1,11 +1,11 @@
-package codeamp_resolvers_test
+package graphql_resolver_test
 
 import (
 	"fmt"
 	"log"
 	"testing"
 
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -16,7 +16,7 @@ import (
 
 type EnvironmentTestSuite struct {
 	suite.Suite
-	Resolver *resolvers.Resolver
+	Resolver *resolver.Resolver
 }
 
 func (suite *EnvironmentTestSuite) SetupTest() {
@@ -38,23 +38,23 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 	db.AutoMigrate(
-		&resolvers.Environment{},
+		&resolver.Environment{},
 	)
 	// clean, just in case
-	db.Delete(&resolvers.Environment{})
-	suite.Resolver = &resolvers.Resolver{DB: db}
+	db.Delete(&resolver.Environment{})
+	suite.Resolver = &resolver.Resolver{DB: db}
 }
 
 /* Test successful env. creation */
 func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
-	envInput := resolvers.EnvironmentInput{
+	envInput := resolver.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo",
 		IsDefault: true,
 		Color:     "color",
 	}
 
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
+	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolver.EnvironmentInput }{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -69,14 +69,14 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 
 /* Test successful env. update */
 func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
-	envInput := resolvers.EnvironmentInput{
+	envInput := resolver.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo",
 		IsDefault: true,
 		Color:     "color",
 	}
 
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
+	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolver.EnvironmentInput }{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -91,7 +91,7 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	// IsDefault SHOULD be ignored since it's the only default env
 	envInput.IsDefault = false
 
-	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
+	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolver.EnvironmentInput }{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -107,28 +107,28 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 }
 
 func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
-	envInput := resolvers.EnvironmentInput{
+	envInput := resolver.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo",
 		IsDefault: true,
 		Color:     "color",
 	}
 
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
+	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolver.EnvironmentInput }{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	assert.Equal(suite.T(), envResolver.Key(), "foo")
 
-	envInput2 := resolvers.EnvironmentInput{
+	envInput2 := resolver.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo2",
 		IsDefault: true,
 		Color:     "color",
 	}
 
-	envResolver2, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput2})
+	envResolver2, err := suite.Resolver.CreateEnvironment(nil, &struct{ Environment *resolver.EnvironmentInput }{Environment: &envInput2})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -140,7 +140,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	envId := envResolver.Environment.Model.ID.String()
 	envInput.ID = &envId
 
-	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput})
+	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolver.EnvironmentInput }{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -152,7 +152,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	envId = envResolver2.Environment.Model.ID.String()
 	envInput2.ID = &envId
 
-	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolvers.EnvironmentInput }{Environment: &envInput2})
+	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct{ Environment *resolver.EnvironmentInput }{Environment: &envInput2})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -164,7 +164,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 
 func (suite *EnvironmentTestSuite) TearDownTest(ids []string) {
 	for _, id := range ids {
-		suite.Resolver.DB.Where("id = ?", id).Delete(&resolvers.Environment{})
+		suite.Resolver.DB.Where("id = ?", id).Delete(&resolver.Environment{})
 	}
 }
 

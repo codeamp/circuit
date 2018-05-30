@@ -3,10 +3,7 @@ package codeamp
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -14,13 +11,11 @@ import (
 	sioredis "github.com/azhao1981/go-socket.io-redis"
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	redis "github.com/go-redis/redis"
-	"github.com/gorilla/handlers"
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/spf13/viper"
@@ -46,7 +41,7 @@ type CodeAmp struct {
 	SocketIO       *socketio.Server
 	DB             *gorm.DB
 	Redis          *redis.Client
-	Resolver       *resolvers.Resolver
+	Resolver       *resolver.Resolver
 }
 
 //Custom server which basically only contains a socketio variable
@@ -63,29 +58,6 @@ func (s *socketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 	w.Header().Set("Access-Control-Allow-Origin", origin)
 	s.Server.ServeHTTP(w, r)
-}
-
-func (x *CodeAmp) GraphQLListen() {
-	x.SocketIO.On("connection", func(so socketio.Socket) {
-		so.Join("general")
-	})
-
-	x.SocketIO.On("error", func(so socketio.Socket, err error) {
-		log.Println("socket-io error:", err)
-	})
-
-	sIOServer := new(socketIOServer)
-	sIOServer.Server = x.SocketIO
-	http.Handle("/socket.io/", sIOServer)
-
-	_, filename, _, _ := runtime.Caller(0)
-	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
-	http.Handle("/", fs)
-
-	http.Handle("/query", resolvers.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
-
-	log.Info(fmt.Sprintf("running GraphQL server on %v", x.ServiceAddress))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
 }
 
 func (x *CodeAmp) initPostGres() (*gorm.DB, error) {
@@ -108,7 +80,7 @@ func (x *CodeAmp) initPostGres() (*gorm.DB, error) {
 	return db, nil
 }
 
-func (x *CodeAmp) initGraphQL(resolver *interface{}) {
+func (x *CodeAmp) initGraphQL(resolver interface{}) {
 	schema, err := assets.Asset("plugins/codeamp/schema.graphql")
 	if err != nil {
 		log.Panic(err)
@@ -166,13 +138,10 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 
 	x.initRedis()
 
-	x.Resolver = &resolvers.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
+	x.Resolver = &resolver.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
 	x.initGraphQL(x.Resolver)
 
 	x.Events = events
-
-	go x.GraphQLListen()
-
 	log.Info("Starting CodeAmp service")
 	return nil
 }

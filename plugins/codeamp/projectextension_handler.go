@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	resolver "github.com/codeamp/circuit/plugins/graphql/resolver"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -13,8 +13,8 @@ import (
 
 func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
-	var extension resolvers.ProjectExtension
-	var project resolvers.Project
+	var extension resolver.ProjectExtension
+	var project resolver.Project
 
 	if e.Matches("project:.*:status") {
 		if x.DB.Where("id = ?", payload.ID).Find(&extension).RecordNotFound() {
