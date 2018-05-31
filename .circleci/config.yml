@@ -23,8 +23,18 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run: 
-          name: Build Docker Container
+          name: Build Docker Containers
           command: |
             set -x
             sudo rm -rf /go/src/github.com/codeamp/circuit/bootstrap
-            docker build . -t codeamp-circuit:latest
+            docker-compose build postgres testing 
+      # - run: 
+      #     name: Bootstrap Postgres
+      #     command: |
+      #       set -x
+      #       docker exec circuit_postgres /bin/bash && createdb codeamp_test -U postgres
+      - run: 
+          name: Run Tests
+          command: |
+            set -x
+            docker-compose run --rm testing            
