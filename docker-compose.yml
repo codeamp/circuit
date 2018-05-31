@@ -29,7 +29,7 @@ services:
     command: sh -c "go test -v -cover ./..."
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     depends_on:
       - postgres
       - redis
@@ -45,7 +45,7 @@ services:
     command: sh -c "/usr/local/bin/dex serve configs/dex.yml & reflex -c reflex.conf"
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       args:
         pull: 1
     environment:
