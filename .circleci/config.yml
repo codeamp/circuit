@@ -20,7 +20,7 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run: 
-          name: Build Docker Containers
+          name: Build Docker Container
           command: |
             set -x
 
