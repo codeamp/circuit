@@ -19,7 +19,6 @@ jobs:
     working_directory: /go/src/github.com/codeamp/circuit
     steps:
       - checkout
-      - setup_remote_docker
 
       # specify any bash command here prefixed with `run: `
       - run: 
