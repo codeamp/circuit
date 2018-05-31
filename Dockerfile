@@ -15,3 +15,4 @@ RUN go get -u github.com/jteeuwen/go-bindata/...
 RUN mkdir -p assets/
 RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/schema.graphql
 RUN go build -i -v -o /go/bin/codeamp-circuit .
+RUN go get golang.org/x/tools/cmd/cover

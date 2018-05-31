@@ -23,6 +23,9 @@ jobs:
           name: Build Docker Containers
           command: |
             set -x
+
+            echo "RUN go get golang.org/x/tools/cmd/cover" >> Dockerfile
+            echo "RUN go get github.com/mattn/goveralls" >> Dockerfile
             docker-compose build testing 
       # - run: 
       #     name: Bootstrap Postgres
@@ -33,5 +36,4 @@ jobs:
           name: Run Tests
           command: |
             set -x
-            docker-compose run --rm testing /bin/sh -c "ls -athl ."
-            docker-compose run --rm testing            
+            docker-compose run --rm circuit /bin/sh -c "go test -v -cover ./..."            

@@ -24,22 +24,6 @@ services:
       - ./bootstrap/postgres/data:/var/lib/postgresql/data
     networks:
       - codeamp
-  testing:
-    image: testing
-    command: sh -c "go test -v -cover ./..."
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      - postgres
-      - redis
-      - registry
-    networks:
-      - codeamp
-    volumes:
-      - .:/go/src/github.com/codeamp/circuit
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./:/etc/dex
   circuit:
     image: circuit
     command: sh -c "/usr/local/bin/dex serve configs/dex.yml & reflex -c reflex.conf"
