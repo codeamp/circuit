@@ -26,7 +26,6 @@ jobs:
           name: Build Docker Containers
           command: |
             set -x
-            sudo rm -rf /go/src/github.com/codeamp/circuit/bootstrap
             docker-compose build postgres testing 
       # - run: 
       #     name: Bootstrap Postgres
