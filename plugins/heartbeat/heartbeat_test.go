@@ -1,13 +1,12 @@
 package heartbeat_test
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
-	"github.com/codeamp/circuit/plugins/heartbeat"
+	_ "github.com/codeamp/circuit/plugins/heartbeat"
+	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -24,19 +23,7 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	viper.SetConfigType("yaml")
-	viper.ReadConfig(bytes.NewBuffer(viperConfig))
-
-	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
-		return &heartbeat.Heartbeat{}
-	})
-
-	config := transistor.Config{
-		Plugins:        viper.GetStringMap("plugins"),
-		EnabledPlugins: []string{"heartbeat"},
-	}
-	ag, _ := transistor.NewTestTransistor(config)
-	suite.transistor = ag
+	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
 }
 
@@ -46,8 +33,13 @@ func (suite *TestSuite) TearDownSuite() {
 
 func (suite *TestSuite) TestHeartbeat() {
 	var e transistor.Event
+	var err error
 
-	e = suite.transistor.GetTestEvent(plugins.GetEventName("heartbeat"), plugins.GetAction("status"), 61)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), 61)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
 	payload := e.Payload.(plugins.HeartBeat)
 	assert.Equal(suite.T(), "minute", payload.Tick)
 }

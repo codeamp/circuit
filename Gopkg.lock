@@ -107,7 +107,7 @@
   branch = "master"
   name = "github.com/codeamp/transistor"
   packages = ["."]
-  revision = "2aed1d874103c833972c7526faaf303555b0bd54"
+  revision = "dce92d8d5551662bd5d772d0d6a73980bf0fe69f"
 
 [[projects]]
   branch = "master"
@@ -823,6 +823,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b4d0de6698558ea2ef0a3beef70c14bf3ae0735372dae1daf6768dfce013990b"
+  inputs-digest = "db420a28398ea784bb9f845fc97dfb51bffbbaa716512f2a6fb6086e05135231"
   solver-name = "gps-cdcl"
   solver-version = 1
