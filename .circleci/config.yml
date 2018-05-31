@@ -35,7 +35,11 @@ jobs:
       - run: 
           name: Run Tests
           command: |
-            set -x -o pipefail
-
+            set -x
             docker-compose run --rm circuit /bin/sh -c "go test -v -covermode=count -coverprofile=coverage.out ./..."
+            
+      - run:
+          name: Report Test Coverage
+          command: |
+            set -x
             docker-compose run -e COVERALLS_TOKEN=$COVERALS_TOKEN circuit /bin/sh -c "goveralls -coverprofile=coverage.out -service=circle-ci -repotoken ${COVERALLS_TOKEN}"
