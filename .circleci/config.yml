@@ -37,4 +37,4 @@ jobs:
           command: |
             docker-compose run --rm circuit /bin/sh -c "go test -v -covermode=count -coverprofile=coverage.out ./..." || EXIT_CODE=$? && true
             docker-compose run -e COVERALLS_TOKEN=$COVERALS_TOKEN circuit /bin/sh -c "goveralls -coverprofile=coverage.out -service=circle-ci -repotoken ${COVERALLS_TOKEN}"
-            echo $EXIT_CODE
+            exit $EXIT_CODE
