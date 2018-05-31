@@ -26,7 +26,7 @@ jobs:
 
             echo "RUN go get golang.org/x/tools/cmd/cover" >> Dockerfile
             echo "RUN go get github.com/mattn/goveralls" >> Dockerfile
-            docker-compose build testing 
+            docker-compose build circuit 
       # - run: 
       #     name: Bootstrap Postgres
       #     command: |
