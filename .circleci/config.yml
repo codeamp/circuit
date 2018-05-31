@@ -5,9 +5,9 @@ version: 2
 
 jobs:
   build:
-    docker:
+    machine:
       # specify the version
-      - image: circleci/golang:1.8
+      - image: circleci/classic:201708-01
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
       # documented at https://circleci.com/docs/2.0/circleci-images/
@@ -22,13 +22,6 @@ jobs:
       - setup_remote_docker
 
       # specify any bash command here prefixed with `run: `
-      - run:
-          name: Install Docker Compose
-          command: |
-            set -x
-            wget -L https://github.com/docker/compose/releases/download/1.17.1/docker-compose-Linux-x86_64 >~/docker-compose
-            chmod +x ~/docker-compose
-            sudo mv ~/docker-compose /usr/local/bin/docker-compose
       - run: 
           name: Build Docker Containers
           command: |
