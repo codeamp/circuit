@@ -26,7 +26,7 @@ jobs:
           name: Build Docker Containers
           command: |
             set -x
-            docker-compose build postgres testing 
+            docker-compose build testing 
       # - run: 
       #     name: Bootstrap Postgres
       #     command: |
