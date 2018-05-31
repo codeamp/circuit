@@ -22,6 +22,13 @@ jobs:
       - setup_remote_docker
 
       # specify any bash command here prefixed with `run: `
+      - run:
+          name: Install Docker Compose
+          command: |
+            set -x
+            wget -L https://github.com/docker/compose/releases/download/1.17.1/docker-compose-Linux-x86_64 >~/docker-compose
+            chmod +x ~/docker-compose
+            sudo mv ~/docker-compose /usr/local/bin/docker-compose
       - run: 
           name: Build Docker Containers
           command: |
