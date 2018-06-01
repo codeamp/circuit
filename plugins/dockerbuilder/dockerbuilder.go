@@ -184,6 +184,21 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 		return err
 	}
 
+	user, err := event.GetArtifact("user")
+	if err != nil {
+		return err
+	}
+
+	password, err := event.GetArtifact("password")
+	if err != nil {
+		return err
+	}
+
+	email, err := event.GetArtifact("email")
+	if err != nil {
+		return err
+	}
+
 	dockerBuildIn := bytes.NewBuffer(nil)
 	go func() {
 		io.Copy(os.Stderr, gitArchiveErr)
@@ -208,12 +223,18 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 		}
 	}
 	fullImagePath := fullImagePath(event)
+	authConfig := docker.AuthConfiguration{
+		Username: user.String(),
+		Password: password.String(),
+		Email:    email.String(),
+	}
 	buildOptions := docker.BuildImageOptions{
 		Dockerfile:   fmt.Sprintf("Dockerfile"),
 		Name:         fullImagePath,
 		OutputStream: dockerBuildOut,
 		InputStream:  dockerBuildIn,
 		BuildArgs:    buildArgs,
+		Auth:         authConfig,
 	}
 
 	dockerClient, err := docker.NewClient(x.Socket)
