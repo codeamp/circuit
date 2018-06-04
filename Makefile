@@ -1,5 +1,5 @@
 SERVICE="circuit"
-CONFIG="./configs/circuit.dev.yml"
+CONFIG="./configs/circuit.yml"
 
 up:
 	docker-compose up -d redis postgres

@@ -9,13 +9,13 @@ redis:
 plugins:
   codeamp:
     workers: 1
-    oidc_uri: http://localhost:5556/dex
+    oidc_uri: http://0.0.0.0:5556/dex
     oidc_client_id: example-app
     postgres:
-      host: "0.0.0.0"
+      host: "postgres"
       port: "5432"
       user: "postgres"
-      dbname: "codeamp_test"
+      dbname: "codeamp"
       sslmode: "disable"
       password: ""
     service_address: ":3011"
@@ -24,10 +24,8 @@ plugins:
     workdir: "/tmp/gitsync" 
   heartbeat:
     workers: 1
-  kubernetesdeployments:
+  kubernetes:
     workers: 1
-  kubernetesloadbalancers:
-    workers: 1    
   githubstatus:
     workers: 1
   route53:
