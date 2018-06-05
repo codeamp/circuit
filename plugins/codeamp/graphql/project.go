@@ -6,16 +6,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 )
 
 // Project
 type Project struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// Name
 	Name string `json:"name"`
 	// Slug
@@ -36,7 +39,7 @@ type Project struct {
 
 // Project settings
 type ProjectSettings struct {
-	Model `json:"inline"`
+	model.Model `json:"inline"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// ProjectID
@@ -49,7 +52,7 @@ type ProjectSettings struct {
 
 // ProjectEnvironment
 type ProjectEnvironment struct {
-	Model `json:"inline"`
+	model.Model `json:"inline"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// ProjectID
@@ -58,7 +61,7 @@ type ProjectEnvironment struct {
 
 // ProjectEnvironment
 type ProjectBookmark struct {
-	Model `json:"inline"`
+	model.Model `json:"inline"`
 	// UserID
 	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
 	// ProjectID
@@ -193,7 +196,7 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -269,7 +272,7 @@ func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
 	var userID string
 	var err error
 
-	if userID, err = CheckAuth(ctx, []string{}); err != nil {
+	if userID, err = db_resolver.CheckAuth(ctx, []string{}); err != nil {
 		return false
 	}
 

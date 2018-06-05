@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -16,7 +18,7 @@ import (
 )
 
 type Release struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// State
 	State transistor.State `json:"state"`
 	// StateMessage
@@ -80,7 +82,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 	var releaseExtensions []ReleaseExtension
 
 	isAdmin := false
-	if _, err := CheckAuth(ctx, []string{"admin"}); err == nil {
+	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err == nil {
 		isAdmin = true
 	}
 

@@ -3,13 +3,14 @@ package graphql_resolver
 import (
 	"encoding/json"
 
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 )
 
 // ServiceSpec
 type ServiceSpec struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// Name
 	Name string `json:"name"`
 	// CpuRequest

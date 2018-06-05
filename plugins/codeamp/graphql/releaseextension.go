@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -16,7 +17,7 @@ import (
 
 // ReleaseExtension
 type ReleaseExtension struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// ReleaseID
 	ReleaseID uuid.UUID `json:"releaseID" gorm:"type:uuid"`
 	// FetureHash

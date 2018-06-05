@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -14,7 +15,7 @@ import (
 
 // Service
 type Service struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// ProjectID
 	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
 	// ServiceSpecID
@@ -34,7 +35,7 @@ type Service struct {
 }
 
 type ServicePort struct {
-	Model `json:-",inline"`
+	model.Model `json:-",inline"`
 	// ServiceID
 	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
 	// Protocol

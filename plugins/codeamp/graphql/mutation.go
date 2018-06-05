@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/extemporalgenome/slug"
@@ -120,7 +121,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		}
 	}
 
-	if userId, err := CheckAuth(ctx, []string{}); err != nil {
+	if userId, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	} else {
 		// Create user permission for project
@@ -198,7 +199,7 @@ func (r *Resolver) UpdateProject(args *struct {
 
 // StopRelease
 func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID }) (*ReleaseResolver, error) {
-	userID, err := CheckAuth(ctx, []string{})
+	userID, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &ReleaseResolver{}, err
 	}
@@ -455,7 +456,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 		tailFeatureID = currentRelease.HeadFeatureID
 	}
 
-	userID, err := CheckAuth(ctx, []string{})
+	userID, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &ReleaseResolver{}, err
 	}
@@ -961,7 +962,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *Secre
 		return nil, fmt.Errorf("Couldn't parse environmentID. Invalid format.")
 	}
 
-	userIDString, err := CheckAuth(ctx, []string{})
+	userIDString, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &SecretResolver{}, err
 	}
@@ -1003,7 +1004,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *Secre
 func (r *Resolver) UpdateSecret(ctx context.Context, args *struct{ Secret *SecretInput }) (*SecretResolver, error) {
 	var secret Secret
 
-	userIDString, err := CheckAuth(ctx, []string{})
+	userIDString, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &SecretResolver{}, err
 	}
@@ -1361,7 +1362,7 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 	}
 
 	for _, permission := range args.UserPermissions.Permissions {
-		if _, err = CheckAuth(ctx, []string{permission.Value}); err != nil {
+		if _, err = db_resolver.CheckAuth(ctx, []string{permission.Value}); err != nil {
 			return nil, err
 		}
 	}
@@ -1417,7 +1418,7 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct{ 
 func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql.ID }) (bool, error) {
 	var projectBookmark ProjectBookmark
 
-	_userID, err := CheckAuth(ctx, []string{})
+	_userID, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return false, err
 	}

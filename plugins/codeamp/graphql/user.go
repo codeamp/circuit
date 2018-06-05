@@ -4,14 +4,17 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 )
 
 // User
 type User struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// Email
 	Email string `json:"email"`
 	// Password
@@ -22,7 +25,7 @@ type User struct {
 
 // User permission
 type UserPermission struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// UserID
 	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
 	// Value
@@ -47,7 +50,7 @@ func (r *UserResolver) Email() string {
 
 // Permissions
 func (r *UserResolver) Permissions(ctx context.Context) []string {
-	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
+	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil
 	}
 

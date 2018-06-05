@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -13,7 +14,7 @@ import (
 
 // Secret
 type Secret struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// Key
 	Key string `json:"key"`
 	// Value
@@ -40,7 +41,7 @@ func (s *Secret) AfterFind(tx *gorm.DB) (err error) {
 }
 
 type SecretValue struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// SecretID
 	SecretID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
 	// Value

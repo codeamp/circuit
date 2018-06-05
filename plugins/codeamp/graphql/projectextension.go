@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -14,7 +15,7 @@ import (
 
 // ProjectExtension
 type ProjectExtension struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// ProjectID
 	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
 	// ExtensionID

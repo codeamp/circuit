@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
@@ -11,7 +12,7 @@ import (
 
 // Feature
 type Feature struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// ProjectID
 	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
 	// Message

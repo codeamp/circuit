@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -14,7 +15,7 @@ import (
 
 // ProjectExtension spec
 type Extension struct {
-	Model `json:",inline"`
+	model.Model `json:",inline"`
 	// Type
 	Type plugins.Type `json:"type"`
 	// Key

@@ -3,10 +3,8 @@ package graphql_resolver
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	log "github.com/codeamp/logger"
@@ -14,8 +12,9 @@ import (
 	oidc "github.com/coreos/go-oidc"
 	"github.com/go-redis/redis"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 )
 
 // Resolver is the main resolver for all queries
@@ -28,31 +27,9 @@ type Resolver struct {
 	Redis *redis.Client
 }
 
-// Default fields for a model
-type Model struct {
-	// ID
-	ID uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id" gorm:"primary_key"`
-	// CreatedAt
-	CreatedAt time.Time `json:"createdAt"`
-	// UpdatedAt
-	UpdatedAt time.Time `json:"updatedAt"`
-	// DeletedAt
-	DeletedAt *time.Time `json:"deletedAt" sql:"index"`
-}
-
-//Claims
-type Claims struct {
-	UserID      string   `json:"userID"`
-	Email       string   `json:"email"`
-	Verified    bool     `json:"email_verified"`
-	Groups      []string `json:"groups"`
-	Permissions []string `json:"permissions"`
-	TokenError  string   `json:"tokenError"`
-}
-
 func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		claims := Claims{}
+		claims := db_resolver.Claims{}
 		authString := r.Header.Get("Authorization")
 		ctx := context.Context(context.Background())
 
@@ -151,42 +128,4 @@ func CorsMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		}
 	})
-}
-
-func CheckAuth(ctx context.Context, scopes []string) (string, error) {
-	claims := ctx.Value("jwt").(Claims)
-
-	if claims.UserID == "" {
-		return "", errors.New(claims.TokenError)
-	}
-
-	if transistor.SliceContains("admin", claims.Permissions) {
-		return claims.UserID, nil
-	}
-
-	if len(scopes) == 0 {
-		return claims.UserID, nil
-	} else {
-		for _, scope := range scopes {
-			level := 0
-			levels := strings.Count(scope, "/")
-
-			if levels > 0 {
-				for level < levels {
-					if transistor.SliceContains(scope, claims.Permissions) {
-						return claims.UserID, nil
-					}
-					scope = scope[0:strings.LastIndexByte(scope, '/')]
-					level += 1
-				}
-			} else {
-				if transistor.SliceContains(scope, claims.Permissions) {
-					return claims.UserID, nil
-				}
-			}
-		}
-		return claims.UserID, errors.New("you dont have permission to access this resource")
-	}
-
-	return claims.UserID, nil
 }
