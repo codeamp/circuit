@@ -35,7 +35,7 @@ type Service struct {
 }
 
 type ServicePort struct {
-	model.Model `json:-",inline"`
+	model.Model `json:",inline"`
 	// ServiceID
 	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
 	// Protocol

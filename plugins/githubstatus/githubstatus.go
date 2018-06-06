@@ -103,10 +103,10 @@ func getStatus(e transistor.Event) (StatusResponse, error) {
 	client := &http.Client{}
 	req.SetBasicAuth(username.String(), token.String())
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return StatusResponse{}, err
 	}
+	defer resp.Body.Close()
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

@@ -165,6 +165,4 @@ func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 		}
 		return claims.UserID, errors.New("you dont have permission to access this resource")
 	}
-
-	return claims.UserID, nil
 }
