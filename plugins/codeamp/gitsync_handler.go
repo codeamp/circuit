@@ -6,11 +6,10 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
-
-	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 )
 
 func (x *CodeAmp) GitSync(project *graphql_resolver.Project) error {
@@ -116,7 +115,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 						// call CreateRelease for each env that has cd turned on
 						for _, setting := range projectSettings {
 							if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
-								adminContext := context.WithValue(context.Background(), "jwt", db_resolver.Claims{
+								adminContext := context.WithValue(context.Background(), "jwt", model.Claims{
 									UserID:      uuid.FromStringOrNil("codeamp").String(),
 									Email:       "codeamp",
 									Permissions: []string{"admin"},

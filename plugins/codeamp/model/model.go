@@ -37,3 +37,13 @@ type UserPermission struct {
 	// Value
 	Value string `json:"value"`
 }
+
+//Claims
+type Claims struct {
+	UserID      string   `json:"userID"`
+	Email       string   `json:"email"`
+	Verified    bool     `json:"email_verified"`
+	Groups      []string `json:"groups"`
+	Permissions []string `json:"permissions"`
+	TokenError  string   `json:"tokenError"`
+}

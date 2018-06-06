@@ -12,8 +12,6 @@ import (
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
-
-	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 )
 
 // Project
@@ -196,7 +194,7 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -272,7 +270,7 @@ func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
 	var userID string
 	var err error
 
-	if userID, err = db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if userID, err = CheckAuth(ctx, []string{}); err != nil {
 		return false
 	}
 

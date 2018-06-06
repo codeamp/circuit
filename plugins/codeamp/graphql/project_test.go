@@ -6,8 +6,8 @@ import (
 	"log"
 	"testing"
 
-	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
@@ -189,7 +189,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 			projectBookmark.Model.ID.String())
 	}
 
-	adminContext := context.WithValue(context.Background(), "jwt", db_resolver.Claims{
+	adminContext := context.WithValue(context.Background(), "jwt", model.Claims{
 		UserID:      userId.String(),
 		Email:       "codeamp",
 		Permissions: []string{"admin"},

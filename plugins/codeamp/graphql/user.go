@@ -8,8 +8,6 @@ import (
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
-
-	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 )
 
 // User
@@ -50,7 +48,7 @@ func (r *UserResolver) Email() string {
 
 // Permissions
 func (r *UserResolver) Permissions(ctx context.Context) []string {
-	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err != nil {
+	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil
 	}
 
