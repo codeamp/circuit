@@ -34,6 +34,8 @@ type Release struct {
 	TailFeatureID uuid.UUID `json:"tailFeatureID" gorm:"type:uuid"`
 	// Services
 	Services postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
+	// Secrets
+	Secrets postgres.Jsonb `json:"secrets" gorm:"type:jsonb;"`
 	// ProjectExtensions
 	ProjectExtensions postgres.Jsonb `json:"extensions" gorm:"type:jsonb;"`
 	// EnvironmentID
