@@ -19,6 +19,11 @@ jobs:
       - checkout
 
       # specify any bash command here prefixed with `run: `
+      - run:
+          name: Start Dependent Containers
+          command: |
+            set -x
+            docker-compose up -d postgres redis
       - run: 
           name: Build Docker Container
           command: |
