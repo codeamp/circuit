@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -130,7 +131,7 @@ func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*Featur
 	}
 
 	if !showDeployed {
-		var currentRelease Release
+		var currentRelease model.Release
 
 		if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 
@@ -152,7 +153,7 @@ func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*Featur
 
 // CurrentRelease
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
-	var currentRelease Release
+	var currentRelease model.Release
 
 	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("currentRelease does not exist", log.Fields{
@@ -168,7 +169,7 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 
 // Releases
 func (r *ProjectResolver) Releases() []*ReleaseResolver {
-	var rows []Release
+	var rows []model.Release
 	var results []*ReleaseResolver
 
 	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
@@ -194,7 +195,7 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -270,7 +271,7 @@ func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
 	var userID string
 	var err error
 
-	if userID, err = CheckAuth(ctx, []string{}); err != nil {
+	if userID, err = db_resolver.CheckAuth(ctx, []string{}); err != nil {
 		return false
 	}
 

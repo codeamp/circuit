@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -30,11 +31,11 @@ func (x *CodeAmp) Migrate() {
 	db.Set("gorm:auto_preload", true)
 
 	db.AutoMigrate(
-		&graphql_resolver.User{},
-		&graphql_resolver.UserPermission{},
+		&model.User{},
+		&model.UserPermission{},
 		&graphql_resolver.Project{},
 		&graphql_resolver.ProjectSettings{},
-		&graphql_resolver.Release{},
+		&model.Release{},
 		&graphql_resolver.Feature{},
 		&graphql_resolver.Service{},
 		&graphql_resolver.ServicePort{},
@@ -59,12 +60,12 @@ func (x *CodeAmp) Migrate() {
 				}
 
 				for _, email := range emails {
-					user := graphql_resolver.User{
+					user := model.User{
 						Email: email,
 					}
 					db.Save(&user)
 
-					userPermission := graphql_resolver.UserPermission{
+					userPermission := model.UserPermission{
 						UserID: user.Model.ID,
 						Value:  "admin",
 					}
@@ -129,7 +130,7 @@ func (x *CodeAmp) Migrate() {
 					"KUBECONFIG",
 				}
 
-				var user graphql_resolver.User
+				var user model.User
 				var environments []graphql_resolver.Environment
 
 				db.First(&user)

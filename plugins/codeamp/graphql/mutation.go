@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/db"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/extemporalgenome/slug"
@@ -120,11 +122,11 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		}
 	}
 
-	if userId, err := CheckAuth(ctx, []string{}); err != nil {
+	if userId, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	} else {
 		// Create user permission for project
-		userPermission := UserPermission{
+		userPermission := model.UserPermission{
 			UserID: uuid.FromStringOrNil(userId),
 			Value:  fmt.Sprintf("projects/%s", project.Repository),
 		}
@@ -198,16 +200,16 @@ func (r *Resolver) UpdateProject(args *struct {
 
 // StopRelease
 func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID }) (*ReleaseResolver, error) {
-	userID, err := CheckAuth(ctx, []string{})
+	userID, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &ReleaseResolver{}, err
 	}
 
-	var user User
+	var user model.User
 
 	r.DB.Where("id = ?", userID).Find(&user)
 
-	var release Release
+	var release model.Release
 	var releaseExtensions []ReleaseExtension
 
 	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
@@ -352,7 +354,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	} else {
 		log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
 		// Rollback
-		release := Release{}
+		release := model.Release{}
 
 		if r.DB.Where("id = ?", string(*args.Release.ID)).Find(&release).RecordNotFound() {
 			log.ErrorWithFields("Could not find release", log.Fields{
@@ -396,7 +398,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 
 	r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&currentReleaseHeadFeature)
 
-	waitingRelease := Release{}
+	waitingRelease := model.Release{}
 
 	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("waiting")),
 		string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
@@ -448,20 +450,20 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	}
 
 	// the tail feature id is the current release's head feature id
-	currentRelease := Release{}
+	currentRelease := model.Release{}
 	tailFeatureID := headFeatureID
 	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
 	} else {
 		tailFeatureID = currentRelease.HeadFeatureID
 	}
 
-	userID, err := CheckAuth(ctx, []string{})
+	userID, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &ReleaseResolver{}, err
 	}
 
 	// Create Release
-	release := Release{
+	release := model.Release{
 		State:             transistor.GetState("waiting"),
 		StateMessage:      "Release created",
 		ProjectID:         projectID,
@@ -652,7 +654,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 	} else {
 		r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 
-		return &ReleaseResolver{DB: r.DB, Release: Release{}}, nil
+		return &ReleaseResolver{DB: r.DB, Release: model.Release{}}, nil
 	}
 }
 
@@ -921,7 +923,7 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 				r.DB.Where("secret_id = ?", secret.Model.ID).Delete(SecretValue{})
 			}
 
-			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(Release{})
+			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.Release{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(ReleaseExtension{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(ProjectExtension{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(ProjectSettings{})
@@ -961,7 +963,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *Secre
 		return nil, fmt.Errorf("Couldn't parse environmentID. Invalid format.")
 	}
 
-	userIDString, err := CheckAuth(ctx, []string{})
+	userIDString, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &SecretResolver{}, err
 	}
@@ -1003,7 +1005,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *Secre
 func (r *Resolver) UpdateSecret(ctx context.Context, args *struct{ Secret *SecretInput }) (*SecretResolver, error) {
 	var secret Secret
 
-	userIDString, err := CheckAuth(ctx, []string{})
+	userIDString, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return &SecretResolver{}, err
 	}
@@ -1356,26 +1358,26 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 	var err error
 	var results []string
 
-	if r.DB.Where("id = ?", args.UserPermissions.UserID).Find(&User{}).RecordNotFound() {
+	if r.DB.Where("id = ?", args.UserPermissions.UserID).Find(&model.User{}).RecordNotFound() {
 		return nil, errors.New("User not found")
 	}
 
 	for _, permission := range args.UserPermissions.Permissions {
-		if _, err = CheckAuth(ctx, []string{permission.Value}); err != nil {
+		if _, err = db_resolver.CheckAuth(ctx, []string{permission.Value}); err != nil {
 			return nil, err
 		}
 	}
 
 	for _, permission := range args.UserPermissions.Permissions {
 		if permission.Grant == true {
-			userPermission := UserPermission{
+			userPermission := model.UserPermission{
 				UserID: uuid.FromStringOrNil(args.UserPermissions.UserID),
 				Value:  permission.Value,
 			}
 			r.DB.Where(userPermission).FirstOrCreate(&userPermission)
 			results = append(results, permission.Value)
 		} else {
-			r.DB.Where("user_id = ? AND value = ?", args.UserPermissions.UserID, permission.Value).Delete(&UserPermission{})
+			r.DB.Where("user_id = ? AND value = ?", args.UserPermissions.UserID, permission.Value).Delete(&model.UserPermission{})
 		}
 	}
 
@@ -1417,7 +1419,7 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct{ 
 func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql.ID }) (bool, error) {
 	var projectBookmark ProjectBookmark
 
-	_userID, err := CheckAuth(ctx, []string{})
+	_userID, err := db_resolver.CheckAuth(ctx, []string{})
 	if err != nil {
 		return false, err
 	}
@@ -1483,6 +1485,7 @@ func ExtractArtifacts(projectExtension ProjectExtension, extension Extension, db
 	err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 	if err != nil {
 		log.Error(err.Error())
+		log.Info(projectExtension.Artifacts.RawMessage)
 	}
 
 	for i, ec := range extensionConfig {

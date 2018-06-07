@@ -14,7 +14,7 @@ import (
 
 func (x *CodeAmp) GitSync(project *graphql_resolver.Project) error {
 	var feature graphql_resolver.Feature
-	var release graphql_resolver.Release
+	var release model.Release
 	var headFeature graphql_resolver.Feature
 	hash := ""
 

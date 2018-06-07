@@ -5,50 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	"github.com/jinzhu/gorm/dialects/postgres"
-	uuid "github.com/satori/go.uuid"
 )
-
-type Release struct {
-	model.Model `json:",inline"`
-	// State
-	State transistor.State `json:"state"`
-	// StateMessage
-	StateMessage string `json:"stateMessage"`
-	// ProjectID
-	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
-	// User
-	User User
-	// UserID
-	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
-	// HeadFeatureID
-	HeadFeatureID uuid.UUID `json:"headFeatureID" gorm:"type:uuid"`
-	// TailFeatureID
-	TailFeatureID uuid.UUID `json:"tailFeatureID" gorm:"type:uuid"`
-	// Services
-	Services postgres.Jsonb `json:"services" gorm:"type:jsonb;"`
-	// Secrets
-	Secrets postgres.Jsonb `json:"secrets" gorm:"type:jsonb;"`
-	// ProjectExtensions
-	ProjectExtensions postgres.Jsonb `json:"extensions" gorm:"type:jsonb;"`
-	// EnvironmentID
-	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
-	// FinishedAt
-	FinishedAt time.Time
-	// ForceRebuild
-	ForceRebuild bool `json:"forceRebuild"`
-}
 
 // ReleaseResolver resolver for Release
 type ReleaseResolver struct {
-	Release
+	model.Release
 	DB *gorm.DB
 }
 
@@ -68,11 +36,13 @@ func (r *ReleaseResolver) Project() *ProjectResolver {
 
 // User
 func (r *ReleaseResolver) User() *UserResolver {
-	var user User
+	var user model.User
 
 	r.DB.Model(r.Release).Related(&user)
 
-	return &UserResolver{DB: r.DB, User: user}
+	//return &UserResolver{DB: r.DB, User: user}
+	log.Panic("PANIC")
+	return nil
 }
 
 // Artifacts
@@ -81,7 +51,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 	var releaseExtensions []ReleaseExtension
 
 	isAdmin := false
-	if _, err := CheckAuth(ctx, []string{"admin"}); err == nil {
+	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err == nil {
 		isAdmin = true
 	}
 

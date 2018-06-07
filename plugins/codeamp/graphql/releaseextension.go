@@ -53,7 +53,7 @@ func (r *ReleaseExtensionResolver) ID() graphql.ID {
 
 // Release
 func (r *ReleaseExtensionResolver) Release() (*ReleaseResolver, error) {
-	release := Release{}
+	release := model.Release{}
 
 	if r.DB.Where("id = ?", r.ReleaseExtension.ReleaseID.String()).Find(&release).RecordNotFound() {
 		log.InfoWithFields("extension not found", log.Fields{

@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -15,7 +16,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.ReleaseExtension)
 
 	var releaseExtension graphql_resolver.ReleaseExtension
-	var release graphql_resolver.Release
+	var release model.Release
 
 	if e.Matches("release:.*:status") {
 		if x.DB.Where("id = ?", payload.Release.ID).Find(&release).RecordNotFound() {
@@ -57,7 +58,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 
 func (x *CodeAmp) ReleaseExtensionCompleted(re *graphql_resolver.ReleaseExtension) {
 	project := graphql_resolver.Project{}
-	release := graphql_resolver.Release{}
+	release := model.Release{}
 	environment := graphql_resolver.Environment{}
 	releaseExtensions := []graphql_resolver.ReleaseExtension{}
 

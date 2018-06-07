@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
@@ -65,7 +66,7 @@ func (r *Resolver) setupServices(services []Service) ([]plugins.Service, error) 
 	return pluginServices, nil
 }
 
-func BuildReleasePayload(release Release, project Project, environment Environment, branch string, headFeature Feature, tailFeature Feature, services []plugins.Service, secrets []plugins.Secret) plugins.Release {
+func BuildReleasePayload(release model.Release, project Project, environment Environment, branch string, headFeature Feature, tailFeature Feature, services []plugins.Service, secrets []plugins.Secret) plugins.Release {
 	return plugins.Release{
 		ID:          release.Model.ID.String(),
 		Environment: environment.Key,

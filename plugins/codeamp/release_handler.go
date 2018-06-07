@@ -7,6 +7,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
@@ -14,7 +15,7 @@ import (
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.Release)
-	release := graphql_resolver.Release{}
+	release := model.Release{}
 	releaseExtensions := []graphql_resolver.ReleaseExtension{}
 
 	if x.DB.Where("id = ?", payload.ID).First(&release).RecordNotFound() {
@@ -91,7 +92,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	return nil
 }
 
-func (x *CodeAmp) ReleaseFailed(release *graphql_resolver.Release, stateMessage string) {
+func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
 	x.DB.Save(release)
@@ -106,7 +107,7 @@ func (x *CodeAmp) ReleaseFailed(release *graphql_resolver.Release, stateMessage 
 	x.RunQueuedReleases(release)
 }
 
-func (x *CodeAmp) ReleaseCompleted(release *graphql_resolver.Release) {
+func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	project := graphql_resolver.Project{}
 	environment := graphql_resolver.Environment{}
 
@@ -139,8 +140,8 @@ func (x *CodeAmp) ReleaseCompleted(release *graphql_resolver.Release) {
 	x.RunQueuedReleases(release)
 }
 
-func (x *CodeAmp) RunQueuedReleases(release *graphql_resolver.Release) error {
-	var nextQueuedRelease graphql_resolver.Release
+func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
+	var nextQueuedRelease model.Release
 
 	if x.DB.Where("id != ? and state = ? and project_id = ? and environment_id = ? and created_at > ?", release.Model.ID, "waiting", release.ProjectID, release.EnvironmentID, release.CreatedAt).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
 		log.WarnWithFields("No queued releases found.", log.Fields{

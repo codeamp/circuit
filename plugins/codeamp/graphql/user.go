@@ -4,59 +4,36 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/codeamp/circuit/plugins/codeamp/model"
+	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
 )
-
-// User
-type User struct {
-	model.Model `json:",inline"`
-	// Email
-	Email string `json:"email"`
-	// Password
-	Password string `json:"password" gorm:"type:varchar(255)"`
-	// Permissions
-	Permissions []UserPermission `json:"permissions"`
-}
-
-// User permission
-type UserPermission struct {
-	model.Model `json:",inline"`
-	// UserID
-	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
-	// Value
-	Value string `json:"value"`
-}
 
 // User resolver
 type UserResolver struct {
-	User
-	DB *gorm.DB
+	*db_resolver.UserResolver
 }
 
 // ID
 func (r *UserResolver) ID() graphql.ID {
-	return graphql.ID(r.User.Model.ID.String())
+	return graphql.ID(r.UserResolver.User.Model.ID.String())
 }
 
 // Email
 func (r *UserResolver) Email() string {
-	return r.User.Email
+	return r.UserResolver.User.Email
 }
 
 // Permissions
 func (r *UserResolver) Permissions(ctx context.Context) []string {
-	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
+	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil
 	}
 
 	var permissions []string
 
-	r.DB.Model(r.User).Association("Permissions").Find(&r.User.Permissions)
+	r.DB.Model(r.User).Association("Permissions").Find(&r.UserResolver.User.Permissions)
 
-	for _, permission := range r.User.Permissions {
+	for _, permission := range r.UserResolver.User.Permissions {
 		permissions = append(permissions, permission.Value)
 	}
 
@@ -65,13 +42,21 @@ func (r *UserResolver) Permissions(ctx context.Context) []string {
 
 // Created
 func (r *UserResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.User.Model.CreatedAt}
+	return graphql.Time{Time: r.UserResolver.User.Model.CreatedAt}
 }
 
 func (r *UserResolver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&r.User)
+	return json.Marshal(&r.UserResolver.User)
 }
 
 func (r *UserResolver) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &r.User)
+	return json.Unmarshal(data, &r.UserResolver.User)
+}
+
+func (r *UserResolver) User() {
+
+}
+
+func (r *UserResolver) Error() error {
+	return nil
 }

@@ -7,11 +7,12 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
-func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *graphql_resolver.Release) {
+func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 	project := graphql_resolver.Project{}
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -44,7 +45,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *graphql_resolver.R
 		return
 	}
 
-	user := graphql_resolver.User{}
+	user := model.User{}
 	if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
 		log.InfoWithFields("user not found", log.Fields{
 			"id": release.UserID,

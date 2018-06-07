@@ -116,11 +116,13 @@ func (r *SecretResolver) Project() *ProjectResolver {
 
 // User
 func (r *SecretResolver) User() *UserResolver {
-	var user User
+	var user model.User
 
 	r.DB.Model(r.SecretValue).Related(&user)
 
-	return &UserResolver{DB: r.DB, User: user}
+	// return &UserResolver{DB: r.DB, User: user}
+	log.Panic("PANIC")
+	return nil
 }
 
 // Type
