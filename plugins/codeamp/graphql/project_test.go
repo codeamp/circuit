@@ -3,12 +3,13 @@ package graphql_resolver_test
 import (
 	"context"
 	"fmt"
-	"log"
+
 	"testing"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
+	log "github.com/codeamp/logger"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -29,8 +30,6 @@ func (suite *ProjectTestSuite) SetupTest() {
 		&model.ProjectSettings{},
 		&model.Environment{},
 	}
-
-	log.Info(migrators)
 
 	db, err := test.SetupResolverTest(migrators)
 	if err != nil {
