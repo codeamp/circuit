@@ -56,9 +56,9 @@ func (r *ServiceResolver) Count() string {
 }
 
 // ServicePorts
-func (r *ServiceResolver) Ports() ([]*JSON, error) {
+func (r *ServiceResolver) Ports() ([]*model.JSON, error) {
 	var rows []model.ServicePort
-	var results []*JSON
+	var results []*model.JSON
 
 	r.DB.Where("service_id = ?", r.Service.ID).Order("created_at desc").Find(&rows)
 
@@ -66,7 +66,7 @@ func (r *ServiceResolver) Ports() ([]*JSON, error) {
 		if servicePort, err := json.Marshal(&row); err != nil {
 			return results, fmt.Errorf("JSON marshal failed")
 		} else {
-			results = append(results, &JSON{servicePort})
+			results = append(results, &model.JSON{servicePort})
 		}
 	}
 

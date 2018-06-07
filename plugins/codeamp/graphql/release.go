@@ -46,7 +46,7 @@ func (r *ReleaseResolver) User() *UserResolver {
 }
 
 // Artifacts
-func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
+func (r *ReleaseResolver) Artifacts(ctx context.Context) (model.JSON, error) {
 	artifacts := []transistor.Artifact{}
 	var releaseExtensions []model.ReleaseExtension
 
@@ -66,7 +66,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 				"id": releaseExtension.ProjectExtensionID,
 				"release_extension_id": releaseExtension.Model.ID,
 			})
-			return JSON{[]byte("[]")}, errors.New("release extension not found")
+			return model.JSON{[]byte("[]")}, errors.New("release extension not found")
 		}
 
 		extension := model.Extension{}
@@ -75,7 +75,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 				"id": projectExtension.Model.ID,
 				"release_extension_id": releaseExtension.Model.ID,
 			})
-			return JSON{[]byte("[]")}, errors.New("project extension not found")
+			return model.JSON{[]byte("[]")}, errors.New("project extension not found")
 		}
 
 		err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &_artifacts)
@@ -102,10 +102,10 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 		log.InfoWithFields(err.Error(), log.Fields{
 			"input": artifacts,
 		})
-		return JSON{[]byte("[]")}, err
+		return model.JSON{[]byte("[]")}, err
 	}
 
-	return JSON{json.RawMessage(marshalledArtifacts)}, nil
+	return model.JSON{json.RawMessage(marshalledArtifacts)}, nil
 }
 
 // HeadFeature

@@ -56,8 +56,8 @@ func (r *ExtensionResolver) Environment() (*EnvironmentResolver, error) {
 }
 
 // Config
-func (r *ExtensionResolver) Config() JSON {
-	return JSON{r.Extension.Config.RawMessage}
+func (r *ExtensionResolver) Config() model.JSON {
+	return model.JSON{r.Extension.Config.RawMessage}
 }
 
 // Created

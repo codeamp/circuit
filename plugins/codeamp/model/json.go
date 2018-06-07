@@ -1,4 +1,4 @@
-package graphql_resolver
+package model
 
 import (
 	"encoding/json"

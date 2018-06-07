@@ -40,18 +40,18 @@ func (r *ProjectExtensionResolver) Extension() *ExtensionResolver {
 }
 
 // Artifacts
-func (r *ProjectExtensionResolver) Artifacts() JSON {
-	return JSON{r.ProjectExtension.Artifacts.RawMessage}
+func (r *ProjectExtensionResolver) Artifacts() model.JSON {
+	return model.JSON{r.ProjectExtension.Artifacts.RawMessage}
 }
 
 // Config
-func (r *ProjectExtensionResolver) Config() JSON {
-	return JSON{r.ProjectExtension.Config.RawMessage}
+func (r *ProjectExtensionResolver) Config() model.JSON {
+	return model.JSON{r.ProjectExtension.Config.RawMessage}
 }
 
 // CustomConfig
-func (r *ProjectExtensionResolver) CustomConfig() JSON {
-	return JSON{r.ProjectExtension.CustomConfig.RawMessage}
+func (r *ProjectExtensionResolver) CustomConfig() model.JSON {
+	return model.JSON{r.ProjectExtension.CustomConfig.RawMessage}
 }
 
 // State

@@ -1,4 +1,4 @@
-package graphql_resolver
+package model
 
 // ServicePortInput
 type ServicePortInput struct {

@@ -28,7 +28,7 @@ import (
 
 // CreateProject Create project
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
-	Project *ProjectInput
+	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
 	var project model.Project
 
@@ -138,7 +138,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 
 // UpdateProject Update project
 func (r *Resolver) UpdateProject(args *struct {
-	Project *ProjectInput
+	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
 	var project model.Project
 
@@ -274,7 +274,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 }
 
 // CreateRelease
-func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *ReleaseInput }) (*ReleaseResolver, error) {
+func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *model.ReleaseInput }) (*ReleaseResolver, error) {
 	var project model.Project
 	var secrets []model.Secret
 	var services []model.Service
@@ -659,7 +659,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *Rel
 }
 
 // CreateService Create service
-func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
+func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
 	// Check if project can create service in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create service in given environment")
@@ -709,7 +709,7 @@ func (r *Resolver) CreateService(args *struct{ Service *ServiceInput }) (*Servic
 }
 
 // UpdateService Update Service
-func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
+func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
 	serviceID := uuid.FromStringOrNil(*args.Service.ID)
 	serviceSpecID := uuid.FromStringOrNil(args.Service.ServiceSpecID)
 
@@ -758,7 +758,7 @@ func (r *Resolver) UpdateService(args *struct{ Service *ServiceInput }) (*Servic
 }
 
 // DeleteService Delete service
-func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*ServiceResolver, error) {
+func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
 	serviceID, err := uuid.FromString(*args.Service.ID)
 
 	if err != nil {
@@ -785,7 +785,7 @@ func (r *Resolver) DeleteService(args *struct{ Service *ServiceInput }) (*Servic
 	return &ServiceResolver{DB: r.DB, Service: service}, nil
 }
 
-func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
+func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := model.ServiceSpec{
 		Name:                   args.ServiceSpec.Name,
 		CpuRequest:             args.ServiceSpec.CpuRequest,
@@ -802,7 +802,7 @@ func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}, nil
 }
 
-func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
+func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := model.ServiceSpec{}
 
 	serviceSpecID, err := uuid.FromString(*args.ServiceSpec.ID)
@@ -828,7 +828,7 @@ func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}, nil
 }
 
-func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput }) (*ServiceSpecResolver, error) {
+func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := model.ServiceSpec{}
 	if r.DB.Where("id=?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {
 		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
@@ -847,7 +847,7 @@ func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *ServiceSpecInput
 	}
 }
 
-func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
+func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
 	var existingEnv model.Environment
 	if r.DB.Where("key = ?", args.Environment.Key).Find(&existingEnv).RecordNotFound() {
 		env := model.Environment{
@@ -867,7 +867,7 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 	}
 }
 
-func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
+func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
 	var existingEnv model.Environment
 	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
 		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
@@ -895,7 +895,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 	}
 }
 
-func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environment *EnvironmentInput }) (*EnvironmentResolver, error) {
+func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
 	var existingEnv model.Environment
 	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
 		return nil, fmt.Errorf("DeleteEnv: couldn't find environment: %s", *args.Environment.ID)
@@ -938,7 +938,7 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 	}
 }
 
-func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *SecretInput }) (*SecretResolver, error) {
+func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
 
 	projectID := uuid.UUID{}
 	var environmentID uuid.UUID
@@ -1002,7 +1002,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *Secre
 
 }
 
-func (r *Resolver) UpdateSecret(ctx context.Context, args *struct{ Secret *SecretInput }) (*SecretResolver, error) {
+func (r *Resolver) UpdateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
 	var secret model.Secret
 
 	userIDString, err := db_resolver.CheckAuth(ctx, []string{})
@@ -1031,7 +1031,7 @@ func (r *Resolver) UpdateSecret(ctx context.Context, args *struct{ Secret *Secre
 	}
 }
 
-func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *SecretInput }) (*SecretResolver, error) {
+func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
 	var secret model.Secret
 
 	if r.DB.Where("id = ?", args.Secret.ID).Find(&secret).RecordNotFound() {
@@ -1055,7 +1055,7 @@ func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *Secre
 	}
 }
 
-func (r *Resolver) CreateExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
+func (r *Resolver) CreateExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
 	environmentID, err := uuid.FromString(args.Extension.EnvironmentID)
 	if err != nil {
 		return nil, fmt.Errorf("Missing argument EnvironmentID")
@@ -1076,7 +1076,7 @@ func (r *Resolver) CreateExtension(args *struct{ Extension *ExtensionInput }) (*
 	return &ExtensionResolver{DB: r.DB, Extension: ext}, nil
 }
 
-func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
+func (r *Resolver) UpdateExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
 	ext := model.Extension{}
 	if r.DB.Where("id = ?", args.Extension.ID).Find(&ext).RecordNotFound() {
 		log.InfoWithFields("could not find extensionspec with id", log.Fields{
@@ -1105,7 +1105,7 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *ExtensionInput }) (*
 	return &ExtensionResolver{DB: r.DB, Extension: ext}, nil
 }
 
-func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*ExtensionResolver, error) {
+func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
 	ext := model.Extension{}
 	extensions := []model.ProjectExtension{}
 	extID, err := uuid.FromString(*args.Extension.ID)
@@ -1135,7 +1135,7 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *ExtensionInput }) (*
 	}
 }
 
-func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
+func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
 
 	// Check if project can create project extension in environment
@@ -1212,7 +1212,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	return nil, errors.New("This extension is already installed in this project.")
 }
 
-func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
+func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
@@ -1283,7 +1283,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *Projec
 	return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
 }
 
-func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
+func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
 	var res []model.ReleaseExtension
 
@@ -1354,7 +1354,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *Projec
 }
 
 // UpdateUserPermissions
-func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissions *UserPermissionsInput }) ([]string, error) {
+func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissions *model.UserPermissionsInput }) ([]string, error) {
 	var err error
 	var results []string
 
@@ -1385,7 +1385,9 @@ func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ User
 }
 
 // UpdateProjectEnvironments
-func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct{ ProjectEnvironments *ProjectEnvironmentsInput }) ([]*EnvironmentResolver, error) {
+func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct {
+	ProjectEnvironments *model.ProjectEnvironmentsInput
+}) ([]*EnvironmentResolver, error) {
 	var results []*EnvironmentResolver
 
 	project := model.Project{}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -122,9 +121,9 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 								})
 
 								x.Resolver.CreateRelease(adminContext, &struct {
-									Release *graphql_resolver.ReleaseInput
+									Release *model.ReleaseInput
 								}{
-									Release: &graphql_resolver.ReleaseInput{
+									Release: &model.ReleaseInput{
 										HeadFeatureID: feature.Model.ID.String(),
 										ProjectID:     setting.ProjectID.String(),
 										EnvironmentID: setting.EnvironmentID.String(),

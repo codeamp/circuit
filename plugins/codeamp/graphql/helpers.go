@@ -102,7 +102,7 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 	}
 }
 
-func (r *Resolver) handleExtensionRoute53(args *struct{ ProjectExtension *ProjectExtensionInput }, projectExtension *model.ProjectExtension) error {
+func (r *Resolver) handleExtensionRoute53(args *struct{ ProjectExtension *model.ProjectExtensionInput }, projectExtension *model.ProjectExtension) error {
 	extension := model.Extension{}
 
 	// HOTFIX: check for existing subdomains for route53

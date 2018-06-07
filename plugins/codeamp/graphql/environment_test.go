@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -38,16 +39,16 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 	db.AutoMigrate(
-		&graphql_resolver.Environment{},
+		&model.Environment{},
 	)
 	// clean, just in case
-	db.Delete(&graphql_resolver.Environment{})
+	db.Delete(&model.Environment{})
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 }
 
 /* Test successful env. creation */
 func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
-	envInput := graphql_resolver.EnvironmentInput{
+	envInput := model.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo",
 		IsDefault: true,
@@ -55,7 +56,7 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 	}
 
 	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *graphql_resolver.EnvironmentInput
+		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -71,7 +72,7 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 
 /* Test successful env. update */
 func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
-	envInput := graphql_resolver.EnvironmentInput{
+	envInput := model.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo",
 		IsDefault: true,
@@ -79,7 +80,7 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	}
 
 	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *graphql_resolver.EnvironmentInput
+		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -96,7 +97,7 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	envInput.IsDefault = false
 
 	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct {
-		Environment *graphql_resolver.EnvironmentInput
+		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -113,7 +114,7 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 }
 
 func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
-	envInput := graphql_resolver.EnvironmentInput{
+	envInput := model.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo",
 		IsDefault: true,
@@ -121,7 +122,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	}
 
 	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *graphql_resolver.EnvironmentInput
+		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -129,7 +130,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 
 	assert.Equal(suite.T(), envResolver.Key(), "foo")
 
-	envInput2 := graphql_resolver.EnvironmentInput{
+	envInput2 := model.EnvironmentInput{
 		Name:      "test",
 		Key:       "foo2",
 		IsDefault: true,
@@ -137,7 +138,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	}
 
 	envResolver2, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *graphql_resolver.EnvironmentInput
+		Environment *model.EnvironmentInput
 	}{Environment: &envInput2})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -151,7 +152,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	envInput.ID = &envId
 
 	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct {
-		Environment *graphql_resolver.EnvironmentInput
+		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -165,7 +166,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	envInput2.ID = &envId
 
 	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct {
-		Environment *graphql_resolver.EnvironmentInput
+		Environment *model.EnvironmentInput
 	}{Environment: &envInput2})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -178,7 +179,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 
 func (suite *EnvironmentTestSuite) TearDownTest(ids []string) {
 	for _, id := range ids {
-		suite.Resolver.DB.Where("id = ?", id).Delete(&graphql_resolver.Environment{})
+		suite.Resolver.DB.Where("id = ?", id).Delete(&model.Environment{})
 	}
 }
 

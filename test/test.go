@@ -16,7 +16,7 @@ import (
 // Setup logic common to all Resolver tests
 // Load viper config, parse plugins, and setup log level/format
 // Configs in this case are loaded from a test yml file
-func SetupResolverTest() (*gorm.DB, error) {
+func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 	viper.SetConfigType("yaml")
 	viper.SetConfigFile("../../../configs/circuit.test.yml")
 
@@ -32,6 +32,8 @@ func SetupResolverTest() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	db.AutoMigrate(migrators)
 
 	configLogLevel()
 	configLogFormat()

@@ -15,35 +15,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type ProjectTestSuite struct {
+type UserTestSuite struct {
 	suite.Suite
 	UserResolver *graphql_resolver.UserResolver
 
-	userIDs []gorm.ID
+	userIDs []string
 }
 
-func (suite *ProjectTestSuite) SetupTest() {
-	db, err := test.SetupResolverTest()
+func (suite *UserTestSuite) SetupTest() {
+	migrators := []interface{}{
+		&model.Project{},
+		&model.ProjectEnvironment{},
+		&model.ProjectBookmark{},
+		&model.UserPermission{},
+		&model.ProjectSettings{},
+		&model.Environment{},
+	}
+
+	db, err := test.SetupResolverTest(migrators)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	// TODO : ADB : Find a better way of passing this to the function from the
-	// individual resolver test
-	db.AutoMigrate(
-		&graphql_resolver.Project{},
-		&graphql_resolver.ProjectEnvironment{},
-		&graphql_resolver.ProjectBookmark{},
-		&model.UserPermission{},
-		&graphql_resolver.ProjectSettings{},
-		&graphql_resolver.Environment{},
-	)
 
 	suite.UserResolver = &graphql_resolver.UserResolver{UserResolver: &db_resolver.UserResolver{DB: db}}
 }
 
 /* Test successful project permissions update */
-func (suite *ProjectTestSuite) TestCreateUser() {
+func (suite *UserTestSuite) TestCreateUser() {
 	user := model.User{
 		Email:    "test@example.com",
 		Password: "example",
@@ -58,12 +56,12 @@ func (suite *ProjectTestSuite) TestCreateUser() {
 	//suite.TearDownTest(deleteIds)
 }
 
-func (suite *ProjectTestSuite) TearDownTest() {
-	// suite.Resolver.DB.Delete(&graphql_resolver.Project{})
-	// suite.Resolver.DB.Delete(&graphql_resolver.ProjectEnvironment{})
-	// suite.Resolver.DB.Delete(&graphql_resolver.Environment{})
+func (suite *UserTestSuite) TearDownTest() {
+	// suite.Resolver.DB.Delete(&model.Project{})
+	// suite.Resolver.DB.Delete(&model.ProjectEnvironment{})
+	// suite.Resolver.DB.Delete(&model.Environment{})
 }
 
 func TestSuiteUserResolver(t *testing.T) {
-	suite.Run(t, new(ProjectTestSuite))
+	suite.Run(t, new(UserTestSuite))
 }

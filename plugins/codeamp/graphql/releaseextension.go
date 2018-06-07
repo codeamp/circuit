@@ -75,8 +75,8 @@ func (r *ReleaseExtensionResolver) StateMessage() string {
 }
 
 // Artifacts
-func (r *ReleaseExtensionResolver) Artifacts() JSON {
-	return JSON{r.ReleaseExtension.Artifacts.RawMessage}
+func (r *ReleaseExtensionResolver) Artifacts() model.JSON {
+	return model.JSON{r.ReleaseExtension.Artifacts.RawMessage}
 }
 
 // Finished

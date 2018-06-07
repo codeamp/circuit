@@ -40,12 +40,12 @@ func (suite *ProjectTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 	db.AutoMigrate(
-		&graphql_resolver.Project{},
-		&graphql_resolver.ProjectEnvironment{},
-		&graphql_resolver.ProjectBookmark{},
-		&graphql_resolver.UserPermission{},
-		&graphql_resolver.ProjectSettings{},
-		&graphql_resolver.Environment{},
+		&model.Project{},
+		&model.ProjectEnvironment{},
+		&model.ProjectBookmark{},
+		&model.UserPermission{},
+		&model.ProjectSettings{},
+		&model.Environment{},
 	)
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 }
@@ -88,7 +88,7 @@ func (suite *ProjectTestSuite) TestCreateProject() {
 /* Test successful project permissions update */
 func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	// setup
-	project := graphql_resolver.Project{
+	project := model.Project{
 		Name:          "foo",
 		Slug:          "foo",
 		Repository:    "foo/foo",
@@ -100,7 +100,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	}
 	suite.Resolver.DB.Create(&project)
 
-	env := graphql_resolver.Environment{
+	env := model.Environment{
 		Name:      "dev",
 		Color:     "purple",
 		Key:       "dev",
@@ -108,9 +108,9 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	}
 	suite.Resolver.DB.Create(&env)
 
-	projectEnvironmentsInput := graphql_resolver.ProjectEnvironmentsInput{
+	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
 		ProjectID: project.Model.ID.String(),
-		Permissions: []graphql_resolver.ProjectEnvironmentInput{
+		Permissions: []model.ProjectEnvironmentInput{
 			{
 				EnvironmentID: env.Model.ID.String(),
 				Grant:         true,
@@ -119,7 +119,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	}
 
 	updateProjectEnvironmentsResp, err := suite.Resolver.UpdateProjectEnvironments(nil, &struct {
-		ProjectEnvironments *graphql_resolver.ProjectEnvironmentsInput
+		ProjectEnvironments *model.ProjectEnvironmentsInput
 	}{ProjectEnvironments: &projectEnvironmentsInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -129,7 +129,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	assert.Equal(suite.T(), 1, len(updateProjectEnvironmentsResp))
 	assert.Equal(suite.T(), env.Model.ID, updateProjectEnvironmentsResp[0].Environment.Model.ID)
 
-	projectEnvironments := []graphql_resolver.ProjectEnvironment{}
+	projectEnvironments := []model.ProjectEnvironment{}
 	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)
 
 	assert.Equal(suite.T(), 1, len(projectEnvironments))
@@ -138,7 +138,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	// take away access
 	projectEnvironmentsInput.Permissions[0].Grant = false
 	updateProjectEnvironmentsResp, err = suite.Resolver.UpdateProjectEnvironments(nil, &struct {
-		ProjectEnvironments *graphql_resolver.ProjectEnvironmentsInput
+		ProjectEnvironments *model.ProjectEnvironmentsInput
 	}{ProjectEnvironments: &projectEnvironmentsInput})
 	if err != nil {
 		log.Fatal(err.Error())
@@ -146,7 +146,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 
 	assert.Equal(suite.T(), 0, len(updateProjectEnvironmentsResp))
 
-	projectEnvironments = []graphql_resolver.ProjectEnvironment{}
+	projectEnvironments = []model.ProjectEnvironment{}
 	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)
 
 	assert.Equal(suite.T(), 0, len(projectEnvironments))
@@ -166,7 +166,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	deleteIds := []string{}
 
 	for _, name := range projectNames {
-		project := graphql_resolver.Project{
+		project := model.Project{
 			Name:          name,
 			Slug:          name,
 			Repository:    fmt.Sprintf("test/%s", name),
@@ -179,7 +179,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 		suite.Resolver.DB.Create(&project)
 
-		projectBookmark := graphql_resolver.ProjectBookmark{
+		projectBookmark := model.ProjectBookmark{
 			UserID:    userId,
 			ProjectID: project.Model.ID,
 		}
@@ -195,9 +195,9 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		Permissions: []string{"admin"},
 	})
 	projects, err := suite.Resolver.Projects(adminContext, &struct {
-		ProjectSearch *graphql_resolver.ProjectSearchInput
+		ProjectSearch *model.ProjectSearchInput
 	}{
-		ProjectSearch: &graphql_resolver.ProjectSearchInput{
+		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: true,
 		},
 	})
@@ -210,9 +210,9 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	// do a search for 'foo'
 	searchQuery := "foo"
 	projects, err = suite.Resolver.Projects(adminContext, &struct {
-		ProjectSearch *graphql_resolver.ProjectSearchInput
+		ProjectSearch *model.ProjectSearchInput
 	}{
-		ProjectSearch: &graphql_resolver.ProjectSearchInput{
+		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
@@ -227,9 +227,9 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 }
 
 func (suite *ProjectTestSuite) TearDownTest(ids []string) {
-	suite.Resolver.DB.Delete(&graphql_resolver.Project{})
-	suite.Resolver.DB.Delete(&graphql_resolver.ProjectEnvironment{})
-	suite.Resolver.DB.Delete(&graphql_resolver.Environment{})
+	suite.Resolver.DB.Delete(&model.Project{})
+	suite.Resolver.DB.Delete(&model.ProjectEnvironment{})
+	suite.Resolver.DB.Delete(&model.Environment{})
 }
 
 func TestProjectTestSuite(t *testing.T) {

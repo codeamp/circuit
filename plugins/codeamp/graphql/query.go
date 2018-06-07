@@ -111,7 +111,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 
 // Projects
 func (r *Resolver) Projects(ctx context.Context, args *struct {
-	ProjectSearch *ProjectSearchInput
+	ProjectSearch *model.ProjectSearchInput
 }) ([]*ProjectResolver, error) {
 	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
@@ -322,7 +322,7 @@ func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionRe
 }
 
 // Permissions
-func (r *Resolver) Permissions(ctx context.Context) (JSON, error) {
+func (r *Resolver) Permissions(ctx context.Context) (model.JSON, error) {
 	var rows []model.UserPermission
 	var results = make(map[string]bool)
 
@@ -338,8 +338,8 @@ func (r *Resolver) Permissions(ctx context.Context) (JSON, error) {
 
 	bytes, err := json.Marshal(results)
 	if err != nil {
-		return JSON{}, err
+		return model.JSON{}, err
 	}
 
-	return JSON{bytes}, nil
+	return model.JSON{bytes}, nil
 }
