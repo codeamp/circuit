@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -15,7 +14,7 @@ import (
 func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.ReleaseExtension)
 
-	var releaseExtension graphql_resolver.ReleaseExtension
+	var releaseExtension model.ReleaseExtension
 	var release model.Release
 
 	if e.Matches("release:.*:status") {
@@ -56,11 +55,11 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	return nil
 }
 
-func (x *CodeAmp) ReleaseExtensionCompleted(re *graphql_resolver.ReleaseExtension) {
-	project := graphql_resolver.Project{}
+func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
+	project := model.Project{}
 	release := model.Release{}
-	environment := graphql_resolver.Environment{}
-	releaseExtensions := []graphql_resolver.ReleaseExtension{}
+	environment := model.Environment{}
+	releaseExtensions := []model.ReleaseExtension{}
 
 	if x.DB.Where("id = ?", re.ReleaseID).First(&release).RecordNotFound() {
 		log.ErrorWithFields("release not found", log.Fields{

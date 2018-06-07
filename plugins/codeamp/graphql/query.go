@@ -62,8 +62,8 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var project Project
-	var environment Environment
+	var project model.Project
+	var environment model.Environment
 	var query *gorm.DB
 
 	if args.ID != nil {
@@ -90,7 +90,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	}
 
 	// check if project has permissions to requested environment
-	var permission ProjectEnvironment
+	var permission model.ProjectEnvironment
 	if r.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
 		log.InfoWithFields("Environment not found", log.Fields{
 			"args": args,
@@ -117,14 +117,14 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var rows []Project
+	var rows []model.Project
 	var results []*ProjectResolver
 	if args.ProjectSearch.Repository != nil {
 
 		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
 
 	} else {
-		var projectBookmarks []ProjectBookmark
+		var projectBookmarks []model.ProjectBookmark
 
 		r.DB.Where("user_id = ?", ctx.Value("jwt").(model.Claims).UserID).Find(&projectBookmarks)
 
@@ -147,7 +147,7 @@ func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 		return nil, err
 	}
 
-	var rows []Feature
+	var rows []model.Feature
 	var results []*FeatureResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -163,7 +163,7 @@ func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
 		return nil, err
 	}
 
-	var rows []Service
+	var rows []model.Service
 	var results []*ServiceResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -179,7 +179,7 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 		return nil, err
 	}
 
-	var rows []ServiceSpec
+	var rows []model.ServiceSpec
 	var results []*ServiceSpecResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -211,12 +211,12 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 		return nil, err
 	}
 
-	var environments []Environment
+	var environments []model.Environment
 	var results []*EnvironmentResolver
 
 	if args.ProjectSlug != nil {
-		var project Project
-		var permissions []ProjectEnvironment
+		var project model.Project
+		var permissions []model.ProjectEnvironment
 
 		if err := r.DB.Where("slug = ?", *args.ProjectSlug).First(&project).Error; err != nil {
 			return nil, err
@@ -224,7 +224,7 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 
 		r.DB.Where("project_id = ?", project.Model.ID).Find(&permissions)
 		for _, permission := range permissions {
-			var environment Environment
+			var environment model.Environment
 			r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
 			results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
 		}
@@ -245,12 +245,12 @@ func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 		return nil, err
 	}
 
-	var rows []Secret
+	var rows []model.Secret
 	var results []*SecretResolver
 
 	r.DB.Where("scope != ?", "project").Order("created_at desc").Find(&rows)
 	for _, secret := range rows {
-		var secretValue SecretValue
+		var secretValue model.SecretValue
 		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
 		results = append(results, &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue})
 	}
@@ -263,7 +263,7 @@ func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *
 		return nil, err
 	}
 
-	var rows []Extension
+	var rows []model.Extension
 	var results []*ExtensionResolver
 
 	if args.EnvironmentID != nil {
@@ -294,7 +294,7 @@ func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionRe
 		return nil, err
 	}
 
-	var rows []ProjectExtension
+	var rows []model.ProjectExtension
 	var results []*ProjectExtensionResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -310,7 +310,7 @@ func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionRe
 		return nil, err
 	}
 
-	var rows []ReleaseExtension
+	var rows []model.ReleaseExtension
 	var results []*ReleaseExtensionResolver
 
 	r.DB.Order("created_at desc").Find(&rows)

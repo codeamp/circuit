@@ -2,36 +2,15 @@ package graphql_resolver
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
 )
-
-// Feature
-type Feature struct {
-	model.Model `json:",inline"`
-	// ProjectID
-	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
-	// Message
-	Message string `json:"message"`
-	// User
-	User string `json:"user"`
-	// Hash
-	Hash string `json:"hash"`
-	// ParentHash
-	ParentHash string `json:"parentHash"`
-	// Ref
-	Ref string `json:"ref"`
-	// Created
-	Created time.Time `json:"created"`
-}
 
 // FeatureResolver resolver for Feature
 type FeatureResolver struct {
-	Feature
+	model.Feature
 	DB *gorm.DB
 }
 
@@ -42,7 +21,7 @@ func (r *FeatureResolver) ID() graphql.ID {
 
 // Project
 func (r *FeatureResolver) Project() *ProjectResolver {
-	var project Project
+	var project model.Project
 
 	r.DB.Model(r.Feature).Related(&project)
 

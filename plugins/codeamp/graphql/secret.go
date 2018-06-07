@@ -4,55 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
 )
 
-// Secret
-type Secret struct {
-	model.Model `json:",inline"`
-	// Key
-	Key string `json:"key"`
-	// Value
-	Value SecretValue `json:"value"`
-	// Type
-	Type plugins.Type `json:"type"`
-	// ProjectID
-	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
-	// Scope
-	Scope SecretScope `json:"scope"`
-	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
-	// IsSecret
-	IsSecret bool `json:"isSecret"`
-}
-
-func (s *Secret) AfterFind(tx *gorm.DB) (err error) {
-	if s.Value == (SecretValue{}) {
-		var secretValue SecretValue
-		tx.Where("secret_id = ?", s.Model.ID).Order("created_at desc").FirstOrInit(&secretValue)
-		s.Value = secretValue
-	}
-	return
-}
-
-type SecretValue struct {
-	model.Model `json:",inline"`
-	// SecretID
-	SecretID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
-	// Value
-	Value string `json:"value"`
-	// UserID
-	UserID uuid.UUID `bson:"userID" json:"userID" gorm:"type:uuid"`
-}
-
-type SecretScope string
-
-func GetSecretScope(s string) SecretScope {
+func GetSecretScope(s string) model.SecretScope {
 	secretScopes := []string{
 		"project",
 		"extension",
@@ -61,19 +19,19 @@ func GetSecretScope(s string) SecretScope {
 
 	for _, secretScope := range secretScopes {
 		if s == secretScope {
-			return SecretScope(secretScope)
+			return model.SecretScope(secretScope)
 		}
 	}
 
 	log.Info(fmt.Sprintf("SecretScope not found: %s", s))
 
-	return SecretScope("unknown")
+	return model.SecretScope("unknown")
 }
 
 // SecretResolver resolver for Secret
 type SecretResolver struct {
-	Secret
-	SecretValue SecretValue
+	model.Secret
+	SecretValue model.SecretValue
 	DB          *gorm.DB
 }
 
@@ -93,7 +51,7 @@ func (r *SecretResolver) Value() string {
 		return ""
 	}
 
-	if r.SecretValue != (SecretValue{}) {
+	if r.SecretValue != (model.SecretValue{}) {
 		return r.SecretValue.Value
 	} else {
 		return r.Secret.Value.Value
@@ -107,7 +65,7 @@ func (r *SecretResolver) Scope() string {
 
 // Project
 func (r *SecretResolver) Project() *ProjectResolver {
-	var project Project
+	var project model.Project
 
 	r.DB.Model(r.Secret).Related(&project)
 
@@ -132,7 +90,7 @@ func (r *SecretResolver) Type() string {
 
 // Versions
 func (r *SecretResolver) Versions() ([]*SecretResolver, error) {
-	var secretValues []SecretValue
+	var secretValues []model.SecretValue
 	var secretResolvers []*SecretResolver
 
 	r.DB.Where("secret_id = ?", r.Secret.Model.ID).Order("created_at desc").Find(&secretValues)
@@ -146,7 +104,7 @@ func (r *SecretResolver) Versions() ([]*SecretResolver, error) {
 
 // Environment
 func (r *SecretResolver) Environment() *EnvironmentResolver {
-	var env Environment
+	var env model.Environment
 
 	r.DB.Model(r.Secret).Related(&env)
 

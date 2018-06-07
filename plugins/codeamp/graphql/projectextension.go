@@ -6,37 +6,13 @@ import (
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
-	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	"github.com/jinzhu/gorm/dialects/postgres"
-	uuid "github.com/satori/go.uuid"
 )
-
-// ProjectExtension
-type ProjectExtension struct {
-	model.Model `json:",inline"`
-	// ProjectID
-	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
-	// ExtensionID
-	ExtensionID uuid.UUID `json:"extID" gorm:"type:uuid"`
-	// State
-	State transistor.State `json:"state"`
-	// StateMessage
-	StateMessage string `json:"stateMessage"`
-	// Artifacts
-	Artifacts postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"`
-	// Config
-	Config postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
-	// CustomConfig
-	CustomConfig postgres.Jsonb `json:"customConfig" gorm:"type:jsonb;not null"`
-	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
-}
 
 // ProjectExtensionResolver resolver for ProjectExtension
 type ProjectExtensionResolver struct {
-	ProjectExtension
+	model.ProjectExtension
 	DB *gorm.DB
 }
 
@@ -47,7 +23,7 @@ func (r *ProjectExtensionResolver) ID() graphql.ID {
 
 // Project
 func (r *ProjectExtensionResolver) Project() *ProjectResolver {
-	var project Project
+	var project model.Project
 
 	r.DB.Model(r.ProjectExtension).Related(&project)
 
@@ -56,7 +32,7 @@ func (r *ProjectExtensionResolver) Project() *ProjectResolver {
 
 // Extension
 func (r *ProjectExtensionResolver) Extension() *ExtensionResolver {
-	var ext Extension
+	var ext model.Extension
 
 	r.DB.Model(r.ProjectExtension).Related(&ext)
 
@@ -90,7 +66,7 @@ func (r *ProjectExtensionResolver) StateMessage() string {
 
 // Environment
 func (r *ProjectExtensionResolver) Environment() (*EnvironmentResolver, error) {
-	var environment Environment
+	var environment model.Environment
 	if r.DB.Where("id = ?", r.ProjectExtension.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
 			"id": r.ProjectExtension.EnvironmentID,

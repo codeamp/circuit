@@ -12,7 +12,7 @@ import (
 	"github.com/codeamp/transistor"
 )
 
-func AppendPluginService(pluginServices []plugins.Service, service Service, spec ServiceSpec) []plugins.Service {
+func AppendPluginService(pluginServices []plugins.Service, service model.Service, spec model.ServiceSpec) []plugins.Service {
 	count, _ := strconv.ParseInt(service.Count, 10, 64)
 	terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
 
@@ -49,10 +49,10 @@ func AppendPluginService(pluginServices []plugins.Service, service Service, spec
 	})
 }
 
-func (r *Resolver) setupServices(services []Service) ([]plugins.Service, error) {
+func (r *Resolver) setupServices(services []model.Service) ([]plugins.Service, error) {
 	var pluginServices []plugins.Service
 	for _, service := range services {
-		var spec ServiceSpec
+		var spec model.ServiceSpec
 		if r.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
 				"id": service.ServiceSpecID,
@@ -66,7 +66,7 @@ func (r *Resolver) setupServices(services []Service) ([]plugins.Service, error) 
 	return pluginServices, nil
 }
 
-func BuildReleasePayload(release model.Release, project Project, environment Environment, branch string, headFeature Feature, tailFeature Feature, services []plugins.Service, secrets []plugins.Secret) plugins.Release {
+func BuildReleasePayload(release model.Release, project model.Project, environment model.Environment, branch string, headFeature model.Feature, tailFeature model.Feature, services []plugins.Service, secrets []plugins.Secret) plugins.Release {
 	return plugins.Release{
 		ID:          release.Model.ID.String(),
 		Environment: environment.Key,
@@ -102,8 +102,8 @@ func BuildReleasePayload(release model.Release, project Project, environment Env
 	}
 }
 
-func (r *Resolver) handleExtensionRoute53(args *struct{ ProjectExtension *ProjectExtensionInput }, projectExtension *ProjectExtension) error {
-	extension := Extension{}
+func (r *Resolver) handleExtensionRoute53(args *struct{ ProjectExtension *ProjectExtensionInput }, projectExtension *model.ProjectExtension) error {
+	extension := model.Extension{}
 
 	// HOTFIX: check for existing subdomains for route53
 	unmarshaledCustomConfig := make(map[string]interface{})
@@ -129,7 +129,7 @@ func (r *Resolver) handleExtensionRoute53(args *struct{ ProjectExtension *Projec
 	for _, existingProjectExtension := range existingProjectExtensions {
 		if existingProjectExtension.Model.ID.String() != "" {
 			// check if HOSTED_ZONE_ID is the same
-			var tmpExtension Extension
+			var tmpExtension model.Extension
 
 			r.DB.Where("id = ?", existingProjectExtension.ExtensionID).First(&tmpExtension)
 

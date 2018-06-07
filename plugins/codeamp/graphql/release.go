@@ -27,7 +27,7 @@ func (r *ReleaseResolver) ID() graphql.ID {
 
 // Project
 func (r *ReleaseResolver) Project() *ProjectResolver {
-	var project Project
+	var project model.Project
 
 	r.DB.Model(r.Release).Related(&project)
 
@@ -48,7 +48,7 @@ func (r *ReleaseResolver) User() *UserResolver {
 // Artifacts
 func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 	artifacts := []transistor.Artifact{}
-	var releaseExtensions []ReleaseExtension
+	var releaseExtensions []model.ReleaseExtension
 
 	isAdmin := false
 	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err == nil {
@@ -60,7 +60,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 	for _, releaseExtension := range releaseExtensions {
 		var _artifacts []transistor.Artifact
 
-		projectExtension := ProjectExtension{}
+		projectExtension := model.ProjectExtension{}
 		if r.DB.Unscoped().Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.InfoWithFields("project extensions not found", log.Fields{
 				"id": releaseExtension.ProjectExtensionID,
@@ -69,7 +69,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 			return JSON{[]byte("[]")}, errors.New("release extension not found")
 		}
 
-		extension := Extension{}
+		extension := model.Extension{}
 		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found", log.Fields{
 				"id": projectExtension.Model.ID,
@@ -110,14 +110,14 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (JSON, error) {
 
 // HeadFeature
 func (r *ReleaseResolver) HeadFeature() *FeatureResolver {
-	var feature Feature
+	var feature model.Feature
 	r.DB.Where("id = ?", r.Release.HeadFeatureID).First(&feature)
 	return &FeatureResolver{DB: r.DB, Feature: feature}
 }
 
 // TailFeature
 func (r *ReleaseResolver) TailFeature() *FeatureResolver {
-	var feature Feature
+	var feature model.Feature
 
 	r.DB.Where("id = ?", r.Release.TailFeatureID).First(&feature)
 
@@ -131,7 +131,7 @@ func (r *ReleaseResolver) State() string {
 
 // ReleaseExtensions
 func (r *ReleaseResolver) ReleaseExtensions() []*ReleaseExtensionResolver {
-	var rows []ReleaseExtension
+	var rows []model.ReleaseExtension
 	var results []*ReleaseExtensionResolver
 
 	r.DB.Where("release_extensions.release_id = ?", r.Release.Model.ID).Joins(`INNER JOIN project_extensions ON release_extensions.project_extension_id = project_extensions.id 
@@ -156,7 +156,7 @@ func (r *ReleaseResolver) StateMessage() string {
 
 // Environment
 func (r *ReleaseResolver) Environment() (*EnvironmentResolver, error) {
-	var environment Environment
+	var environment model.Environment
 	if r.DB.Where("id = ?", r.Release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
 			"releaseID": r.Release.Model.ID,

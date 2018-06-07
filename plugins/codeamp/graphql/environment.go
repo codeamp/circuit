@@ -8,23 +8,10 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Environment Environment
-type Environment struct {
-	model.Model `json:",inline"`
-	// Name
-	Name string `json:"name"`
-	// Key
-	Key string `json:"key"`
-	// Is Default
-	IsDefault bool `json:"isDefault"`
-	// Color
-	Color string `json:"color"`
-}
-
 // EnvironmentResolver resolver for Environment
 type EnvironmentResolver struct {
-	Environment
-	Project
+	model.Environment
+	model.Project
 	DB *gorm.DB
 }
 
@@ -55,12 +42,12 @@ func (r *EnvironmentResolver) IsDefault() bool {
 
 // Projects - get projects permissioned for the environment
 func (r *EnvironmentResolver) Projects() []*ProjectResolver {
-	var permissions []ProjectEnvironment
+	var permissions []model.ProjectEnvironment
 	var results []*ProjectResolver
 
 	r.DB.Where("environment_id = ?", r.Environment.ID).Find(&permissions)
 	for _, permission := range permissions {
-		var project Project
+		var project model.Project
 		if !r.DB.Where("id = ?", permission.ProjectID).First(&project).RecordNotFound() {
 			results = append(results, &ProjectResolver{DB: r.DB, Project: project, Environment: r.Environment})
 		}

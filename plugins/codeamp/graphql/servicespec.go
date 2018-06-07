@@ -8,26 +8,9 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// ServiceSpec
-type ServiceSpec struct {
-	model.Model `json:",inline"`
-	// Name
-	Name string `json:"name"`
-	// CpuRequest
-	CpuRequest string `json:"cpuRequest"`
-	// CpuLimit
-	CpuLimit string `json:"cpuLimit"`
-	// MemoryRequest
-	MemoryRequest string `json:"memoryRequest"`
-	// MemoryLimit
-	MemoryLimit string `json:"memoryLimit"`
-	// TerminationGracePeriod
-	TerminationGracePeriod string `json:"terminationGracePeriod"`
-}
-
 // ServiceSpecResolver resolver for ServiceSpec
 type ServiceSpecResolver struct {
-	ServiceSpec
+	model.ServiceSpec
 	DB *gorm.DB
 }
 

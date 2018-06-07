@@ -4,35 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	"github.com/jinzhu/gorm/dialects/postgres"
-	uuid "github.com/satori/go.uuid"
 )
-
-// ProjectExtension spec
-type Extension struct {
-	model.Model `json:",inline"`
-	// Type
-	Type plugins.Type `json:"type"`
-	// Key
-	Key string `json:"key"`
-	// Name
-	Name string `json:"name"`
-	// Component
-	Component string `json:"component"`
-	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
-	// Config
-	Config postgres.Jsonb `json:"config" gorm:"type:jsonb;not null"`
-}
 
 // ExtensionResolver resolver for Extension
 type ExtensionResolver struct {
-	Extension
+	model.Extension
 	DB *gorm.DB
 }
 
@@ -63,7 +43,7 @@ func (r *ExtensionResolver) Key() string {
 
 // Environment
 func (r *ExtensionResolver) Environment() (*EnvironmentResolver, error) {
-	environment := Environment{}
+	environment := model.Environment{}
 
 	if r.DB.Where("id = ?", r.Extension.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{

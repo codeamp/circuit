@@ -12,10 +12,10 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func (x *CodeAmp) GitSync(project *graphql_resolver.Project) error {
-	var feature graphql_resolver.Feature
+func (x *CodeAmp) GitSync(project *model.Project) error {
+	var feature model.Feature
 	var release model.Release
-	var headFeature graphql_resolver.Feature
+	var headFeature model.Feature
 	hash := ""
 
 	// Get latest release and deployed feature hash
@@ -33,7 +33,7 @@ func (x *CodeAmp) GitSync(project *graphql_resolver.Project) error {
 	}
 
 	// get branches of entire environments
-	projectSettingsCollection := []graphql_resolver.ProjectSettings{}
+	projectSettingsCollection := []model.ProjectSettings{}
 	if x.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectSettingsCollection).RecordNotFound() {
 		payload := plugins.GitSync{
 			Project: plugins.Project{
@@ -78,9 +78,9 @@ func (x *CodeAmp) GitSync(project *graphql_resolver.Project) error {
 func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.GitSync)
 
-	var project graphql_resolver.Project
-	var environment graphql_resolver.Environment
-	var projectSettings []graphql_resolver.ProjectSettings
+	var project model.Project
+	var environment model.Environment
+	var projectSettings []model.ProjectSettings
 
 	if e.State == transistor.GetState("complete") {
 		if x.DB.Where("repository = ?", payload.Project.Repository).First(&project).RecordNotFound() {
@@ -91,9 +91,9 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		}
 
 		for _, commit := range payload.Commits {
-			var feature graphql_resolver.Feature
+			var feature model.Feature
 			if x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
-				feature = graphql_resolver.Feature{
+				feature = model.Feature{
 					ProjectID:  project.ID,
 					Message:    commit.Message,
 					User:       commit.User,

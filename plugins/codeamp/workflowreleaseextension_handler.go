@@ -13,7 +13,7 @@ import (
 )
 
 func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
-	project := graphql_resolver.Project{}
+	project := model.Project{}
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
 			"id": release.ProjectID,
@@ -21,7 +21,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 		return
 	}
 
-	headFeature := graphql_resolver.Feature{}
+	headFeature := model.Feature{}
 	if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 		log.InfoWithFields("head feature not found", log.Fields{
 			"id": release.HeadFeatureID,
@@ -29,7 +29,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 		return
 	}
 
-	tailFeature := graphql_resolver.Feature{}
+	tailFeature := model.Feature{}
 	if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
 		log.InfoWithFields("tail feature not found", log.Fields{
 			"id": release.TailFeatureID,
@@ -37,7 +37,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 		return
 	}
 
-	environment := graphql_resolver.Environment{}
+	environment := model.Environment{}
 	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
 			"id": release.EnvironmentID,
@@ -54,7 +54,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 
 	// get all branches relevant for the projec
 	branch := "master"
-	projectSettings := graphql_resolver.ProjectSettings{}
+	projectSettings := model.ProjectSettings{}
 	if x.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
 		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.WarnWithFields("no env project branch found", log.Fields{})
@@ -62,14 +62,14 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 		branch = projectSettings.GitBranch
 	}
 
-	var secrets []graphql_resolver.Secret
+	var secrets []model.Secret
 	err := json.Unmarshal(release.Secrets.RawMessage, &secrets)
 	if err != nil {
 		log.Error(err.Error(), log.Fields{})
 		return
 	}
 
-	var services []graphql_resolver.Service
+	var services []model.Service
 	err = json.Unmarshal(release.Services.RawMessage, &services)
 	if err != nil {
 		log.Error(err.Error(), log.Fields{})
@@ -78,7 +78,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 
 	var pluginServices []plugins.Service
 	for _, service := range services {
-		var spec graphql_resolver.ServiceSpec
+		var spec model.ServiceSpec
 		if x.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
 				"id": service.ServiceSpecID,
@@ -143,14 +143,14 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseExtensionDeploymentsCount := 0
-	releaseExtensions := []graphql_resolver.ReleaseExtension{}
+	releaseExtensions := []model.ReleaseExtension{}
 	artifacts := []transistor.Artifact{}
 
 	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 	for _, releaseExtension := range releaseExtensions {
 		// collect workflow artifacts
 		if releaseExtension.Type == plugins.GetType("workflow") {
-			projectExtension := graphql_resolver.ProjectExtension{}
+			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
 					"id": releaseExtension.ProjectExtensionID,
@@ -159,7 +159,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 				return
 			}
 
-			extension := graphql_resolver.Extension{}
+			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
 					"id": projectExtension.Model.ID,
@@ -194,7 +194,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 				releaseExtension.StateMessage = release.StateMessage
 			}
 
-			projectExtension := graphql_resolver.ProjectExtension{}
+			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
 					"id": releaseExtension.ProjectExtensionID,
@@ -203,7 +203,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 				return
 			}
 
-			extension := graphql_resolver.Extension{}
+			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
 					"id": projectExtension.Model.ID,

@@ -12,65 +12,12 @@ import (
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
 )
-
-// Project
-type Project struct {
-	model.Model `json:",inline"`
-	// Name
-	Name string `json:"name"`
-	// Slug
-	Slug string `json:"slug"`
-	// Repository
-	Repository string `json:"repository"`
-	// Secret
-	Secret string `json:"-"`
-	// GitUrl
-	GitUrl string `json:"GitUrl"`
-	// GitProtocol
-	GitProtocol string `json:"GitProtocol"`
-	// RsaPrivateKey
-	RsaPrivateKey string `json:"-"`
-	// RsaPublicKey
-	RsaPublicKey string `json:"rsaPublicKey"`
-}
-
-// Project settings
-type ProjectSettings struct {
-	model.Model `json:"inline"`
-	// EnvironmentID
-	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
-	// ProjectID
-	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
-	// GitBranch
-	GitBranch string `json:"gitBranch"`
-	//ContinuousDeploy
-	ContinuousDeploy bool `json:"continuousDeploy"`
-}
-
-// ProjectEnvironment
-type ProjectEnvironment struct {
-	model.Model `json:"inline"`
-	// EnvironmentID
-	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
-	// ProjectID
-	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
-}
-
-// ProjectEnvironment
-type ProjectBookmark struct {
-	model.Model `json:"inline"`
-	// UserID
-	UserID uuid.UUID `json:"userID" gorm:"type:uuid"`
-	// ProjectID
-	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
-}
 
 // ProjectResolver resolver for Project
 type ProjectResolver struct {
-	Project
-	Environment
+	model.Project
+	model.Environment
 	DB *gorm.DB
 }
 
@@ -121,7 +68,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 
 // Features
 func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
-	var rows []Feature
+	var rows []model.Feature
 	var results []*FeatureResolver
 
 	created := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
@@ -136,7 +83,7 @@ func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*Featur
 		if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 
 		} else {
-			feature := Feature{}
+			feature := model.Feature{}
 			r.DB.Where("id = ?", currentRelease.HeadFeatureID).First(&feature)
 			created = feature.Created
 		}
@@ -182,7 +129,7 @@ func (r *ProjectResolver) Releases() []*ReleaseResolver {
 
 // Services
 func (r *ProjectResolver) Services() []*ServiceResolver {
-	var rows []Service
+	var rows []model.Service
 	var results []*ServiceResolver
 
 	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
@@ -199,7 +146,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error
 		return nil, err
 	}
 
-	var rows []Secret
+	var rows []model.Secret
 	var results []*SecretResolver
 
 	r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
@@ -212,7 +159,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error
 
 // ProjectExtensions
 func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
-	var rows []ProjectExtension
+	var rows []model.ProjectExtension
 	var results []*ProjectExtensionResolver
 
 	r.DB.Where("project_extensions.project_id = ? and project_extensions.environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Joins(`INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
@@ -231,7 +178,7 @@ func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 
 // GitBranch
 func (r *ProjectResolver) GitBranch() string {
-	var projectSettings ProjectSettings
+	var projectSettings model.ProjectSettings
 
 	if r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		return "master"
@@ -242,7 +189,7 @@ func (r *ProjectResolver) GitBranch() string {
 
 // ContinuousDeploy
 func (r *ProjectResolver) ContinuousDeploy() bool {
-	var projectSettings ProjectSettings
+	var projectSettings model.ProjectSettings
 
 	if r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID.String(), r.Environment.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		return false
@@ -253,12 +200,12 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 
 // Environments
 func (r *ProjectResolver) Environments() []*EnvironmentResolver {
-	var permissions []ProjectEnvironment
+	var permissions []model.ProjectEnvironment
 	var results []*EnvironmentResolver
 
 	r.DB.Where("project_id = ?", r.Project.ID).Find(&permissions)
 	for _, permission := range permissions {
-		var environment Environment
+		var environment model.Environment
 		r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
 		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment, Project: r.Project})
 	}
@@ -275,7 +222,7 @@ func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
 		return false
 	}
 
-	if r.DB.Where("project_id = ? and user_id = ?", r.Project.Model.ID.String(), userID).First(&ProjectBookmark{}).RecordNotFound() {
+	if r.DB.Where("project_id = ? and user_id = ?", r.Project.Model.ID.String(), userID).First(&model.ProjectBookmark{}).RecordNotFound() {
 		return false
 	} else {
 		return true

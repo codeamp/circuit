@@ -3,46 +3,16 @@ package graphql_resolver
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
-	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
-	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	"github.com/jinzhu/gorm/dialects/postgres"
-	uuid "github.com/satori/go.uuid"
 )
-
-// ReleaseExtension
-type ReleaseExtension struct {
-	model.Model `json:",inline"`
-	// ReleaseID
-	ReleaseID uuid.UUID `json:"releaseID" gorm:"type:uuid"`
-	// FetureHash
-	FeatureHash string `json:"featureHash"`
-	// ServicesSignature
-	ServicesSignature string `json:"servicesSignature"`
-	// SecretsSignature
-	SecretsSignature string `json:"secretsSignature"`
-	// ProjectExtensionID
-	ProjectExtensionID uuid.UUID `json:"extensionID" gorm:"type:uuid"`
-	// State
-	State transistor.State `json:"state"`
-	// StateMessage
-	StateMessage string `json:"stateMessage"`
-	// Type
-	Type plugins.Type `json:"type"`
-	// Artifacts
-	Artifacts postgres.Jsonb `json:"artifacts" gorm:"type:jsonb"` // captured on workflow success/ fail
-	// Finished
-	Finished time.Time
-}
 
 // ReleaseExtensionResolver resolver for ReleaseExtension
 type ReleaseExtensionResolver struct {
-	ReleaseExtension
+	model.ReleaseExtension
 	DB *gorm.DB
 }
 
@@ -67,7 +37,7 @@ func (r *ReleaseExtensionResolver) Release() (*ReleaseResolver, error) {
 
 // ProjectExtension
 func (r *ReleaseExtensionResolver) Extension() (*ProjectExtensionResolver, error) {
-	extension := ProjectExtension{}
+	extension := model.ProjectExtension{}
 
 	if r.DB.Unscoped().Where("id = ?", r.ReleaseExtension.ProjectExtensionID).Find(&extension).RecordNotFound() {
 		log.InfoWithFields("extension not found", log.Fields{

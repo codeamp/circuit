@@ -5,48 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
 )
-
-// Service
-type Service struct {
-	model.Model `json:",inline"`
-	// ProjectID
-	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
-	// ServiceSpecID
-	ServiceSpecID uuid.UUID `bson:"serviceSpecID" json:"serviceSpecID" gorm:"type:uuid"`
-	// Command
-	Command string `json:"command"`
-	// Name
-	Name string `json:"name"`
-	// Type
-	Type plugins.Type `json:"type"`
-	// Count
-	Count string `json:"count"`
-	// Ports
-	Ports []ServicePort `json:"servicePorts"`
-	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
-}
-
-type ServicePort struct {
-	model.Model `json:",inline"`
-	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
-	// Protocol
-	Protocol string `json:"protocol"`
-	// Port
-	Port string `json:"port"`
-}
 
 // Service Resolver
 type ServiceResolver struct {
-	Service
+	model.Service
 	DB *gorm.DB
 }
 
@@ -57,7 +24,7 @@ func (r *ServiceResolver) ID() graphql.ID {
 
 // Project
 func (r *ServiceResolver) Project() *ProjectResolver {
-	var project Project
+	var project model.Project
 
 	r.DB.Model(r.Service).Related(&project)
 
@@ -76,7 +43,7 @@ func (r *ServiceResolver) Name() string {
 
 // ServiceSpec
 func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
-	var serviceSpec ServiceSpec
+	var serviceSpec model.ServiceSpec
 
 	r.DB.Model(r.Service).Related(&serviceSpec)
 
@@ -90,7 +57,7 @@ func (r *ServiceResolver) Count() string {
 
 // ServicePorts
 func (r *ServiceResolver) Ports() ([]*JSON, error) {
-	var rows []ServicePort
+	var rows []model.ServicePort
 	var results []*JSON
 
 	r.DB.Where("service_id = ?", r.Service.ID).Order("created_at desc").Find(&rows)
@@ -108,7 +75,7 @@ func (r *ServiceResolver) Ports() ([]*JSON, error) {
 
 // Environment
 func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
-	var environment Environment
+	var environment model.Environment
 
 	if r.DB.Where("id = ?", r.Service.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{

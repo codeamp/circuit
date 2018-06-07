@@ -16,7 +16,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.Release)
 	release := model.Release{}
-	releaseExtensions := []graphql_resolver.ReleaseExtension{}
+	releaseExtensions := []model.ReleaseExtension{}
 
 	if x.DB.Where("id = ?", payload.ID).First(&release).RecordNotFound() {
 		log.InfoWithFields("release not found", log.Fields{
@@ -29,7 +29,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 
 		for _, releaseExtension := range releaseExtensions {
-			projectExtension := graphql_resolver.ProjectExtension{}
+			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.InfoWithFields("project extensions not found", log.Fields{
 					"id": releaseExtension.ProjectExtensionID,
@@ -38,7 +38,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				return fmt.Errorf("project extension %s not found", releaseExtension.ProjectExtensionID)
 			}
 
-			extension := graphql_resolver.Extension{}
+			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.InfoWithFields("extension not found", log.Fields{
 					"id": projectExtension.Model.ID,
@@ -51,7 +51,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				// check if the last release extension has the same
 				// ServicesSignature and SecretsSignature. If so,
 				// mark the action as completed before sending the event
-				lastReleaseExtension := graphql_resolver.ReleaseExtension{}
+				lastReleaseExtension := model.ReleaseExtension{}
 				artifacts := []transistor.Artifact{}
 
 				eventAction := transistor.GetAction("create")
@@ -97,7 +97,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	release.StateMessage = stateMessage
 	x.DB.Save(release)
 
-	releaseExtensions := []graphql_resolver.ReleaseExtension{}
+	releaseExtensions := []model.ReleaseExtension{}
 	x.DB.Where("release_id = ? AND state <> ?", release.Model.ID, transistor.GetState("complete")).Find(&releaseExtensions)
 	for _, re := range releaseExtensions {
 		re.State = transistor.GetState("failed")
@@ -108,8 +108,8 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
-	project := graphql_resolver.Project{}
-	environment := graphql_resolver.Environment{}
+	project := model.Project{}
+	environment := model.Environment{}
 
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.WarnWithFields("project not found", log.Fields{
@@ -154,24 +154,24 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		return nil
 	}
 
-	var project graphql_resolver.Project
-	var services []graphql_resolver.Service
-	var secrets []graphql_resolver.Secret
+	var project model.Project
+	var services []model.Service
+	var secrets []model.Secret
 
-	projectSecrets := []graphql_resolver.Secret{}
+	projectSecrets := []model.Secret{}
 	// get all the env vars related to this release and store
 	x.DB.Where("environment_id = ? AND project_id = ? AND scope = ?", nextQueuedRelease.EnvironmentID, nextQueuedRelease.ProjectID, "project").Find(&projectSecrets)
 	for _, secret := range projectSecrets {
-		var secretValue graphql_resolver.SecretValue
+		var secretValue model.SecretValue
 		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
 		secret.Value = secretValue
 		secrets = append(secrets, secret)
 	}
 
-	globalSecrets := []graphql_resolver.Secret{}
+	globalSecrets := []model.Secret{}
 	x.DB.Where("environment_id = ? AND scope = ?", nextQueuedRelease.EnvironmentID, "global").Find(&globalSecrets)
 	for _, secret := range globalSecrets {
-		var secretValue graphql_resolver.SecretValue
+		var secretValue model.SecretValue
 		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
 		secret.Value = secretValue
 		secrets = append(secrets, secret)
@@ -192,7 +192,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	}
 
 	for i, service := range services {
-		ports := []graphql_resolver.ServicePort{}
+		ports := []model.ServicePort{}
 		x.DB.Where("service_id = ?", service.Model.ID).Find(&ports)
 		services[i].Ports = ports
 	}
@@ -206,7 +206,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 
 	// get all branches relevant for the project
 	var branch string
-	var projectSettings graphql_resolver.ProjectSettings
+	var projectSettings model.ProjectSettings
 
 	if x.DB.Where("environment_id = ? and project_id = ?", nextQueuedRelease.EnvironmentID, nextQueuedRelease.ProjectID).First(&projectSettings).RecordNotFound() {
 		log.WarnWithFields("no env project branch found", log.Fields{})
@@ -214,7 +214,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		branch = projectSettings.GitBranch
 	}
 
-	var environment graphql_resolver.Environment
+	var environment model.Environment
 	if x.DB.Where("id = ?", nextQueuedRelease.EnvironmentID).Find(&environment).RecordNotFound() {
 		log.WarnWithFields("no env found", log.Fields{
 			"id": nextQueuedRelease.EnvironmentID,
@@ -222,7 +222,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		return nil
 	}
 
-	var headFeature graphql_resolver.Feature
+	var headFeature model.Feature
 	if x.DB.Where("id = ?", nextQueuedRelease.HeadFeatureID).First(&headFeature).RecordNotFound() {
 		log.WarnWithFields("head feature not found", log.Fields{
 			"id": nextQueuedRelease.HeadFeatureID,
@@ -230,7 +230,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		return nil
 	}
 
-	var tailFeature graphql_resolver.Feature
+	var tailFeature model.Feature
 	if x.DB.Where("id = ?", nextQueuedRelease.TailFeatureID).First(&tailFeature).RecordNotFound() {
 		log.WarnWithFields("tail feature not found", log.Fields{
 			"id": nextQueuedRelease.TailFeatureID,
@@ -240,7 +240,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 
 	var pluginServices []plugins.Service
 	for _, service := range services {
-		var spec graphql_resolver.ServiceSpec
+		var spec model.ServiceSpec
 		if x.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
 				"id": service.ServiceSpecID,
