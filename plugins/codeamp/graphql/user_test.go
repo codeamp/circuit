@@ -27,6 +27,7 @@ func (suite *UserTestSuite) SetupTest() {
 		&model.Project{},
 		&model.ProjectEnvironment{},
 		&model.ProjectBookmark{},
+		&model.User{},
 		&model.UserPermission{},
 		&model.ProjectSettings{},
 		&model.Environment{},

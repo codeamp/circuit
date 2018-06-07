@@ -1,16 +1,14 @@
 package graphql_resolver_test
 
 import (
-	"fmt"
 	"log"
 	"testing"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	"github.com/codeamp/circuit/test"
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -21,26 +19,15 @@ type EnvironmentTestSuite struct {
 }
 
 func (suite *EnvironmentTestSuite) SetupTest() {
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile("../../../configs/circuit.test.yml")
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
-		viper.GetString("plugins.codeamp.postgres.host"),
-		viper.GetString("plugins.codeamp.postgres.port"),
-		viper.GetString("plugins.codeamp.postgres.user"),
-		viper.GetString("plugins.codeamp.postgres.dbname"),
-		viper.GetString("plugins.codeamp.postgres.sslmode"),
-		viper.GetString("plugins.codeamp.postgres.password"),
-	))
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	db.AutoMigrate(
+	migrators := []interface{}{
 		&model.Environment{},
-	)
+	}
+
+	db, err := test.SetupResolverTest(migrators)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
 	// clean, just in case
 	db.Delete(&model.Environment{})
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}

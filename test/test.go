@@ -33,7 +33,9 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	db.AutoMigrate(migrators)
+	for _, migrator := range migrators {
+		db.AutoMigrate(migrator)
+	}
 
 	configLogLevel()
 	configLogFormat()
@@ -42,7 +44,7 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 }
 
 func setupPostgresDB() (*gorm.DB, error) {
-	log.InfoWithFields("Setup Postgres DB Connection for Tests",
+	log.DebugWithFields("Setup Postgres DB Connection for Tests",
 		log.Fields{
 			"host":     viper.GetString("plugins.codeamp.postgres.host"),
 			"port":     viper.GetString("plugins.codeamp.postgres.port"),

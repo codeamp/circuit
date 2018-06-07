@@ -8,10 +8,9 @@ import (
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	"github.com/jinzhu/gorm"
+	"github.com/codeamp/circuit/test"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -22,31 +21,22 @@ type ProjectTestSuite struct {
 }
 
 func (suite *ProjectTestSuite) SetupTest() {
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile("../../../configs/circuit.test.yml")
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
-		viper.GetString("plugins.codeamp.postgres.host"),
-		viper.GetString("plugins.codeamp.postgres.port"),
-		viper.GetString("plugins.codeamp.postgres.user"),
-		viper.GetString("plugins.codeamp.postgres.dbname"),
-		viper.GetString("plugins.codeamp.postgres.sslmode"),
-		viper.GetString("plugins.codeamp.postgres.password"),
-	))
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	db.AutoMigrate(
+	migrators := []*interface{}{
 		&model.Project{},
 		&model.ProjectEnvironment{},
 		&model.ProjectBookmark{},
 		&model.UserPermission{},
 		&model.ProjectSettings{},
 		&model.Environment{},
-	)
+	}
+
+	log.Info(migrators)
+
+	db, err := test.SetupResolverTest(migrators)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 }
 
