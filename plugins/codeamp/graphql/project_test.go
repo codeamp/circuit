@@ -21,7 +21,7 @@ type ProjectTestSuite struct {
 }
 
 func (suite *ProjectTestSuite) SetupTest() {
-	migrators := []*interface{}{
+	migrators := []interface{}{
 		&model.Project{},
 		&model.ProjectEnvironment{},
 		&model.ProjectBookmark{},
