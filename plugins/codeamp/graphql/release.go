@@ -41,7 +41,7 @@ func (r *ReleaseResolver) User() *UserResolver {
 	r.DB.Model(r.Release).Related(&user)
 
 	//return &UserResolver{DB: r.DB, User: user}
-	log.Panic("PANIC")
+	log.Panic("PANIC - User")
 	return nil
 }
 

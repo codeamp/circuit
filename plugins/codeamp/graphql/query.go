@@ -47,7 +47,7 @@ func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 	// }
 
 	// return results, nil
-	log.Panic("PANIC")
+	log.Panic("PANIC - USERS")
 	return nil, nil
 }
 

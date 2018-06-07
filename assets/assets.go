@@ -84,7 +84,7 @@ func pluginsCodeampGraphqlSchemaGraphql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "plugins/codeamp/graphql/schema.graphql", size: 7509, mode: os.FileMode(420), modTime: time.Unix(1527700258, 0)}
+	info := bindataFileInfo{name: "plugins/codeamp/graphql/schema.graphql", size: 7509, mode: os.FileMode(420), modTime: time.Unix(1528408311, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -104,7 +104,7 @@ func pluginsCodeampGraphqlStaticIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "plugins/codeamp/graphql/static/index.html", size: 2810, mode: os.FileMode(420), modTime: time.Unix(1527700258, 0)}
+	info := bindataFileInfo{name: "plugins/codeamp/graphql/static/index.html", size: 2810, mode: os.FileMode(420), modTime: time.Unix(1528408311, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
