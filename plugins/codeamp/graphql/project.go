@@ -59,7 +59,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 // Features
-func (r *ProjectResolver) Features(showDeployed bool) []*FeatureResolver {
+func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
 	// return r.DBProjectResolver.Features(showDeployed)
 	return nil
 }
