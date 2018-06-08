@@ -1,4 +1,4 @@
-package db_resolver
+package auth
 
 import (
 	"context"

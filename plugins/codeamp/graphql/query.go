@@ -10,7 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp/db"
+	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 )
 
@@ -27,28 +27,22 @@ func (r *Resolver) User(ctx context.Context, args *struct {
 		userID = claims.UserID
 	}
 
-	resolver := UserResolver{UserResolver: &db_resolver.UserResolver{DB: r.DB}}
-	if err := resolver.QueryUser(ctx, userID); err != nil {
+	initializer := UserResolverInitializer{DB: r.DB}
+	resolver, err := initializer.User(ctx, userID)
+
+	if err != nil {
 		return nil, err
 	}
 
-	return &resolver, nil
+	return resolver, nil
 }
 
 // Users
 func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
-	// var rows []model.User
-	// var results []*UserResolver
+	initializer := UserResolverInitializer{DB: r.DB}
+	resolvers, err := initializer.Users(ctx)
 
-	// r.DB.Order("created_at desc").Find(&rows)
-
-	// for _, user := range rows {
-	// 	results = append(results, &UserResolver{DB: r.DB, User: user})
-	// }
-
-	// return results, nil
-	log.Panic("PANIC - USERS")
-	return nil, nil
+	return resolvers, err
 }
 
 // Project
@@ -58,7 +52,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	Name          *string
 	EnvironmentID *string
 }) (*ProjectResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +107,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
 }) ([]*ProjectResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -143,7 +137,7 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 }
 
 func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -159,7 +153,7 @@ func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 }
 
 func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -175,7 +169,7 @@ func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
 }
 
 func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -191,7 +185,7 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 }
 
 func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -207,7 +201,7 @@ func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 }
 
 func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -241,7 +235,7 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 }
 
 func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil, err
 	}
 
@@ -259,7 +253,7 @@ func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 }
 
 func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -290,7 +284,7 @@ func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *
 }
 
 func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -306,7 +300,7 @@ func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionRe
 }
 
 func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -329,7 +323,7 @@ func (r *Resolver) Permissions(ctx context.Context) (model.JSON, error) {
 	r.DB.Unscoped().Select("DISTINCT(value)").Find(&rows)
 
 	for _, userPermission := range rows {
-		if _, err := db_resolver.CheckAuth(ctx, []string{userPermission.Value}); err != nil {
+		if _, err := auth.CheckAuth(ctx, []string{userPermission.Value}); err != nil {
 			results[userPermission.Value] = false
 		} else {
 			results[userPermission.Value] = true

@@ -79,7 +79,7 @@ func (x *CodeAmp) GraphQLListen() {
 	http.Handle("/socket.io/", sIOServer)
 
 	_, filename, _, _ := runtime.Caller(0)
-	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "static/")))
+	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "graphql/static/")))
 	http.Handle("/", fs)
 
 	http.Handle("/query", graphql_resolver.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
@@ -166,10 +166,12 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 
 	x.initRedis()
 
+	x.Events = events
+
 	x.Resolver = &graphql_resolver.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
 	x.initGraphQL(x.Resolver)
+	go x.GraphQLListen()
 
-	x.Events = events
 	log.Info("Starting CodeAmp service")
 	return nil
 }

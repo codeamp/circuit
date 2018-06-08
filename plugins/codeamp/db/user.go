@@ -2,31 +2,29 @@ package db_resolver
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 )
 
 type UserResolver struct {
-	model.User
-	DB *gorm.DB
+	UserModel model.User
+	DB        *gorm.DB
 }
 
-// Queries
-func (u *UserResolver) QueryUser(ctx context.Context, userID string) error {
-	var err error
-	if _, err = CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userID)}); err != nil {
-		return err
+func (u *UserResolver) Permissions(ctx context.Context) []string {
+	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
+		return nil
 	}
 
-	if err = u.DB.Where("id = ?", userID).First(&u.User).Error; err != nil {
-		return err
+	var permissions []string
+
+	u.DB.Model(u.UserModel).Association("Permissions").Find(&u.UserModel.Permissions)
+
+	for _, permission := range u.UserModel.Permissions {
+		permissions = append(permissions, permission.Value)
 	}
 
-	return nil
-}
-
-func (u *UserResolver) QueryUsers() {
-
+	return permissions
 }

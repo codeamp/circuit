@@ -10,53 +10,33 @@ import (
 
 // User resolver
 type UserResolver struct {
-	*db_resolver.UserResolver
+	DBUserResolver *db_resolver.UserResolver
 }
 
 // ID
 func (r *UserResolver) ID() graphql.ID {
-	return graphql.ID(r.UserResolver.User.Model.ID.String())
+	return graphql.ID(r.DBUserResolver.UserModel.Model.ID.String())
 }
 
 // Email
 func (r *UserResolver) Email() string {
-	return r.UserResolver.User.Email
+	return r.DBUserResolver.UserModel.Email
 }
 
 // Permissions
 func (r *UserResolver) Permissions(ctx context.Context) []string {
-	if _, err := db_resolver.CheckAuth(ctx, []string{"admin"}); err != nil {
-		return nil
-	}
-
-	var permissions []string
-
-	r.DB.Model(r.User).Association("Permissions").Find(&r.UserResolver.User.Permissions)
-
-	for _, permission := range r.UserResolver.User.Permissions {
-		permissions = append(permissions, permission.Value)
-	}
-
-	return permissions
+	return r.DBUserResolver.Permissions(ctx)
 }
 
 // Created
 func (r *UserResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.UserResolver.User.Model.CreatedAt}
+	return graphql.Time{Time: r.DBUserResolver.UserModel.Model.CreatedAt}
 }
 
 func (r *UserResolver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&r.UserResolver.User)
+	return json.Marshal(&r.DBUserResolver.UserModel)
 }
 
 func (r *UserResolver) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &r.UserResolver.User)
-}
-
-func (r *UserResolver) User() {
-
-}
-
-func (r *UserResolver) Error() error {
-	return nil
+	return json.Unmarshal(data, &r.DBUserResolver.UserModel)
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/codeamp/circuit/plugins/codeamp/db"
+	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -142,7 +142,7 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	if _, err := db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -218,7 +218,7 @@ func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
 	var userID string
 	var err error
 
-	if userID, err = db_resolver.CheckAuth(ctx, []string{}); err != nil {
+	if userID, err = auth.CheckAuth(ctx, []string{}); err != nil {
 		return false
 	}
 
