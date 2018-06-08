@@ -220,9 +220,8 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 				v1.ResourceMemory: resource.MustParse(podConfig.Service.Spec.MemoryRequest),
 			},
 		},
-		ImagePullPolicy: v1.PullAlways,
-		Env:             podConfig.Env,
-		VolumeMounts:    podConfig.VolumeMounts,
+		Env:          podConfig.Env,
+		VolumeMounts: podConfig.VolumeMounts,
 	}
 	if kind == "Deployment" {
 		container.ReadinessProbe = &podConfig.ReadyProbe
