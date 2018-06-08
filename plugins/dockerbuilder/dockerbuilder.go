@@ -143,6 +143,20 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 		log.Info(string(output))
 	}
 
+	output, err = x.git(env, "-C", repoPath, "reset", "--hard", fmt.Sprintf("origin/%s", payload.Release.Git.Branch))
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	log.Info(string(output))
+
+	output, err = x.git(env, "-C", repoPath, "clean", "-fd")
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
 	output, err = x.git(env, "-C", repoPath, "checkout", payload.Release.Git.Branch)
 	if err != nil {
 		log.Error(err)
