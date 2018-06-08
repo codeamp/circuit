@@ -38,7 +38,7 @@ func (suite *UserTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	suite.UserResolver = &graphql_resolver.UserResolver{UserResolver: &db_resolver.UserResolver{DB: db}}
+	suite.UserResolver = &graphql_resolver.UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: db}}
 }
 
 /* Test successful project permissions update */
@@ -48,7 +48,7 @@ func (suite *UserTestSuite) TestCreateUser() {
 		Password: "example",
 	}
 
-	res := suite.UserResolver.UserResolver.DB.Create(&user)
+	res := suite.UserResolver.DBUserResolver.DB.Create(&user)
 	if res.Error != nil {
 		log.Error(res.Error)
 		assert.Nil(suite.T(), res.Error)

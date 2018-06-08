@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/jinzhu/gorm"
 )
 
 func GetSecretScope(s string) model.SecretScope {
@@ -30,101 +30,72 @@ func GetSecretScope(s string) model.SecretScope {
 
 // SecretResolver resolver for Secret
 type SecretResolver struct {
-	model.Secret
-	SecretValue model.SecretValue
-	DB          *gorm.DB
+	DBSecretResolver *db_resolver.SecretResolver
 }
 
 // ID
 func (r *SecretResolver) ID() graphql.ID {
-	return graphql.ID(r.Secret.Model.ID.String())
+	return graphql.ID(r.DBSecretResolver.Secret.Model.ID.String())
 }
 
 // Key
 func (r *SecretResolver) Key() string {
-	return r.Secret.Key
+	return r.DBSecretResolver.Secret.Key
 }
 
 // Value
 func (r *SecretResolver) Value() string {
-	if r.IsSecret() {
-		return ""
-	}
-
-	if r.SecretValue != (model.SecretValue{}) {
-		return r.SecretValue.Value
-	} else {
-		return r.Secret.Value.Value
-	}
+	return r.DBSecretResolver.Value()
 }
 
 // Scope
 func (r *SecretResolver) Scope() string {
-	return string(r.Secret.Scope)
+	return string(r.DBSecretResolver.Secret.Scope)
 }
 
 // Project
 func (r *SecretResolver) Project() *ProjectResolver {
-	var project model.Project
-
-	r.DB.Model(r.Secret).Related(&project)
-
-	return &ProjectResolver{DB: r.DB, Project: project}
+	// return r.DBSecretResolver.Project()
+	return nil
 }
 
 // User
 func (r *SecretResolver) User() *UserResolver {
-	var user model.User
-
-	r.DB.Model(r.SecretValue).Related(&user)
-
-	// return &UserResolver{DB: r.DB, User: user}
-	log.Panic("PANIC")
+	// return r.DBSecretResolver.User()
 	return nil
 }
 
 // Type
 func (r *SecretResolver) Type() string {
-	return string(r.Secret.Type)
+	return string(r.DBSecretResolver.Secret.Type)
 }
 
 // Versions
 func (r *SecretResolver) Versions() ([]*SecretResolver, error) {
-	var secretValues []model.SecretValue
-	var secretResolvers []*SecretResolver
-
-	r.DB.Where("secret_id = ?", r.Secret.Model.ID).Order("created_at desc").Find(&secretValues)
-
-	for _, secretValue := range secretValues {
-		secretResolvers = append(secretResolvers, &SecretResolver{DB: r.DB, Secret: r.Secret, SecretValue: secretValue})
-	}
-
-	return secretResolvers, nil
+	// return r.DBSecretResolver.Versions()
+	return nil, nil
 }
 
 // Environment
 func (r *SecretResolver) Environment() *EnvironmentResolver {
-	var env model.Environment
-
-	r.DB.Model(r.Secret).Related(&env)
-
-	return &EnvironmentResolver{DB: r.DB, Environment: env}
+	// return r.DBSecretResolver.Environment()
+	return nil
 }
 
 // Created
 func (r *SecretResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.Secret.Model.CreatedAt}
+	return graphql.Time{Time: r.DBSecretResolver.Secret.Model.CreatedAt}
 }
 
 // IsSecret
 func (r *SecretResolver) IsSecret() bool {
-	return r.Secret.IsSecret
+	return r.DBSecretResolver.IsSecret()
 }
 
 func (r *SecretResolver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&r.Secret)
+	return json.Marshal(&r.DBSecretResolver.Secret)
 }
 
 func (r *SecretResolver) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &r.Secret)
+	return json.Unmarshal(data, &r.DBSecretResolver.Secret)
 }

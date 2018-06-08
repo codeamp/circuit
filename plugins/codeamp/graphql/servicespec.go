@@ -3,61 +3,59 @@ package graphql_resolver
 import (
 	"encoding/json"
 
-	"github.com/codeamp/circuit/plugins/codeamp/model"
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/jinzhu/gorm"
 )
 
 // ServiceSpecResolver resolver for ServiceSpec
 type ServiceSpecResolver struct {
-	model.ServiceSpec
-	DB *gorm.DB
+	DBServiceSpecResolver *db_resolver.ServiceSpecResolver
 }
 
 // ID
 func (r *ServiceSpecResolver) ID() graphql.ID {
-	return graphql.ID(r.ServiceSpec.Model.ID.String())
+	return graphql.ID(r.DBServiceSpecResolver.ServiceSpec.Model.ID.String())
 }
 
 // Name
 func (r *ServiceSpecResolver) Name() string {
-	return r.ServiceSpec.Name
+	return r.DBServiceSpecResolver.ServiceSpec.Name
 }
 
 // CpuRequest
 func (r *ServiceSpecResolver) CpuRequest() string {
-	return r.ServiceSpec.CpuRequest
+	return r.DBServiceSpecResolver.ServiceSpec.CpuRequest
 }
 
 // CpuLimit
 func (r *ServiceSpecResolver) CpuLimit() string {
-	return r.ServiceSpec.CpuLimit
+	return r.DBServiceSpecResolver.ServiceSpec.CpuLimit
 }
 
 // MemoryRequest
 func (r *ServiceSpecResolver) MemoryRequest() string {
-	return r.ServiceSpec.MemoryRequest
+	return r.DBServiceSpecResolver.ServiceSpec.MemoryRequest
 }
 
 // MemoryLimit
 func (r *ServiceSpecResolver) MemoryLimit() string {
-	return r.ServiceSpec.MemoryLimit
+	return r.DBServiceSpecResolver.ServiceSpec.MemoryLimit
 }
 
 // TerminationGracePeriod
 func (r *ServiceSpecResolver) TerminationGracePeriod() string {
-	return r.ServiceSpec.TerminationGracePeriod
+	return r.DBServiceSpecResolver.ServiceSpec.TerminationGracePeriod
 }
 
 // Created
 func (r *ServiceSpecResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.ServiceSpec.Model.CreatedAt}
+	return graphql.Time{Time: r.DBServiceSpecResolver.ServiceSpec.Model.CreatedAt}
 }
 
 func (r *ServiceSpecResolver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&r.ServiceSpec)
+	return json.Marshal(&r.DBServiceSpecResolver.ServiceSpec)
 }
 
 func (r *ServiceSpecResolver) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &r.ServiceSpec)
+	return json.Unmarshal(data, &r.DBServiceSpecResolver.ServiceSpec)
 }

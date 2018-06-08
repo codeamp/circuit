@@ -9,8 +9,8 @@ import (
 )
 
 type UserResolver struct {
-	UserModel model.User
-	DB        *gorm.DB
+	model.User
+	DB *gorm.DB
 }
 
 func (u *UserResolver) Permissions(ctx context.Context) []string {
@@ -20,9 +20,9 @@ func (u *UserResolver) Permissions(ctx context.Context) []string {
 
 	var permissions []string
 
-	u.DB.Model(u.UserModel).Association("Permissions").Find(&u.UserModel.Permissions)
+	u.DB.Model(u.User).Association("Permissions").Find(&u.User.Permissions)
 
-	for _, permission := range u.UserModel.Permissions {
+	for _, permission := range u.User.Permissions {
 		permissions = append(permissions, permission.Value)
 	}
 

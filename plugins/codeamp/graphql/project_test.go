@@ -116,7 +116,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 
 	// check if env is found in response
 	assert.Equal(suite.T(), 1, len(updateProjectEnvironmentsResp))
-	assert.Equal(suite.T(), env.Model.ID, updateProjectEnvironmentsResp[0].Environment.Model.ID)
+	assert.Equal(suite.T(), env.Model.ID, updateProjectEnvironmentsResp[0].DBEnvironmentResolver.Environment.Model.ID)
 
 	projectEnvironments := []model.ProjectEnvironment{}
 	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)

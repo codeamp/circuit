@@ -22,7 +22,7 @@ func (u *UserResolverInitializer) User(ctx context.Context, userID string) (*Use
 	}
 
 	resolver := UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: u.DB}}
-	if err = u.DB.Where("id = ?", userID).First(&resolver.DBUserResolver.UserModel).Error; err != nil {
+	if err = u.DB.Where("id = ?", userID).First(&resolver.DBUserResolver.User).Error; err != nil {
 		return nil, err
 	}
 
@@ -36,7 +36,7 @@ func (u *UserResolverInitializer) Users(ctx context.Context) ([]*UserResolver, e
 	u.DB.Order("created_at desc").Find(&rows)
 
 	for _, user := range rows {
-		results = append(results, &UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: u.DB, UserModel: user}})
+		results = append(results, &UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: u.DB, User: user}})
 	}
 
 	return results, nil
