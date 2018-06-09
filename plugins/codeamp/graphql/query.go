@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 )
 
 // User
@@ -52,26 +51,21 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	Name          *string
 	EnvironmentID *string
 }) (*ProjectResolver, error) {
+	log.Info("query.go project")
+
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var project model.Project
-	var environment model.Environment
-	var query *gorm.DB
-
+	identifier := make(map[string]string)
 	if args.ID != nil {
-		query = r.DB.Where("id = ?", *args.ID)
+		identifier["ID"] = string(*args.ID)
 	} else if args.Slug != nil {
-		query = r.DB.Where("slug = ?", *args.Slug)
+		identifier["Slug"] = *args.Slug
 	} else if args.Name != nil {
-		query = r.DB.Where("name = ?", *args.Name)
+		identifier["Name"] = *args.Name
 	} else {
 		return nil, fmt.Errorf("Missing argument id or slug")
-	}
-
-	if err := query.First(&project).Error; err != nil {
-		return nil, err
 	}
 
 	if args.EnvironmentID == nil {
@@ -83,25 +77,14 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 		return nil, fmt.Errorf("Environment ID should be of type uuid")
 	}
 
-	// check if project has permissions to requested environment
-	var permission model.ProjectEnvironment
-	if r.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
-		log.InfoWithFields("Environment not found", log.Fields{
-			"args": args,
-		})
-		return nil, fmt.Errorf("Environment not found")
+	initializer := ProjectResolverInitializer{DB: r.DB}
+	resolver, err := initializer.Project(ctx, identifier, environmentID)
+
+	if err != nil {
+		return nil, err
 	}
 
-	// get environment
-	if r.DB.Where("id = ?", *args.EnvironmentID).Find(&environment).RecordNotFound() {
-		log.InfoWithFields("Environment not found", log.Fields{
-			"args": args,
-		})
-		return nil, fmt.Errorf("Environment not found")
-	}
-
-	// return &ProjectResolver{DB: r.DB, Project: project, Environment: environment}, nil
-	return nil, nil
+	return resolver, nil
 }
 
 // Projects
