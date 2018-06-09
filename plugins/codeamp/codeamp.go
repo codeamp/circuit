@@ -108,18 +108,13 @@ func (x *CodeAmp) initPostGres() (*gorm.DB, error) {
 	return db, nil
 }
 
-func (x *CodeAmp) initGraphQL(resolver interface{}) {
+func (x *CodeAmp) InitGraphQL(resolver interface{}) (*graphql.Schema, error) {
 	schema, err := assets.Asset("plugins/codeamp/graphql/schema.graphql")
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
-	parsedSchema, err := graphql.ParseSchema(string(schema), resolver)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	x.Schema = parsedSchema
+	return graphql.ParseSchema(string(schema), resolver)
 }
 
 func (x *CodeAmp) initRedis() {
@@ -169,7 +164,8 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	x.Events = events
 
 	x.Resolver = &graphql_resolver.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
-	x.initGraphQL(x.Resolver)
+	x.Schema, err = x.InitGraphQL(x.Resolver)
+
 	go x.GraphQLListen()
 
 	log.Info("Starting CodeAmp service")
