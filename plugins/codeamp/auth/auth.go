@@ -22,7 +22,7 @@ func SetAuthEnabled(enabled bool) {
 	authDisabled = !enabled
 }
 
-func CheckAuthentication(ctx context.Context, scopes []string) (string, error) {
+func checkAuthentication(ctx context.Context, scopes []string) (string, error) {
 	claims := ctx.Value("jwt").(model.Claims)
 
 	if claims.UserID == "" {
@@ -59,13 +59,13 @@ func CheckAuthentication(ctx context.Context, scopes []string) (string, error) {
 }
 
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
-	if authDisabled == true {
-		return PassAuthentication(ctx, scopes)
+	if authDisabled {
+		return passAuthentication(ctx, scopes)
 	}
 
-	return CheckAuthentication(ctx, scopes)
+	return checkAuthentication(ctx, scopes)
 }
 
-func PassAuthentication(ctx context.Context, scopes []string) (string, error) {
+func passAuthentication(ctx context.Context, scopes []string) (string, error) {
 	return "Testing Mode", nil
 }
