@@ -15,6 +15,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -133,8 +134,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		r.DB.Create(&userPermission)
 	}
 
-	// return &ProjectResolver{DB: r.DB, Project: project}, nil
-	return nil, nil
+	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
 }
 
 // UpdateProject Update project
@@ -196,8 +196,7 @@ func (r *Resolver) UpdateProject(args *struct {
 
 	r.DB.Save(&project)
 
-	// return &ProjectResolver{DB: r.DB, Project: project}, nil
-	return nil, nil
+	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
 }
 
 // StopRelease
@@ -272,8 +271,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		}
 	}
 
-	// return &ReleaseResolver{DB: r.DB, Release: release}, nil
-	return nil, nil
+	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 }
 
 // CreateRelease
@@ -657,8 +655,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	} else {
 		r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 
-		// return &ReleaseResolver{DB: r.DB, Release: model.Release{}}, nil
-		return nil, nil
+		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: model.Release{}}}, nil
 	}
 }
 
@@ -709,8 +706,7 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 
 	//r.ServiceCreated(&service)
 
-	// return &ServiceResolver{DB: r.DB, Service: service}, nil
-	return nil, nil
+	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
 
 // UpdateService Update Service
@@ -759,8 +755,7 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	//r.ServiceUpdated(&service)
 
-	// return &ServiceResolver{DB: r.DB, Service: service}, nil
-	return nil, nil
+	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
 
 // DeleteService Delete service
@@ -788,8 +783,7 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 
 	//r.ServiceDeleted(&service)
 
-	// return &ServiceResolver{DB: r.DB, Service: service}, nil
-	return nil, nil
+	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
@@ -806,8 +800,7 @@ func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpe
 
 	//r.ServiceSpecCreated(&serviceSpec)
 
-	// return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}, nil
-	return nil, nil
+	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 }
 
 func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
@@ -833,8 +826,7 @@ func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpe
 
 	//r.ServiceSpecUpdated(&serviceSpec)
 
-	// return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}, nil
-	return nil, nil
+	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 }
 
 func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
@@ -849,8 +841,7 @@ func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpe
 
 			//r.ServiceSpecDeleted(&serviceSpec)
 
-			// return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}, nil
-			return nil, nil
+			return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 		} else {
 			return nil, fmt.Errorf("Delete all project-services using this service spec first.")
 		}
@@ -871,8 +862,7 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 
 		//r.EnvironmentCreated(&env)
 
-		// return &EnvironmentResolver{DB: r.DB, Environment: env}, nil
-		return nil, nil
+		return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: env}}, nil
 	} else {
 		return nil, fmt.Errorf("CreateEnvironment: name already exists")
 	}
@@ -902,8 +892,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 
 		r.DB.Save(&existingEnv)
 
-		// return &EnvironmentResolver{DB: r.DB, Environment: existingEnv}, nil
-		return nil, nil
+		return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: existingEnv}}, nil
 	}
 }
 
@@ -943,8 +932,7 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 
 			//r.EnvironmentDeleted(&existingEnv)
 
-			// return &EnvironmentResolver{DB: r.DB, Environment: existingEnv}, nil
-			return nil, nil
+			return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: existingEnv}}, nil
 		} else {
 			return nil, fmt.Errorf("Delete all project-services in environment before deleting environment.")
 		}
@@ -1008,8 +996,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *model
 
 		//r.SecretCreated(&secret)
 
-		// return &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}, nil
-		return nil, nil
+		return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}}, nil
 	} else {
 		return nil, fmt.Errorf("CreateSecret: key already exists")
 	}
@@ -1041,8 +1028,7 @@ func (r *Resolver) UpdateSecret(ctx context.Context, args *struct{ Secret *model
 
 		//r.SecretUpdated(&secret)
 
-		// return &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}, nil
-		return nil, nil
+		return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}}, nil
 	}
 }
 
@@ -1063,8 +1049,7 @@ func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *model
 
 			//r.SecretDeleted(&secret)
 
-			// return &SecretResolver{DB: r.DB, Secret: secret}, nil
-			return nil, nil
+			return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret}}, nil
 		} else {
 			return nil, fmt.Errorf("Remove Config values from Extensions where Secret is used before deleting.")
 		}
@@ -1089,9 +1074,7 @@ func (r *Resolver) CreateExtension(args *struct{ Extension *model.ExtensionInput
 	r.DB.Create(&ext)
 	//r.ExtensionCreated(&ext)
 
-	// return &ExtensionResolver{DB: r.DB, Extension: ext}, nil
-	return nil, nil
-
+	return &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}}, nil
 }
 
 func (r *Resolver) UpdateExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
@@ -1121,8 +1104,7 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *model.ExtensionInput
 
 	//r.ExtensionUpdated(&ext)
 
-	// return &ExtensionResolver{DB: r.DB, Extension: ext}, nil
-	return nil, nil
+	return &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}}, nil
 }
 
 func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
@@ -1151,8 +1133,7 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput
 
 		//r.ExtensionDeleted(&ext)
 
-		// return &ExtensionResolver{DB: r.DB, Extension: ext}, nil
-		return nil, nil
+		return &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}}, nil
 	}
 }
 
@@ -1227,8 +1208,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 		ev.Artifacts = artifacts
 		r.Events <- ev
 
-		// return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
-		return nil, nil
+		return &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}}, nil
 	}
 
 	return nil, errors.New("This extension is already installed in this project.")
@@ -1302,8 +1282,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 
 	r.Events <- ev
 
-	// return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
-	return nil, nil
+	return &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}}, nil
 }
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
@@ -1373,8 +1352,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 	ev.Artifacts = artifacts
 	r.Events <- ev
 
-	// return &ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}, nil
-	return nil, nil
+	return &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}}, nil
 }
 
 // UpdateUserPermissions
@@ -1433,8 +1411,7 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct {
 				ProjectID:     project.Model.ID,
 			}
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectEnvironment)
-			// results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
-			log.Panic("PANIC!")
+			results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
 		} else {
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&model.ProjectEnvironment{})
 		}

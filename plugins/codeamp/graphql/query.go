@@ -9,6 +9,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
+	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 )
@@ -113,9 +114,9 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 		r.DB.Where("id in (?)", projectIds).Find(&rows)
 	}
 
-	// for _, project := range rows {
-	// 	// results = append(results, &ProjectResolver{DB: r.DB, Project: project})
-	// }
+	for _, project := range rows {
+		results = append(results, &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}})
+	}
 
 	return results, nil
 }
@@ -129,9 +130,9 @@ func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 	var results []*FeatureResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	// for _, feature := range rows {
-	// 	// results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})
-	// }
+	for _, feature := range rows {
+		results = append(results, &FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: r.DB, Feature: feature}})
+	}
 
 	return results, nil
 }
@@ -145,9 +146,9 @@ func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
 	var results []*ServiceResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	// for _, service := range rows {
-	// 	// results = append(results, &ServiceResolver{DB: r.DB, Service: service})
-	// }
+	for _, service := range rows {
+		results = append(results, &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}})
+	}
 
 	return results, nil
 }
@@ -161,9 +162,9 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 	var results []*ServiceSpecResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	// for _, serviceSpec := range rows {
-	// 	// results = append(results, &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec})
-	// }
+	for _, serviceSpec := range rows {
+		results = append(results, &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}})
+	}
 
 	return results, nil
 }
@@ -177,9 +178,9 @@ func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	var results []*ReleaseResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	// for _, release := range rows {
-	// 	// results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
-	// }
+	for _, release := range rows {
+		results = append(results, &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}})
+	}
 
 	return results, nil
 }
@@ -204,16 +205,16 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 		for _, permission := range permissions {
 			var environment model.Environment
 			r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
-			// results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
+			results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
 		}
 
 		return results, nil
 	}
 
 	r.DB.Order("created_at desc").Find(&environments)
-	// for _, environment := range environments {
-	// 	// results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
-	// }
+	for _, environment := range environments {
+		results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
+	}
 
 	return results, nil
 }
@@ -230,7 +231,7 @@ func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	for _, secret := range rows {
 		var secretValue model.SecretValue
 		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		// results = append(results, &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue})
+		results = append(results, &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}})
 	}
 
 	return results, nil
@@ -260,9 +261,9 @@ func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *
 			END, extensions.key ASC`).Find(&rows)
 	}
 
-	// for _, ext := range rows {
-	// 	// results = append(results, &ExtensionResolver{DB: r.DB, Extension: ext})
-	// }
+	for _, ext := range rows {
+		results = append(results, &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}})
+	}
 
 	return results, nil
 }
@@ -276,9 +277,9 @@ func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionRe
 	var results []*ProjectExtensionResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	// for _, extension := range rows {
-	// 	// results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
-	// }
+	for _, extension := range rows {
+		results = append(results, &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension}})
+	}
 
 	return results, nil
 }
@@ -292,9 +293,9 @@ func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionRe
 	var results []*ReleaseExtensionResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	// for _, releaseExtension := range rows {
-	// 	// results = append(results, &ReleaseExtensionResolver{DB: r.DB, ReleaseExtension: releaseExtension})
-	// }
+	for _, releaseExtension := range rows {
+		results = append(results, &ReleaseExtensionResolver{DBReleaseExtensionResolver: &db_resolver.ReleaseExtensionResolver{DB: r.DB, ReleaseExtension: releaseExtension}})
+	}
 
 	return results, nil
 }
