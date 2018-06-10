@@ -2,16 +2,16 @@ package graphql_resolver
 
 import (
 	"context"
-	"encoding/json"
+	_ "encoding/json"
 	"fmt"
 
 	graphql "github.com/graph-gophers/graphql-go"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
-	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
+	_ "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	log "github.com/codeamp/logger"
+	_ "github.com/codeamp/logger"
 )
 
 // User
@@ -52,8 +52,6 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	Name          *string
 	EnvironmentID *string
 }) (*ProjectResolver, error) {
-	log.Info("query.go project")
-
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
@@ -92,233 +90,57 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
 }) ([]*ProjectResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.Project
-	var results []*ProjectResolver
-	if args.ProjectSearch.Repository != nil {
-
-		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
-
-	} else {
-		var projectBookmarks []model.ProjectBookmark
-
-		r.DB.Where("user_id = ?", ctx.Value("jwt").(model.Claims).UserID).Find(&projectBookmarks)
-
-		var projectIds []uuid.UUID
-		for _, bookmark := range projectBookmarks {
-			projectIds = append(projectIds, bookmark.ProjectID)
-		}
-		r.DB.Where("id in (?)", projectIds).Find(&rows)
-	}
-
-	for _, project := range rows {
-		results = append(results, &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}})
-	}
-
-	return results, nil
+	initializer := ProjectResolverInitializer{DB: r.DB}
+	return initializer.Projects(ctx, args.ProjectSearch)
 }
 
 func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.Feature
-	var results []*FeatureResolver
-
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, feature := range rows {
-		results = append(results, &FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: r.DB, Feature: feature}})
-	}
-
-	return results, nil
+	initializer := FeatureResolverInitializer{DB: r.DB}
+	return initializer.Features(ctx)
 }
 
 func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.Service
-	var results []*ServiceResolver
-
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, service := range rows {
-		results = append(results, &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}})
-	}
-
-	return results, nil
+	initializer := ServiceResolverInitializer{DB: r.DB}
+	return initializer.Services(ctx)
 }
 
 func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.ServiceSpec
-	var results []*ServiceSpecResolver
-
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, serviceSpec := range rows {
-		results = append(results, &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}})
-	}
-
-	return results, nil
+	initializer := ServiceSpecResolverInitializer{DB: r.DB}
+	return initializer.ServiceSpecs(ctx)
 }
 
 func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.Release
-	var results []*ReleaseResolver
-
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}})
-	}
-
-	return results, nil
+	initializer := ReleaseResolverInitializer{DB: r.DB}
+	return initializer.Releases(ctx)
 }
 
 func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var environments []model.Environment
-	var results []*EnvironmentResolver
-
-	if args.ProjectSlug != nil {
-		var project model.Project
-		var permissions []model.ProjectEnvironment
-
-		if err := r.DB.Where("slug = ?", *args.ProjectSlug).First(&project).Error; err != nil {
-			return nil, err
-		}
-
-		r.DB.Where("project_id = ?", project.Model.ID).Find(&permissions)
-		for _, permission := range permissions {
-			var environment model.Environment
-			r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
-			results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
-		}
-
-		return results, nil
-	}
-
-	r.DB.Order("created_at desc").Find(&environments)
-	for _, environment := range environments {
-		results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
-	}
-
-	return results, nil
+	initializer := EnvironmentResolverInitializer{DB: r.DB}
+	return initializer.Environments(ctx, args)
 }
 
 func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.Secret
-	var results []*SecretResolver
-
-	r.DB.Where("scope != ?", "project").Order("created_at desc").Find(&rows)
-	for _, secret := range rows {
-		var secretValue model.SecretValue
-		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		results = append(results, &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}})
-	}
-
-	return results, nil
+	initializer := SecretResolverInitializer{DB: r.DB}
+	return initializer.Secrets(ctx)
 }
 
 func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.Extension
-	var results []*ExtensionResolver
-
-	if args.EnvironmentID != nil {
-		r.DB.Where("extensions.environment_id = ?", args.EnvironmentID).Order(`
-			CASE extensions.type
-				WHEN 'workflow' THEN 1
-				WHEN 'deployment' THEN 2
-				ELSE 3
-			END, extensions.key ASC`).Find(&rows)
-	} else {
-		r.DB.Order(`
-			CASE extensions.type
-				WHEN 'workflow' THEN 1
-				WHEN 'deployment' THEN 2
-				ELSE 3
-			END, extensions.key ASC`).Find(&rows)
-	}
-
-	for _, ext := range rows {
-		results = append(results, &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}})
-	}
-
-	return results, nil
+	initializer := ExtensionResolverInitializer{DB: r.DB}
+	return initializer.Extensions(ctx, args)
 }
 
 func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.ProjectExtension
-	var results []*ProjectExtensionResolver
-
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, extension := range rows {
-		results = append(results, &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension}})
-	}
-
-	return results, nil
+	initializer := ProjectExtensionResolverInitializer{DB: r.DB}
+	return initializer.ProjectExtensions(ctx)
 }
 
 func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var rows []model.ReleaseExtension
-	var results []*ReleaseExtensionResolver
-
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, releaseExtension := range rows {
-		results = append(results, &ReleaseExtensionResolver{DBReleaseExtensionResolver: &db_resolver.ReleaseExtensionResolver{DB: r.DB, ReleaseExtension: releaseExtension}})
-	}
-
-	return results, nil
+	initializer := ReleaseExtensionResolverInitializer{DB: r.DB}
+	return initializer.ReleaseExtensions(ctx)
 }
 
 // Permissions
 func (r *Resolver) Permissions(ctx context.Context) (model.JSON, error) {
-	var rows []model.UserPermission
-	var results = make(map[string]bool)
-
-	r.DB.Unscoped().Select("DISTINCT(value)").Find(&rows)
-
-	for _, userPermission := range rows {
-		if _, err := auth.CheckAuth(ctx, []string{userPermission.Value}); err != nil {
-			results[userPermission.Value] = false
-		} else {
-			results[userPermission.Value] = true
-		}
-	}
-
-	bytes, err := json.Marshal(results)
-	if err != nil {
-		return model.JSON{}, err
-	}
-
-	return model.JSON{bytes}, nil
+	initializer := PermissionResolverInitializer{DB: r.DB}
+	return initializer.Permissions(ctx)
 }

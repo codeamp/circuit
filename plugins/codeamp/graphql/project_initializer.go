@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	auth "github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
@@ -60,16 +61,30 @@ func (u *ProjectResolverInitializer) Project(ctx context.Context, identifier map
 	return &resolver, nil
 }
 
-func (u *ProjectResolverInitializer) Projects(ctx context.Context) ([]*ProjectResolver, error) {
-	// var rows []model.User
-	// var results []*UserResolver
+func (u *ProjectResolverInitializer) Projects(ctx context.Context, projectSearchInput *model.ProjectSearchInput) ([]*ProjectResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
 
-	// u.DB.Order("created_at desc").Find(&rows)
+	var rows []model.Project
+	var results []*ProjectResolver
+	if projectSearchInput.Repository != nil {
+		u.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *projectSearchInput.Repository)).Find(&rows)
+	} else {
+		var projectBookmarks []model.ProjectBookmark
 
-	// for _, user := range rows {
-	// 	results = append(results, &UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: u.DB, UserModel: user}})
-	// }
+		u.DB.Where("user_id = ?", ctx.Value("jwt").(model.Claims).UserID).Find(&projectBookmarks)
 
-	// return results, nil
-	return nil, nil
+		var projectIds []uuid.UUID
+		for _, bookmark := range projectBookmarks {
+			projectIds = append(projectIds, bookmark.ProjectID)
+		}
+		u.DB.Where("id in (?)", projectIds).Find(&rows)
+	}
+
+	for _, project := range rows {
+		results = append(results, &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: u.DB, Project: project}})
+	}
+
+	return results, nil
 }

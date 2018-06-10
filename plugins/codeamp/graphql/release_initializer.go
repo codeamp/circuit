@@ -9,22 +9,22 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Service Resolver Initializer
-type ServiceResolverInitializer struct {
+// Extension Resolver Initializer
+type ReleaseResolverInitializer struct {
 	DB *gorm.DB
 }
 
-func (r *ServiceResolverInitializer) Services(ctx context.Context) ([]*ServiceResolver, error) {
+func (r *ReleaseResolverInitializer) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []model.Service
-	var results []*ServiceResolver
+	var rows []model.Release
+	var results []*ReleaseResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	for _, service := range rows {
-		results = append(results, &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}})
+	for _, release := range rows {
+		results = append(results, &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}})
 	}
 
 	return results, nil
