@@ -21,8 +21,7 @@ func (r *ServiceResolver) ID() graphql.ID {
 
 // Project
 func (r *ServiceResolver) Project() *ProjectResolver {
-	// return r.DBServiceResolver.Project()
-	return nil
+	return &ProjectResolver{DBProjectResolver: r.DBServiceResolver.Project()}
 }
 
 // Command
@@ -37,8 +36,7 @@ func (r *ServiceResolver) Name() string {
 
 // ServiceSpec
 func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
-	// return r.DBServiceResolver.ServiceSpec()
-	return nil
+	return &ServiceSpecResolver{DBServiceSpecResolver: r.DBServiceResolver.ServiceSpec()}
 }
 
 // Count
@@ -53,8 +51,8 @@ func (r *ServiceResolver) Ports() ([]*model.JSON, error) {
 
 // Environment
 func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
-	// return r.DBServiceResolver.Environment(ctx)
-	return nil, nil
+	resolver, err := r.DBServiceResolver.Environment(ctx)
+	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
 // Type

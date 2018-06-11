@@ -20,14 +20,14 @@ func (r *ReleaseExtensionResolver) ID() graphql.ID {
 
 // Release
 func (r *ReleaseExtensionResolver) Release() (*ReleaseResolver, error) {
-	// return r.DBReleaseExtensionResolver.Release()
-	return nil, nil
+	resolver, err := r.DBReleaseExtensionResolver.Release()
+	return &ReleaseResolver{DBReleaseResolver: resolver}, err
 }
 
 // ProjectExtension
 func (r *ReleaseExtensionResolver) Extension() (*ProjectExtensionResolver, error) {
-	// return r.DBReleaseExtensionResolver.Extension()
-	return nil, nil
+	resolver, err := r.DBReleaseExtensionResolver.Extension()
+	return &ProjectExtensionResolver{DBProjectExtensionResolver: resolver}, err
 }
 
 // ServicesSignature

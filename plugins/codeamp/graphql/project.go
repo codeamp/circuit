@@ -60,62 +60,95 @@ func (r *ProjectResolver) RsaPublicKey() string {
 
 // Features
 func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
-	// return r.DBProjectResolver.Features(showDeployed)
-	return nil
+	db_resolvers := r.DBProjectResolver.Features(args)
+	gql_resolvers := make([]*FeatureResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &FeatureResolver{DBFeatureResolver: i})
+	}
+
+	return gql_resolvers
 }
 
 // CurrentRelease
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
-	// return r.DBProjectResolver.CurrentRelease()
-	return nil, nil
+	resolver, err := r.DBProjectResolver.CurrentRelease()
+	return &ReleaseResolver{DBReleaseResolver: resolver}, err
 }
 
 // Releases
 func (r *ProjectResolver) Releases() []*ReleaseResolver {
-	// return r.DBProjectResolver.Releases()
-	return nil
+	db_resolvers := r.DBProjectResolver.Releases()
+	gql_resolvers := make([]*ReleaseResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &ReleaseResolver{DBReleaseResolver: i})
+	}
+
+	return gql_resolvers
 }
 
 // Services
 func (r *ProjectResolver) Services() []*ServiceResolver {
-	// return r.DBProjectResolver.Services()
-	return nil
+	db_resolvers := r.DBProjectResolver.Services()
+	gql_resolvers := make([]*ServiceResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &ServiceResolver{DBServiceResolver: i})
+	}
+
+	return gql_resolvers
 }
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	// return r.DBProjectResolver.Secrets(ctx)
-	return nil, nil
+	db_resolvers, err := r.DBProjectResolver.Secrets(ctx)
+	gql_resolvers := make([]*SecretResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &SecretResolver{DBSecretResolver: i})
+	}
+
+	return gql_resolvers, err
 }
 
 // ProjectExtensions
 func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
-	// return r.DBProjectResolver.Extensions()
-	return nil, nil
+	db_resolvers, err := r.DBProjectResolver.Extensions()
+	gql_resolvers := make([]*ProjectExtensionResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &ProjectExtensionResolver{DBProjectExtensionResolver: i})
+	}
+
+	return gql_resolvers, err
 }
 
 // GitBranch
 func (r *ProjectResolver) GitBranch() string {
-	// return r.DBProjectResolver.GitBranch()
-	return ""
+	return r.DBProjectResolver.GitBranch()
 }
 
 // ContinuousDeploy
 func (r *ProjectResolver) ContinuousDeploy() bool {
-	// return r.DBProjectResolver.ContinuousDeploy()
-	return false
+	return r.DBProjectResolver.ContinuousDeploy()
 }
 
 // Environments
 func (r *ProjectResolver) Environments() []*EnvironmentResolver {
-	// return r.DBProjectResolver.Environments()
-	return nil
+	db_resolvers := r.DBProjectResolver.Environments()
+	gql_resolvers := make([]*EnvironmentResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &EnvironmentResolver{DBEnvironmentResolver: i})
+	}
+
+	return gql_resolvers
 }
 
 // Bookmarked
 func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
-	// return r.DBProjectResolver.Bookmarked()
-	return false
+	return r.DBProjectResolver.Bookmarked(ctx)
 }
 
 // Created

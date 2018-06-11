@@ -21,32 +21,27 @@ func (r *ReleaseResolver) ID() graphql.ID {
 
 // Project
 func (r *ReleaseResolver) Project() *ProjectResolver {
-	// return r.DBReleaseResolver.Project()
-	return nil
+	return &ProjectResolver{DBProjectResolver: r.DBReleaseResolver.Project()}
 }
 
 // User
 func (r *ReleaseResolver) User() *UserResolver {
-	// return r.DBReleaseResolver.User()
-	return nil
+	return &UserResolver{DBUserResolver: r.DBReleaseResolver.User()}
 }
 
 // Artifacts
 func (r *ReleaseResolver) Artifacts(ctx context.Context) (model.JSON, error) {
-	// return r.DBReleaseResolver.Artifacts(ctx)
-	return model.JSON{}, nil
+	return r.DBReleaseResolver.Artifacts(ctx)
 }
 
 // HeadFeature
 func (r *ReleaseResolver) HeadFeature() *FeatureResolver {
-	// return r.DBReleaseResolver.HeadFeature()
-	return nil
+	return &FeatureResolver{DBFeatureResolver: r.DBReleaseResolver.HeadFeature()}
 }
 
 // TailFeature
 func (r *ReleaseResolver) TailFeature() *FeatureResolver {
-	// return r.DBReleaseResolver.TailFeature()
-	return nil
+	return &FeatureResolver{DBFeatureResolver: r.DBReleaseResolver.TailFeature()}
 }
 
 // State
@@ -56,8 +51,14 @@ func (r *ReleaseResolver) State() string {
 
 // ReleaseExtensions
 func (r *ReleaseResolver) ReleaseExtensions() []*ReleaseExtensionResolver {
-	// return r.DBReleaseResolver.ReleaseExtensions()
-	return nil
+	db_resolvers := r.DBReleaseResolver.ReleaseExtensions()
+	gql_resolvers := make([]*ReleaseExtensionResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &ReleaseExtensionResolver{DBReleaseExtensionResolver: i})
+	}
+
+	return gql_resolvers
 }
 
 // StateMessage
@@ -67,8 +68,8 @@ func (r *ReleaseResolver) StateMessage() string {
 
 // Environment
 func (r *ReleaseResolver) Environment() (*EnvironmentResolver, error) {
-	// return r.DBReleaseResolver.Environment()
-	return nil, nil
+	resolver, err := r.DBReleaseResolver.Environment()
+	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
 // Created

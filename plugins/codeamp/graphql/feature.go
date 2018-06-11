@@ -19,8 +19,7 @@ func (r *FeatureResolver) ID() graphql.ID {
 
 // Project
 func (r *FeatureResolver) Project() *ProjectResolver {
-	// return r.DBFeatureResolver.Project()
-	return nil
+	return &ProjectResolver{DBProjectResolver: r.DBFeatureResolver.Project()}
 }
 
 // Message

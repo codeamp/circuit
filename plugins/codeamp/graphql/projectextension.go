@@ -20,14 +20,12 @@ func (r *ProjectExtensionResolver) ID() graphql.ID {
 
 // Project
 func (r *ProjectExtensionResolver) Project() *ProjectResolver {
-	// return r.DBProjectExtensionResolver.Project()
-	return nil
+	return &ProjectResolver{DBProjectResolver: r.DBProjectExtensionResolver.Project()}
 }
 
 // Extension
 func (r *ProjectExtensionResolver) Extension() *ExtensionResolver {
-	// return r.DBProjectExtensionResolver.Extension()
-	return nil
+	return &ExtensionResolver{DBExtensionResolver: r.DBProjectExtensionResolver.Extension()}
 }
 
 // Artifacts
@@ -57,8 +55,8 @@ func (r *ProjectExtensionResolver) StateMessage() string {
 
 // Environment
 func (r *ProjectExtensionResolver) Environment() (*EnvironmentResolver, error) {
-	// return r.DBProjectExtensionResolver.Environment()
-	return nil, nil
+	resolver, err := r.DBProjectExtensionResolver.Environment()
+	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
 // Created

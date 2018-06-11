@@ -39,8 +39,14 @@ func (r *EnvironmentResolver) IsDefault() bool {
 
 // Projects - get projects permissioned for the environment
 func (r *EnvironmentResolver) Projects() []*ProjectResolver {
-	// return r.DBEnvironmentResolver.Projects()
-	return nil
+	db_resolvers := r.DBEnvironmentResolver.Projects()
+	gql_resolvers := make([]*ProjectResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &ProjectResolver{DBProjectResolver: i})
+	}
+
+	return gql_resolvers
 }
 
 // Created

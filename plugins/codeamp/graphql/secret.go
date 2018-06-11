@@ -55,14 +55,12 @@ func (r *SecretResolver) Scope() string {
 
 // Project
 func (r *SecretResolver) Project() *ProjectResolver {
-	// return r.DBSecretResolver.Project()
-	return nil
+	return &ProjectResolver{DBProjectResolver: r.DBSecretResolver.Project()}
 }
 
 // User
 func (r *SecretResolver) User() *UserResolver {
-	// return r.DBSecretResolver.User()
-	return nil
+	return &UserResolver{DBUserResolver: r.DBSecretResolver.User()}
 }
 
 // Type
@@ -72,14 +70,19 @@ func (r *SecretResolver) Type() string {
 
 // Versions
 func (r *SecretResolver) Versions() ([]*SecretResolver, error) {
-	// return r.DBSecretResolver.Versions()
-	return nil, nil
+	db_resolvers, err := r.DBSecretResolver.Versions()
+	gql_resolvers := make([]*SecretResolver, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &SecretResolver{DBSecretResolver: i})
+	}
+
+	return gql_resolvers, err
 }
 
 // Environment
 func (r *SecretResolver) Environment() *EnvironmentResolver {
-	// return r.DBSecretResolver.Environment()
-	return nil
+	return &EnvironmentResolver{DBEnvironmentResolver: r.DBSecretResolver.Environment()}
 }
 
 // Created
