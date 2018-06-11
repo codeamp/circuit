@@ -8,6 +8,7 @@ import (
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
@@ -17,26 +18,44 @@ type ProjectResolverInitializer struct {
 	DB *gorm.DB
 }
 
-func (u *ProjectResolverInitializer) Project(ctx context.Context, identifier map[string]string, environmentID uuid.UUID) (*ProjectResolver, error) {
-	log.Info("project_initializer.go project")
-	log.Info(environmentID)
-	log.Info(identifier)
+func (u *ProjectResolverInitializer) Project(ctx context.Context, args *struct {
+	ID            *graphql.ID
+	Slug          *string
+	Name          *string
+	EnvironmentID *string
+}) (*ProjectResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
 
 	resolver := ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: u.DB}}
 	var query *gorm.DB
 
-	if _, ok := identifier["ID"]; ok {
-		query = u.DB.Where("id = ?", identifier["ID"])
-	} else if _, ok := identifier["Slug"]; ok {
-		query = u.DB.Where("slug = ?", identifier["Slug"])
-	} else if _, ok := identifier["Name"]; ok {
-		query = u.DB.Where("name = ?", identifier["Name"])
+	var identifier string
+	if args.ID != nil {
+		query = u.DB.Where("id = ?", *args.ID)
+		identifier = string(*args.ID)
+	} else if args.Slug != nil {
+		query = u.DB.Where("slug = ?", *args.Slug)
+		identifier = string(*args.Slug)
+	} else if args.Name != nil {
+		query = u.DB.Where("name = ?", *args.Name)
+		identifier = string(*args.Name)
 	} else {
 		return nil, fmt.Errorf("Missing argument id or slug")
 	}
 
 	if err := query.First(&resolver.DBProjectResolver.Project).Error; err != nil {
 		return nil, err
+	}
+
+	if args.EnvironmentID == nil {
+		return nil, fmt.Errorf("Missing environment id")
+	}
+
+	environmentID, err := uuid.FromString(*args.EnvironmentID)
+	if err != nil {
+		return nil, fmt.Errorf("Environment ID should be of type uuid")
 	}
 
 	// check if project has permissions to requested environment

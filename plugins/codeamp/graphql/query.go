@@ -3,12 +3,9 @@ package graphql_resolver
 import (
 	"context"
 	_ "encoding/json"
-	"fmt"
 
 	graphql "github.com/graph-gophers/graphql-go"
-	uuid "github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	_ "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	_ "github.com/codeamp/logger"
@@ -18,30 +15,15 @@ import (
 func (r *Resolver) User(ctx context.Context, args *struct {
 	ID *graphql.ID
 }) (*UserResolver, error) {
-	var userID string
-
-	if args.ID != nil {
-		userID = string(*args.ID)
-	} else {
-		claims := ctx.Value("jwt").(model.Claims)
-		userID = claims.UserID
-	}
-
 	initializer := UserResolverInitializer{DB: r.DB}
-	resolver, err := initializer.User(ctx, userID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return resolver, nil
+	resolver, err := initializer.User(ctx, args)
+	return resolver, err
 }
 
 // Users
 func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
 	initializer := UserResolverInitializer{DB: r.DB}
 	resolvers, err := initializer.Users(ctx)
-
 	return resolvers, err
 }
 
@@ -52,38 +34,8 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	Name          *string
 	EnvironmentID *string
 }) (*ProjectResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	identifier := make(map[string]string)
-	if args.ID != nil {
-		identifier["ID"] = string(*args.ID)
-	} else if args.Slug != nil {
-		identifier["Slug"] = *args.Slug
-	} else if args.Name != nil {
-		identifier["Name"] = *args.Name
-	} else {
-		return nil, fmt.Errorf("Missing argument id or slug")
-	}
-
-	if args.EnvironmentID == nil {
-		return nil, fmt.Errorf("Missing environment id")
-	}
-
-	environmentID, err := uuid.FromString(*args.EnvironmentID)
-	if err != nil {
-		return nil, fmt.Errorf("Environment ID should be of type uuid")
-	}
-
 	initializer := ProjectResolverInitializer{DB: r.DB}
-	resolver, err := initializer.Project(ctx, identifier, environmentID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return resolver, nil
+	return initializer.Project(ctx, args)
 }
 
 // Projects

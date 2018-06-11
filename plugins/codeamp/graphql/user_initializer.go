@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 )
 
@@ -15,7 +16,18 @@ type UserResolverInitializer struct {
 	DB *gorm.DB
 }
 
-func (u *UserResolverInitializer) User(ctx context.Context, userID string) (*UserResolver, error) {
+func (u *UserResolverInitializer) User(ctx context.Context, args *struct {
+	ID *graphql.ID
+}) (*UserResolver, error) {
+	var userID string
+
+	if args.ID != nil {
+		userID = string(*args.ID)
+	} else {
+		claims := ctx.Value("jwt").(model.Claims)
+		userID = claims.UserID
+	}
+
 	var err error
 	if _, err = auth.CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userID)}); err != nil {
 		return nil, err
