@@ -9,22 +9,22 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Feature Resolver Initializer
-type FeatureResolverInitializer struct {
+// Service Resolver Query
+type ServiceResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *FeatureResolverInitializer) Features(ctx context.Context) ([]*FeatureResolver, error) {
+func (r *ServiceResolverQuery) Services(ctx context.Context) ([]*ServiceResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []model.Feature
-	var results []*FeatureResolver
+	var rows []model.Service
+	var results []*ServiceResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	for _, feature := range rows {
-		results = append(results, &FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: r.DB, Feature: feature}})
+	for _, service := range rows {
+		results = append(results, &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}})
 	}
 
 	return results, nil

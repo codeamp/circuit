@@ -11,12 +11,12 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// User Resolver Initializer
-type UserResolverInitializer struct {
+// User Resolver Query
+type UserResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (u *UserResolverInitializer) User(ctx context.Context, args *struct {
+func (u *UserResolverQuery) User(ctx context.Context, args *struct {
 	ID *graphql.ID
 }) (*UserResolver, error) {
 	var userID string
@@ -41,7 +41,7 @@ func (u *UserResolverInitializer) User(ctx context.Context, args *struct {
 	return &resolver, nil
 }
 
-func (u *UserResolverInitializer) Users(ctx context.Context) ([]*UserResolver, error) {
+func (u *UserResolverQuery) Users(ctx context.Context) ([]*UserResolver, error) {
 	var rows []model.User
 	var results []*UserResolver
 

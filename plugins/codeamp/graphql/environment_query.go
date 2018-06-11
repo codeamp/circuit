@@ -9,12 +9,12 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Environment Resolver Initializer
-type EnvironmentResolverInitializer struct {
+// Environment Resolver Query
+type EnvironmentResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *EnvironmentResolverInitializer) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
+func (r *EnvironmentResolverQuery) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}

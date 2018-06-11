@@ -9,12 +9,12 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// ServiceSpec Resolver Initializer
-type ServiceSpecResolverInitializer struct {
+// ServiceSpec Resolver Query
+type ServiceSpecResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *ServiceSpecResolverInitializer) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
+func (r *ServiceSpecResolverQuery) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}

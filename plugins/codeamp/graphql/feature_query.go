@@ -9,22 +9,22 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Extension Resolver Initializer
-type ReleaseResolverInitializer struct {
+// Feature Resolver Query
+type FeatureResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *ReleaseResolverInitializer) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
+func (r *FeatureResolverQuery) Features(ctx context.Context) ([]*FeatureResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []model.Release
-	var results []*ReleaseResolver
+	var rows []model.Feature
+	var results []*FeatureResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}})
+	for _, feature := range rows {
+		results = append(results, &FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: r.DB, Feature: feature}})
 	}
 
 	return results, nil

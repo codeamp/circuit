@@ -9,12 +9,12 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Secret Resolver Initializer
-type SecretResolverInitializer struct {
+// Secret Resolver Query
+type SecretResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *SecretResolverInitializer) Secrets(ctx context.Context) ([]*SecretResolver, error) {
+func (r *SecretResolverQuery) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil, err
 	}

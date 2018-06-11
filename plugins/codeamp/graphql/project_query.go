@@ -13,12 +13,12 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// User Resolver Initializer
-type ProjectResolverInitializer struct {
+// User Resolver Query
+type ProjectResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (u *ProjectResolverInitializer) Project(ctx context.Context, args *struct {
+func (u *ProjectResolverQuery) Project(ctx context.Context, args *struct {
 	ID            *graphql.ID
 	Slug          *string
 	Name          *string
@@ -80,7 +80,7 @@ func (u *ProjectResolverInitializer) Project(ctx context.Context, args *struct {
 	return &resolver, nil
 }
 
-func (u *ProjectResolverInitializer) Projects(ctx context.Context, projectSearchInput *model.ProjectSearchInput) ([]*ProjectResolver, error) {
+func (u *ProjectResolverQuery) Projects(ctx context.Context, projectSearchInput *model.ProjectSearchInput) ([]*ProjectResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}

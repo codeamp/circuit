@@ -9,13 +9,13 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Extension Resolver Initializer
-type PermissionResolverInitializer struct {
+// Extension Resolver Query
+type PermissionResolverQuery struct {
 	DB *gorm.DB
 }
 
 // Permissions
-func (r *PermissionResolverInitializer) Permissions(ctx context.Context) (model.JSON, error) {
+func (r *PermissionResolverQuery) Permissions(ctx context.Context) (model.JSON, error) {
 	var rows []model.UserPermission
 	var results = make(map[string]bool)
 

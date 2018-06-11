@@ -9,12 +9,12 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Extension Resolver Initializer
-type ReleaseExtensionResolverInitializer struct {
+// Extension Resolver Query
+type ReleaseExtensionResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *ReleaseExtensionResolverInitializer) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
+func (r *ReleaseExtensionResolverQuery) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
