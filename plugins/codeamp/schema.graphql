@@ -25,11 +25,11 @@ type Query {
   # Service specs
   serviceSpecs(): [ServiceSpec]!
   # Releases
-  releases(params: PaginatorInput): ReleaseList
+  releases(params: PaginatorInput): ReleaseList!
   # Environments
   environments(projectSlug: String): [Environment]!
   # Environment variables
-  secrets(): [Secret]!
+  secrets(params: PaginatorInput): SecretList!
   # ProjectExtension spec
   extensions(environmentID: String): [Extension]!
   # ProjectExtensions
@@ -101,11 +101,43 @@ interface Paginator {
   nextCursor: String!
 }
 
-# Releases
+# ReleaseList
 type ReleaseList implements Paginator {
   page: Int!
   count: Int!
-  releases: [Release]!
+  entries: [Release]!
+  nextCursor: String!
+}
+
+# SecretList
+type SecretList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Secret]!
+  nextCursor: String!
+}
+
+# ServiceList
+type ServiceList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Service]!
+  nextCursor: String!
+}
+
+# FeatureList
+type FeatureList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Feature]!
+  nextCursor: String!
+}
+
+# ProjectList
+type ProjectList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Project]!
   nextCursor: String!
 }
 
@@ -211,7 +243,7 @@ type Project {
   currentRelease: Release
   releases(params: PaginatorInput): ReleaseList!
   services: [Service]!
-  secrets: [Secret]!
+  secrets(params: PaginatorInput): SecretList!
   extensions: [ProjectExtension]!
   gitBranch: String!
   continuousDeploy: Boolean!

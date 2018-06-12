@@ -1,15 +1,21 @@
-package codeamp_resolvers
+package db_resolver
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins/codeamp/auth"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
+
+type Resolver struct {
+	DB *gorm.DB
+}
 
 // User
 func (r *Resolver) User(ctx context.Context, args *struct {
@@ -17,16 +23,16 @@ func (r *Resolver) User(ctx context.Context, args *struct {
 }) (*UserResolver, error) {
 	var userID string
 	var err error
-	var user User
+	var user model.User
 
 	if args.ID != nil {
 		userID = string(*args.ID)
 	} else {
-		claims := ctx.Value("jwt").(Claims)
+		claims := ctx.Value("jwt").(model.Claims)
 		userID = claims.UserID
 	}
 
-	if _, err = CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userID)}); err != nil {
+	if _, err = auth.CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userID)}); err != nil {
 		return nil, err
 	}
 
@@ -39,7 +45,7 @@ func (r *Resolver) User(ctx context.Context, args *struct {
 
 // Users
 func (r *Resolver) Users(ctx context.Context) ([]*UserResolver, error) {
-	var rows []User
+	var rows []model.User
 	var results []*UserResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -58,12 +64,12 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	Name          *string
 	EnvironmentID *string
 }) (*ProjectResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var project Project
-	var environment Environment
+	var project model.Project
+	var environment model.Environment
 	var query *gorm.DB
 
 	if args.ID != nil {
@@ -90,7 +96,7 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	}
 
 	// check if project has permissions to requested environment
-	var permission ProjectEnvironment
+	var permission model.ProjectEnvironment
 	if r.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
 		log.InfoWithFields("Environment not found", log.Fields{
 			"args": args,
@@ -111,22 +117,22 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 
 // Projects
 func (r *Resolver) Projects(ctx context.Context, args *struct {
-	ProjectSearch *ProjectSearchInput
+	ProjectSearch *model.ProjectSearchInput
 }) ([]*ProjectResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []Project
+	var rows []model.Project
 	var results []*ProjectResolver
 	if args.ProjectSearch.Repository != nil {
 
 		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
 
 	} else {
-		var projectBookmarks []ProjectBookmark
+		var projectBookmarks []model.ProjectBookmark
 
-		r.DB.Where("user_id = ?", ctx.Value("jwt").(Claims).UserID).Find(&projectBookmarks)
+		r.DB.Where("user_id = ?", ctx.Value("jwt").(model.Claims).UserID).Find(&projectBookmarks)
 
 		var projectIds []uuid.UUID
 		for _, bookmark := range projectBookmarks {
@@ -143,11 +149,11 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 }
 
 func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []Feature
+	var rows []model.Feature
 	var results []*FeatureResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -159,11 +165,11 @@ func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
 }
 
 func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []Service
+	var rows []model.Service
 	var results []*ServiceResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -175,11 +181,11 @@ func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
 }
 
 func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []ServiceSpec
+	var rows []model.ServiceSpec
 	var results []*ServiceSpecResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -191,34 +197,34 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 }
 
 func (r *Resolver) Releases(ctx context.Context, args *struct {
-	Params *PaginatorInput
+	Params *model.PaginatorInput
 }) (*ReleaseListResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []Release
+	var rows []model.Release
 
 	r.DB.Find(&rows)
 
 	return &ReleaseListResolver{
 		DB:             r.DB,
 		ReleaseList:    rows,
-		PaginatorInput: args.Params,
+		PaginatorInput: *args.Params,
 	}, nil
 }
 
 func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var environments []Environment
+	var environments []model.Environment
 	var results []*EnvironmentResolver
 
 	if args.ProjectSlug != nil {
-		var project Project
-		var permissions []ProjectEnvironment
+		var project model.Project
+		var permissions []model.ProjectEnvironment
 
 		if err := r.DB.Where("slug = ?", *args.ProjectSlug).First(&project).Error; err != nil {
 			return nil, err
@@ -226,7 +232,7 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 
 		r.DB.Where("project_id = ?", project.Model.ID).Find(&permissions)
 		for _, permission := range permissions {
-			var environment Environment
+			var environment model.Environment
 			r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
 			results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment})
 		}
@@ -242,30 +248,30 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 	return results, nil
 }
 
-func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
-	if _, err := CheckAuth(ctx, []string{"admin"}); err != nil {
+func (r *Resolver) Secrets(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (*SecretListResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil, err
 	}
 
-	var rows []Secret
-	var results []*SecretResolver
+	var rows []model.Secret
 
 	r.DB.Where("scope != ?", "project").Order("created_at desc").Find(&rows)
-	for _, secret := range rows {
-		var secretValue SecretValue
-		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		results = append(results, &SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue})
-	}
 
-	return results, nil
+	return &SecretListResolver{
+		DB:             r.DB,
+		SecretList:     rows,
+		PaginatorInput: args.Params,
+	}, nil
 }
 
 func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []Extension
+	var rows []model.Extension
 	var results []*ExtensionResolver
 
 	if args.EnvironmentID != nil {
@@ -292,11 +298,11 @@ func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *
 }
 
 func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []ProjectExtension
+	var rows []model.ProjectExtension
 	var results []*ProjectExtensionResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -308,11 +314,11 @@ func (r *Resolver) ProjectExtensions(ctx context.Context) ([]*ProjectExtensionRe
 }
 
 func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionResolver, error) {
-	if _, err := CheckAuth(ctx, []string{}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []ReleaseExtension
+	var rows []model.ReleaseExtension
 	var results []*ReleaseExtensionResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
@@ -324,14 +330,14 @@ func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionRe
 }
 
 // Permissions
-func (r *Resolver) Permissions(ctx context.Context) (JSON, error) {
-	var rows []UserPermission
+func (r *Resolver) Permissions(ctx context.Context) (model.JSON, error) {
+	var rows []model.UserPermission
 	var results = make(map[string]bool)
 
 	r.DB.Unscoped().Select("DISTINCT(value)").Find(&rows)
 
 	for _, userPermission := range rows {
-		if _, err := CheckAuth(ctx, []string{userPermission.Value}); err != nil {
+		if _, err := auth.CheckAuth(ctx, []string{userPermission.Value}); err != nil {
 			results[userPermission.Value] = false
 		} else {
 			results[userPermission.Value] = true
@@ -340,8 +346,8 @@ func (r *Resolver) Permissions(ctx context.Context) (JSON, error) {
 
 	bytes, err := json.Marshal(results)
 	if err != nil {
-		return JSON{}, err
+		return model.JSON{}, err
 	}
 
-	return JSON{bytes}, nil
+	return model.JSON{bytes}, nil
 }

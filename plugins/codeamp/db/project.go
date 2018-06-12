@@ -94,20 +94,21 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 }
 
 // Secrets
-func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
+func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (*SecretListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
 	var rows []model.Secret
-	var results []*SecretResolver
 
 	r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
-	for _, secret := range rows {
-		results = append(results, &SecretResolver{DB: r.DB, Secret: secret})
-	}
-
-	return results, nil
+	return &SecretListResolver{
+		DB:             r.DB,
+		SecretList:     rows,
+		PaginatorInput: args.Params,
+	}, nil
 }
 
 // ProjectExtensions

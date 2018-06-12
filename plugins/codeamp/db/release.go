@@ -54,52 +54,6 @@ func (r *ReleaseListResolver) Releases() []*ReleaseResolver {
 	return results
 }
 
-func (r *ReleaseListResolver) Page() int32 {
-	// get page # from count / itemsPerPage
-	return r.getPage()
-}
-
-func (r *ReleaseListResolver) Count() int32 {
-	var releases []model.Release
-
-	r.DB.Find(&releases)
-
-	return int32(len(releases))
-}
-
-func (r *ReleaseListResolver) NextCursor() string {
-	var rows []model.Release
-
-	r.DB.Order("created_at desc").Find(&rows)
-
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.ReleaseList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
-	if len(r.ReleaseList) >= nextCursorIdx {
-		return r.ReleaseList[nextCursorIdx].Model.ID.String()
-	} else {
-		return ""
-	}
-}
-
-func (r *ReleaseListResolver) getPage() int32 {
-	for idx, row := range r.ReleaseList {
-		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/r.PaginatorInput.Limit + int32(1)
-		}
-	}
-
-	return 1
-}
-
 // ID
 func (r *ReleaseResolver) ID() graphql.ID {
 	return graphql.ID(r.Release.Model.ID.String())
