@@ -52,11 +52,26 @@ func (r *ReleaseListResolver) Count() int32 {
 	return int32(len(releases))
 }
 
-func (r *ReleaseListResolver) HasNextPage() bool {
-	if r.getPage() == int32(r.Count()/r.PaginatorInput.ItemsPerPage) {
-		return false
+func (r *ReleaseListResolver) NextCursor() string {
+	var rows []model.Release
+
+	r.DB.Order("created_at desc").Find(&rows)
+
+	cursorRowIdx := 0
+
+	// filter on things after cursor_id
+	for idx, row := range rows {
+		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
+			cursorRowIdx = idx
+			break
+		}
+	}
+
+	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
+	if len(rows) >= nextCursorIdx {
+		return rows[nextCursorIdx].Model.ID.String()
 	} else {
-		return true
+		return ""
 	}
 }
 
@@ -66,8 +81,8 @@ func (r *ReleaseListResolver) getPage() int32 {
 	r.DB.Order("created_at desc").Find(&releases)
 
 	for idx, row := range releases {
-		if row.Model.ID.String() == *r.PaginatorInput.AfterCursor {
-			return int32(idx)/r.PaginatorInput.ItemsPerPage + int32(1)
+		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
+			return int32(idx)/r.PaginatorInput.Limit + int32(1)
 		}
 	}
 

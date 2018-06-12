@@ -206,14 +206,14 @@ func (r *Resolver) Releases(ctx context.Context, args *struct {
 
 	// filter on things after cursor_id
 	for idx, row := range rows {
-		if args.Params.AfterCursor != nil && row.Model.ID.String() == *args.Params.AfterCursor {
+		if args.Params.Cursor != nil && row.Model.ID.String() == *args.Params.Cursor {
 			cursorRowIdx = idx
 			break
 		}
 	}
 
 	// only get ItemsPerPage
-	filteredRows = rows[cursorRowIdx+1 : cursorRowIdx+int(args.Params.ItemsPerPage)+1]
+	filteredRows = rows[cursorRowIdx+1 : cursorRowIdx+int(args.Params.Limit)+1]
 
 	return &ReleaseListResolver{
 		DB:             r.DB,

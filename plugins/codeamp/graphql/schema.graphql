@@ -96,15 +96,15 @@ type Mutation {
 interface Paginator {
   page: Int!
   count: Int!
-  hasNextPage: Boolean!
+  nextCursor: String!
 }
 
 # Releases
 type ReleaseList implements Paginator {
   page: Int!
   count: Int!
-  hasNextPage: Boolean!
   releases: [Release]!
+  nextCursor: String!
 }
 
 # User
@@ -278,8 +278,8 @@ input ProjectSearchInput {
 
 # Pagination input
 input PaginatorInput {
-  afterCursor: String
-  itemsPerPage: Int!
+  cursor: String
+  limit: Int!
 }
 
 # Release input

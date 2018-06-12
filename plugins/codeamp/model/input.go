@@ -104,10 +104,10 @@ type ProjectSearchInput struct {
 
 // PaginatorInput
 type PaginatorInput struct {
-	// AfterCursor
-	AfterCursor *string `json:"afterCursor"`
-	// ItemsPerPage
-	ItemsPerPage int32 `json:"itemsPerPage"`
+	// Cursor
+	Cursor *string `json:"cursor"`
+	// Limit
+	Limit int32 `json:"limit"`
 }
 
 // ReleaseInput
