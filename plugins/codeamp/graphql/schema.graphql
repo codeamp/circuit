@@ -22,7 +22,7 @@ type Query {
   services(): [Service]!
   # Service specs
   serviceSpecs(): [ServiceSpec]!
-  # ReleaseList
+  # Releases
   releases(params: PaginatorInput): ReleaseList
   # Environments
   environments(projectSlug: String): [Environment]!
