@@ -33,7 +33,7 @@ func (r *ReleaseListResolver) Entries() []*ReleaseResolver {
 		}
 	}
 
-	i := cursorRowIdx + 1
+	i := cursorRowIdx
 	for {
 		if len(filteredRows) == int(r.PaginatorInput.Limit) ||
 			len(r.ReleaseList) == i {
@@ -114,7 +114,7 @@ func (r *SecretListResolver) Entries() []*SecretResolver {
 		}
 	}
 
-	i := cursorRowIdx + 1
+	i := cursorRowIdx
 	for {
 		if len(filteredRows) == int(r.PaginatorInput.Limit) ||
 			len(r.SecretList) == i {
