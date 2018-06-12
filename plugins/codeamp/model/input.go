@@ -102,6 +102,14 @@ type ProjectSearchInput struct {
 	Bookmarked bool `json:"bookmarked"`
 }
 
+// PaginatorInput
+type PaginatorInput struct {
+	// AfterCursor
+	AfterCursor *string `json:"afterCursor"`
+	// ItemsPerPage
+	ItemsPerPage int32 `json:"itemsPerPage"`
+}
+
 // ReleaseInput
 type ReleaseInput struct {
 	// ID

@@ -22,8 +22,8 @@ type Query {
   services(): [Service]!
   # Service specs
   serviceSpecs(): [ServiceSpec]!
-  # Releases
-  releases(): [Release]!
+  # ReleaseList
+  releases(params: PaginatorInput): ReleaseList
   # Environments
   environments(projectSlug: String): [Environment]!
   # Environment variables
@@ -90,6 +90,21 @@ type Mutation {
   updateProjectEnvironments(projectEnvironments: ProjectEnvironmentsInput): [Environment!]!
   # Bookmark project
   bookmarkProject(id: ID!): Boolean!
+}
+
+# Paginator
+interface Paginator {
+  page: Int!
+  count: Int!
+  hasNextPage: Boolean!
+}
+
+# Releases
+type ReleaseList implements Paginator {
+  page: Int!
+  count: Int!
+  hasNextPage: Boolean!
+  releases: [Release]!
 }
 
 # User
@@ -259,6 +274,12 @@ input ProjectInput {
 input ProjectSearchInput {
   repository: String
   bookmarked: Boolean!
+}
+
+# Pagination input
+input PaginatorInput {
+  afterCursor: String
+  itemsPerPage: Int!
 }
 
 # Release input

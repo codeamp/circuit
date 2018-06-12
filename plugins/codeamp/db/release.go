@@ -10,12 +10,73 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 )
 
+// ReleaseResolver resolver for Release
+type ReleaseListResolver struct {
+	ReleaseList    []model.Release
+	PaginatorInput model.PaginatorInput
+	DB             *gorm.DB
+}
+
+// ReleaseResolver resolver for Release
 type ReleaseResolver struct {
 	model.Release
 	DB *gorm.DB
+}
+
+// Releases
+func (r *ReleaseListResolver) Releases() []*ReleaseResolver {
+	var results []*ReleaseResolver
+	for _, row := range r.ReleaseList {
+		results = append(results, &ReleaseResolver{
+			DB:      r.DB,
+			Release: row,
+		})
+	}
+	return results
+}
+
+func (r *ReleaseListResolver) Page() int32 {
+	// get page # from count / itemsPerPage
+	return r.getPage()
+}
+
+func (r *ReleaseListResolver) Count() int32 {
+	var releases []model.Release
+
+	r.DB.Find(&releases)
+
+	return int32(len(releases))
+}
+
+func (r *ReleaseListResolver) HasNextPage() bool {
+	if r.getPage() == int32(r.Count()/r.PaginatorInput.ItemsPerPage) {
+		return false
+	} else {
+		return true
+	}
+}
+
+func (r *ReleaseListResolver) getPage() int32 {
+	var releases []model.Release
+
+	r.DB.Order("created_at desc").Find(&releases)
+
+	for idx, row := range releases {
+		if row.Model.ID.String() == *r.PaginatorInput.AfterCursor {
+			return int32(idx)/r.PaginatorInput.ItemsPerPage + int32(1)
+		}
+	}
+
+	return 1
+}
+
+// ID
+func (r *ReleaseResolver) ID() graphql.ID {
+	return graphql.ID(r.Release.Model.ID.String())
 }
 
 // Project
