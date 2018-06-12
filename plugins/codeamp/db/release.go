@@ -20,11 +20,6 @@ type ReleaseResolver struct {
 	DB *gorm.DB
 }
 
-// Releases
-func (r *ReleaseListResolver) Releases() []*ReleaseResolver {
-	return []*ReleaseResolver{}
-}
-
 // ID
 func (r *ReleaseResolver) ID() graphql.ID {
 	return graphql.ID(r.Release.Model.ID.String())

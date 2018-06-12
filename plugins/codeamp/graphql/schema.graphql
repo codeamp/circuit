@@ -24,8 +24,13 @@ type Query {
   services(params: PaginatorInput): ServiceList!
   # Service specs
   serviceSpecs(): [ServiceSpec]!
+<<<<<<< HEAD
   # Releases
   releases(params: PaginatorInput): ReleaseList!
+=======
+  # ReleaseList
+  releases(params: PaginatorInput): ReleaseList
+>>>>>>> Add pagination for Releases
   # Environments
   environments(projectSlug: String): [Environment]!
   # Environment variables
@@ -98,6 +103,7 @@ type Mutation {
 interface Paginator {
   page: Int!
   count: Int!
+<<<<<<< HEAD
   nextCursor: String!
 }
 
@@ -139,6 +145,17 @@ type ProjectList implements Paginator {
   count: Int!
   entries: [Project]!
   nextCursor: String!
+=======
+  hasNextPage: Boolean!
+}
+
+# Releases
+type ReleaseList implements Paginator {
+  page: Int!
+  count: Int!
+  hasNextPage: Boolean!
+  releases: [Release]!
+>>>>>>> Add pagination for Releases
 }
 
 # User
@@ -312,8 +329,13 @@ input ProjectSearchInput {
 
 # Pagination input
 input PaginatorInput {
+<<<<<<< HEAD
   cursor: String
   limit: Int
+=======
+  afterCursor: String
+  itemsPerPage: Int!
+>>>>>>> Add pagination for Releases
 }
 
 # Release input
