@@ -198,27 +198,13 @@ func (r *Resolver) Releases(ctx context.Context, args *struct {
 	}
 
 	var rows []Release
-	var filteredRows []Release
 
-	r.DB.Order("created_at desc").Find(&rows)
-
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range rows {
-		if args.Params.Cursor != nil && row.Model.ID.String() == *args.Params.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	// only get ItemsPerPage
-	filteredRows = rows[cursorRowIdx+1 : cursorRowIdx+int(args.Params.Limit)+1]
+	r.DB.Find(&rows)
 
 	return &ReleaseListResolver{
 		DB:             r.DB,
-		ReleaseList:    filteredRows,
-		PaginatorInput: *args.Params,
+		ReleaseList:    rows,
+		PaginatorInput: args.Params,
 	}, nil
 }
 

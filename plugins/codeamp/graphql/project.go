@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	graphql "github.com/graph-gophers/graphql-go"
 )
 
@@ -77,12 +78,17 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 }
 
 // Releases
-func (r *ProjectResolver) Releases() []*ReleaseResolver {
-	db_resolvers := r.DBProjectResolver.Releases()
-	gql_resolvers := make([]*ReleaseResolver, 0, len(db_resolvers))
+func (r *ProjectResolver) Releases(args *struct {
+	Params *model.PaginatorInput
+}) []*ReleaseResolver {
+	db_resolvers := r.DBProjectResolver.Releases(args)
+	gql_resolvers := make([]*ReleaseResolver, 0, len(db_resolvers.ReleaseList))
 
-	for _, i := range db_resolvers {
-		gql_resolvers = append(gql_resolvers, &ReleaseResolver{DBReleaseResolver: i})
+	for _, i := range db_resolvers.ReleaseList {
+		gql_resolvers = append(gql_resolvers, &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{
+			DB:      db_resolvers.DB,
+			Release: i,
+		}})
 	}
 
 	return gql_resolvers

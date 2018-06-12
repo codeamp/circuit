@@ -29,8 +29,23 @@ type ReleaseResolver struct {
 
 // Releases
 func (r *ReleaseListResolver) Releases() []*ReleaseResolver {
+	var filteredRows []model.Release
 	var results []*ReleaseResolver
-	for _, row := range r.ReleaseList {
+
+	cursorRowIdx := 0
+
+	// filter on things after cursor_id
+	for idx, row := range r.ReleaseList {
+		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
+			cursorRowIdx = idx
+			break
+		}
+	}
+
+	// only get ItemsPerPage
+	filteredRows = r.ReleaseList[cursorRowIdx+1 : cursorRowIdx+int(r.PaginatorInput.Limit)+1]
+
+	for _, row := range filteredRows {
 		results = append(results, &ReleaseResolver{
 			DB:      r.DB,
 			Release: row,
@@ -60,7 +75,7 @@ func (r *ReleaseListResolver) NextCursor() string {
 	cursorRowIdx := 0
 
 	// filter on things after cursor_id
-	for idx, row := range rows {
+	for idx, row := range r.ReleaseList {
 		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
 			cursorRowIdx = idx
 			break
@@ -68,19 +83,15 @@ func (r *ReleaseListResolver) NextCursor() string {
 	}
 
 	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
-	if len(rows) >= nextCursorIdx {
-		return rows[nextCursorIdx].Model.ID.String()
+	if len(r.ReleaseList) >= nextCursorIdx {
+		return r.ReleaseList[nextCursorIdx].Model.ID.String()
 	} else {
 		return ""
 	}
 }
 
 func (r *ReleaseListResolver) getPage() int32 {
-	var releases []model.Release
-
-	r.DB.Order("created_at desc").Find(&releases)
-
-	for idx, row := range releases {
+	for idx, row := range r.ReleaseList {
 		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
 			return int32(idx)/r.PaginatorInput.Limit + int32(1)
 		}

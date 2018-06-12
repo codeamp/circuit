@@ -67,16 +67,17 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 }
 
 // Releases
-func (r *ProjectResolver) Releases() []*ReleaseResolver {
+func (r *ProjectResolver) Releases(args *struct {
+	Params *model.PaginatorInput
+}) *ReleaseListResolver {
 	var rows []model.Release
-	var results []*ReleaseResolver
 
 	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
-	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
+	return &ReleaseListResolver{
+		DB:             r.DB,
+		ReleaseList:    rows,
+		PaginatorInput: *args.Params,
 	}
-
-	return results
 }
 
 // Services
