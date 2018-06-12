@@ -213,7 +213,7 @@ func (r *Resolver) Releases(ctx context.Context, args *struct {
 	}
 
 	// only get ItemsPerPage
-	filteredRows = rows[cursorRowIdx+1 : cursorRowIdx+int(args.Params.ItemsPerPage)]
+	filteredRows = rows[cursorRowIdx+1 : cursorRowIdx+int(args.Params.ItemsPerPage)+1]
 
 	return &ReleaseListResolver{
 		DB:             r.DB,
