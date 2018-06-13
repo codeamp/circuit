@@ -40,8 +40,8 @@ func (r *ExtensionResolver) Key() string {
 
 // Environment
 func (r *ExtensionResolver) Environment() (*EnvironmentResolver, error) {
-	// return r.DBExtensionResolver.Environment()
-	return nil, nil
+	resolver, err := r.DBExtensionResolver.Environment()
+	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
 // Config
