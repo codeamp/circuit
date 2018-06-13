@@ -25,6 +25,7 @@ func GetEventName(s string) transistor.EventName {
 		"release:dockerbuilder",
 		"route53",
 		"websocket",
+		"slack",
 	}
 
 	for _, t := range eventNames {
