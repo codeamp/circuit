@@ -85,9 +85,9 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 	var results []*ServiceResolver
 
 	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
-	// for _, service := range rows {
-	// 	// results = append(results, &ServiceResolver{DB: r.DB, Service: service})
-	// }
+	for _, service := range rows {
+		results = append(results, &ServiceResolver{DB: r.DB, Service: service})
+	}
 
 	return results
 }
