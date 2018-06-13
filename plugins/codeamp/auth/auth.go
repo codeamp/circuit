@@ -59,11 +59,11 @@ func checkAuthentication(ctx context.Context, scopes []string) (string, error) {
 }
 
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
-	//if authDisabled {
-	return passAuthentication(ctx, scopes)
-	//}
+	if authDisabled {
+		return passAuthentication(ctx, scopes)
+	}
 
-	//return checkAuthentication(ctx, scopes)
+	return checkAuthentication(ctx, scopes)
 }
 
 func passAuthentication(ctx context.Context, scopes []string) (string, error) {
