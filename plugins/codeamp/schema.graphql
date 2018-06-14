@@ -17,11 +17,11 @@ type Query {
   # Project
   project(id: ID, slug: String, name: String, environmentID: String): Project
   # Projects
-  projects(projectSearch: ProjectSearchInput): [Project]!
+  projects(projectSearch: ProjectSearchInput, params: PaginatorInput): ProjectList!
   # Features
-  features(): [Feature]!
+  features(params: PaginatorInput): FeatureList!
   # Services
-  services(): [Service]!
+  services(params: PaginatorInput): ServiceList!
   # Service specs
   serviceSpecs(): [ServiceSpec]!
   # Releases
@@ -239,10 +239,10 @@ type Project {
   gitProtocol: String!
   rsaPrivateKey: String!
   rsaPublicKey: String!
-  features(showDeployed: Boolean): [Feature]!
+  features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
   currentRelease: Release
   releases(params: PaginatorInput): ReleaseList!
-  services: [Service]!
+  services(params: PaginatorInput): ServiceList!
   secrets(params: PaginatorInput): SecretList!
   extensions: [ProjectExtension]!
   gitBranch: String!

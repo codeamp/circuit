@@ -60,11 +60,14 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 // Features
-func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
+func (r *ProjectResolver) Features(args *struct {
+	ShowDeployed *bool
+	Params       *model.PaginatorInput
+}) []*FeatureResolver {
 	db_resolvers := r.DBProjectResolver.Features(args)
-	gql_resolvers := make([]*FeatureResolver, 0, len(db_resolvers))
+	gql_resolvers := make([]*FeatureResolver, 0, len(db_resolvers.Entries()))
 
-	for _, i := range db_resolvers {
+	for _, i := range db_resolvers.Entries() {
 		gql_resolvers = append(gql_resolvers, &FeatureResolver{DBFeatureResolver: i})
 	}
 
@@ -95,11 +98,13 @@ func (r *ProjectResolver) Releases(args *struct {
 }
 
 // Services
-func (r *ProjectResolver) Services() []*ServiceResolver {
-	db_resolvers := r.DBProjectResolver.Services()
-	gql_resolvers := make([]*ServiceResolver, 0, len(db_resolvers))
+func (r *ProjectResolver) Services(args *struct {
+	Params *model.PaginatorInput
+}) []*ServiceResolver {
+	db_resolvers := r.DBProjectResolver.Services(args)
+	gql_resolvers := make([]*ServiceResolver, 0, len(db_resolvers.Entries()))
 
-	for _, i := range db_resolvers {
+	for _, i := range db_resolvers.Entries() {
 		gql_resolvers = append(gql_resolvers, &ServiceResolver{DBServiceResolver: i})
 	}
 

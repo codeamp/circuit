@@ -19,9 +19,11 @@ type ProjectResolver struct {
 }
 
 // Features
-func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
+func (r *ProjectResolver) Features(args *struct {
+	ShowDeployed *bool
+	Params       *model.PaginatorInput
+}) *FeatureListResolver {
 	var rows []model.Feature
-	var results []*FeatureResolver
 
 	created := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
 	showDeployed := false
@@ -43,11 +45,11 @@ func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*Featur
 
 	r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), created).Order("created desc").Find(&rows)
 
-	for _, feature := range rows {
-		results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})
+	return &FeatureListResolver{
+		DB:             r.DB,
+		FeatureList:    rows,
+		PaginatorInput: args.Params,
 	}
-
-	return results
 }
 
 // CurrentRelease
@@ -81,16 +83,18 @@ func (r *ProjectResolver) Releases(args *struct {
 }
 
 // Services
-func (r *ProjectResolver) Services() []*ServiceResolver {
+func (r *ProjectResolver) Services(args *struct {
+	Params *model.PaginatorInput
+}) *ServiceListResolver {
 	var rows []model.Service
-	var results []*ServiceResolver
 
 	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
-	for _, service := range rows {
-		results = append(results, &ServiceResolver{DB: r.DB, Service: service})
-	}
 
-	return results
+	return &ServiceListResolver{
+		DB:             r.DB,
+		ServiceList:    rows,
+		PaginatorInput: args.Params,
+	}
 }
 
 // Secrets

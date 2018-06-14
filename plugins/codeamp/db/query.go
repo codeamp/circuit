@@ -118,13 +118,14 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 // Projects
 func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
-}) ([]*ProjectResolver, error) {
+	Params        *model.PaginatorInput
+}) (*ProjectListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
 	var rows []model.Project
-	var results []*ProjectResolver
+
 	if args.ProjectSearch.Repository != nil {
 
 		r.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
@@ -141,43 +142,46 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 		r.DB.Where("id in (?)", projectIds).Find(&rows)
 	}
 
-	for _, project := range rows {
-		results = append(results, &ProjectResolver{DB: r.DB, Project: project})
-	}
-
-	return results, nil
+	return &ProjectListResolver{
+		DB:             r.DB,
+		ProjectList:    rows,
+		PaginatorInput: args.Params,
+	}, nil
 }
-
-func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
+func (r *Resolver) Features(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (*FeatureListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
 	var rows []model.Feature
-	var results []*FeatureResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	for _, feature := range rows {
-		results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})
-	}
 
-	return results, nil
+	return &FeatureListResolver{
+		DB:             r.DB,
+		FeatureList:    rows,
+		PaginatorInput: args.Params,
+	}, nil
 }
 
-func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
+func (r *Resolver) Services(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (*ServiceListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
 	var rows []model.Service
-	var results []*ServiceResolver
 
 	r.DB.Order("created_at desc").Find(&rows)
-	for _, service := range rows {
-		results = append(results, &ServiceResolver{DB: r.DB, Service: service})
-	}
 
-	return results, nil
+	return &ServiceListResolver{
+		DB:             r.DB,
+		ServiceList:    rows,
+		PaginatorInput: args.Params,
+	}, nil
 }
 
 func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
