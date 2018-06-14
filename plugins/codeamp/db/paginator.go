@@ -6,16 +6,16 @@ import (
 )
 
 type Paginator struct {
-	Page        int32 `json:"page"`
-	Count       int32 `json:"count"`
-	HasNextPage bool  `json:"hasNextPage"`
+	Page       int32  `json:"page"`
+	Count      int32  `json:"count"`
+	NextCursor string `json:"nextCursor"`
 }
 
 type PaginatorResolver interface {
 	Page() int32
 	Count() int32
 	Entries() []interface{}
-	HasNextPage() int32
+	NextCursor() string
 }
 
 // Releases
