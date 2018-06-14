@@ -1,7 +1,7 @@
 package codeamp_resolvers
 
-<<<<<<< HEAD
 import (
+	"github.com/codeamp/circuit/plugins/codeamp/db"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -15,25 +15,18 @@ type Paginator struct {
 	Page       int32  `json:"page"`
 	Count      int32  `json:"count"`
 	NextCursor string `json:"nextCursor"`
-=======
-type Paginator struct {
-	Page        int32 `json:"page"`
-	Count       int32 `json:"count"`
-	HasNextPage bool  `json:"hasNextPage"`
->>>>>>> Add pagination for Releases
 }
 
 type PaginatorResolver interface {
 	Page() int32
 	Count() int32
-<<<<<<< HEAD
 	Entries() []interface{}
 	NextCursor() string
 }
 
 // ReleaseResolver resolver for Release
 type ReleaseListResolver struct {
-	ReleaseList    []Release
+	ReleaseList    []db.Release
 	PaginatorInput *PaginatorInput
 	DB             *gorm.DB
 }
@@ -354,9 +347,6 @@ func (r *ProjectListResolver) Count() int32 {
 
 func (r *ProjectListResolver) NextCursor() (string, error) {
 	return NextCursorHelper(*r.PaginatorInput, r.ProjectList)
-=======
-	HasNextPage() int32
->>>>>>> Add pagination for Releases
 }
 
 // ReleaseResolver resolver for Release
