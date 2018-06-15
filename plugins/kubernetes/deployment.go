@@ -365,6 +365,18 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		}
 	}
 
+	// create env var for pod ip, constructed from pod metadata on deploy
+	podIPEnvVar := v1.EnvVar{
+		Name: "POD_IP",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "status.podIP",
+			},
+		},
+	}
+
+	myEnvVars = append(myEnvVars, podIPEnvVar)
+
 	// as Files
 	var volumeMounts []v1.VolumeMount
 	var deployVolumes []v1.Volume
