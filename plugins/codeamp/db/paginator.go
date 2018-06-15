@@ -1,8 +1,13 @@
 package db_resolver
 
 import (
+	"reflect"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
+
+	"github.com/fatih/structs"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Paginator struct {
@@ -18,38 +23,61 @@ type PaginatorResolver interface {
 	NextCursor() string
 }
 
-// Releases
-func (r *ReleaseListResolver) Entries() []*ReleaseResolver {
-	var filteredRows []model.Release
-	var results []*ReleaseResolver
+// ReleaseResolver resolver for Release
+type ReleaseListResolver struct {
+	ReleaseList    []model.Release
+	PaginatorInput *model.PaginatorInput
+	DB             *gorm.DB
+}
 
+func EntryHelper(params model.PaginatorInput, entries interface{}) (interface{}, error) {
+	filteredRows := []interface{}{}
 	cursorRowIdx := 0
 
 	// filter on things after cursor_id
-	for idx, row := range r.ReleaseList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
+	reflectedEntries := reflect.ValueOf(entries)
+
+	cursorParamUUID := uuid.FromStringOrNil(*params.Cursor)
+
+	if cursorParamUUID != uuid.Nil {
+		for idx := 0; idx < reflectedEntries.Len(); idx++ {
+			if params.Cursor != nil &&
+				structs.Map(reflectedEntries.Index(idx).Interface())["Model"].(map[string]interface{})["ID"] == cursorParamUUID {
+				cursorRowIdx = idx
+				break
+			}
 		}
 	}
 
 	i := cursorRowIdx
 	for {
-		if len(filteredRows) == int(r.PaginatorInput.Limit) ||
-			len(r.ReleaseList) == i {
+		if len(filteredRows) == int(params.Limit) ||
+			len(entries.([]interface{})) == i {
 			break
 		}
-		filteredRows = append(filteredRows, r.ReleaseList[i])
+		filteredRows = append(filteredRows, entries.([]interface{})[i])
 		i++
 	}
 
-	for _, row := range filteredRows {
+	return filteredRows, nil
+}
+
+// Releases
+func (r *ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
+	var results []*ReleaseResolver
+
+	filteredRows, err := EntryHelper(*r.PaginatorInput, r.ReleaseList)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range filteredRows.([]model.Release) {
 		results = append(results, &ReleaseResolver{
 			DB:      r.DB,
 			Release: row,
 		})
 	}
-	return results
+	return results, nil
 }
 
 func (r *ReleaseListResolver) Page() int32 {

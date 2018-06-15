@@ -78,7 +78,7 @@ func (r *ProjectResolver) Releases(args *struct {
 	return &ReleaseListResolver{
 		DB:             r.DB,
 		ReleaseList:    rows,
-		PaginatorInput: *args.Params,
+		PaginatorInput: args.Params,
 	}
 }
 

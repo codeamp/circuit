@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "",
+	"package": [
+		{
+			"checksumSHA1": "gWgIakfod/4S6BjXj/OQ547R3gI=",
+			"path": "github.com/fatih/structs",
+			"revision": "ebf56d35bba727c68ac77f56f2fcf90b181851aa",
+			"revisionTime": "2018-01-23T06:50:59Z"
+		}
+	],
+	"rootPath": "github.com/codeamp/circuit"
+}

@@ -15,13 +15,6 @@ import (
 )
 
 // ReleaseResolver resolver for Release
-type ReleaseListResolver struct {
-	ReleaseList    []model.Release
-	PaginatorInput model.PaginatorInput
-	DB             *gorm.DB
-}
-
-// ReleaseResolver resolver for Release
 type ReleaseResolver struct {
 	model.Release
 	DB *gorm.DB
