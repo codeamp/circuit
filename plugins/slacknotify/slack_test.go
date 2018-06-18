@@ -1,4 +1,4 @@
-package slack_test
+package slacknotify_test
 
 import (
 	"testing"
@@ -37,7 +37,7 @@ func (suite *TestSuite) TestSlack() {
 	// var re transistor.Event
 
 	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), nil)
-	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/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", false)
+	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/valid_token", false)
 	ev.AddArtifact("channel", "devops-test", false)
 
 	suite.transistor.Events <- ev
@@ -50,7 +50,7 @@ func (suite *TestSuite) TestSlack() {
 	assert.Equal(suite.T(), re.State, transistor.GetState("complete"))
 
 	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), nil)
-	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/INVALID/INVALID/INVALID", false)
+	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/invalid_token", false)
 	ev.AddArtifact("channel", "devops-test", false)
 
 	suite.transistor.Events <- ev
@@ -63,7 +63,7 @@ func (suite *TestSuite) TestSlack() {
 	assert.Equal(suite.T(), re.State, transistor.GetState("failed"))
 
 	ev = transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), nil)
-	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/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", false)
+	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/valid_token", false)
 	ev.AddArtifact("channel", "devops-test", false)
 
 	ev.State = transistor.GetState("complete")

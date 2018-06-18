@@ -1,4 +1,4 @@
-package slack
+package slacknotify
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	slack "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	log "github.com/codeamp/logger"
 )
@@ -18,9 +19,9 @@ type Slack struct {
 }
 
 func init() {
-	transistor.RegisterPlugin("slack", func() transistor.Plugin {
+	transistor.RegisterPlugin("slacknotify", func() transistor.Plugin {
 		return &Slack{}
-	}, plugins.ReleaseExtension{})
+	}, plugins.ProjectExtension{})
 }
 
 // Description: Plugin description
@@ -48,10 +49,10 @@ func (x *Slack) Stop() {
 // Subscribe to events
 func (x *Slack) Subscribe() []string {
 	return []string{
-		"slack:create",
+		"project:slack:create",
 		"project:slack:update",
 		"project:slack:delete",
-		"release:kubernetes:deployment:status",
+		"slacknotify",
 	}
 }
 
@@ -66,15 +67,40 @@ func (x *Slack) Process(e transistor.Event) error {
 		return err
 	}
 
-	if e.Action == transistor.GetAction("create") {
-		err = validateSlackWebhook(webHookURL.String())
-		if err != nil {
-			x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), "")
-			return err
-		}
+	spew.Dump(webHookURL)
 
-		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "")
+	payload := e.Payload.(plugins.ProjectExtension)
+
+	spew.Dump(payload)
+
+	if e.Action == transistor.GetAction("create") || e.Action == transistor.GetAction("update") {
+		// return nil
+		// projectExtension := plugins.ProjectExtension{
+		// 	Environment: lbPayload.Environment,
+		// 	Project:     lbPayload.Project,
+		// }
+
+		event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), "Plugin failed")
+
+		projectExtension := plugins.ProjectExtension{
+			Environment: payload.Environment,
+			Project:     payload.Project,
+			ID:          payload.ID,
+		}
+		spew.Dump(payload)
+		event.SetPayload(projectExtension)
+		x.events <- event
+
+		// err = validateSlackWebhook(webHookURL.String())
+		// if err != nil {
+		// 	x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), "")
+		// 	return err
+		// }
+
+		// x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "")
 	}
+
+	return nil
 
 	if e.State != transistor.GetState("complete") && e.State != transistor.GetState("failed") {
 		return nil
