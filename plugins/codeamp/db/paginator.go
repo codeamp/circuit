@@ -1,7 +1,11 @@
 package db_resolver
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
+
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
@@ -33,16 +37,23 @@ type ReleaseListResolver struct {
 func EntryHelper(params model.PaginatorInput, entries interface{}) (interface{}, error) {
 	filteredRows := []interface{}{}
 	cursorRowIdx := 0
+	spew.Dump(params.Limit)
 
-	// filter on things after cursor_id
-	reflectedEntries := reflect.ValueOf(entries)
+	val := reflect.ValueOf(entries)
+	if val.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("Entries must be a slice.")
+	}
+
+	out := make([]interface{}, val.Len())
+	for i := 0; i < val.Len(); i++ {
+		out[i] = val.Index(i).Interface()
+	}
 
 	cursorParamUUID := uuid.FromStringOrNil(*params.Cursor)
-
 	if cursorParamUUID != uuid.Nil {
-		for idx := 0; idx < reflectedEntries.Len(); idx++ {
+		for idx := 0; idx < len(out); idx++ {
 			if params.Cursor != nil &&
-				structs.Map(reflectedEntries.Index(idx).Interface())["Model"].(map[string]interface{})["ID"] == cursorParamUUID {
+				structs.Map(out[idx])["Model"].(map[string]interface{})["ID"] == cursorParamUUID {
 				cursorRowIdx = idx
 				break
 			}
@@ -51,11 +62,13 @@ func EntryHelper(params model.PaginatorInput, entries interface{}) (interface{},
 
 	i := cursorRowIdx
 	for {
+		spew.Dump(len(filteredRows), int(params.Limit))
 		if len(filteredRows) == int(params.Limit) ||
-			len(entries.([]interface{})) == i {
+			val.Len() == i {
 			break
 		}
-		filteredRows = append(filteredRows, entries.([]interface{})[i])
+
+		filteredRows = append(filteredRows, out[i])
 		i++
 	}
 
@@ -72,9 +85,16 @@ func (r *ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
 	}
 
 	for _, row := range filteredRows.([]model.Release) {
+
+		release := model.Release{}
+		releaseBytes, _ := json.Marshal(row)
+		json.Unmarshal(releaseBytes, &release)
+
+		spew.Dump(release.Model.ID)
+
 		results = append(results, &ReleaseResolver{
 			DB:      r.DB,
-			Release: row,
+			Release: release,
 		})
 	}
 	return results, nil
