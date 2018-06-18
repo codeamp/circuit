@@ -30,7 +30,7 @@ plugins:
     workers: 1
   route53:
     workers: 1
-  slack:
+  slacknotify:
     workers: 1
   dockerbuilder:
     workers: 1
