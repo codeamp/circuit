@@ -340,7 +340,11 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 
 		x.DB.Save(&extension)
 
-		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), extension)
+		wsPayload := plugins.WebsocketMsg{
+			Event: fmt.Sprintf("projects/%s/%s/extensions", project.Slug, payload.Environment),
+		}
+
+		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), wsPayload)
 		event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/extensions", project.Slug, payload.Environment), false)
 		x.Events <- event
 	}
