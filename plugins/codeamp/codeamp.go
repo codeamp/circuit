@@ -1126,6 +1126,7 @@ func (x *CodeAmp) RunQueuedReleases(release *resolvers.Release) error {
 func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string) {
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
+	project := resolvers.Project{}
 	x.DB.Save(release)
 
 	releaseExtensions := []resolvers.ReleaseExtension{}
@@ -1134,6 +1135,14 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 		re.State = transistor.GetState("failed")
 		x.DB.Save(&re)
 	}
+
+	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
+		log.WarnWithFields("project not found", log.Fields{
+			"release": release,
+		})
+	}
+
+	x.SendNotifications(transistor.GetState("failed"), release, &project)
 
 	x.RunQueuedReleases(release)
 }
@@ -1164,9 +1173,109 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 		Payload: release,
 	}
+	x.SendNotifications(transistor.GetState("complete"), release, &project)
 	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
 	x.Events <- event
 
 	x.RunQueuedReleases(release)
+}
+
+// SendNotifcation dispatches notification events to registered project extension of type notification
+func (x *CodeAmp) SendNotifications(releaseState transistor.State, release *resolvers.Release, project *resolvers.Project) error {
+	var projectExtensions []resolvers.ProjectExtension
+
+	environment := resolvers.Environment{}
+	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
+		log.InfoWithFields("environment not found", log.Fields{
+			"id": release.EnvironmentID,
+		})
+		return fmt.Errorf("environment not found")
+	}
+
+	if x.DB.Where("project_id = ? and environment_id = ?", project.ID, environment.ID).Find(&projectExtensions).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"id": project.ID,
+		})
+		return fmt.Errorf("project not found")
+	}
+
+	for _, pe := range projectExtensions {
+		extension := resolvers.Extension{}
+		if x.DB.Where("id = ? and type = ?", pe.ExtensionID, plugins.GetType("notification")).Find(&extension).RecordNotFound() == false {
+
+			projectExtensionArtifacts, _ := resolvers.ExtractArtifacts(pe, extension, x.DB)
+			_artifacts := []transistor.Artifact{}
+
+			for _, artifact := range projectExtensionArtifacts {
+				_artifacts = append(_artifacts, artifact)
+			}
+
+			var headFeature resolvers.Feature
+			if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+				log.WarnWithFields("head feature not found", log.Fields{
+					"id": release.HeadFeatureID,
+				})
+				return nil
+			}
+
+			var tailFeature resolvers.Feature
+			if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
+				log.WarnWithFields("tail feature not found", log.Fields{
+					"id": release.TailFeatureID,
+				})
+				return nil
+			}
+
+			projectSettings := resolvers.ProjectSettings{}
+			if x.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
+				project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
+				log.WarnWithFields("no env project branch found", log.Fields{})
+			}
+
+			projectModel := plugins.Project{
+				ID:         project.Model.ID.String(),
+				Slug:       project.Slug,
+				Repository: project.Repository,
+			}
+
+			notificationEvent := plugins.NotificationExtension{
+				ID: pe.Model.ID.String(),
+				Release: plugins.Release{
+					ID:          release.Model.ID.String(),
+					Environment: environment.Key,
+					HeadFeature: plugins.Feature{
+						Hash:       headFeature.Hash,
+						ParentHash: headFeature.ParentHash,
+						User:       headFeature.User,
+						Message:    headFeature.Message,
+						Created:    headFeature.Created,
+					},
+					TailFeature: plugins.Feature{
+						ID:         tailFeature.Model.ID.String(),
+						Hash:       tailFeature.Hash,
+						ParentHash: tailFeature.ParentHash,
+						User:       tailFeature.User,
+						Message:    tailFeature.Message,
+						Created:    tailFeature.Created,
+					},
+					Project: projectModel,
+					Git: plugins.Git{
+						Url:           project.GitUrl,
+						Branch:        projectSettings.GitBranch,
+						RsaPrivateKey: project.RsaPrivateKey,
+					},
+				},
+				Project:     projectModel,
+				Environment: environment.Key,
+			}
+
+			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("%s:notify", extension.Key)), transistor.GetAction("status"), notificationEvent)
+			event.Artifacts = _artifacts
+			event.AddArtifact("MESSAGE", releaseState, false)
+			x.Events <- event
+		}
+	}
+
+	return nil
 }
