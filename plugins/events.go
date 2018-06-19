@@ -9,6 +9,7 @@ import (
 	"github.com/codeamp/transistor"
 )
 
+// GetEventName returns registered events.
 func GetEventName(s string) transistor.EventName {
 	eventNames := []string{
 		"project:kubernetes:deployment",
@@ -25,7 +26,7 @@ func GetEventName(s string) transistor.EventName {
 		"release:dockerbuilder",
 		"route53",
 		"websocket",
-		"slacknotify",
+		"slack",
 	}
 
 	for _, t := range eventNames {
@@ -44,8 +45,10 @@ func GetEventName(s string) transistor.EventName {
 	return transistor.EventName("unknown")
 }
 
+// Type is the plugins Type data structure
 type Type string
 
+// GetType returns registered plugin values of type Type
 func GetType(s string) Type {
 	types := []string{
 		"file",
@@ -79,6 +82,7 @@ func GetType(s string) Type {
 	return Type("unknown")
 }
 
+// Git event data struct
 type Git struct {
 	Url           string `json:"gitUrl"`
 	Protocol      string `json:"protocol"`
@@ -89,6 +93,7 @@ type Git struct {
 	RsaPublicKey  string `json:"rsaPublicKey" role:"secret"`
 }
 
+// GitCommit event data struct
 type GitCommit struct {
 	Repository string    `json:"repository"`
 	User       string    `json:"user"`
@@ -100,6 +105,7 @@ type GitCommit struct {
 	Created    time.Time `json:"created"`
 }
 
+// GitSync event data struct
 type GitSync struct {
 	Project Project     `json:"project"`
 	Git     Git         `json:"git"`
@@ -107,6 +113,7 @@ type GitSync struct {
 	Commits []GitCommit `json:"commits"`
 }
 
+// Feature event data struct
 type Feature struct {
 	ID         string    `json:"id"`
 	Hash       string    `json:"hash"`
@@ -116,16 +123,19 @@ type Feature struct {
 	Created    time.Time `json:"created"`
 }
 
+// Listener event data struct
 type Listener struct {
 	Port     int32  `json:"port"`
 	Protocol string `json:"protocol"`
 }
 
+// ListenerPair event data struct
 type ListenerPair struct {
 	Source      Listener `json:"source"`
 	Destination Listener `json:"destination"`
 }
 
+// Service event data struct
 type Service struct {
 	ID        string      `json:"id"`
 	Name      string      `json:"name"`
@@ -140,6 +150,7 @@ type Service struct {
 	Action       transistor.Action `json:"action"`
 }
 
+// ServiceSpec event data struct
 type ServiceSpec struct {
 	ID                            string `json:"id"`
 	CpuRequest                    string `json:"cpuRequest"`
@@ -149,22 +160,26 @@ type ServiceSpec struct {
 	TerminationGracePeriodSeconds int64  `json:"terminationGracePeriodSeconds"`
 }
 
+// Secret event data struct
 type Secret struct {
 	Key   string `json:"key"`
 	Value string `json:"value" role:"secret"`
 	Type  Type   `json:"type"`
 }
 
+// HeartBeat event data struct
 type HeartBeat struct {
 	Tick string `json:"tick"`
 }
 
+// WebsocketMsg event data struct
 type WebsocketMsg struct {
 	Channel string      `json:"channel"`
 	Event   string      `json:"event"`
 	Payload interface{} `json:"data" role:"secret"`
 }
 
+// ReleaseExtension event data struct
 type ReleaseExtension struct {
 	ID          string  `json:"id"`
 	Project     Project `json:"project"`
@@ -172,12 +187,22 @@ type ReleaseExtension struct {
 	Environment string  `json:"environment"`
 }
 
+// ProjectExtension event data struct
 type ProjectExtension struct {
 	ID          string  `json:"id"`
 	Project     Project `json:"project"`
 	Environment string  `json:"environment"`
 }
 
+// NotificationExtension event data struct
+type NotificationExtension struct {
+	ID          string  `json:"id"`
+	Project     Project `json:"project"`
+	Release     Release `json:"release"`
+	Environment string  `json:"environment"`
+}
+
+// Release event data struct
 type Release struct {
 	ID          string    `json:"id"`
 	Project     Project   `json:"project"`
@@ -190,6 +215,7 @@ type Release struct {
 	Environment string    `json:"environment"`
 }
 
+// Project event data struct
 type Project struct {
 	ID         string `json:"id"`
 	Slug       string `json:"slug"`
