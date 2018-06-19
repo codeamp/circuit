@@ -325,12 +325,22 @@ input ProjectSearchInput {
 # Pagination input
 input PaginatorInput {
 <<<<<<< HEAD
+<<<<<<< HEAD
   cursor: String
   limit: Int
 =======
   afterCursor: String
   itemsPerPage: Int!
 >>>>>>> Add pagination for Releases
+=======
+<<<<<<< HEAD:plugins/codeamp/graphql/schema.graphql
+  afterCursor: String
+  itemsPerPage: Int!
+=======
+  cursor: String
+  limit: Int
+>>>>>>> Abstractions + better code :):plugins/codeamp/schema.graphql
+>>>>>>> Abstractions + better code :)
 }
 
 # Release input
