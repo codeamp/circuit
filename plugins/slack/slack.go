@@ -60,7 +60,8 @@ func (x *Slack) Process(e transistor.Event) error {
 		"event": e.Event(),
 	})
 
-	if e.Name == plugins.GetEventName("project:slacknotify:status") {
+	// no-op on slack plugin statuses
+	if e.Name == plugins.GetEventName("slack:status") {
 		return nil
 	}
 
@@ -75,16 +76,17 @@ func (x *Slack) Process(e transistor.Event) error {
 	}
 
 	if e.Action == transistor.GetAction("create") || e.Action == transistor.GetAction("update") {
-		err = validateSlackWebhook(webHookURL.String(), channel.String())
-		if err != nil {
-			x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
-			return err
+		validationErr := validateSlackWebhook(webHookURL.String(), channel.String(), e)
+		if validationErr != nil {
+			x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), validationErr.Error())
+			return validationErr
 		}
 
 		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "")
+		return nil
 	}
 
-	if e.Name != plugins.GetEventName("project:slacknotify:notify") {
+	if e.Name != plugins.GetEventName("slack:notify") {
 		return nil
 	}
 
@@ -100,7 +102,7 @@ func (x *Slack) Process(e transistor.Event) error {
 
 	messageStatus, _ := e.GetArtifact("message")
 
-	message := fmt.Sprintf("Deployment for project %s %s", payload.Project.Slug, messageStatus.String())
+	message := fmt.Sprintf("%s deployed %s/%s - Status: %s", payload.Release.User, payload.Environment, payload.Project.Repository, messageStatus.String())
 
 	slackPayload := slack.Payload{
 		Text:        message,
@@ -128,11 +130,11 @@ func (x *Slack) Process(e transistor.Event) error {
 	return nil
 }
 
-func validateSlackWebhook(webhook string, channel string) error {
-	log.Println("VALIDATING WEBHOOK", webhook)
+func validateSlackWebhook(webhook string, channel string, e transistor.Event) error {
+	ePayload := e.Payload.(plugins.ProjectExtension)
 
 	payload := slack.Payload{
-		Text:        "Installed slack webhook",
+		Text:        fmt.Sprintf("Installed slack webhook to %s/%s", ePayload.Environment, ePayload.Project.Repository),
 		Username:    "Codeamp",
 		Channel:     fmt.Sprintf("#%s", channel),
 		IconEmoji:   fmt.Sprintf(":rocket:"),
