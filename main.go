@@ -9,7 +9,7 @@ import (
 	_ "github.com/codeamp/circuit/plugins/heartbeat"
 	_ "github.com/codeamp/circuit/plugins/kubernetes"
 	_ "github.com/codeamp/circuit/plugins/route53"
-	_ "github.com/codeamp/circuit/plugins/slacknotify"
+	_ "github.com/codeamp/circuit/plugins/slack"
 )
 
 func main() {
