@@ -52,7 +52,7 @@ func (r *ReleaseResolver) State() string {
 // ReleaseExtensions
 func (r *ReleaseResolver) ReleaseExtensions() []*ReleaseExtensionResolver {
 	db_resolvers := r.DBReleaseResolver.ReleaseExtensions()
-	gql_resolvers := make([]*ReleaseExtensionResolver, len(db_resolvers))
+	gql_resolvers := make([]*ReleaseExtensionResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &ReleaseExtensionResolver{DBReleaseExtensionResolver: i})

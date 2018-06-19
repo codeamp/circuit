@@ -71,7 +71,7 @@ func (r *SecretResolver) Type() string {
 // Versions
 func (r *SecretResolver) Versions() ([]*SecretResolver, error) {
 	db_resolvers, err := r.DBSecretResolver.Versions()
-	gql_resolvers := make([]*SecretResolver, len(db_resolvers))
+	gql_resolvers := make([]*SecretResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &SecretResolver{DBSecretResolver: i})

@@ -61,7 +61,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 // Features
 func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
 	db_resolvers := r.DBProjectResolver.Features(args)
-	gql_resolvers := make([]*FeatureResolver, len(db_resolvers))
+	gql_resolvers := make([]*FeatureResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &FeatureResolver{DBFeatureResolver: i})
@@ -79,7 +79,7 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 // Releases
 func (r *ProjectResolver) Releases() []*ReleaseResolver {
 	db_resolvers := r.DBProjectResolver.Releases()
-	gql_resolvers := make([]*ReleaseResolver, len(db_resolvers))
+	gql_resolvers := make([]*ReleaseResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &ReleaseResolver{DBReleaseResolver: i})
@@ -91,7 +91,7 @@ func (r *ProjectResolver) Releases() []*ReleaseResolver {
 // Services
 func (r *ProjectResolver) Services() []*ServiceResolver {
 	db_resolvers := r.DBProjectResolver.Services()
-	gql_resolvers := make([]*ServiceResolver, len(db_resolvers))
+	gql_resolvers := make([]*ServiceResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &ServiceResolver{DBServiceResolver: i})
@@ -103,7 +103,7 @@ func (r *ProjectResolver) Services() []*ServiceResolver {
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
 	db_resolvers, err := r.DBProjectResolver.Secrets(ctx)
-	gql_resolvers := make([]*SecretResolver, len(db_resolvers))
+	gql_resolvers := make([]*SecretResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &SecretResolver{DBSecretResolver: i})
@@ -115,7 +115,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error
 // ProjectExtensions
 func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 	db_resolvers, err := r.DBProjectResolver.Extensions()
-	gql_resolvers := make([]*ProjectExtensionResolver, len(db_resolvers))
+	gql_resolvers := make([]*ProjectExtensionResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &ProjectExtensionResolver{DBProjectExtensionResolver: i})
@@ -137,7 +137,7 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 // Environments
 func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	db_resolvers := r.DBProjectResolver.Environments()
-	gql_resolvers := make([]*EnvironmentResolver, len(db_resolvers))
+	gql_resolvers := make([]*EnvironmentResolver, 0, len(db_resolvers))
 
 	for _, i := range db_resolvers {
 		gql_resolvers = append(gql_resolvers, &EnvironmentResolver{DBEnvironmentResolver: i})
