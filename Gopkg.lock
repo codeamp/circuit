@@ -20,12 +20,6 @@
   revision = "cd527374f1e5bff4938207604a14f2e38a9cf512"
 
 [[projects]]
-  name = "github.com/ashwanthkumar/slack-go-webhook"
-  packages = ["."]
-  revision = "58b9a44feb242f0ced1a85304b1b6af57b770234"
-  version = "v0.2"
-
-[[projects]]
   name = "github.com/aws/aws-sdk-go"
   packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","internal/sdkio","internal/sdkrand","internal/shareddefaults","private/protocol","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/restxml","private/protocol/xml/xmlutil","service/route53","service/sts"]
   revision = "63f395001dd8f8d48ef82aad68256167e4051652"
@@ -283,6 +277,12 @@
   revision = "d34b9ff171c21ad295489235aec8b6626023cd04"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/lytics/slackhook"
+  packages = ["."]
+  revision = "a52fd449b27dcdd75cf069c5d6ac5749653d801a"
+
+[[projects]]
   name = "github.com/magiconair/properties"
   packages = ["."]
   revision = "c3beff4c2358b44d0493c7dda585e7db7ff28ae6"
@@ -305,12 +305,6 @@
   packages = ["."]
   revision = "1df9eeb2bb81f327b96228865c5687bc2194af3f"
   version = "1.0.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/moul/http2curl"
-  packages = ["."]
-  revision = "9ac6cf4d929b2fa8fd2d2e6dec5bb0feb4f4911d"
 
 [[projects]]
   branch = "master"
@@ -341,12 +335,6 @@
   packages = [".","ext","log"]
   revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
   version = "v1.0.2"
-
-[[projects]]
-  name = "github.com/parnurzeal/gorequest"
-  packages = ["."]
-  revision = "a578a48e8d6ca8b01a3b18314c43c6716bb5f5a3"
-  version = "v0.2.15"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -453,7 +441,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","context/ctxhttp","http/httpguts","http2","http2/hpack","idna","lex/httplex","publicsuffix"]
+  packages = ["context","context/ctxhttp","http/httpguts","http2","http2/hpack","idna","lex/httplex"]
   revision = "d41e8174641f662c5a2d1c7a5f9e828788eb8706"
 
 [[projects]]
@@ -531,6 +519,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f1c2a6ff8585862a6d8ccf32b64960f7e03cc4384155be0f7fccae34e02c6d37"
+  inputs-digest = "d5dc09ac0920946ed30f76b92ded9c55c56ac2ebf6a80ed3579a7cdba33bd007"
   solver-name = "gps-cdcl"
   solver-version = 1
