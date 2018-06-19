@@ -27,9 +27,6 @@ func GetEventName(s string) transistor.EventName {
 		"route53",
 		"websocket",
 		"slack",
-		"slack:create",
-		"slack:update",
-		"slack:delete",
 		"slack:status",
 		"slack:notify",
 	}
