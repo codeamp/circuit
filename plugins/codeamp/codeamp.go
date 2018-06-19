@@ -1142,7 +1142,7 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 		})
 	}
 
-	x.SendNotifications(transistor.GetState("failed"), release, &project)
+	x.SendNotifications("FAILED", release, &project)
 
 	x.RunQueuedReleases(release)
 }
@@ -1173,7 +1173,7 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 		Payload: release,
 	}
-	x.SendNotifications(transistor.GetState("complete"), release, &project)
+	x.SendNotifications("SUCCESS", release, &project)
 	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
 	x.Events <- event
@@ -1181,8 +1181,8 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 	x.RunQueuedReleases(release)
 }
 
-// SendNotifcation dispatches notification events to registered project extension of type notification
-func (x *CodeAmp) SendNotifications(releaseState transistor.State, release *resolvers.Release, project *resolvers.Project) error {
+// SendNotifications dispatches notification events to registered project extension of type notification
+func (x *CodeAmp) SendNotifications(releaseState string, release *resolvers.Release, project *resolvers.Project) error {
 	var projectExtensions []resolvers.ProjectExtension
 
 	environment := resolvers.Environment{}
@@ -1200,6 +1200,41 @@ func (x *CodeAmp) SendNotifications(releaseState transistor.State, release *reso
 		return fmt.Errorf("project not found")
 	}
 
+	var headFeature resolvers.Feature
+	if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+		log.WarnWithFields("head feature not found", log.Fields{
+			"id": release.HeadFeatureID,
+		})
+		return nil
+	}
+
+	var tailFeature resolvers.Feature
+	if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
+		log.WarnWithFields("tail feature not found", log.Fields{
+			"id": release.TailFeatureID,
+		})
+		return nil
+	}
+
+	projectSettings := resolvers.ProjectSettings{}
+	if x.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
+		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
+		log.WarnWithFields("no env project branch found", log.Fields{})
+	}
+
+	user := resolvers.User{}
+	if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
+		log.InfoWithFields("user not found", log.Fields{
+			"id": release.UserID,
+		})
+	}
+
+	projectModel := plugins.Project{
+		ID:         project.Model.ID.String(),
+		Slug:       project.Slug,
+		Repository: project.Repository,
+	}
+
 	for _, pe := range projectExtensions {
 		extension := resolvers.Extension{}
 		if x.DB.Where("id = ? and type = ?", pe.ExtensionID, plugins.GetType("notification")).Find(&extension).RecordNotFound() == false {
@@ -1209,34 +1244,6 @@ func (x *CodeAmp) SendNotifications(releaseState transistor.State, release *reso
 
 			for _, artifact := range projectExtensionArtifacts {
 				_artifacts = append(_artifacts, artifact)
-			}
-
-			var headFeature resolvers.Feature
-			if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
-				log.WarnWithFields("head feature not found", log.Fields{
-					"id": release.HeadFeatureID,
-				})
-				return nil
-			}
-
-			var tailFeature resolvers.Feature
-			if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
-				log.WarnWithFields("tail feature not found", log.Fields{
-					"id": release.TailFeatureID,
-				})
-				return nil
-			}
-
-			projectSettings := resolvers.ProjectSettings{}
-			if x.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
-				project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
-				log.WarnWithFields("no env project branch found", log.Fields{})
-			}
-
-			projectModel := plugins.Project{
-				ID:         project.Model.ID.String(),
-				Slug:       project.Slug,
-				Repository: project.Repository,
 			}
 
 			notificationEvent := plugins.NotificationExtension{
@@ -1259,6 +1266,7 @@ func (x *CodeAmp) SendNotifications(releaseState transistor.State, release *reso
 						Message:    tailFeature.Message,
 						Created:    tailFeature.Created,
 					},
+					User:    user.Email,
 					Project: projectModel,
 					Git: plugins.Git{
 						Url:           project.GitUrl,
