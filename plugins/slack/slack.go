@@ -3,9 +3,9 @@ package slack
 import (
 	"fmt"
 
-	slack "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	slack "github.com/lytics/slackhook"
 
 	log "github.com/codeamp/logger"
 )
@@ -104,12 +104,11 @@ func (x *Slack) Process(e transistor.Event) error {
 
 	message := fmt.Sprintf("%s deployed %s/%s - Status: %s", payload.Release.User, payload.Environment, payload.Project.Repository, messageStatus.String())
 
-	slackPayload := slack.Payload{
-		Text:        message,
-		Username:    "CodeAmp",
-		Channel:     fmt.Sprintf("#%s", channel.String()),
-		IconEmoji:   fmt.Sprintf("%s", icon),
-		Attachments: []slack.Attachment{},
+	slackPayload := slack.Message{
+		Text:      message,
+		UserName:  "CodeAmp",
+		Channel:   fmt.Sprintf("#%s", channel.String()),
+		IconEmoji: fmt.Sprintf("%s", icon),
 	}
 
 	ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Successfully sent message")
@@ -133,12 +132,11 @@ func (x *Slack) Process(e transistor.Event) error {
 func validateSlackWebhook(webhook string, channel string, e transistor.Event) error {
 	ePayload := e.Payload.(plugins.ProjectExtension)
 
-	payload := slack.Payload{
-		Text:        fmt.Sprintf("Installed slack webhook to %s/%s", ePayload.Environment, ePayload.Project.Repository),
-		Username:    "Codeamp",
-		Channel:     fmt.Sprintf("#%s", channel),
-		IconEmoji:   fmt.Sprintf(":rocket:"),
-		Attachments: []slack.Attachment{},
+	payload := slack.Message{
+		Text:      fmt.Sprintf("Installed slack webhook to %s/%s", ePayload.Environment, ePayload.Project.Repository),
+		UserName:  "Codeamp",
+		Channel:   fmt.Sprintf("#%s", channel),
+		IconEmoji: fmt.Sprintf(":rocket:"),
 	}
 
 	webHookErr := sendSlackMessage(webhook, payload)
@@ -150,9 +148,10 @@ func validateSlackWebhook(webhook string, channel string, e transistor.Event) er
 	return nil
 }
 
-func sendSlackMessage(webhook string, payload slack.Payload) error {
-	slackErr := slack.Send(webhook, "", payload)
-	if len(slackErr) > 0 {
+func sendSlackMessage(webhook string, payload slack.Message) error {
+	client := slack.New(webhook)
+	slackErr := client.Send(&payload)
+	if slackErr != nil {
 		return fmt.Errorf("Slack Notification failed to dispatch! %s", slackErr)
 	}
 	return nil
