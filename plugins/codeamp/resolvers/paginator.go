@@ -113,7 +113,7 @@ func NextCursorHelper(params PaginatorInput, entries interface{}) (string, error
 		return "", nil
 	} else {
 		nextCursorIdx := cursorRowIdx + int(*params.Limit) + 1
-		if len(out) >= nextCursorIdx {
+		if len(out) > nextCursorIdx {
 			return structs.Map(out[nextCursorIdx])["Model"].(map[string]interface{})["ID"].(uuid.UUID).String(), nil
 		} else {
 			return "", nil
