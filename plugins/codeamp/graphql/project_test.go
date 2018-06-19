@@ -183,10 +183,11 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		Email:       "codeamp",
 		Permissions: []string{"admin"},
 	})
-	projects, err := suite.Resolver.Projects(adminContext, &struct {
-		ProjectSearch *model.ProjectSearchInput
+	projects, err := suite.Resolver.Projects(adminContext, &struct{ 
+		ProjectSearch *resolvers.ProjectSearchInput 
+		Params  *resolvers.PaginatorInput 
 	}{
-		ProjectSearch: &model.ProjectSearchInput{
+		ProjectSearch: &resolvers.ProjectSearchInput{
 			Bookmarked: true,
 		},
 		Params: &resolvers.PaginatorInput{},
@@ -199,10 +200,11 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 	// do a search for 'foo'
 	searchQuery := "foo"
-	projects, err = suite.Resolver.Projects(adminContext, &struct {
-		ProjectSearch *model.ProjectSearchInput
+	projects, err = suite.Resolver.Projects(adminContext, &struct{ 
+		ProjectSearch *resolvers.ProjectSearchInput 
+		Params  *resolvers.PaginatorInput 
 	}{
-		ProjectSearch: &model.ProjectSearchInput{
+		ProjectSearch: &resolvers.ProjectSearchInput{
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
