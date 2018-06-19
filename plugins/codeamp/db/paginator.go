@@ -62,8 +62,7 @@ func EntryHelper(params model.PaginatorInput, entries interface{}) (interface{},
 
 	i := cursorRowIdx
 	for {
-		spew.Dump(len(filteredRows), int(params.Limit))
-		if len(filteredRows) == int(params.Limit) ||
+		if len(filteredRows) == int(*params.Limit) ||
 			val.Len() == i {
 			break
 		}
@@ -120,7 +119,7 @@ func (r *ReleaseListResolver) NextCursor() string {
 		}
 	}
 
-	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
+	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
 	if len(r.ReleaseList) >= nextCursorIdx {
 		return r.ReleaseList[nextCursorIdx].Model.ID.String()
 	} else {
@@ -131,7 +130,7 @@ func (r *ReleaseListResolver) NextCursor() string {
 func (r *ReleaseListResolver) getPage() int32 {
 	for idx, row := range r.ReleaseList {
 		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/r.PaginatorInput.Limit + int32(1)
+			return int32(idx)/int32(*r.PaginatorInput.Limit) + int32(1)
 		}
 	}
 
@@ -164,7 +163,7 @@ func (r *SecretListResolver) Entries() []*SecretResolver {
 
 	i := cursorRowIdx
 	for {
-		if len(filteredRows) == int(r.PaginatorInput.Limit) ||
+		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
 			len(r.SecretList) == i {
 			break
 		}
@@ -206,7 +205,7 @@ func (r *SecretListResolver) NextCursor() string {
 		}
 	}
 
-	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
+	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
 	if len(r.SecretList) >= nextCursorIdx {
 		return r.SecretList[nextCursorIdx].Model.ID.String()
 	} else {
@@ -217,7 +216,7 @@ func (r *SecretListResolver) NextCursor() string {
 func (r *SecretListResolver) getPage() int32 {
 	for idx, row := range r.SecretList {
 		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/r.PaginatorInput.Limit + int32(1)
+			return int32(idx)/int32(*r.PaginatorInput.Limit) + int32(1)
 		}
 	}
 
@@ -250,7 +249,7 @@ func (r *ServiceListResolver) Entries() []*ServiceResolver {
 
 	i := cursorRowIdx
 	for {
-		if len(filteredRows) == int(r.PaginatorInput.Limit) ||
+		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
 			len(r.ServiceList) == i {
 			break
 		}
@@ -287,7 +286,7 @@ func (r *ServiceListResolver) NextCursor() string {
 		}
 	}
 
-	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
+	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
 	if len(r.ServiceList) >= nextCursorIdx {
 		return r.ServiceList[nextCursorIdx].Model.ID.String()
 	} else {
@@ -298,7 +297,7 @@ func (r *ServiceListResolver) NextCursor() string {
 func (r *ServiceListResolver) getPage() int32 {
 	for idx, row := range r.ServiceList {
 		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/r.PaginatorInput.Limit + int32(1)
+			return int32(idx)/int32(*r.PaginatorInput.Limit) + int32(1)
 		}
 	}
 
@@ -330,7 +329,7 @@ func (r *FeatureListResolver) Entries() []*FeatureResolver {
 
 	i := cursorRowIdx
 	for {
-		if len(filteredRows) == int(r.PaginatorInput.Limit) ||
+		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
 			len(r.FeatureList) == i {
 			break
 		}
@@ -367,7 +366,7 @@ func (r *FeatureListResolver) NextCursor() string {
 		}
 	}
 
-	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
+	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
 	if len(r.FeatureList) >= nextCursorIdx {
 		return r.FeatureList[nextCursorIdx].Model.ID.String()
 	} else {
@@ -378,7 +377,7 @@ func (r *FeatureListResolver) NextCursor() string {
 func (r *FeatureListResolver) getPage() int32 {
 	for idx, row := range r.FeatureList {
 		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/r.PaginatorInput.Limit + int32(1)
+			return int32(idx)/(*r.PaginatorInput.Limit) + int32(1)
 		}
 	}
 
@@ -410,7 +409,7 @@ func (r *ProjectListResolver) Entries() []*ProjectResolver {
 
 	i := cursorRowIdx
 	for {
-		if len(filteredRows) == int(r.PaginatorInput.Limit) ||
+		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
 			len(r.ProjectList) == i {
 			break
 		}
@@ -447,7 +446,7 @@ func (r *ProjectListResolver) NextCursor() string {
 		}
 	}
 
-	nextCursorIdx := cursorRowIdx + int(r.PaginatorInput.Limit) + 1
+	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
 	if len(r.ProjectList) >= nextCursorIdx {
 		return r.ProjectList[nextCursorIdx].Model.ID.String()
 	} else {
@@ -458,7 +457,7 @@ func (r *ProjectListResolver) NextCursor() string {
 func (r *ProjectListResolver) getPage() int32 {
 	for idx, row := range r.ProjectList {
 		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/r.PaginatorInput.Limit + int32(1)
+			return int32(idx)/(*r.PaginatorInput.Limit) + int32(1)
 		}
 	}
 

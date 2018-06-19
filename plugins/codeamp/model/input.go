@@ -107,7 +107,7 @@ type PaginatorInput struct {
 	// Cursor
 	Cursor *string `json:"cursor"`
 	// Limit
-	Limit int32 `json:"limit"`
+	Limit *int32 `json:"limit"`
 }
 
 // ReleaseInput

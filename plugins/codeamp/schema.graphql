@@ -313,7 +313,7 @@ input ProjectSearchInput {
 # Pagination input
 input PaginatorInput {
   cursor: String
-  limit: Int!
+  limit: Int
 }
 
 # Release input

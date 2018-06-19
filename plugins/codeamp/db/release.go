@@ -36,7 +36,7 @@ func (r *ReleaseListResolver) Releases() []*ReleaseResolver {
 	}
 
 	// only get ItemsPerPage
-	filteredRows = r.ReleaseList[cursorRowIdx+1 : cursorRowIdx+int(r.PaginatorInput.Limit)+1]
+	filteredRows = r.ReleaseList[cursorRowIdx+1 : cursorRowIdx+int(*r.PaginatorInput.Limit)+1]
 
 	for _, row := range filteredRows {
 		results = append(results, &ReleaseResolver{
