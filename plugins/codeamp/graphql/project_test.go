@@ -189,12 +189,13 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: true,
 		},
+		Params: &resolvers.PaginatorInput{},
 	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	assert.Equal(suite.T(), 3, len(projects))
+	assert.Equal(suite.T(), 3, len(projects.ProjectList))
 
 	// do a search for 'foo'
 	searchQuery := "foo"
@@ -205,12 +206,13 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
+		Params: &resolvers.PaginatorInput{},
 	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	assert.Equal(suite.T(), 2, len(projects))
+	assert.Equal(suite.T(), 2, len(projects.ProjectList))
 
 	suite.TearDownTest(deleteIds)
 }
