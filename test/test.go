@@ -69,7 +69,7 @@ func setupPostgresDB() (*gorm.DB, error) {
 		},
 	)
 
-	return gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		viper.GetString("plugins.codeamp.postgres.host"),
 		viper.GetString("plugins.codeamp.postgres.port"),
 		viper.GetString("plugins.codeamp.postgres.user"),
@@ -77,6 +77,9 @@ func setupPostgresDB() (*gorm.DB, error) {
 		viper.GetString("plugins.codeamp.postgres.sslmode"),
 		viper.GetString("plugins.codeamp.postgres.password"),
 	))
+
+	//db.LogMode(true)
+	return db, err
 }
 
 // Setup logic common to all Plugin tests
