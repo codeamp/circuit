@@ -1170,7 +1170,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 
 	// check if extension already exists with project
 	// ignore if the extension type is 'once' (installable many times)
-	if extension.Type == plugins.GetType("once") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
+	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
 		if extension.Key == "route53" {
 			err := r.handleExtensionRoute53(args, &projectExtension)
 			if err != nil {

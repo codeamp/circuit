@@ -133,7 +133,7 @@ func validateSlackWebhook(webhook string, channel string, e transistor.Event) er
 
 	payload := slack.Message{
 		Text:      fmt.Sprintf("Installed slack webhook to %s/%s", ePayload.Environment, ePayload.Project.Repository),
-		UserName:  "Codeamp",
+		UserName:  "CodeAmp",
 		Channel:   fmt.Sprintf("#%s", channel),
 		IconEmoji: fmt.Sprintf(":rocket:"),
 	}
