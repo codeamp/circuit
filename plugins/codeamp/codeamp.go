@@ -15,6 +15,7 @@ import (
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	redis "github.com/go-redis/redis"
@@ -204,45 +205,11 @@ func (x *CodeAmp) Process(e transistor.Event) error {
 	return nil
 }
 
-		wsPayload := plugins.WebsocketMsg{
-			Event: fmt.Sprintf("projects/%s/%s/extensions", project.Slug, payload.Environment),
-		}
-
-		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), wsPayload)
-	project := resolvers.Project{}
-	environment := resolvers.Environment{}
-	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
-		log.WarnWithFields("Environment not found", log.Fields{
-			"id": release.EnvironmentID,
-		})
-	}
-
-	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
-		log.WarnWithFields("project not found", log.Fields{
-			"release": release,
-		})
-	}
-
-	x.SendNotifications("FAILED", release, &project)
-
-	payload := plugins.WebsocketMsg{
-		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
-		Payload: release,
-	}
-
-	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
-	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
-	x.Events <- event
-
-	x.SendNotifications("SUCCESS", release, &project)
-
-}
-
 // SendNotifications dispatches notification events to registered project extension of type notification
-func (x *CodeAmp) SendNotifications(releaseState string, release *resolvers.Release, project *resolvers.Project) error {
-	var projectExtensions []resolvers.ProjectExtension
+func (x *CodeAmp) SendNotifications(releaseState string, release *model.Release, project *model.Project) error {
+	var projectExtensions []model.ProjectExtension
 
-	environment := resolvers.Environment{}
+	environment := model.Environment{}
 	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.InfoWithFields("environment not found", log.Fields{
 			"id": release.EnvironmentID,
@@ -257,7 +224,7 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *resolvers.Rele
 		return fmt.Errorf("project not found")
 	}
 
-	var headFeature resolvers.Feature
+	var headFeature model.Feature
 	if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 		log.WarnWithFields("head feature not found", log.Fields{
 			"id": release.HeadFeatureID,
@@ -265,7 +232,7 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *resolvers.Rele
 		return nil
 	}
 
-	var tailFeature resolvers.Feature
+	var tailFeature model.Feature
 	if x.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
 		log.WarnWithFields("tail feature not found", log.Fields{
 			"id": release.TailFeatureID,
@@ -273,13 +240,13 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *resolvers.Rele
 		return nil
 	}
 
-	projectSettings := resolvers.ProjectSettings{}
+	projectSettings := model.ProjectSettings{}
 	if x.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
 		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.WarnWithFields("no env project branch found", log.Fields{})
 	}
 
-	user := resolvers.User{}
+	user := model.User{}
 	if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
 		log.InfoWithFields("user not found", log.Fields{
 			"id": release.UserID,
@@ -293,10 +260,10 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *resolvers.Rele
 	}
 
 	for _, pe := range projectExtensions {
-		extension := resolvers.Extension{}
+		extension := model.Extension{}
 		if x.DB.Where("id = ? and type = ?", pe.ExtensionID, plugins.GetType("notification")).Find(&extension).RecordNotFound() == false {
 
-			projectExtensionArtifacts, _ := resolvers.ExtractArtifacts(pe, extension, x.DB)
+			projectExtensionArtifacts, _ := graphql_resolver.ExtractArtifacts(pe, extension, x.DB)
 			_artifacts := []transistor.Artifact{}
 
 			for _, artifact := range projectExtensionArtifacts {
@@ -343,3 +310,4 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *resolvers.Rele
 	}
 
 	return nil
+}
