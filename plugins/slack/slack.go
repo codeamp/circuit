@@ -6,7 +6,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
 	slack "github.com/lytics/slackhook"
-	"github.com/spf13/viper"
 
 	log "github.com/codeamp/logger"
 )
@@ -104,12 +103,14 @@ func (x *Slack) Process(e transistor.Event) error {
 	messageStatus, _ := e.GetArtifact("message")
 	// message := fmt.Sprintf("%s deployed %s/%s - Status: %s", payload.Release.User, payload.Environment, payload.Project.Repository, messageStatus.String())
 
+	dashboardURL, _ := e.GetArtifact("dashboard_url")
+
 	tail := payload.Release.TailFeature.Hash
 	head := payload.Release.HeadFeature.Hash
 
 	text := fmt.Sprintf(
 		"%s deployed <https://github.com/%s/compare/%s...%s|%s...%s> to <%s/projects/%s/%s/releases|%s>",
-		payload.Release.User, payload.Project.Slug, tail, head, tail[0:6], head[0:6], viper.GetString("plugins.codeflow.dashboard_url"), payload.Project.Slug, payload.Environment, payload.Project.Repository,
+		payload.Release.User, payload.Project.Slug, tail, head, tail[0:6], head[0:6], dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
 	)
 
 	var resultColor, resultText, resultEmoji string
