@@ -29,7 +29,9 @@ plugins:
   githubstatus:
     workers: 1
   route53:
-    workers: 1    
+    workers: 1
+  slack:
+    workers: 1
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"
