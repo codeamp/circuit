@@ -84,7 +84,7 @@ func (suite *TestSuite) TestDockerBuilder() {
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
 	if e.State == transistor.GetState("failed") {
-		assert.FailNow(suite.T(), err.Error())
+		assert.FailNow(suite.T(), e.StateMessage)
 	}
 
 	image, err := e.GetArtifact("image")
