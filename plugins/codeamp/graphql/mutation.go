@@ -976,7 +976,7 @@ func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *model
 
 	var existingEnvVar model.Secret
 
-	if r.DB.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ?", args.Secret.Key, projectID, environmentID).Find(&existingEnvVar).RecordNotFound() {
+	if r.DB.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ? and type = ?", args.Secret.Key, projectID, environmentID, args.Secret.Type).Find(&existingEnvVar).RecordNotFound() {
 		secret := model.Secret{
 			Key:           args.Secret.Key,
 			ProjectID:     projectID,
