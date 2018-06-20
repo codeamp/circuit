@@ -61,7 +61,7 @@ func (x *Slack) Process(e transistor.Event) error {
 	})
 
 	// no-op on slack plugin statuses
-	if e.Name == plugins.GetEventName("slack:status") {
+	if e.Name == plugins.GetEventName("slack") && e.Action == transistor.GetAction("status") {
 		return nil
 	}
 
@@ -101,7 +101,6 @@ func (x *Slack) Process(e transistor.Event) error {
 	}
 
 	messageStatus, _ := e.GetArtifact("message")
-
 	message := fmt.Sprintf("%s deployed %s/%s - Status: %s", payload.Release.User, payload.Environment, payload.Project.Repository, messageStatus.String())
 
 	slackPayload := slack.Message{
@@ -140,7 +139,6 @@ func validateSlackWebhook(webhook string, channel string, e transistor.Event) er
 	}
 
 	webHookErr := sendSlackMessage(webhook, payload)
-
 	if webHookErr != nil {
 		return fmt.Errorf("webhook_url: %s is invalid. Valid webhook_url is required. ErrorMessage: %s", webhook, webHookErr)
 	}
