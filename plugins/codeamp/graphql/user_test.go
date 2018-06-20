@@ -11,7 +11,6 @@ import (
 	graphql "github.com/graph-gophers/graphql-go"
 
 	"github.com/codeamp/circuit/plugins/codeamp"
-	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 	uuid "github.com/satori/go.uuid"
@@ -40,7 +39,8 @@ func (suite *UserTestSuite) SetupTest() {
 
 	db, err := test.SetupResolverTest(migrators)
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
+		return
 	}
 
 	_ = codeamp.CodeAmp{}
@@ -59,8 +59,7 @@ func (ts *UserTestSuite) Test1GormCreateUser() {
 
 	res := ts.UserResolver.DBUserResolver.DB.Create(&user)
 	if res.Error != nil {
-		log.Error(res.Error)
-		assert.Nil(ts.T(), res.Error)
+		assert.FailNow(ts.T(), res.Error.Error())
 	}
 
 	ts.createdUserID = user.ID
@@ -68,7 +67,12 @@ func (ts *UserTestSuite) Test1GormCreateUser() {
 }
 
 func (ts *UserTestSuite) Test2GQLBGetUser() {
-	var ctx context.Context
+	ctx := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      "foo",
+		Email:       "foo@gmail.com",
+		Permissions: []string{"admin"},
+	})
+
 	var usr struct {
 		ID *graphql.ID
 	}
@@ -77,10 +81,8 @@ func (ts *UserTestSuite) Test2GQLBGetUser() {
 
 	_, err := ts.Resolver.User(ctx, &usr)
 	if err != nil {
-		log.Error(err.Error())
-
 		ts.T().Log(ts.createdUserID.String())
-		assert.Nil(ts.T(), err.Error())
+		assert.FailNow(ts.T(), err.Error())
 	}
 }
 
@@ -91,9 +93,7 @@ func (ts *UserTestSuite) Test3GormDeleteUser() {
 
 	res := ts.UserResolver.DBUserResolver.DB.Delete(&user)
 	if res.Error != nil {
-		log.Error(res.Error)
-		assert.Nil(ts.T(), res.Error)
-		return
+		assert.FailNow(ts.T(), res.Error.Error())
 	}
 }
 
@@ -106,9 +106,7 @@ func (ts *UserTestSuite) Test4GormCreate5Users() {
 
 		res := ts.UserResolver.DBUserResolver.DB.Create(&user)
 		if res.Error != nil {
-			log.Error(res.Error)
-			assert.Nil(ts.T(), res.Error)
-			return
+			assert.FailNow(ts.T(), res.Error.Error())
 		}
 
 		ts.cleanupUserIDs = append(ts.cleanupUserIDs, user.ID)
@@ -116,7 +114,12 @@ func (ts *UserTestSuite) Test4GormCreate5Users() {
 }
 
 func (ts *UserTestSuite) Test5GQLBGet5Users() {
-	var ctx context.Context
+	ctx := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      "foo",
+		Email:       "foo@gmail.com",
+		Permissions: []string{"admin"},
+	})
+
 	var usr struct {
 		ID *graphql.ID
 	}
@@ -125,11 +128,8 @@ func (ts *UserTestSuite) Test5GQLBGet5Users() {
 
 	res, err := ts.Resolver.Users(ctx)
 	if err != nil {
-		log.Error(err.Error())
-
 		ts.T().Log(ts.createdUserID.String())
-		assert.Nil(ts.T(), err.Error())
-		return
+		assert.FailNow(ts.T(), err.Error())
 	}
 
 	assert.True(ts.T(), len(res) >= 5)
@@ -144,8 +144,6 @@ func TearDownTest(ts *UserTestSuite) {
 }
 
 func TestSuiteUserResolver(t *testing.T) {
-	auth.SetAuthEnabled(false)
-
 	ts := new(UserTestSuite)
 	suite.Run(t, ts)
 

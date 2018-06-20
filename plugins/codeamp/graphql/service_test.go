@@ -3,7 +3,6 @@ package graphql_resolver_test
 import (
 	"testing"
 
-	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 
@@ -43,8 +42,6 @@ func (ts *ServiceTestSuite) TearDownTest() {
 }
 
 func TestSuiteServiceResolver(t *testing.T) {
-	auth.SetAuthEnabled(false)
-
 	ts := new(ServiceTestSuite)
 	suite.Run(t, ts)
 

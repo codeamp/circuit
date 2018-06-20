@@ -3,8 +3,6 @@ package graphql_resolver_test
 import (
 	"testing"
 
-	"github.com/codeamp/circuit/plugins/codeamp/auth"
-
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/suite"
 )
@@ -34,8 +32,6 @@ func (ts *JSONTestSuite) TearDownTest() {
 }
 
 func TestSuiteJSON(t *testing.T) {
-	auth.SetAuthEnabled(false)
-
 	ts := new(JSONTestSuite)
 	suite.Run(t, ts)
 

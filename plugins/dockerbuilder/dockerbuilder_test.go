@@ -71,30 +71,27 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("status"), 60)
 	if err != nil {
-		assert.Nil(suite.T(), err, err.Error)
-		return
+		assert.FailNow(suite.T(), err.Error())
 	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
 	assert.Equal(suite.T(), transistor.GetState("running"), e.State)
 
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("status"), 600)
 	if err != nil {
-		assert.Nil(suite.T(), err, err.Error)
-		return
+		assert.FailNow(suite.T(), err.Error())
 	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
 	if e.State == transistor.GetState("failed") {
-		suite.T().Log(e.StateMessage)
-		return
+		assert.FailNow(suite.T(), err.Error())
 	}
 
 	image, err := e.GetArtifact("image")
-	assert.Nil(suite.T(), err)
-
 	if err == nil {
 		assert.Equal(suite.T(), image.String(), "0.0.0.0:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
+	} else {
+		assert.FailNow(suite.T(), err.Error())
 	}
 }
 
