@@ -7,22 +7,13 @@ import (
 	"strings"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
-var authDisabled bool
-var enabledMap = map[bool]string{
-	true:  "ENABLED",
-	false: "DISABLED",
-}
-
-func SetAuthEnabled(enabled bool) {
-	log.Warn(fmt.Sprintf("AUTHENTICATION %s", enabledMap[enabled]))
-	authDisabled = !enabled
-}
-
-func checkAuthentication(ctx context.Context, scopes []string) (string, error) {
+func CheckAuth(ctx context.Context, scopes []string) (string, error) {
+	if ctx == nil || ctx.Value("jwt") == nil {
+		return "", fmt.Errorf("No JWT was provided")
+	}
 	claims := ctx.Value("jwt").(model.Claims)
 
 	if claims.UserID == "" {
@@ -56,16 +47,4 @@ func checkAuthentication(ctx context.Context, scopes []string) (string, error) {
 		}
 		return claims.UserID, errors.New("you dont have permission to access this resource")
 	}
-}
-
-func CheckAuth(ctx context.Context, scopes []string) (string, error) {
-	if authDisabled {
-		return passAuthentication(ctx, scopes)
-	}
-
-	return checkAuthentication(ctx, scopes)
-}
-
-func passAuthentication(ctx context.Context, scopes []string) (string, error) {
-	return "Testing Mode", nil
 }

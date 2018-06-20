@@ -22,7 +22,8 @@ type ProjectExtensionTestSuite struct {
 	Resolver                 *graphql_resolver.Resolver
 	ProjectExtensionResolver *graphql_resolver.ProjectExtensionResolver
 
-	cleanupProjectExtensionIDs []uuid.UUID
+	cleanupProjectIDs     []uuid.UUID
+	cleanupEnvironmentIDs []uuid.UUID
 }
 
 func (suite *ProjectExtensionTestSuite) SetupTest() {
@@ -49,7 +50,7 @@ func (suite *ProjectExtensionTestSuite) SetupTest() {
 	suite.ProjectExtensionResolver = &graphql_resolver.ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: db}}
 }
 
-func (ts *ProjectExtensionTestSuite) Test1CreateProject() {
+func (ts *ProjectExtensionTestSuite) Test1CreateProjectSuccess() {
 	// setup
 	env := model.Environment{
 		Name:      "dev",
@@ -58,6 +59,7 @@ func (ts *ProjectExtensionTestSuite) Test1CreateProject() {
 		IsDefault: true,
 	}
 	ts.Resolver.DB.Create(&env)
+	ts.cleanupEnvironmentIDs = append(ts.cleanupEnvironmentIDs, env.Model.ID)
 
 	modelID := env.Model.ID.String()
 	projectInput := model.ProjectInput{
@@ -65,24 +67,75 @@ func (ts *ProjectExtensionTestSuite) Test1CreateProject() {
 		GitUrl:        "https://github.com/foo/goo.git",
 		EnvironmentID: &modelID,
 	}
-	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
-		UserID:      "foo",
-		Email:       "foo@gmail.com",
-		Permissions: []string{"admin"},
-	})
 
-	createProjectResolver, err := ts.Resolver.CreateProject(authContext, &struct {
+	createProjectResolver, err := ts.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
 		Project *model.ProjectInput
 	}{Project: &projectInput})
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	ts.cleanupProjectExtensionIDs = append(ts.cleanupProjectExtensionIDs, createProjectResolver.DBProjectResolver.Project.ID)
+	ts.cleanupProjectIDs = append(ts.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.ID)
+}
 
-	// assert permissions exist for dev env
-	//assert.Equal(ts.T(), ts.ProjectExtensionResolver.DBProjectExtensionResolver.Permissions(), []string{env.Model.ID.String()})
-	// suite.TearDownTest([]string{string(createProjectResolver.ID())})
+func (ts *ProjectExtensionTestSuite) Test2CreateProjectFailure() {
+	// setup
+	env := model.Environment{
+		Name:      "dev",
+		Color:     "purple",
+		Key:       "dev",
+		IsDefault: true,
+	}
+	ts.Resolver.DB.Create(&env)
+	ts.cleanupEnvironmentIDs = append(ts.cleanupEnvironmentIDs, env.Model.ID)
+
+	modelID := env.Model.ID.String()
+	projectInput := model.ProjectInput{
+		GitProtocol:   "HTTPS",
+		GitUrl:        "https://github.com/foo/goo.git",
+		EnvironmentID: &modelID,
+	}
+
+	createProjectResolver, err := ts.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
+		Project *model.ProjectInput
+	}{Project: &projectInput})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	ts.cleanupProjectIDs = append(ts.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.ID)
+
+	_, err = ts.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
+		Project *model.ProjectInput
+	}{Project: &projectInput})
+
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ProjectExtensionTestSuite) Test3CreateProjectNoAuth() {
+	// setup
+	env := model.Environment{
+		Name:      "dev",
+		Color:     "purple",
+		Key:       "dev",
+		IsDefault: true,
+	}
+	ts.Resolver.DB.Create(&env)
+	ts.cleanupEnvironmentIDs = append(ts.cleanupEnvironmentIDs, env.Model.ID)
+
+	modelID := env.Model.ID.String()
+	projectInput := model.ProjectInput{
+		GitProtocol:   "HTTPS",
+		GitUrl:        "https://github.com/foo/goo.git",
+		EnvironmentID: &modelID,
+	}
+
+	var ctx context.Context
+	_, err := ts.Resolver.CreateProject(ctx, &struct {
+		Project *model.ProjectInput
+	}{Project: &projectInput})
+
+	assert.NotNil(ts.T(), err)
 }
 
 func (ts *ProjectExtensionTestSuite) Test2GormCreateProjectExtension() {
@@ -90,9 +143,14 @@ func (ts *ProjectExtensionTestSuite) Test2GormCreateProjectExtension() {
 }
 
 func (ts *ProjectExtensionTestSuite) TearDownTest() {
-	for _, id := range ts.cleanupProjectExtensionIDs {
+	for _, id := range ts.cleanupProjectIDs {
 		ts.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}})
 	}
+
+	for _, id := range ts.cleanupEnvironmentIDs {
+		ts.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}})
+	}
+
 }
 
 func TestSuiteProjectExtensionResolver(t *testing.T) {

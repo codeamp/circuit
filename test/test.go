@@ -2,10 +2,12 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
@@ -41,6 +43,18 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 	configLogFormat()
 
 	return db, nil
+}
+
+// Generates a fake JWT token for testing purposes
+// Use for testing graphql resolvers
+func ResolverAuthContext() context.Context {
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      "foo",
+		Email:       "foo@gmail.com",
+		Permissions: []string{"admin"},
+	})
+
+	return authContext
 }
 
 func setupPostgresDB() (*gorm.DB, error) {
