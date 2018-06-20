@@ -1127,6 +1127,7 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
 	project := resolvers.Project{}
+	environment := resolvers.Environment{}
 	x.DB.Save(release)
 
 	releaseExtensions := []resolvers.ReleaseExtension{}
@@ -1136,6 +1137,12 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 		x.DB.Save(&re)
 	}
 
+	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
+		log.WarnWithFields("Environment not found", log.Fields{
+			"id": release.EnvironmentID,
+		})
+	}
+
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.WarnWithFields("project not found", log.Fields{
 			"release": release,
@@ -1143,6 +1150,15 @@ func (x *CodeAmp) ReleaseFailed(release *resolvers.Release, stateMessage string)
 	}
 
 	x.SendNotifications("FAILED", release, &project)
+
+	payload := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
+		Payload: release,
+	}
+
+	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
+	x.Events <- event
 
 	x.RunQueuedReleases(release)
 }
@@ -1169,11 +1185,12 @@ func (x *CodeAmp) ReleaseCompleted(release *resolvers.Release) {
 
 	x.DB.Save(release)
 
+	x.SendNotifications("SUCCESS", release, &project)
+
 	payload := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 		Payload: release,
 	}
-	x.SendNotifications("SUCCESS", release, &project)
 	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
 	x.Events <- event
