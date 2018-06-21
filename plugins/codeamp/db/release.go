@@ -22,29 +22,7 @@ type ReleaseResolver struct {
 
 // Releases
 func (r *ReleaseListResolver) Releases() []*ReleaseResolver {
-	var filteredRows []model.Release
-	var results []*ReleaseResolver
-
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.ReleaseList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	// only get ItemsPerPage
-	filteredRows = r.ReleaseList[cursorRowIdx+1 : cursorRowIdx+int(*r.PaginatorInput.Limit)+1]
-
-	for _, row := range filteredRows {
-		results = append(results, &ReleaseResolver{
-			DB:      r.DB,
-			Release: row,
-		})
-	}
-	return results
+	return []*ReleaseResolver{}
 }
 
 // ID

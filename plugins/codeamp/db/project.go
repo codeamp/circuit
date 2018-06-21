@@ -23,7 +23,6 @@ func (r *ProjectResolver) Features(args *struct {
 	ShowDeployed *bool
 	Params       *model.PaginatorInput
 }) *FeatureListResolver {
-	var rows []model.Feature
 
 	created := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
 	showDeployed := false
@@ -43,12 +42,11 @@ func (r *ProjectResolver) Features(args *struct {
 		}
 	}
 
-	r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), created).Order("created desc").Find(&rows)
+	query := r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), created).Order("created desc")
 
 	return &FeatureListResolver{
-		DB:             r.DB,
-		FeatureList:    rows,
 		PaginatorInput: args.Params,
+		Query:          query,
 	}
 }
 
@@ -74,11 +72,11 @@ func (r *ProjectResolver) Releases(args *struct {
 }) *ReleaseListResolver {
 	var rows []model.Release
 
-	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
+	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
+
 	return &ReleaseListResolver{
-		DB:             r.DB,
-		ReleaseList:    rows,
 		PaginatorInput: args.Params,
+		Query:          query,
 	}
 }
 
@@ -86,13 +84,10 @@ func (r *ProjectResolver) Releases(args *struct {
 func (r *ProjectResolver) Services(args *struct {
 	Params *model.PaginatorInput
 }) *ServiceListResolver {
-	var rows []model.Service
-
-	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
+	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 
 	return &ServiceListResolver{
-		DB:             r.DB,
-		ServiceList:    rows,
+		Query:          query,
 		PaginatorInput: args.Params,
 	}
 }
@@ -105,12 +100,9 @@ func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var rows []model.Secret
-
-	r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
+	query := r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc")
 	return &SecretListResolver{
-		DB:             r.DB,
-		SecretList:     rows,
+		Query:          query,
 		PaginatorInput: args.Params,
 	}, nil
 }
@@ -162,6 +154,7 @@ func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	var results []*EnvironmentResolver
 
 	r.DB.Where("project_id = ?", r.Project.ID).Find(&permissions)
+
 	for _, permission := range permissions {
 		var environment model.Environment
 		r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)

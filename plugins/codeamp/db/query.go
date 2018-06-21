@@ -125,6 +125,7 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 	}
 
 	var rows []model.Project
+	var query *gorm.DB
 
 	if args.ProjectSearch != nil && args.ProjectSearch.Repository != nil {
 
@@ -139,12 +140,11 @@ func (r *Resolver) Projects(ctx context.Context, args *struct {
 		for _, bookmark := range projectBookmarks {
 			projectIds = append(projectIds, bookmark.ProjectID)
 		}
-		r.DB.Where("id in (?)", projectIds).Find(&rows)
+		query = r.DB.Where("id in (?)", projectIds)
 	}
 
 	return &ProjectListResolver{
-		DB:             r.DB,
-		ProjectList:    rows,
+		Query:          query,
 		PaginatorInput: args.Params,
 	}, nil
 }
@@ -155,13 +155,10 @@ func (r *Resolver) Features(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var rows []model.Feature
-
-	r.DB.Order("created_at desc").Find(&rows)
+	query := r.DB.Order("created_at desc")
 
 	return &FeatureListResolver{
-		DB:             r.DB,
-		FeatureList:    rows,
+		Query:          query,
 		PaginatorInput: args.Params,
 	}, nil
 }
@@ -173,13 +170,10 @@ func (r *Resolver) Services(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var rows []model.Service
-
-	r.DB.Order("created_at desc").Find(&rows)
+	query := r.DB.Order("created_at desc")
 
 	return &ServiceListResolver{
-		DB:             r.DB,
-		ServiceList:    rows,
+		Query:          query,
 		PaginatorInput: args.Params,
 	}, nil
 }
@@ -207,13 +201,7 @@ func (r *Resolver) Releases(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var rows []model.Release
-
-	r.DB.Find(&rows)
-
 	return &ReleaseListResolver{
-		DB:             r.DB,
-		ReleaseList:    rows,
 		PaginatorInput: args.Params,
 	}, nil
 }
@@ -259,14 +247,11 @@ func (r *Resolver) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var rows []model.Secret
-
-	r.DB.Where("scope != ?", "project").Order("created_at desc").Find(&rows)
+	query := r.DB.Where("scope != ?", "project").Order("created_at desc")
 
 	return &SecretListResolver{
-		DB:             r.DB,
-		SecretList:     rows,
 		PaginatorInput: args.Params,
+		Query:          query,
 	}, nil
 }
 

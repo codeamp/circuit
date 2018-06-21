@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 scalar Time
 scalar JSON
 
@@ -17,19 +15,19 @@ type Query {
   # Project
   project(id: ID, slug: String, name: String, environmentID: String): Project
   # Projects
-  projects(projectSearch: ProjectSearchInput, params: PaginatorInput): ProjectList!
+  projects(projectSearch: ProjectSearchInput): [Project]!
   # Features
-  features(params: PaginatorInput): FeatureList!
+  features(): [Feature]!
   # Services
-  services(params: PaginatorInput): ServiceList!
+  services(): [Service]!
   # Service specs
   serviceSpecs(): [ServiceSpec]!
   # Releases
-  releases(params: PaginatorInput): ReleaseList!
+  releases(params: PaginatorInput): ReleaseList
   # Environments
   environments(projectSlug: String): [Environment]!
   # Environment variables
-  secrets(params: PaginatorInput): SecretList!
+  secrets(): [Secret]!
   # ProjectExtension spec
   extensions(environmentID: String): [Extension]!
   # ProjectExtensions
@@ -101,43 +99,11 @@ interface Paginator {
   nextCursor: String!
 }
 
-# ReleaseList
+# Releases
 type ReleaseList implements Paginator {
   page: Int!
   count: Int!
-  entries: [Release]!
-  nextCursor: String!
-}
-
-# SecretList
-type SecretList implements Paginator {
-  page: Int!
-  count: Int!
-  entries: [Secret]!
-  nextCursor: String!
-}
-
-# ServiceList
-type ServiceList implements Paginator {
-  page: Int!
-  count: Int!
-  entries: [Service]!
-  nextCursor: String!
-}
-
-# FeatureList
-type FeatureList implements Paginator {
-  page: Int!
-  count: Int!
-  entries: [Feature]!
-  nextCursor: String!
-}
-
-# ProjectList
-type ProjectList implements Paginator {
-  page: Int!
-  count: Int!
-  entries: [Project]!
+  releases: [Release]!
   nextCursor: String!
 }
 
@@ -239,11 +205,11 @@ type Project {
   gitProtocol: String!
   rsaPrivateKey: String!
   rsaPublicKey: String!
-  features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
+  features(showDeployed: Boolean): [Feature]!
   currentRelease: Release
-  releases(params: PaginatorInput): ReleaseList!
-  services(params: PaginatorInput): ServiceList!
-  secrets(params: PaginatorInput): SecretList!
+  releases: [Release]!
+  services: [Service]!
+  secrets: [Secret]!
   extensions: [ProjectExtension]!
   gitBranch: String!
   continuousDeploy: Boolean!
@@ -313,7 +279,7 @@ input ProjectSearchInput {
 # Pagination input
 input PaginatorInput {
   cursor: String
-  limit: Int
+  limit: Int!
 }
 
 # Release input
@@ -420,4 +386,3 @@ input ProjectEnvironmentsInput {
  projectID: String!
  permissions: [ProjectEnvironmentInput!]!
 }
->>>>>>> encapsulate filtering logic in releaselist

@@ -65,9 +65,10 @@ func (r *ProjectResolver) Features(args *struct {
 	Params       *model.PaginatorInput
 }) []*FeatureResolver {
 	db_resolvers := r.DBProjectResolver.Features(args)
-	gql_resolvers := make([]*FeatureResolver, 0, len(db_resolvers.Entries()))
+	entries, _ := db_resolvers.Entries()
+	gql_resolvers := make([]*FeatureResolver, 0, len(entries))
 
-	for _, i := range db_resolvers.Entries() {
+	for _, i := range entries {
 		gql_resolvers = append(gql_resolvers, &FeatureResolver{DBFeatureResolver: i})
 	}
 
@@ -85,13 +86,11 @@ func (r *ProjectResolver) Releases(args *struct {
 	Params *model.PaginatorInput
 }) []*ReleaseResolver {
 	db_resolvers := r.DBProjectResolver.Releases(args)
-	gql_resolvers := make([]*ReleaseResolver, 0, len(db_resolvers.ReleaseList))
+	entries, _ := db_resolvers.Entries()
+	gql_resolvers := make([]*ReleaseResolver, 0, len(entries))
 
-	for _, i := range db_resolvers.ReleaseList {
-		gql_resolvers = append(gql_resolvers, &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{
-			DB:      db_resolvers.DB,
-			Release: i,
-		}})
+	for _, i := range entries {
+		gql_resolvers = append(gql_resolvers, &ReleaseResolver{DBReleaseResolver: i})
 	}
 
 	return gql_resolvers
@@ -102,9 +101,10 @@ func (r *ProjectResolver) Services(args *struct {
 	Params *model.PaginatorInput
 }) []*ServiceResolver {
 	db_resolvers := r.DBProjectResolver.Services(args)
-	gql_resolvers := make([]*ServiceResolver, 0, len(db_resolvers.Entries()))
+	entries, _ := db_resolvers.Entries()
+	gql_resolvers := make([]*ServiceResolver, 0, len(entries))
 
-	for _, i := range db_resolvers.Entries() {
+	for _, i := range entries {
 		gql_resolvers = append(gql_resolvers, &ServiceResolver{DBServiceResolver: i})
 	}
 

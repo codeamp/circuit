@@ -1,11 +1,8 @@
 package db_resolver
 
 import (
-	"encoding/json"
 	"fmt"
-	"reflect"
-
-	"github.com/davecgh/go-spew/spew"
+	"log"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
@@ -29,437 +26,152 @@ type PaginatorResolver interface {
 
 // ReleaseResolver resolver for Release
 type ReleaseListResolver struct {
-	ReleaseList    []model.Release
 	PaginatorInput *model.PaginatorInput
-	DB             *gorm.DB
+	Query          *gorm.DB
 }
 
-func EntryHelper(params model.PaginatorInput, entries interface{}) (interface{}, error) {
-	filteredRows := []interface{}{}
+func getCursorRowIdx(params model.PaginatorInput, entries []interface{}) (int, error) {
 	cursorRowIdx := 0
-	spew.Dump(params.Limit)
-
-	val := reflect.ValueOf(entries)
-	if val.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("Entries must be a slice.")
+	if params.Cursor != nil {
+		uuid.FromStringOrNil(*params.Cursor)
 	}
 
-	out := make([]interface{}, val.Len())
-	for i := 0; i < val.Len(); i++ {
-		out[i] = val.Index(i).Interface()
-	}
-
-	cursorParamUUID := uuid.FromStringOrNil(*params.Cursor)
+	cursorParamUUID := uuid.Nil
+	// get cursor index to know upper bound of slice
 	if cursorParamUUID != uuid.Nil {
-		for idx := 0; idx < len(out); idx++ {
+		for idx := 0; idx < len(entries); idx++ {
 			if params.Cursor != nil &&
-				structs.Map(out[idx])["Model"].(map[string]interface{})["ID"] == cursorParamUUID {
+				structs.Map(entries[idx])["Model"].(map[string]interface{})["ID"] == cursorParamUUID {
 				cursorRowIdx = idx
 				break
+			}
+
+			if idx == len(entries)-1 {
+				return 0, fmt.Errorf("Could not find given cursor.")
 			}
 		}
 	}
 
-	i := cursorRowIdx
-	for {
-		if len(filteredRows) == int(*params.Limit) ||
-			val.Len() == i {
-			break
-		}
+	return cursorRowIdx, nil
+}
 
-		filteredRows = append(filteredRows, out[i])
-		i++
-	}
-
+func EntryHelper(params model.PaginatorInput, entries interface{}) (interface{}, error) {
+	filteredRows := []interface{}{}
 	return filteredRows, nil
+}
+
+func NextCursorHelper(params model.PaginatorInput, entries interface{}) (string, error) {
+	return "", nil
+}
+
+func PageHelper(params model.PaginatorInput, entries interface{}) (int32, error) {
+	return int32(0), nil
 }
 
 // Releases
 func (r *ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
 	var results []*ReleaseResolver
 
-	filteredRows, err := EntryHelper(*r.PaginatorInput, r.ReleaseList)
-	if err != nil {
-		return nil, err
-	}
+	whereString := ""
+	limitString := ""
+	log.Println(whereString, limitString)
 
-	for _, row := range filteredRows.([]model.Release) {
+	// r.Query.Where(whereString).Limit(limitString)
 
-		release := model.Release{}
-		releaseBytes, _ := json.Marshal(row)
-		json.Unmarshal(releaseBytes, &release)
-
-		spew.Dump(release.Model.ID)
-
-		results = append(results, &ReleaseResolver{
-			DB:      r.DB,
-			Release: release,
-		})
-	}
 	return results, nil
 }
 
-func (r *ReleaseListResolver) Page() int32 {
-	// get page # from count / itemsPerPage
-	return r.getPage()
+func (r *ReleaseListResolver) Page() (int32, error) {
+	return int32(0), nil
 }
 
-func (r *ReleaseListResolver) Count() int32 {
-	return int32(len(r.ReleaseList))
-}
-
-func (r *ReleaseListResolver) NextCursor() string {
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.ReleaseList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
-	if len(r.ReleaseList) >= nextCursorIdx {
-		return r.ReleaseList[nextCursorIdx].Model.ID.String()
-	} else {
-		return ""
-	}
-}
-
-func (r *ReleaseListResolver) getPage() int32 {
-	for idx, row := range r.ReleaseList {
-		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/int32(*r.PaginatorInput.Limit) + int32(1)
-		}
-	}
-
-	return 1
+func (r *ReleaseListResolver) NextCursor() (string, error) {
+	return "", nil
 }
 
 // SECRETS
 
 // SecretResolver resolver for Release
 type SecretListResolver struct {
-	SecretList     []model.Secret
 	PaginatorInput *model.PaginatorInput
-	DB             *gorm.DB
+	Query          *gorm.DB
 }
 
 // Secrets
 func (r *SecretListResolver) Entries() []*SecretResolver {
-	var filteredRows []model.Secret
-	var results []*SecretResolver
-
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.SecretList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	i := cursorRowIdx
-	for {
-		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
-			len(r.SecretList) == i {
-			break
-		}
-		filteredRows = append(filteredRows, r.SecretList[i])
-		i++
-	}
-
-	for _, row := range filteredRows {
-		var secretValue model.SecretValue
-
-		r.DB.Where("secret_id = ?", row.Model.ID).Order("created_at desc").First(&secretValue)
-
-		results = append(results, &SecretResolver{
-			DB:          r.DB,
-			Secret:      row,
-			SecretValue: secretValue,
-		})
-	}
-	return results
+	return []*SecretResolver{}
 }
 
-func (r *SecretListResolver) Page() int32 {
-	// get page # from count / itemsPerPage
-	return r.getPage()
+func (r *SecretListResolver) Page() (int32, error) {
+	return int32(0), nil
 }
 
 func (r *SecretListResolver) Count() int32 {
-	return int32(len(r.SecretList))
+	return int32(0)
 }
-
-func (r *SecretListResolver) NextCursor() string {
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.SecretList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
-	if len(r.SecretList) >= nextCursorIdx {
-		return r.SecretList[nextCursorIdx].Model.ID.String()
-	} else {
-		return ""
-	}
-}
-
-func (r *SecretListResolver) getPage() int32 {
-	for idx, row := range r.SecretList {
-		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/int32(*r.PaginatorInput.Limit) + int32(1)
-		}
-	}
-
-	return 1
+func (r *SecretListResolver) NextCursor() (string, error) {
+	return "", nil
 }
 
 // SERVICES
 
-// SecretResolver resolver for Release
+// ServiceListResolver
 type ServiceListResolver struct {
-	ServiceList    []model.Service
 	PaginatorInput *model.PaginatorInput
-	DB             *gorm.DB
+	Query          *gorm.DB
 }
 
 // Services
-func (r *ServiceListResolver) Entries() []*ServiceResolver {
-	var filteredRows []model.Service
-	var results []*ServiceResolver
-
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.ServiceList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	i := cursorRowIdx
-	for {
-		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
-			len(r.ServiceList) == i {
-			break
-		}
-		filteredRows = append(filteredRows, r.ServiceList[i])
-		i++
-	}
-
-	for _, row := range filteredRows {
-		results = append(results, &ServiceResolver{
-			DB:      r.DB,
-			Service: row,
-		})
-	}
-	return results
+func (r *ServiceListResolver) Entries() ([]*ServiceResolver, error) {
+	return []*ServiceResolver{}, nil
 }
 
-func (r *ServiceListResolver) Page() int32 {
-	// get page # from count / itemsPerPage
-	return r.getPage()
+func (r *ServiceListResolver) Page() (int32, error) {
+	return int32(0), nil
 }
 
-func (r *ServiceListResolver) Count() int32 {
-	return int32(len(r.ServiceList))
-}
-
-func (r *ServiceListResolver) NextCursor() string {
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.ServiceList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
-	if len(r.ServiceList) >= nextCursorIdx {
-		return r.ServiceList[nextCursorIdx].Model.ID.String()
-	} else {
-		return ""
-	}
-}
-
-func (r *ServiceListResolver) getPage() int32 {
-	for idx, row := range r.ServiceList {
-		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/int32(*r.PaginatorInput.Limit) + int32(1)
-		}
-	}
-
-	return 1
+func (r *ServiceListResolver) NextCursor() (string, error) {
+	return "", nil
 }
 
 // FEATURES
 
-// SecretResolver resolver for Release
+// FeatureListResolver
 type FeatureListResolver struct {
-	FeatureList    []model.Feature
 	PaginatorInput *model.PaginatorInput
-	DB             *gorm.DB
+	Query          *gorm.DB
 }
 
-func (r *FeatureListResolver) Entries() []*FeatureResolver {
-	var filteredRows []model.Feature
+func (r *FeatureListResolver) Entries() ([]*FeatureResolver, error) {
 	var results []*FeatureResolver
-
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.FeatureList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	i := cursorRowIdx
-	for {
-		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
-			len(r.FeatureList) == i {
-			break
-		}
-		filteredRows = append(filteredRows, r.FeatureList[i])
-		i++
-	}
-
-	for _, row := range filteredRows {
-		results = append(results, &FeatureResolver{
-			DB:      r.DB,
-			Feature: row,
-		})
-	}
-	return results
+	return results, nil
 }
 
-func (r *FeatureListResolver) Page() int32 {
-	// get page # from count / itemsPerPage
-	return r.getPage()
+func (r *FeatureListResolver) Page() (int32, error) {
+	return int32(0), nil
 }
 
-func (r *FeatureListResolver) Count() int32 {
-	return int32(len(r.FeatureList))
-}
-
-func (r *FeatureListResolver) NextCursor() string {
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.FeatureList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
-	if len(r.FeatureList) >= nextCursorIdx {
-		return r.FeatureList[nextCursorIdx].Model.ID.String()
-	} else {
-		return ""
-	}
-}
-
-func (r *FeatureListResolver) getPage() int32 {
-	for idx, row := range r.FeatureList {
-		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/(*r.PaginatorInput.Limit) + int32(1)
-		}
-	}
-
-	return 1
+func (r *FeatureListResolver) NextCursor() (string, error) {
+	return "", nil
 }
 
 // PROJECTS
 
-// SecretResolver resolver for Release
+// ProjectListResolver
 type ProjectListResolver struct {
-	ProjectList    []model.Project
 	PaginatorInput *model.PaginatorInput
-	DB             *gorm.DB
+	Query          *gorm.DB
 }
 
-func (r *ProjectListResolver) Entries() []*ProjectResolver {
-	var filteredRows []model.Project
+func (r *ProjectListResolver) Entries() ([]*ProjectResolver, error) {
 	var results []*ProjectResolver
-
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.ProjectList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	i := cursorRowIdx
-	for {
-		if len(filteredRows) == int(*r.PaginatorInput.Limit) ||
-			len(r.ProjectList) == i {
-			break
-		}
-		filteredRows = append(filteredRows, r.ProjectList[i])
-		i++
-	}
-
-	for _, row := range filteredRows {
-		results = append(results, &ProjectResolver{
-			DB:      r.DB,
-			Project: row,
-		})
-	}
-	return results
+	return results, nil
 }
 
-func (r *ProjectListResolver) Page() int32 {
-	// get page # from count / itemsPerPage
-	return r.getPage()
+func (r *ProjectListResolver) Page() (int32, error) {
+	return int32(0), nil
 }
 
-func (r *ProjectListResolver) Count() int32 {
-	return int32(len(r.ProjectList))
-}
-
-func (r *ProjectListResolver) NextCursor() string {
-	cursorRowIdx := 0
-
-	// filter on things after cursor_id
-	for idx, row := range r.ProjectList {
-		if r.PaginatorInput.Cursor != nil && row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			cursorRowIdx = idx
-			break
-		}
-	}
-
-	nextCursorIdx := cursorRowIdx + int(*r.PaginatorInput.Limit) + 1
-	if len(r.ProjectList) >= nextCursorIdx {
-		return r.ProjectList[nextCursorIdx].Model.ID.String()
-	} else {
-		return ""
-	}
-}
-
-func (r *ProjectListResolver) getPage() int32 {
-	for idx, row := range r.ProjectList {
-		if row.Model.ID.String() == *r.PaginatorInput.Cursor {
-			return int32(idx)/(*r.PaginatorInput.Limit) + int32(1)
-		}
-	}
-
-	return 1
+func (r *ProjectListResolver) NextCursor() (string, error) {
+	return "", nil
 }
