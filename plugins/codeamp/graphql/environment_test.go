@@ -100,7 +100,7 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
 	environmentID := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
 	projectInput := model.ProjectInput{
 		GitProtocol:   "HTTPS",
-		GitUrl:        "https://github.com/foo/goo.git",
+		GitUrl:        "https://github.com/foo/bar.git",
 		EnvironmentID: &environmentID,
 	}
 
