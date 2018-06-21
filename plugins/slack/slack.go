@@ -92,17 +92,7 @@ func (x *Slack) Process(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.NotificationExtension)
 
-	// icon := ""
-	// iconArtifact, err := e.GetArtifact("emoji")
-	// if err != nil {
-	// 	icon = ":rocket:"
-	// } else {
-	// 	icon = iconArtifact.String()
-	// }
-
 	messageStatus, _ := e.GetArtifact("message")
-	// message := fmt.Sprintf("%s deployed %s/%s - Status: %s", payload.Release.User, payload.Environment, payload.Project.Repository, messageStatus.String())
-
 	dashboardURL, _ := e.GetArtifact("dashboard_url")
 
 	tail := payload.Release.TailFeature.Hash
