@@ -40,20 +40,25 @@ jobs:
 
             curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
             sudo apt-get install -y nodejs
-                        
+
             echo '{ "insecure-registries":["0.0.0.0:5000"] }' | sudo tee /etc/docker/daemon.json
             sudo service docker restart
 
             sudo npm install -g codeclimate-test-reporter
 
             go get github.com/mattn/goveralls
-
-            docker-compose up -d registry
       - run: 
           name: Run Tests
           command: |
             set -x
+
+            docker-compose up -d registry
             docker-compose run --rm circuit /bin/sh -c "gotest -v -covermode=count -coverprofile=coverage.out ./..." || EXIT_CODE=$? && true
+            
+            # Report to CodeBeat
             codeclimate-test-reporter < coverage.out
+
+            # Report to CodeCov
+            bash <(curl -s https://codecov.io/bash) -t ${CODECOV_IO_TOKEN}
 
             exit $EXIT_CODE
