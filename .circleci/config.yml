@@ -38,8 +38,7 @@ jobs:
           command: |
             set -x
 
-            curl -O https://npmjs.org/install.sh
-            sudo sh install.sh
+            sudo apt-get install -y npm
             
             echo '{ "insecure-registries":["0.0.0.0:5000"] }' | sudo tee /etc/docker/daemon.json
             sudo service docker restart
