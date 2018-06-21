@@ -20,6 +20,13 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run:
+          name: Dump Containers
+          command: |
+            set -x
+            docker ps -a
+            docker ps -q -a
+
+      - run:
           name: Start Dependent Containers
           command: |
             set -x
