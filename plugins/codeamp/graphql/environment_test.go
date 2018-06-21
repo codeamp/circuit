@@ -1,8 +1,9 @@
 package graphql_resolver_test
 
 import (
-	"log"
 	"testing"
+
+	log "github.com/codeamp/logger"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -17,6 +18,8 @@ import (
 type EnvironmentTestSuite struct {
 	suite.Suite
 	Resolver *graphql_resolver.Resolver
+
+	cleanupEnvironmentIDs []uuid.UUID
 }
 
 func (suite *EnvironmentTestSuite) SetupTest() {
@@ -47,15 +50,18 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
 	}
+	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
+
 	assert.Equal(suite.T(), envResolver.Name(), "test")
 	assert.Equal(suite.T(), envResolver.Key(), "foo")
 	assert.Equal(suite.T(), envResolver.IsDefault(), true)
 	assert.Equal(suite.T(), envResolver.Color(), "color")
 	assert.NotEqual(suite.T(), envResolver.Color(), "wrongcolor")
 
-	suite.TearDownTest([]uuid.UUID{envResolver.DBEnvironmentResolver.Environment.Model.ID})
+	_ = envResolver.Created()
+	_ = envResolver.Projects()
 }
 
 /* Test successful env. update */
@@ -71,8 +77,9 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
 	}
+	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
 
 	// update environment's name with same id
 	envId := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
@@ -88,7 +95,7 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
 	}
 
 	assert.Equal(suite.T(), updateEnvResolver.ID(), graphql.ID(envResolver.DBEnvironmentResolver.Environment.Model.ID.String()))
@@ -97,8 +104,6 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	assert.Equal(suite.T(), updateEnvResolver.Key(), "foo")
 	assert.Equal(suite.T(), updateEnvResolver.IsDefault(), true)
 	assert.NotEqual(suite.T(), updateEnvResolver.Name(), "diffkey")
-
-	suite.TearDownTest([]uuid.UUID{updateEnvResolver.DBEnvironmentResolver.Environment.Model.ID})
 }
 
 func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
@@ -113,8 +118,9 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
 	}
+	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
 
 	assert.Equal(suite.T(), envResolver.Key(), "foo")
 
@@ -129,8 +135,9 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput2})
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
 	}
+	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver2.DBEnvironmentResolver.Environment.Model.ID)
 
 	assert.Equal(suite.T(), envResolver2.IsDefault(), true)
 	assert.Equal(suite.T(), envResolver2.Key(), "foo2")
@@ -143,7 +150,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput})
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
 	}
 
 	assert.Equal(suite.T(), updateEnvResolver.IsDefault(), false)
@@ -157,18 +164,21 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput2})
 	if err != nil {
-		log.Fatal(err.Error())
+		assert.FailNow(suite.T(), err.Error())
 	}
 
 	assert.Equal(suite.T(), updateEnvResolver2.IsDefault(), true)
 
-	suite.TearDownTest([]uuid.UUID{envResolver.DBEnvironmentResolver.Environment.Model.ID, envResolver2.DBEnvironmentResolver.Environment.Model.ID})
 }
 
-func (suite *EnvironmentTestSuite) TearDownTest(ids []uuid.UUID) {
-	for _, id := range ids {
-		suite.Resolver.DB.Where("id = ?", id).Delete(&model.Environment{})
+func (suite *EnvironmentTestSuite) TearDownTest() {
+	for _, id := range suite.cleanupEnvironmentIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
 	}
+	suite.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
 }
 
 func TestEnvironmentTestSuite(t *testing.T) {
