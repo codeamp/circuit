@@ -218,7 +218,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	envId = envResolver2.DBEnvironmentResolver.Environment.Model.ID.String()
 	envInput2.ID = &envId
 
-	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct {
+	_, err = suite.Resolver.UpdateEnvironment(nil, &struct {
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput2})
 	if err != nil {
