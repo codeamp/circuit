@@ -31,8 +31,7 @@ jobs:
 
             echo "RUN go get -u golang.org/x/tools/cmd/cover" >> Dockerfile
             echo "RUN go get -u github.com/rakyll/gotest" >> Dockerfile
-
-            go get github.com/mattn/goveralls
+            echo "RUN go get -u github.com/mattn/goveralls" >> Dockerfile           
 
             docker-compose build circuit 
       # - run: 
@@ -52,5 +51,5 @@ jobs:
 
             sudo npm install -g codeclimate-test-reporter
             codeclimate-test-reporter < coverage.out
-            
+
             exit $EXIT_CODE
