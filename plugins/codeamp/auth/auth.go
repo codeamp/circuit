@@ -26,26 +26,25 @@ func isAdmin(claims *model.Claims) bool {
 	return transistor.SliceContains("admin", claims.Permissions)
 }
 
-func userHasPermission(claims *model.Claims, scopes []string) bool {
-	for _, scope := range scopes {
-		level := 0
-		levels := strings.Count(scope, "/")
-
-		if levels > 0 {
-			for level < levels {
-				if transistor.SliceContains(scope, claims.Permissions) {
-					return true
-				}
-				scope = scope[0:strings.LastIndexByte(scope, '/')]
-				level += 1
-			}
-		} else {
-			if transistor.SliceContains(scope, claims.Permissions) {
-				return true
-			}
+func hasScopePermission(claims *model.Claims, scope string) bool {
+	for _, scope := range strings.Split(scope, "/") {
+		if transistor.SliceContains(scope, claims.Permissions) {
+			return true
 		}
 	}
+
 	return false
+}
+
+func userHasPermission(claims *model.Claims, scopes []string) bool {
+	for _, scope := range scopes {
+		if hasScopePermission(claims, scope) == true {
+			return true
+		}
+	}
+
+	// If they don't have any scope, then return true
+	return len(scopes) == 0
 }
 
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
@@ -56,7 +55,7 @@ func CheckAuth(ctx context.Context, scopes []string) (string, error) {
 
 	if isAdmin(claims) == false {
 		if userHasPermission(claims, scopes) == false {
-			return claims.UserID, errors.New("You dont have permission to access this resource")
+			return claims.UserID, errors.New("You don't have permission to access this resource")
 		}
 	}
 
