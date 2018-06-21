@@ -92,23 +92,44 @@ func (x *Slack) Process(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.NotificationExtension)
 
-	icon := ""
-	iconArtifact, err := e.GetArtifact("emoji")
+	messageStatus, _ := e.GetArtifact("message")
 	if err != nil {
-		icon = ":rocket:"
-	} else {
-		icon = iconArtifact.String()
+		return err
+	}
+	dashboardURL, err := e.GetArtifact("dashboard_url")
+	if err != nil {
+		return err
 	}
 
-	messageStatus, _ := e.GetArtifact("message")
-	message := fmt.Sprintf("%s deployed %s/%s - Status: %s", payload.Release.User, payload.Environment, payload.Project.Repository, messageStatus.String())
+	tail := payload.Release.TailFeature.Hash
+	head := payload.Release.HeadFeature.Hash
+
+	text := fmt.Sprintf(
+		"%s deployed <https://github.com/%s/compare/%s...%s|%s...%s> to <%s/projects/%s/%s/releases|%s>",
+		payload.Release.User, payload.Project.Repository, tail, head, tail[0:6], head[0:6], dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
+	)
+
+	var resultColor, resultText, resultEmoji string
+	if messageStatus.String() == "FAILED" {
+		resultColor = "#FF0000"
+		resultText = "FAILED"
+		resultEmoji = ":ambulance:"
+	} else {
+		resultColor = "#008000"
+		resultText = "SUCCESS"
+		resultEmoji = ":rocket:"
+	}
+
+	resultAttachments := slack.Attachment{Color: resultColor, Text: resultText}
 
 	slackPayload := slack.Message{
-		Text:      message,
+		Text:      text,
 		UserName:  "CodeAmp",
 		Channel:   fmt.Sprintf("#%s", channel.String()),
-		IconEmoji: fmt.Sprintf("%s", icon),
+		IconEmoji: resultEmoji,
 	}
+
+	slackPayload.AddAttachment(&resultAttachments)
 
 	ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Successfully sent message")
 
