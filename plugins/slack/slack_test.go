@@ -67,6 +67,12 @@ func getTestNotificationExtensionPayload() plugins.NotificationExtension {
 				User:       "",
 				Message:    "Test",
 			},
+			TailFeature: plugins.Feature{
+				Hash:       deploytestHash,
+				ParentHash: deploytestHash,
+				User:       "",
+				Message:    "Test",
+			},
 			Environment: "testing",
 		},
 		Project: plugins.Project{
@@ -123,6 +129,7 @@ func (suite *TestSuite) TestSlack() {
 	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/valid_token", false)
 	ev.AddArtifact("channel", "devops-test", false)
 	ev.AddArtifact("message", "success", false)
+	ev.AddArtifact("dashboard_url", "URL", false)
 
 	ev.State = transistor.GetState("complete")
 	suite.transistor.Events <- ev

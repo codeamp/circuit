@@ -93,7 +93,13 @@ func (x *Slack) Process(e transistor.Event) error {
 	payload := e.Payload.(plugins.NotificationExtension)
 
 	messageStatus, _ := e.GetArtifact("message")
-	dashboardURL, _ := e.GetArtifact("dashboard_url")
+	if err != nil {
+		return err
+	}
+	dashboardURL, err := e.GetArtifact("dashboard_url")
+	if err != nil {
+		return err
+	}
 
 	tail := payload.Release.TailFeature.Hash
 	head := payload.Release.HeadFeature.Hash
