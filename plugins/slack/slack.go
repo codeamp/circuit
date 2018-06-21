@@ -110,7 +110,7 @@ func (x *Slack) Process(e transistor.Event) error {
 
 	text := fmt.Sprintf(
 		"%s deployed <https://github.com/%s/compare/%s...%s|%s...%s> to <%s/projects/%s/%s/releases|%s>",
-		payload.Release.User, payload.Project.Slug, tail, head, tail[0:6], head[0:6], dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
+		payload.Release.User, payload.Project.Repository, tail, head, tail[0:6], head[0:6], dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
 	)
 
 	var resultColor, resultText, resultEmoji string
