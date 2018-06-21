@@ -14,7 +14,6 @@ type Heartbeat struct {
 }
 
 func init() {
-	log.Error("init from heartbeat")
 	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
 		return &Heartbeat{}
 	})

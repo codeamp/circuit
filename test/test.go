@@ -2,15 +2,72 @@ package test
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"time"
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
+// Setup logic common to all Resolver tests
+// Load viper config, parse plugins, and setup log level/format
+// Configs in this case are loaded from a test yml file
+func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
+	viper.SetConfigType("yaml")
+	viper.SetConfigFile("../../../configs/circuit.test.yml")
+
+	setupViperEnvs()
+
+	err := viper.ReadInConfig()
+
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := setupPostgresDB()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, migrator := range migrators {
+		db.AutoMigrate(migrator)
+	}
+
+	configLogLevel()
+	configLogFormat()
+
+	return db, nil
+}
+
+func setupPostgresDB() (*gorm.DB, error) {
+	log.DebugWithFields("Setup Postgres DB Connection for Tests",
+		log.Fields{
+			"host":     viper.GetString("plugins.codeamp.postgres.host"),
+			"port":     viper.GetString("plugins.codeamp.postgres.port"),
+			"user":     viper.GetString("plugins.codeamp.postgres.user"),
+			"dbname":   viper.GetString("plugins.codeamp.postgres.dbname"),
+			"sslmode":  viper.GetString("plugins.codeamp.postgres.sslmode"),
+			"password": "*",
+		},
+	)
+
+	return gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
+		viper.GetString("plugins.codeamp.postgres.host"),
+		viper.GetString("plugins.codeamp.postgres.port"),
+		viper.GetString("plugins.codeamp.postgres.user"),
+		viper.GetString("plugins.codeamp.postgres.dbname"),
+		viper.GetString("plugins.codeamp.postgres.sslmode"),
+		viper.GetString("plugins.codeamp.postgres.password"),
+	))
+}
+
+// Setup logic common to all Plugin tests
+// Load viper config, parse plugins, and setup log level/format and instantiate transistor
+// Configs in this case are loaded inline from the plugin test itself
 func SetupPluginTest(viperConfig []byte) (*transistor.Transistor, error) {
 	setupViperConfig(viperConfig)
 
@@ -34,11 +91,15 @@ func SetupPluginTest(viperConfig []byte) (*transistor.Transistor, error) {
 
 func setupViperConfig(viperConfig []byte) {
 	viper.SetConfigType("yaml")
+	viper.ReadConfig(bytes.NewBuffer(viperConfig))
+
+	setupViperEnvs()
+}
+
+func setupViperEnvs() {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.SetEnvPrefix("CODEAMP")
 	viper.AutomaticEnv()
-
-	viper.ReadConfig(bytes.NewBuffer(viperConfig))
 }
 
 func configLogLevel() {
