@@ -38,8 +38,9 @@ jobs:
           command: |
             set -x
 
-            sudo apt-get install -y npm
-            
+            curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+                        
             echo '{ "insecure-registries":["0.0.0.0:5000"] }' | sudo tee /etc/docker/daemon.json
             sudo service docker restart
 
