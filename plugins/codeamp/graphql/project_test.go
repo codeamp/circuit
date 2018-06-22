@@ -19,6 +19,10 @@ import (
 type ProjectTestSuite struct {
 	suite.Suite
 	Resolver *graphql_resolver.Resolver
+
+	cleanupEnvironmentIDs     []uuid.UUID
+	cleanupProjectIDs         []uuid.UUID
+	cleanupProjectBookmarkIDs []uuid.UUID
 }
 
 func (suite *ProjectTestSuite) SetupTest() {
@@ -88,6 +92,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 		RsaPublicKey:  "foo",
 	}
 	suite.Resolver.DB.Create(&project)
+	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, project.Model.ID)
 
 	env := model.Environment{
 		Name:      "dev",
@@ -96,6 +101,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 		IsDefault: true,
 	}
 	suite.Resolver.DB.Create(&env)
+	suite.cleanupEnvironmentIDs = append(suite.cleanupProjectIDs, env.Model.ID)
 
 	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
 		ProjectID: project.Model.ID.String(),
@@ -139,20 +145,12 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	suite.Resolver.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectEnvironments)
 
 	assert.Equal(suite.T(), 0, len(projectEnvironments))
-
-	deleteIds := []string{project.Model.ID.String()}
-	for _, projectEnvironment := range projectEnvironments {
-		deleteIds = append(deleteIds, projectEnvironment.Model.ID.String())
-	}
-
-	suite.TearDownTest(deleteIds)
 }
 
 func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	// init 3 projects into db
 	projectNames := []string{"foo", "foobar", "boo"}
 	userId := uuid.NewV1()
-	deleteIds := []string{}
 
 	for _, name := range projectNames {
 		project := model.Project{
@@ -167,6 +165,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		}
 
 		suite.Resolver.DB.Create(&project)
+		suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, project.Model.ID)
 
 		projectBookmark := model.ProjectBookmark{
 			UserID:    userId,
@@ -174,8 +173,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		}
 
 		suite.Resolver.DB.Create(&projectBookmark)
-		deleteIds = append(deleteIds, project.Model.ID.String(),
-			projectBookmark.Model.ID.String())
+		suite.cleanupProjectBookmarkIDs = append(suite.cleanupProjectBookmarkIDs, projectBookmark.Model.ID)
 	}
 
 	adminContext := context.WithValue(context.Background(), "jwt", model.Claims{
@@ -211,14 +209,32 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	}
 
 	assert.Equal(suite.T(), 2, len(projects))
-
-	suite.TearDownTest(deleteIds)
 }
 
-func (suite *ProjectTestSuite) TearDownTest(ids []string) {
-	suite.Resolver.DB.Delete(&model.Project{})
-	suite.Resolver.DB.Delete(&model.ProjectEnvironment{})
-	suite.Resolver.DB.Delete(&model.Environment{})
+func (suite *ProjectTestSuite) TearDownTest() {
+	for _, id := range suite.cleanupProjectBookmarkIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.ProjectBookmark{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}
+	suite.cleanupProjectBookmarkIDs = make([]uuid.UUID, 0)
+
+	for _, id := range suite.cleanupProjectIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}
+	suite.cleanupProjectIDs = make([]uuid.UUID, 0)
+
+	for _, id := range suite.cleanupEnvironmentIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}
+	suite.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
 }
 
 func TestProjectTestSuite(t *testing.T) {

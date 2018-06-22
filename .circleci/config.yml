@@ -20,13 +20,6 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run:
-          name: Dump Containers
-          command: |
-            set -x
-            docker ps -a
-            docker ps -q -a
-
-      - run:
           name: Start Dependent Containers
           command: |
             set -x
@@ -54,6 +47,13 @@ jobs:
             sudo npm install -g codeclimate-test-reporter
 
             go get github.com/mattn/goveralls
+      - run:
+          name: Run Migration
+          command: |
+            set -x
+
+            docker-compose run --rm "circuit" go run main.go migrate --config "./configs/circuit.yml"
+            
       - run: 
           name: Run Tests
           command: |
