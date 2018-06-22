@@ -364,18 +364,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			myEnvVars = append(myEnvVars, newEnv)
 		}
 	}
-
-	// create env var for pod ip, constructed from pod metadata on deploy
-	podIPEnvVar := v1.EnvVar{
-		Name: "POD_IP",
-		ValueFrom: &v1.EnvVarSource{
-			FieldRef: &v1.ObjectFieldSelector{
-				FieldPath: "status.podIP",
-			},
-		},
-	}
-
-	myEnvVars = append(myEnvVars, podIPEnvVar)
+	// expose pod details to running container via env variables
+	myEnvVars = x.exposePodInfoViaEnvVariable(myEnvVars)
 
 	// as Files
 	var volumeMounts []v1.VolumeMount
@@ -516,6 +506,12 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			return err
 		}
 
+		// expose codeamp service name via env variable
+		podEnvVars := append(myEnvVars, v1.EnvVar{
+			Name:  "CODEAMP_SERVICE_NAME",
+			Value: service.Name,
+		})
+
 		simplePod := SimplePodSpec{
 			Name:          oneShotServiceName,
 			RestartPolicy: v1.RestartPolicyNever,
@@ -523,7 +519,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			Args:          commandArray,
 			Service:       service,
 			Image:         dockerImage.String(),
-			Env:           myEnvVars,
+			Env:           podEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
 		}
@@ -729,6 +725,12 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			return err
 		}
 
+		// expose service name via env variable
+		podEnvVars := append(myEnvVars, v1.EnvVar{
+			Name:  "CODEAMP_SERVICE_NAME",
+			Value: service.Name,
+		})
+
 		simplePod := SimplePodSpec{
 			Name:          deploymentName,
 			DeployPorts:   deployPorts,
@@ -739,7 +741,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			Args:          commandArray,
 			Service:       service,
 			Image:         dockerImage.String(),
-			Env:           myEnvVars,
+			Env:           podEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
 		}
@@ -1016,4 +1018,45 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	}
 
 	return nil
+}
+
+func (x *Kubernetes) exposePodInfoViaEnvVariable(myEnvVars []v1.EnvVar) []v1.EnvVar {
+	// TODO rename to KUBE_POD_IP for consistency when all consumers get updated
+	myEnvVars = append(myEnvVars, v1.EnvVar{
+		Name: "POD_IP",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "status.podIP",
+			},
+		},
+	}
+
+	myEnvVars = append(myEnvVars, v1.EnvVar{
+		Name: "KUBE_NODE_NAME",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "spec.nodeName",
+			},
+		},
+	})
+
+	myEnvVars = append(myEnvVars, v1.EnvVar{
+		Name: "KUBE_POD_NAME",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "metadata.name",
+			},
+		},
+	})
+
+	myEnvVars = append(myEnvVars, v1.EnvVar{
+		Name: "KUBE_POD_NAMESPACE",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "metadata.namespace",
+			},
+		},
+	})
+
+	return myEnvVars
 }
