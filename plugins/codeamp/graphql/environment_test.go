@@ -125,6 +125,13 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
 
 	projects := envResolver.Projects()
 	assert.NotEmpty(suite.T(), projects, "Environment is missing associated projects")
+
+	// Test Environments Query endpoint with a ProjectSlug
+	projectSlug := string(createProjectResolver.Slug())
+	_, err = suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{ProjectSlug: &projectSlug})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 }
 
 /* Test successful env. update */
