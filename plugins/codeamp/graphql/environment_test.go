@@ -120,11 +120,11 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
 
 	created_at_diff := time.Now().Sub(envResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
-		assert.FailNow(suite.T(), "Created at time is invalid")
+		assert.FailNow(suite.T(), "Created at time is old")
 	}
 
 	projects := envResolver.Projects()
-	assert.NotEqual(suite.T(), len(projects), "Environment is missing associated projects")
+	assert.NotEmpty(suite.T(), projects, "Environment is missing associated projects")
 }
 
 /* Test successful env. update */
