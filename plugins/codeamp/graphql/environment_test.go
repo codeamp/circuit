@@ -2,18 +2,26 @@ package graphql_resolver_test
 
 import (
 	"testing"
+	"time"
 
 	log "github.com/codeamp/logger"
+	graphql "github.com/graph-gophers/graphql-go"
 
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
-	graphql "github.com/graph-gophers/graphql-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	// See http://golang.org/pkg/time/#Parse
+	timeFormat = "2006-01-02 15:04:05.999999999 -0700 MST m"
+	// 2018-06-25 13:04:51.973461415 -0700 PDT m=+0.485802342
+	// 			  2018-06-25T12:57:40-07:00
 )
 
 type EnvironmentTestSuite struct {
@@ -67,12 +75,9 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 
 	unmarshalledEnvResolver := &graphql_resolver.EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{Environment: model.Environment{}}}
 	err = unmarshalledEnvResolver.UnmarshalJSON(js)
-	assert.Nil(suite.T(), err)
-
-	// Need a better way of testing that what is marshalled/unmarshalled
-	// is correct before and after. Ran into an issue with comparing timestamps
-	// ADB
-	//assert.Equal(suite.T(), envResolver.DBEnvironmentResolver.Environment, unmarshalledEnvResolver.DBEnvironmentResolver.Environment, "Marshalling Error")
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 }
 
 func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
@@ -113,8 +118,13 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
 
 	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.ID)
 
-	_ = envResolver.Created()
-	_ = envResolver.Projects()
+	created_at_diff := time.Now().Sub(envResolver.Created().Time)
+	if created_at_diff.Minutes() > 1 {
+		assert.FailNow(suite.T(), "Created at time is invalid")
+	}
+
+	projects := envResolver.Projects()
+	assert.NotEqual(suite.T(), len(projects), "Environment is missing associated projects")
 }
 
 /* Test successful env. update */
@@ -156,10 +166,7 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	assert.Equal(suite.T(), updateEnvResolver.Color(), "red")
 	assert.Equal(suite.T(), updateEnvResolver.Key(), "foo")
 
-	// Temporarily Disabled because of issues on Circle
-	// ADB
-	// Updated above to make this false, so should expect false here.
-	//assert.Equal(suite.T(), false, updateEnvResolver.IsDefault())
+	assert.Equal(suite.T(), false, updateEnvResolver.IsDefault())
 	assert.NotEqual(suite.T(), updateEnvResolver.Name(), "diffkey")
 }
 
@@ -218,7 +225,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	envId = envResolver2.DBEnvironmentResolver.Environment.Model.ID.String()
 	envInput2.ID = &envId
 
-	_, err = suite.Resolver.UpdateEnvironment(nil, &struct {
+	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct {
 		Environment *model.EnvironmentInput
 	}{Environment: &envInput2})
 	if err != nil {
@@ -229,8 +236,43 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	// Temporarily Disabling
 	// ADB
 	// Expecting this to be false since we just updated it above
-	//assert.Equal(suite.T(), false, updateEnvResolver2.IsDefault())
+	assert.Equal(suite.T(), false, updateEnvResolver2.IsDefault())
 
+}
+
+func (suite *EnvironmentTestSuite) TestEnvironmentsQuery() {
+	envInput := model.EnvironmentInput{
+		Name:      "test",
+		Key:       "foo",
+		IsDefault: true,
+		Color:     "color",
+	}
+
+	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
+		Environment *model.EnvironmentInput
+	}{Environment: &envInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	envId := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
+	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
+
+	environmentResolvers, err := suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{ProjectSlug: nil})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	foundNeedle := false
+	for _, env := range environmentResolvers {
+		if env.DBEnvironmentResolver.Environment.Model.ID.String() == envId {
+			foundNeedle = true
+			break
+		}
+	}
+
+	if foundNeedle == false {
+		assert.FailNow(suite.T(), "Was not able to find Environment in Environments table!")
+	}
 }
 
 func (suite *EnvironmentTestSuite) TearDownTest() {

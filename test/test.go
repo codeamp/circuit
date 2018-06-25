@@ -78,7 +78,7 @@ func setupPostgresDB() (*gorm.DB, error) {
 		viper.GetString("plugins.codeamp.postgres.password"),
 	))
 
-	//db.LogMode(true)
+	// db.LogMode(true)
 	return db, err
 }
 

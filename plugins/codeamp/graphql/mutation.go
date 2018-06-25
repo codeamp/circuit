@@ -881,7 +881,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 		existingEnv.Color = args.Environment.Color
 
 		// Check if this is the only default env.
-		if existingEnv.IsDefault {
+		if args.Environment.IsDefault && existingEnv.IsDefault {
 			var defaultEnvs []model.Environment
 			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
 			// Update IsDefault as long as the current is false or
