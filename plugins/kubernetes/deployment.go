@@ -725,7 +725,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			return err
 		}
 
-		// expose service name via env variable
+		// expose codeamp service name via env variable
 		podEnvVars := append(myEnvVars, v1.EnvVar{
 			Name:  "CODEAMP_SERVICE_NAME",
 			Value: service.Name,
