@@ -1029,7 +1029,7 @@ func (x *Kubernetes) exposePodInfoViaEnvVariable(myEnvVars []v1.EnvVar) []v1.Env
 				FieldPath: "status.podIP",
 			},
 		},
-	}
+	})
 
 	myEnvVars = append(myEnvVars, v1.EnvVar{
 		Name: "KUBE_NODE_NAME",
