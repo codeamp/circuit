@@ -1327,7 +1327,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 	}
 
 	// delete all release extension objects with extension id
-	if r.DB.Where("extension_id = ?", args.ProjectExtension.ID).Find(&res).RecordNotFound() {
+	if r.DB.Where("project_extension_id = ?", args.ProjectExtension.ID).Find(&res).RecordNotFound() {
 		log.InfoWithFields("no release extensions found", log.Fields{
 			"extension": extension,
 		})
