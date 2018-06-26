@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -259,6 +260,8 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 
 func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	log.Info(e.Payload)
+	spew.Dump(e)
+
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
@@ -405,6 +408,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	batchv1DepInterface := clientset.BatchV1()
 
 	// Validate we have some services to deploy
+	spew.Dump(reData)
+	spew.Dump(reData.Release)
 	if len(reData.Release.Services) == 0 {
 		zeroServicesErr := fmt.Errorf("ERROR: Zero services were found in the deploy message.")
 		x.sendErrorResponse(e, zeroServicesErr.Error())
