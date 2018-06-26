@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 scalar Time
 scalar JSON
 
@@ -241,21 +239,9 @@ type Project {
   rsaPublicKey: String!
   features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
   currentRelease: Release
-<<<<<<< HEAD
   releases(params: PaginatorInput): ReleaseList!
   services(params: PaginatorInput): ServiceList!
   secrets(params: PaginatorInput): SecretList!
-=======
-<<<<<<< HEAD:plugins/codeamp/graphql/schema.graphql
-  releases: [Release]!
-  services: [Service]!
-  secrets: [Secret]!
-=======
-  releases(params: PaginatorInput): ReleaseList!
-  services(params: PaginatorInput): ServiceList!
-  secrets(params: PaginatorInput): SecretList!
->>>>>>> Add pagination for other relevant resources:plugins/codeamp/schema.graphql
->>>>>>> Add pagination for other relevant resources
   extensions: [ProjectExtension]!
   gitBranch: String!
   continuousDeploy: Boolean!
@@ -324,23 +310,8 @@ input ProjectSearchInput {
 
 # Pagination input
 input PaginatorInput {
-<<<<<<< HEAD
-<<<<<<< HEAD
   cursor: String
   limit: Int
-=======
-  afterCursor: String
-  itemsPerPage: Int!
->>>>>>> Add pagination for Releases
-=======
-<<<<<<< HEAD:plugins/codeamp/graphql/schema.graphql
-  afterCursor: String
-  itemsPerPage: Int!
-=======
-  cursor: String
-  limit: Int
->>>>>>> Abstractions + better code :):plugins/codeamp/schema.graphql
->>>>>>> Abstractions + better code :)
 }
 
 # Release input
@@ -447,4 +418,3 @@ input ProjectEnvironmentsInput {
  projectID: String!
  permissions: [ProjectEnvironmentInput!]!
 }
->>>>>>> encapsulate filtering logic in releaselist

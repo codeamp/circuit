@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	graphql "github.com/graph-gophers/graphql-go"
 )
 
@@ -54,12 +55,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Variables     map[string]interface{} `json:"variables"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		spew.Dump(params, "ERROR TIME!", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	spew.Dump(params)
 	response := h.Schema.Exec(r.Context(), params.Query, params.OperationName, params.Variables)
 	responseJSON, err := json.Marshal(response)
+	spew.Dump(responseJSON, "Error!", err.Error())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

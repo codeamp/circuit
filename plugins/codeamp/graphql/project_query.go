@@ -80,15 +80,19 @@ func (u *ProjectResolverQuery) Project(ctx context.Context, args *struct {
 	return &resolver, nil
 }
 
-func (u *ProjectResolverQuery) Projects(ctx context.Context, projectSearchInput *model.ProjectSearchInput) ([]*ProjectResolver, error) {
+func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
+	ProjectSearch *model.ProjectSearchInput
+	Params        *model.PaginatorInput
+}) (ProjectListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
+		return ProjectListResolver{}, err
 	}
 
 	var rows []model.Project
-	var results []*ProjectResolver
-	if projectSearchInput.Repository != nil {
-		u.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *projectSearchInput.Repository)).Find(&rows)
+	var query *gorm.DB
+
+	if args.ProjectSearch.Repository != nil {
+		u.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
 	} else {
 		var projectBookmarks []model.ProjectBookmark
 
@@ -98,12 +102,13 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, projectSearchInput 
 		for _, bookmark := range projectBookmarks {
 			projectIds = append(projectIds, bookmark.ProjectID)
 		}
-		u.DB.Where("id in (?)", projectIds).Find(&rows)
+		query = u.DB.Where("id in (?)", projectIds).Find(&rows)
 	}
 
-	for _, project := range rows {
-		results = append(results, &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: u.DB, Project: project}})
-	}
-
-	return results, nil
+	return ProjectListResolver{
+		DBProjectListResolver: &db_resolver.ProjectListResolver{
+			Query:          query,
+			PaginatorInput: args.Params,
+		},
+	}, nil
 }

@@ -11,6 +11,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	oidc "github.com/coreos/go-oidc"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-redis/redis"
 	"github.com/jinzhu/gorm"
 	"github.com/spf13/viper"
@@ -38,15 +39,20 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		spew.Dump(authString, viper.GetString("plugins.codeamp.oidc_uri"))
+
 		bearerToken := authString[7:]
 
 		// Initialize a provider by specifying dex's issuer URL.
 		provider, err := oidc.NewProvider(ctx, viper.GetString("plugins.codeamp.oidc_uri"))
 		if err != nil {
 			claims.TokenError = err.Error()
+			spew.Dump(claims.TokenError)
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
+
+		spew.Dump("creating ID token parser", viper.GetString("plugins.codeamp.oidc_client_id"))
 
 		// Create an ID token parser, but only trust ID tokens issued to "example-app"
 		idTokenVerifier := provider.Verifier(&oidc.Config{ClientID: viper.GetString("plugins.codeamp.oidc_client_id")})
@@ -59,12 +65,16 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		spew.Dump("parse claims")
+
 		if err := idToken.Claims(&claims); err != nil {
 			claims.TokenError = fmt.Sprintf("failed to parse claims: %v", err.Error())
 			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
+
+		spew.Dump("verifying claims")
 
 		if !claims.Verified {
 			claims.TokenError = fmt.Sprintf("email (%q) in returned claims was not verified", claims.Email)
@@ -73,6 +83,7 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		spew.Dump("redis stuff", idToken.Nonce, claims.Email)
 		c, err := resolver.Redis.Get(fmt.Sprintf("%s_%s", idToken.Nonce, claims.Email)).Result()
 		if err == redis.Nil {
 			user := model.User{}
@@ -87,6 +98,8 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			for _, permission := range user.Permissions {
 				permissions = append(permissions, permission.Value)
 			}
+
+			spew.Dump("adding user scope", user.ID.String())
 
 			// Add user scope
 			permissions = append(permissions, fmt.Sprintf("user/%s", user.ID.String()))
@@ -111,6 +124,7 @@ func (resolver *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
+		spew.Dump("serveHTTP", claims)
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 	})
 }

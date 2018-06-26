@@ -89,6 +89,10 @@ func (r *ReleaseListResolver) NextCursor() (string, error) {
 	return "", nil
 }
 
+func (r *ReleaseListResolver) Count() (int32, error) {
+	return int32(0), nil
+}
+
 // SECRETS
 
 // SecretResolver resolver for Release
@@ -98,16 +102,16 @@ type SecretListResolver struct {
 }
 
 // Secrets
-func (r *SecretListResolver) Entries() []*SecretResolver {
-	return []*SecretResolver{}
+func (r *SecretListResolver) Entries() ([]*SecretResolver, error) {
+	return []*SecretResolver{}, nil
 }
 
 func (r *SecretListResolver) Page() (int32, error) {
 	return int32(0), nil
 }
 
-func (r *SecretListResolver) Count() int32 {
-	return int32(0)
+func (r *SecretListResolver) Count() (int32, error) {
+	return int32(0), nil
 }
 func (r *SecretListResolver) NextCursor() (string, error) {
 	return "", nil
@@ -134,6 +138,10 @@ func (r *ServiceListResolver) NextCursor() (string, error) {
 	return "", nil
 }
 
+func (r *ServiceListResolver) Count() (int32, error) {
+	return int32(0), nil
+}
+
 // FEATURES
 
 // FeatureListResolver
@@ -155,6 +163,10 @@ func (r *FeatureListResolver) NextCursor() (string, error) {
 	return "", nil
 }
 
+func (r *FeatureListResolver) Count() (int32, error) {
+	return int32(0), nil
+}
+
 // PROJECTS
 
 // ProjectListResolver
@@ -174,4 +186,8 @@ func (r *ProjectListResolver) Page() (int32, error) {
 
 func (r *ProjectListResolver) NextCursor() (string, error) {
 	return "", nil
+}
+
+func (r *ProjectListResolver) Count() (int32, error) {
+	return int32(0), nil
 }

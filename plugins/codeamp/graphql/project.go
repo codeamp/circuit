@@ -63,16 +63,11 @@ func (r *ProjectResolver) RsaPublicKey() string {
 func (r *ProjectResolver) Features(args *struct {
 	ShowDeployed *bool
 	Params       *model.PaginatorInput
-}) []*FeatureResolver {
-	db_resolvers := r.DBProjectResolver.Features(args)
-	entries, _ := db_resolvers.Entries()
-	gql_resolvers := make([]*FeatureResolver, 0, len(entries))
-
-	for _, i := range entries {
-		gql_resolvers = append(gql_resolvers, &FeatureResolver{DBFeatureResolver: i})
+}) FeatureListResolver {
+	db_resolver := r.DBProjectResolver.Features(args)
+	return FeatureListResolver{
+		DBFeatureListResolver: db_resolver,
 	}
-
-	return gql_resolvers
 }
 
 // CurrentRelease
@@ -84,45 +79,37 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 // Releases
 func (r *ProjectResolver) Releases(args *struct {
 	Params *model.PaginatorInput
-}) []*ReleaseResolver {
-	db_resolvers := r.DBProjectResolver.Releases(args)
-	entries, _ := db_resolvers.Entries()
-	gql_resolvers := make([]*ReleaseResolver, 0, len(entries))
+}) ReleaseListResolver {
+	db_resolver := r.DBProjectResolver.Releases(args)
 
-	for _, i := range entries {
-		gql_resolvers = append(gql_resolvers, &ReleaseResolver{DBReleaseResolver: i})
+	return ReleaseListResolver{
+		DBReleaseListResolver: db_resolver,
 	}
-
-	return gql_resolvers
 }
 
 // Services
 func (r *ProjectResolver) Services(args *struct {
 	Params *model.PaginatorInput
-}) []*ServiceResolver {
-	db_resolvers := r.DBProjectResolver.Services(args)
-	entries, _ := db_resolvers.Entries()
-	gql_resolvers := make([]*ServiceResolver, 0, len(entries))
+}) ServiceListResolver {
+	db_resolver := r.DBProjectResolver.Services(args)
 
-	for _, i := range entries {
-		gql_resolvers = append(gql_resolvers, &ServiceResolver{DBServiceResolver: i})
+	return ServiceListResolver{
+		DBServiceListResolver: db_resolver,
 	}
-
-	return gql_resolvers
 }
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) ([]*SecretResolver, error) {
-	db_resolvers, err := r.DBProjectResolver.Secrets(ctx, args)
-	gql_resolvers := make([]*SecretResolver, 0, len(db_resolvers.Entries()))
-
-	for _, i := range db_resolvers.Entries() {
-		gql_resolvers = append(gql_resolvers, &SecretResolver{DBSecretResolver: i})
+}) (SecretListResolver, error) {
+	db_resolver, err := r.DBProjectResolver.Secrets(ctx, args)
+	if err != nil {
+		return SecretListResolver{}, err
 	}
 
-	return gql_resolvers, err
+	return SecretListResolver{
+		DBSecretListResolver: db_resolver,
+	}, nil
 }
 
 // ProjectExtensions

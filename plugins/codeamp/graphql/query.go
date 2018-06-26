@@ -39,17 +39,18 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 // Projects
 func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
-}) ([]*ProjectResolver, error) {
+	Params        *model.PaginatorInput
+}) (ProjectListResolver, error) {
 	initializer := ProjectResolverQuery{DB: r.DB}
-	return initializer.Projects(ctx, args.ProjectSearch)
+	return initializer.Projects(ctx, args)
 }
 
-func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
+func (r *Resolver) Features(ctx context.Context) (FeatureListResolver, error) {
 	initializer := FeatureResolverQuery{DB: r.DB}
 	return initializer.Features(ctx)
 }
 
-func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
+func (r *Resolver) Services(ctx context.Context) (ServiceListResolver, error) {
 	initializer := ServiceResolverQuery{DB: r.DB}
 	return initializer.Services(ctx)
 }
@@ -59,7 +60,7 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 	return initializer.ServiceSpecs(ctx)
 }
 
-func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
+func (r *Resolver) Releases(ctx context.Context) (ReleaseListResolver, error) {
 	initializer := ReleaseResolverQuery{DB: r.DB}
 	return initializer.Releases(ctx)
 }
