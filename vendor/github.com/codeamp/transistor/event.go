@@ -142,15 +142,6 @@ func NewEvent(eventName EventName, action Action, payload interface{}) Event {
 
 	event.SetPayload(payload)
 
-	// for debugging purposes
-	_, file, no, ok := runtime.Caller(1)
-	if ok {
-		event.Caller = Caller{
-			File:       file,
-			LineNumber: no,
-		}
-	}
-
 	return event
 }
 
@@ -183,6 +174,15 @@ func (e *Event) SetPayload(payload interface{}) {
 	e.Payload = payload
 	if payload != nil {
 		e.PayloadModel = reflect.TypeOf(payload).String()
+
+		if _, ok := EventRegistry[e.PayloadModel]; ok {
+			_, file, line, ok := runtime.Caller(1)
+			if ok {
+				log.Error(fmt.Sprintf("%s : ln %d", file, line))
+			}
+
+			log.Fatal(fmt.Errorf("PayloadModel not found: '%s'. Did you add it to EventRegistry?", e.PayloadModel))
+		}
 	} else {
 		e.PayloadModel = ""
 	}
@@ -190,7 +190,7 @@ func (e *Event) SetPayload(payload interface{}) {
 
 func (e *Event) Dump() {
 	event, _ := json.MarshalRole("dummy", e)
-	log.Info(string(event))
+	log.Debug(string(event))
 }
 
 func (e *Event) Event() string {
