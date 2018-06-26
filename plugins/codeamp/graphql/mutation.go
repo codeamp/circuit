@@ -1143,9 +1143,6 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput
 
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
-	log.Error("ADB")
-	log.Error(string(args.ProjectExtension.Config.RawMessage[:]))
-
 	// Check if project can create project extension in environment
 	if err := r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
 		return nil, errors.New("Project not allowed to install extensions in given environment")
@@ -1212,7 +1209,6 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			Environment: env.Key,
 		}
 
-		log.Warn("Sending transistor event")
 		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("create"), projectExtensionEvent)
 		ev.Artifacts = artifacts
 		r.Events <- ev
