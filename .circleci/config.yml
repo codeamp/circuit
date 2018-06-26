@@ -46,7 +46,8 @@ jobs:
 
             sudo npm install -g codeclimate-test-reporter
 
-            go get github.com/mattn/goveralls
+            go get -u github.com/mattn/goveralls
+            go get -u github.com/jstemmer/go-junit-report
       - run:
           name: Run Migration
           command: |
@@ -60,7 +61,11 @@ jobs:
             set -x
 
             docker-compose up -d registry
-            docker-compose run --rm circuit /bin/sh -c "gotest -v -covermode=count -coverprofile=coverage.out ./..." || EXIT_CODE=$? && true
+            docker-compose run --rm circuit /bin/sh -c "gotest -v -covermode=count -coverprofile=coverage.out ./... | tee go-test-output.txt" || EXIT_CODE=$? && true
+            
+            # Generate Report XML
+            mkdir junit
+            go-junit-report < go-test-output.txt > junit/junit.xml
             
             # Report to CodeBeat
             codeclimate-test-reporter < coverage.out
@@ -69,3 +74,5 @@ jobs:
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_IO_TOKEN}
 
             exit $EXIT_CODE
+      - store_test_results:
+          path: ~/junit
