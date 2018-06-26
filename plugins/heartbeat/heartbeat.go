@@ -16,7 +16,7 @@ type Heartbeat struct {
 func init() {
 	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
 		return &Heartbeat{}
-	})
+	}, plugins.HeartBeat{})
 }
 
 func (x *Heartbeat) Start(e chan transistor.Event) error {
