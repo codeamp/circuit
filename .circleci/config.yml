@@ -64,8 +64,8 @@ jobs:
             docker-compose run --rm circuit /bin/sh -c "gotest -v -covermode=count -coverprofile=coverage.out ./... | tee go-test-output.txt" || EXIT_CODE=$? && true
             
             # Generate Report XML
-            mkdir /go/src/github.com/codeamp/circuit
-            go-junit-report < go-test-output.txt > /go/src/github.com/codeamp/circuit/junit/junit.xml
+            mkdir -p test-results/junit
+            go-junit-report < go-test-output.txt > test-results/junit/results.xml
             
             # Report to CodeBeat
             codeclimate-test-reporter < coverage.out
@@ -75,4 +75,4 @@ jobs:
 
             exit $EXIT_CODE
       - store_test_results:
-          path: /go/src/github.com/codeamp/circuit/junit
+          path: test-results
