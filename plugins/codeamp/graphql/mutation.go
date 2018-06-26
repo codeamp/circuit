@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -31,6 +32,10 @@ import (
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
 	var project model.Project
 
 	protocol := "HTTPS"
@@ -877,7 +882,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 		existingEnv.Color = args.Environment.Color
 
 		// Check if this is the only default env.
-		if existingEnv.IsDefault {
+		if args.Environment.IsDefault && existingEnv.IsDefault {
 			var defaultEnvs []model.Environment
 			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
 			// Update IsDefault as long as the current is false or
@@ -1138,34 +1143,36 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput
 
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
+	log.Error("ADB")
+	log.Error(string(args.ProjectExtension.Config.RawMessage[:]))
 
 	// Check if project can create project extension in environment
-	if r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
+	if err := r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
 		return nil, errors.New("Project not allowed to install extensions in given environment")
 	}
 
 	extension := model.Extension{}
-	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+	if err := r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).Error; err != nil {
 		log.InfoWithFields("no extension found", log.Fields{
 			"id": args.ProjectExtension.ExtensionID,
 		})
-		return nil, errors.New("No extension found.")
+		return nil, fmt.Errorf("No extension found for id: '%s'", args.ProjectExtension.ExtensionID)
 	}
 
 	project := model.Project{}
-	if r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).RecordNotFound() {
+	if err := r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).Error; err != nil {
 		log.InfoWithFields("no project found", log.Fields{
 			"id": args.ProjectExtension.ProjectID,
 		})
-		return nil, errors.New("No project found.")
+		return nil, fmt.Errorf("No project found: '%s'", args.ProjectExtension.ProjectID)
 	}
 
 	env := model.Environment{}
-	if r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).RecordNotFound() {
+	if err := r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).Error; err != nil {
 		log.InfoWithFields("no env found", log.Fields{
 			"id": args.ProjectExtension.EnvironmentID,
 		})
-		return nil, errors.New("No environment found.")
+		return nil, fmt.Errorf("No environment found: '%s'", args.ProjectExtension.ProjectID)
 	}
 
 	// check if extension already exists with project
@@ -1192,6 +1199,7 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 		artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 		if err != nil {
 			log.Error(err.Error())
+			return nil, err
 		}
 
 		projectExtensionEvent := plugins.ProjectExtension{
@@ -1203,6 +1211,8 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			},
 			Environment: env.Key,
 		}
+
+		log.Warn("Sending transistor event")
 		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("create"), projectExtensionEvent)
 		ev.Artifacts = artifacts
 		r.Events <- ev
@@ -1264,6 +1274,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
 		log.Error(err.Error())
+		return nil, err
 	}
 
 	projectExtensionEvent := plugins.ProjectExtension{
@@ -1335,7 +1346,13 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 
 	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
+		_, file, line, ok := runtime.Caller(1)
+		if ok {
+			log.Warn(fmt.Sprintf("%s : ln %d", file, line))
+		}
+
 		log.Error(err.Error())
+		return nil, err
 	}
 
 	projectExtensionEvent := plugins.ProjectExtension{
@@ -1474,21 +1491,26 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 
 	extensionConfig := []ExtConfig{}
 	err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
-	if err != nil {
-		log.Error(err.Error())
+	if extension.Config.RawMessage != nil {
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	projectConfig := []ExtConfig{}
 	err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
-	if err != nil {
-		log.Error(err.Error())
+	if projectExtension.Config.RawMessage != nil {
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	existingArtifacts := []transistor.Artifact{}
 	err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
-	if err != nil {
-		log.Error(err.Error())
-		log.Info(projectExtension.Artifacts.RawMessage)
+	if projectExtension.Artifacts.RawMessage != nil {
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for i, ec := range extensionConfig {
@@ -1497,9 +1519,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 				extensionConfig[i].Value = pc.Value
 			}
 		}
-	}
 
-	for _, ec := range extensionConfig {
 		var artifact transistor.Artifact
 		// check if val is UUID. If so, query in environment variables for id
 		secretID := uuid.FromStringOrNil(ec.Value)
@@ -1525,8 +1545,10 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 
 	projectCustomConfig := make(map[string]interface{})
 	err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
-	if err != nil {
-		log.Error(err.Error())
+	if projectExtension.CustomConfig.RawMessage != nil {
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for key, val := range projectCustomConfig {
