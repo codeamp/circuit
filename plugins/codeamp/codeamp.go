@@ -18,7 +18,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	redis "github.com/go-redis/redis"
 	"github.com/gorilla/handlers"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -115,8 +114,6 @@ func (x *CodeAmp) InitGraphQL(resolver interface{}) (*graphql.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	spew.Dump(schema)
 
 	return graphql.ParseSchema(string(schema), resolver)
 }

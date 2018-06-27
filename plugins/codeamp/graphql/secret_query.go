@@ -14,20 +14,21 @@ type SecretResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *SecretResolverQuery) Secrets(ctx context.Context) ([]*SecretResolver, error) {
+func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (SecretListResolver, error) {
+	var query *gorm.DB
+
 	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
-		return nil, err
+		return SecretListResolver{}, err
 	}
 
-	var rows []model.Secret
-	var results []*SecretResolver
+	query = r.DB.Where("scope != ?", "project").Order("created_at desc")
 
-	r.DB.Where("scope != ?", "project").Order("created_at desc").Find(&rows)
-	for _, secret := range rows {
-		var secretValue model.SecretValue
-		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		results = append(results, &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}})
-	}
-
-	return results, nil
+	return SecretListResolver{
+		DBSecretListResolver: &db_resolver.SecretListResolver{
+			Query:          query,
+			PaginatorInput: args.Params,
+		},
+	}, nil
 }

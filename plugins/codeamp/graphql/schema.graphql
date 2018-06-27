@@ -22,8 +22,8 @@ type Query {
   services(params: PaginatorInput): ServiceList!
   # Service specs
   serviceSpecs(): [ServiceSpec]!
-  # ReleaseList
-  releases(params: PaginatorInput): ReleaseList
+  # Releases
+  releases(params: PaginatorInput): ReleaseList!
   # Environments
   environments(projectSlug: String): [Environment]!
   # Environment variables

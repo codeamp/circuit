@@ -14,18 +14,21 @@ type ReleaseResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *ReleaseResolverQuery) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
+func (r *ReleaseResolverQuery) Releases(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (ReleaseListResolver, error) {
+	var query *gorm.DB
+
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
+		return ReleaseListResolver{}, err
 	}
 
-	var rows []model.Release
-	var results []*ReleaseResolver
+	query = r.DB.Order("created_at desc")
 
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}})
-	}
-
-	return results, nil
+	return ReleaseListResolver{
+		DBReleaseListResolver: &db_resolver.ReleaseListResolver{
+			Query:          query,
+			PaginatorInput: args.Params,
+		},
+	}, nil
 }
