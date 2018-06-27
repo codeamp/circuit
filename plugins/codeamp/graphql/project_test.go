@@ -47,6 +47,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 		&model.Environment{},
 		&model.Extension{},
 		&model.Secret{},
+		&model.Feature{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
