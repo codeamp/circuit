@@ -269,6 +269,8 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 				},
 				Environment: "",
 			}
+
+			log.Warn("sending release event 2")
 			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
 			event.State = transistor.GetState("failed")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
@@ -1486,24 +1488,24 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	extensionConfig := []ExtConfig{}
-	err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
 	if extension.Config.RawMessage != nil {
+		err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	projectConfig := []ExtConfig{}
-	err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 	if projectExtension.Config.RawMessage != nil {
+		err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	existingArtifacts := []transistor.Artifact{}
-	err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 	if projectExtension.Artifacts.RawMessage != nil {
+		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 		if err != nil {
 			return nil, err
 		}
@@ -1540,8 +1542,8 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	projectCustomConfig := make(map[string]interface{})
-	err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
 	if projectExtension.CustomConfig.RawMessage != nil {
+		err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -1554,6 +1556,5 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		artifact.Secret = false
 		artifacts = append(artifacts, artifact)
 	}
-
 	return artifacts, nil
 }
