@@ -1486,19 +1486,23 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	projectConfig := []ExtConfig{}
-	err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, err
+	if projectExtension.Config.RawMessage != nil {
+		err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
+		if err != nil {
+			log.Error(err.Error())
+			return nil, err
+		}
 	}
 
 	existingArtifacts := []transistor.Artifact{}
-	err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
-	if err != nil {
-		log.Error(err.Error())
-		log.Info(projectExtension.Artifacts.RawMessage)
+	if projectExtension.Artifacts.RawMessage != nil {
+		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
+		if err != nil {
+			log.Error(err.Error())
+			log.Info(projectExtension.Artifacts.RawMessage)
 
-		return nil, err
+			return nil, err
+		}
 	}
 
 	for i, ec := range extensionConfig {
@@ -1534,10 +1538,12 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	projectCustomConfig := make(map[string]interface{})
-	err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, err
+	if projectExtension.CustomConfig.RawMessage != nil {
+		err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
+		if err != nil {
+			log.Error(err.Error())
+			return nil, err
+		}
 	}
 
 	for key, val := range projectCustomConfig {
