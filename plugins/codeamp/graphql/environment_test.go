@@ -17,13 +17,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	// See http://golang.org/pkg/time/#Parse
-	timeFormat = "2006-01-02 15:04:05.999999999 -0700 MST m"
-	// 2018-06-25 13:04:51.973461415 -0700 PDT m=+0.485802342
-	// 			  2018-06-25T12:57:40-07:00
-)
-
 type EnvironmentTestSuite struct {
 	suite.Suite
 	Resolver *graphql_resolver.Resolver
@@ -120,7 +113,7 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
 
 	created_at_diff := time.Now().Sub(envResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
-		assert.FailNow(suite.T(), "Created at time is old")
+		assert.FailNow(suite.T(), "Created at time is too old")
 	}
 
 	projects := envResolver.Projects()
@@ -129,9 +122,16 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
 	// Test Environments Query endpoint with a ProjectSlug
 	projectSlug := string(createProjectResolver.Slug())
 	_, err = suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{ProjectSlug: &projectSlug})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	assert.Nil(suite.T(), err)
+
+	// Test without authorization
+	_, err = suite.Resolver.Environments(nil, &struct{ ProjectSlug *string }{ProjectSlug: &projectSlug})
+	assert.NotNil(suite.T(), err)
+
+	// Test with an incorrect slug
+	invalid_slug := "this-is-an-invalid-slug"
+	_, err = suite.Resolver.Environments(nil, &struct{ ProjectSlug *string }{ProjectSlug: &invalid_slug})
+	assert.NotNil(suite.T(), err)
 }
 
 /* Test successful env. update */
