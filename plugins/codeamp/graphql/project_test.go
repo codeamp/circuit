@@ -2,6 +2,7 @@ package graphql_resolver_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
+	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
@@ -21,20 +23,24 @@ type ProjectTestSuite struct {
 	suite.Suite
 	Resolver *graphql_resolver.Resolver
 
-	cleanupEnvironmentIDs     []uuid.UUID
-	cleanupProjectIDs         []uuid.UUID
-	cleanupSecretIDs          []uuid.UUID
-	cleanupProjectBookmarkIDs []uuid.UUID
+	cleanupExtensionIDs        []uuid.UUID
+	cleanupEnvironmentIDs      []uuid.UUID
+	cleanupProjectIDs          []uuid.UUID
+	cleanupSecretIDs           []uuid.UUID
+	cleanupProjectBookmarkIDs  []uuid.UUID
+	cleanupProjectExtensionIDs []uuid.UUID
 }
 
 func (suite *ProjectTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Project{},
-		&model.ProjectEnvironment{},
 		&model.ProjectBookmark{},
-		&model.UserPermission{},
+		&model.ProjectEnvironment{},
+		&model.ProjectExtension{},
 		&model.ProjectSettings{},
+		&model.UserPermission{},
 		&model.Environment{},
+		&model.Extension{},
 		&model.Secret{},
 	}
 
@@ -43,7 +49,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	suite.Resolver = &graphql_resolver.Resolver{DB: db}
+	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 }
 
 func (suite *ProjectTestSuite) TestProjectInterface() {
@@ -104,12 +110,68 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 
 	suite.cleanupSecretIDs = append(suite.cleanupSecretIDs, secretResolver.DBSecretResolver.Secret.Model.ID)
 
+	// Extension
+	extensionInput := model.ExtensionInput{
+		Name:          "TestProjectInterface",
+		Key:           "test-project-interface",
+		Component:     "",
+		EnvironmentID: envId,
+		Config:        model.JSON{[]byte("[]")},
+		Type:          "workflow",
+	}
+	extensionResolver, err := suite.Resolver.CreateExtension(&struct {
+		Extension *model.ExtensionInput
+	}{Extension: &extensionInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	// Move this to model namespace!
+	type ExtConfig struct {
+		Key           string `json:"key"`
+		Value         string `json:"value"`
+		Secret        bool   `json:"secret"`
+		AllowOverride bool   `json:"allowOverride"`
+	}
+
+	// Project Extension
+	extConfigMap := make([]ExtConfig, 0)
+	extConfigJSON, err := json.Marshal(extConfigMap)
+	assert.Nil(suite.T(), err)
+
+	extCustomConfigMap := make(map[string]ExtConfig)
+	extCustomConfigJSON, err := json.Marshal(extCustomConfigMap)
+	assert.Nil(suite.T(), err)
+
+	log.Warn("Creating project extension")
+	extensionID := string(extensionResolver.ID())
+	projExtensionInput := model.ProjectExtensionInput{
+		ProjectID:     projectID,
+		ExtensionID:   extensionID,
+		Config:        model.JSON{extConfigJSON},
+		CustomConfig:  model.JSON{extCustomConfigJSON},
+		EnvironmentID: envId,
+	}
+	_, err = suite.Resolver.CreateProjectExtension(test.ResolverAuthContext(), &struct {
+		ProjectExtension *model.ProjectExtensionInput
+	}{ProjectExtension: &projExtensionInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	log.Warn("Beginning test of interface")
+	// Test
 	_ = createProjectResolver.ID()
 	_ = createProjectResolver.Name()
 	_ = createProjectResolver.Repository()
 	_ = createProjectResolver.Secret()
-	_ = createProjectResolver.GitUrl()
-	_ = createProjectResolver.GitProtocol()
+
+	gitUrl := createProjectResolver.GitUrl()
+	assert.Equal(suite.T(), projectInput.GitUrl, gitUrl)
+
+	gitProtocol := createProjectResolver.GitProtocol()
+	assert.Equal(suite.T(), projectInput.GitProtocol, gitProtocol)
+
 	_ = createProjectResolver.RsaPrivateKey()
 	_ = createProjectResolver.RsaPublicKey()
 
@@ -132,7 +194,8 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 
 	_ = createProjectResolver.GitBranch()
 	_ = createProjectResolver.ContinuousDeploy()
-	_ = createProjectResolver.Environments()
+	projectEnvironments := createProjectResolver.Environments()
+	assert.NotEmpty(suite.T(), projectEnvironments)
 
 	_ = createProjectResolver.Bookmarked(ctx)
 	_ = createProjectResolver.Bookmarked(test.ResolverAuthContext())
@@ -382,6 +445,22 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {
+	for _, id := range suite.cleanupExtensionIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Extension{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	suite.cleanupExtensionIDs = make([]uuid.UUID, 0)
+
+	for _, id := range suite.cleanupProjectExtensionIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.ProjectExtension{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	suite.cleanupProjectExtensionIDs = make([]uuid.UUID, 0)
+
 	for _, id := range suite.cleanupProjectBookmarkIDs {
 		err := suite.Resolver.DB.Unscoped().Delete(&model.ProjectBookmark{Model: model.Model{ID: id}}).Error
 		if err != nil {
