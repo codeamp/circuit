@@ -23,6 +23,7 @@ type ProjectTestSuite struct {
 
 	cleanupEnvironmentIDs     []uuid.UUID
 	cleanupProjectIDs         []uuid.UUID
+	cleanupSecretIDs          []uuid.UUID
 	cleanupProjectBookmarkIDs []uuid.UUID
 }
 
@@ -34,6 +35,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 		&model.UserPermission{},
 		&model.ProjectSettings{},
 		&model.Environment{},
+		&model.Secret{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
@@ -42,6 +44,106 @@ func (suite *ProjectTestSuite) SetupTest() {
 	}
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
+}
+
+func (suite *ProjectTestSuite) TestProjectInterface() {
+	// Environment
+	envInput := model.EnvironmentInput{
+		Name:      "TestProjectInterface",
+		Key:       "foo",
+		IsDefault: true,
+		Color:     "color",
+	}
+
+	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
+		Environment *model.EnvironmentInput
+	}{Environment: &envInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
+
+	// Project
+	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
+	projectInput := model.ProjectInput{
+		GitProtocol:   "HTTPS",
+		GitUrl:        "https://github.com/foo/goo.git",
+		EnvironmentID: &envId,
+	}
+
+	createProjectResolver, err := suite.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
+		Project *model.ProjectInput
+	}{Project: &projectInput})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	// TODO: ADB This should be happening in the CreateProject function!
+	// If an ID for an Environment is supplied, Project should try to look that up and return resolver
+	// that includes project AND environment
+	createProjectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.Model.ID)
+
+	// Secret
+	projectID := string(createProjectResolver.ID())
+	secretInput := model.SecretInput{
+		Key:           "TestProjectInterface",
+		Type:          "env",
+		Scope:         "extension",
+		EnvironmentID: string(envResolver.ID()),
+		ProjectID:     &projectID,
+		IsSecret:      false,
+	}
+
+	secretResolver, err := suite.Resolver.CreateSecret(test.ResolverAuthContext(), &struct {
+		Secret *model.SecretInput
+	}{Secret: &secretInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	suite.cleanupSecretIDs = append(suite.cleanupSecretIDs, secretResolver.DBSecretResolver.Secret.Model.ID)
+
+	_ = createProjectResolver.ID()
+	_ = createProjectResolver.Name()
+	_ = createProjectResolver.Repository()
+	_ = createProjectResolver.Secret()
+	_ = createProjectResolver.GitUrl()
+	_ = createProjectResolver.GitProtocol()
+	_ = createProjectResolver.RsaPrivateKey()
+	_ = createProjectResolver.RsaPublicKey()
+
+	showDeployed := false
+	_ = createProjectResolver.Features(&struct{ ShowDeployed *bool }{ShowDeployed: &showDeployed})
+	_, _ = createProjectResolver.CurrentRelease()
+	_ = createProjectResolver.Releases()
+	_ = createProjectResolver.Services()
+
+	var ctx context.Context
+	_, err = createProjectResolver.Secrets(ctx)
+	assert.NotNil(suite.T(), err)
+
+	secretsList, err := createProjectResolver.Secrets(test.ResolverAuthContext())
+	assert.Nil(suite.T(), err)
+	assert.NotEmpty(suite.T(), secretsList)
+
+	_, err = createProjectResolver.Extensions()
+	assert.Nil(suite.T(), err)
+
+	_ = createProjectResolver.GitBranch()
+	_ = createProjectResolver.ContinuousDeploy()
+	_ = createProjectResolver.Environments()
+
+	_ = createProjectResolver.Bookmarked(ctx)
+	_ = createProjectResolver.Bookmarked(test.ResolverAuthContext())
+
+	_ = createProjectResolver.Created()
+
+	data, err := createProjectResolver.MarshalJSON()
+	assert.Nil(suite.T(), err)
+
+	err = createProjectResolver.UnmarshalJSON(data)
+	assert.Nil(suite.T(), err)
 }
 
 func (suite *ProjectTestSuite) TestCreateProject() {
@@ -69,46 +171,6 @@ func (suite *ProjectTestSuite) TestCreateProject() {
 	}
 
 	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.Model.ID)
-
-	_ = createProjectResolver.ID()
-	_ = createProjectResolver.Name()
-	_ = createProjectResolver.Repository()
-	_ = createProjectResolver.Secret()
-	_ = createProjectResolver.GitUrl()
-	_ = createProjectResolver.GitProtocol()
-	_ = createProjectResolver.RsaPrivateKey()
-	_ = createProjectResolver.RsaPublicKey()
-
-	showDeployed := false
-	_ = createProjectResolver.Features(&struct{ ShowDeployed *bool }{ShowDeployed: &showDeployed})
-	_, _ = createProjectResolver.CurrentRelease()
-	_ = createProjectResolver.Releases()
-	_ = createProjectResolver.Services()
-
-	var ctx context.Context
-	_, err = createProjectResolver.Secrets(ctx)
-	assert.NotNil(suite.T(), err)
-
-	_, err = createProjectResolver.Secrets(test.ResolverAuthContext())
-	assert.Nil(suite.T(), err)
-
-	_, err = createProjectResolver.Extensions()
-	assert.Nil(suite.T(), err)
-
-	_ = createProjectResolver.GitBranch()
-	_ = createProjectResolver.ContinuousDeploy()
-	_ = createProjectResolver.Environments()
-
-	_ = createProjectResolver.Bookmarked(ctx)
-	_ = createProjectResolver.Bookmarked(test.ResolverAuthContext())
-
-	_ = createProjectResolver.Created()
-
-	data, err := createProjectResolver.MarshalJSON()
-	assert.Nil(suite.T(), err)
-
-	err = createProjectResolver.UnmarshalJSON(data)
-	assert.Nil(suite.T(), err)
 
 	// assert permissions exist for dev env
 	//assert.Equal(suite.T(), createProjectResolver.Permissions(), []string{env.Model.ID.String()})
@@ -343,6 +405,14 @@ func (suite *ProjectTestSuite) TearDownTest() {
 		}
 	}
 	suite.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
+
+	for _, id := range suite.cleanupSecretIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Secret{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}
+	suite.cleanupSecretIDs = make([]uuid.UUID, 0)
 }
 
 func TestProjectTestSuite(t *testing.T) {
