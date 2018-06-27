@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
+	graphql "github.com/graph-gophers/graphql-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -43,10 +44,9 @@ func (suite *ProjectTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 }
 
-/*
 func (suite *ProjectTestSuite) TestCreateProject() {
 	// setup
-	env := graphql_resolver.Environment{
+	env := model.Environment{
 		Name:      "dev",
 		Color:     "purple",
 		Key:       "dev",
@@ -54,29 +54,137 @@ func (suite *ProjectTestSuite) TestCreateProject() {
 	}
 	suite.Resolver.DB.Create(&env)
 
-	projectInput := graphql_resolver.ProjectInput{
+	envId := fmt.Sprintf("%v", env.Model.ID)
+	projectInput := model.ProjectInput{
 		GitProtocol:   "HTTPS",
 		GitUrl:        "https://github.com/foo/goo.git",
-		EnvironmentID: env.Model.ID.String(),
+		EnvironmentID: &envId,
 	}
-	authContext := context.WithValue(context.Background(), "jwt", graphql_resolver.Claims{
-		UserID:      "foo",
-		Email:       "foo@gmail.com",
-		Permissions: []string{"admin"},
-	})
 
-	createProjectResolver, err := suite.Resolver.CreateProject(authContext, &struct {
-		Project *graphql_resolver.ProjectInput
+	createProjectResolver, err := suite.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
+		Project *model.ProjectInput
 	}{Project: &projectInput})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
+	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.Model.ID)
+
+	_ = createProjectResolver.ID()
+	_ = createProjectResolver.Name()
+	_ = createProjectResolver.Repository()
+	_ = createProjectResolver.Secret()
+	_ = createProjectResolver.GitUrl()
+	_ = createProjectResolver.GitProtocol()
+	_ = createProjectResolver.RsaPrivateKey()
+	_ = createProjectResolver.RsaPublicKey()
+
+	showDeployed := false
+	_ = createProjectResolver.Features(&struct{ ShowDeployed *bool }{ShowDeployed: &showDeployed})
+	_, _ = createProjectResolver.CurrentRelease()
+	_ = createProjectResolver.Releases()
+	_ = createProjectResolver.Services()
+
+	var ctx context.Context
+	_, err = createProjectResolver.Secrets(ctx)
+	assert.NotNil(suite.T(), err)
+
+	_, err = createProjectResolver.Secrets(test.ResolverAuthContext())
+	assert.Nil(suite.T(), err)
+
+	_, err = createProjectResolver.Extensions()
+	assert.Nil(suite.T(), err)
+
+	_ = createProjectResolver.GitBranch()
+	_ = createProjectResolver.ContinuousDeploy()
+	_ = createProjectResolver.Environments()
+
+	_ = createProjectResolver.Bookmarked(ctx)
+	_ = createProjectResolver.Bookmarked(test.ResolverAuthContext())
+
+	_ = createProjectResolver.Created()
+
+	data, err := createProjectResolver.MarshalJSON()
+	assert.Nil(suite.T(), err)
+
+	err = createProjectResolver.UnmarshalJSON(data)
+	assert.Nil(suite.T(), err)
+
 	// assert permissions exist for dev env
-	assert.Equal(suite.T(), createProjectResolver.Permissions(), []string{env.Model.ID.String()})
-	suite.TearDownTest([]string{string(createProjectResolver.ID())})
+	//assert.Equal(suite.T(), createProjectResolver.Permissions(), []string{env.Model.ID.String()})
 }
-*/
+
+func (suite *ProjectTestSuite) TestQueryProject() {
+	// setup
+	env := model.Environment{
+		Name:      "TestQueryProject",
+		Color:     "purple",
+		Key:       "dev",
+		IsDefault: true,
+	}
+	suite.Resolver.DB.Create(&env)
+
+	envId := fmt.Sprintf("%v", env.Model.ID)
+	projectInput := model.ProjectInput{
+		GitProtocol:   "HTTPS",
+		GitUrl:        "https://github.com/foo/goo.git",
+		EnvironmentID: &envId,
+	}
+
+	createProjectResolver, err := suite.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
+		Project *model.ProjectInput
+	}{Project: &projectInput})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.Model.ID)
+
+	var ctx context.Context
+	_, err = suite.Resolver.Projects(ctx, &struct {
+		ProjectSearch *model.ProjectSearchInput
+	}{
+		ProjectSearch: nil,
+	})
+	assert.NotNil(suite.T(), err)
+
+	// do a search for 'foo'
+	searchQuery := "foo"
+	projects, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
+		ProjectSearch *model.ProjectSearchInput
+	}{
+		ProjectSearch: &model.ProjectSearchInput{
+			Bookmarked: false,
+			Repository: &searchQuery,
+		},
+	})
+	assert.Nil(suite.T(), err)
+	assert.NotEmpty(suite.T(), projects)
+
+	projectId := createProjectResolver.ID()
+	_, err = suite.Resolver.Project(ctx, &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		ID:            &projectId,
+		EnvironmentID: &envId,
+	})
+	assert.NotNil(suite.T(), err)
+
+	_, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		ID:            &projectId,
+		EnvironmentID: &envId,
+	})
+	assert.Nil(suite.T(), err)
+
+}
 
 /* Test successful project permissions update */
 func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
