@@ -49,7 +49,7 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 // Use for testing graphql resolvers
 func ResolverAuthContext() context.Context {
 	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
-		UserID:      "foo",
+		UserID:      "11075553-5309-494B-9085-2D79A6ED1EB3",
 		Email:       "foo@gmail.com",
 		Permissions: []string{"admin"},
 	})
