@@ -23,8 +23,7 @@ func GetSecretScope(s string) model.SecretScope {
 		}
 	}
 
-	log.Info(fmt.Sprintf("SecretScope not found: %s", s))
-
+	log.Warn(fmt.Sprintf("SecretScope not found: %s", s))
 	return model.SecretScope("unknown")
 }
 
