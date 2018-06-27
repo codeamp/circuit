@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"testing"
 
@@ -29,6 +31,9 @@ type ProjectTestSuite struct {
 	cleanupSecretIDs           []uuid.UUID
 	cleanupProjectBookmarkIDs  []uuid.UUID
 	cleanupProjectExtensionIDs []uuid.UUID
+	cleanupFeatureIDs          []uuid.UUID
+	cleanupServiceIDs          []uuid.UUID
+	cleanupServiceSpecIDs      []uuid.UUID
 }
 
 func (suite *ProjectTestSuite) SetupTest() {
@@ -143,7 +148,6 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	extCustomConfigJSON, err := json.Marshal(extCustomConfigMap)
 	assert.Nil(suite.T(), err)
 
-	log.Warn("Creating project extension")
 	extensionID := string(extensionResolver.ID())
 	projExtensionInput := model.ProjectExtensionInput{
 		ProjectID:     projectID,
@@ -152,14 +156,86 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		CustomConfig:  model.JSON{extCustomConfigJSON},
 		EnvironmentID: envId,
 	}
-	_, err = suite.Resolver.CreateProjectExtension(test.ResolverAuthContext(), &struct {
+	projectExtensionResolver, err := suite.Resolver.CreateProjectExtension(test.ResolverAuthContext(), &struct {
 		ProjectExtension *model.ProjectExtensionInput
 	}{ProjectExtension: &projExtensionInput})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
+	suite.cleanupProjectExtensionIDs = append(suite.cleanupProjectExtensionIDs, projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.Model.ID)
 
-	log.Warn("Beginning test of interface")
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	suite.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Features
+	projectIDUUID, err := uuid.FromString(strings.ToUpper(projectID))
+	assert.Nil(suite.T(), err)
+
+	feature := model.Feature{
+		ProjectID:  projectIDUUID,
+		Message:    "A test feature message",
+		User:       "TestProjectInterface",
+		Hash:       "42941a0900e952f7f78994d53b699aea23926804",
+		ParentHash: "",
+		Ref:        "refs/heads/master",
+		Created:    time.Now(),
+	}
+
+	db := suite.Resolver.DB.Create(&feature)
+	if db.Error != nil {
+		assert.FailNow(suite.T(), db.Error.Error())
+	}
+	suite.cleanupFeatureIDs = append(suite.cleanupFeatureIDs, feature.Model.ID)
+
+	// Releases
+	featureID := feature.Model.ID.String()
+	releaseInput := model.ReleaseInput{
+		HeadFeatureID: featureID,
+		ProjectID:     projectID,
+		EnvironmentID: envId,
+		ForceRebuild:  false,
+	}
+	_, err = suite.Resolver.CreateRelease(test.ResolverAuthContext(), &struct{ Release *model.ReleaseInput }{Release: &releaseInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecInput := model.ServiceSpecInput{
+		Name:                   "test",
+		CpuRequest:             "500",
+		CpuLimit:               "500",
+		MemoryRequest:          "500",
+		MemoryLimit:            "500",
+		TerminationGracePeriod: "300",
+	}
+	serviceSpecResolver, err := suite.Resolver.CreateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	suite.cleanupServiceSpecIDs = append(suite.cleanupServiceSpecIDs, serviceSpecResolver.DBServiceSpecResolver.ServiceSpec.Model.ID)
+
+	// Services
+	servicePortInputs := []model.ServicePortInput{}
+	serviceInput := model.ServiceInput{
+		ProjectID:     projectID,
+		Command:       "echo \"hello\" && exit 0",
+		Name:          "test-service",
+		ServiceSpecID: string(serviceSpecResolver.ID()),
+		Count:         "0",
+		Ports:         &servicePortInputs,
+		Type:          "general",
+		EnvironmentID: envId,
+	}
+
+	serviceResolver, err := suite.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	suite.cleanupServiceIDs = append(suite.cleanupServiceIDs, serviceResolver.DBServiceResolver.Service.Model.ID)
+
 	// Test
 	_ = createProjectResolver.ID()
 	_ = createProjectResolver.Name()
@@ -176,10 +252,15 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = createProjectResolver.RsaPublicKey()
 
 	showDeployed := false
-	_ = createProjectResolver.Features(&struct{ ShowDeployed *bool }{ShowDeployed: &showDeployed})
+	featuresList := createProjectResolver.Features(&struct{ ShowDeployed *bool }{ShowDeployed: &showDeployed})
+	assert.NotEmpty(suite.T(), featuresList, "Features List Empty")
+
 	_, _ = createProjectResolver.CurrentRelease()
-	_ = createProjectResolver.Releases()
-	_ = createProjectResolver.Services()
+	releasesList := createProjectResolver.Releases()
+	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
+
+	servicesList := createProjectResolver.Services()
+	assert.NotEmpty(suite.T(), servicesList, "Services List Empty")
 
 	var ctx context.Context
 	_, err = createProjectResolver.Secrets(ctx)
@@ -187,15 +268,16 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 
 	secretsList, err := createProjectResolver.Secrets(test.ResolverAuthContext())
 	assert.Nil(suite.T(), err)
-	assert.NotEmpty(suite.T(), secretsList)
+	assert.NotEmpty(suite.T(), secretsList, "Secrets List Empty")
 
-	_, err = createProjectResolver.Extensions()
+	extensionsList, err := createProjectResolver.Extensions()
 	assert.Nil(suite.T(), err)
+	assert.NotEmpty(suite.T(), extensionsList, "Extensions List Empty")
 
 	_ = createProjectResolver.GitBranch()
 	_ = createProjectResolver.ContinuousDeploy()
 	projectEnvironments := createProjectResolver.Environments()
-	assert.NotEmpty(suite.T(), projectEnvironments)
+	assert.NotEmpty(suite.T(), projectEnvironments, "Project Environments Empty")
 
 	_ = createProjectResolver.Bookmarked(ctx)
 	_ = createProjectResolver.Bookmarked(test.ResolverAuthContext())
@@ -445,6 +527,30 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {
+	for _, id := range suite.cleanupFeatureIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Feature{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	suite.cleanupFeatureIDs = make([]uuid.UUID, 0)
+
+	for _, id := range suite.cleanupServiceIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Service{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	suite.cleanupServiceIDs = make([]uuid.UUID, 0)
+
+	for _, id := range suite.cleanupServiceSpecIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.ServiceSpec{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	suite.cleanupServiceSpecIDs = make([]uuid.UUID, 0)
+
 	for _, id := range suite.cleanupExtensionIDs {
 		err := suite.Resolver.DB.Unscoped().Delete(&model.Extension{Model: model.Model{ID: id}}).Error
 		if err != nil {
