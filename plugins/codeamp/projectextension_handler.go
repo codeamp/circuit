@@ -12,16 +12,16 @@ import (
 )
 
 func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
-	payload := e.Payload.(plugins.ProjectExtension)
+	receivedPayload := e.Payload.(plugins.ProjectExtension)
 	var extension model.ProjectExtension
 	var project model.Project
 
 	if e.Matches("project:.*:status") {
-		if x.DB.Where("id = ?", payload.ID).Find(&extension).RecordNotFound() {
+		if x.DB.Where("id = ?", receivedPayload.ID).Find(&extension).RecordNotFound() {
 			log.ErrorWithFields("extension not found", log.Fields{
-				"id": payload.ID,
+				"id": receivedPayload.ID,
 			})
-			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because ProjectExtension not found given payload id: %s.", payload.ID))
+			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because ProjectExtension not found given payload id: %s.", receivedPayload.ID))
 		}
 
 		if x.DB.Where("id = ?", extension.ProjectID).Find(&project).RecordNotFound() {
@@ -46,8 +46,11 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 
 		x.DB.Save(&extension)
 
-		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), extension)
-		event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/extensions", project.Slug, payload.Environment), false)
+		sendPayload := plugins.WebsocketMsg{
+			Event: fmt.Sprintf("projects/%s/%s/extensions", project.Slug, receivedPayload.Environment),
+		}
+		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), sendPayload)
+		event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/extensions", project.Slug, receivedPayload.Environment), false)
 		x.Events <- event
 	}
 
