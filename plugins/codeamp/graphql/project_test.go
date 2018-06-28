@@ -193,6 +193,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	environment, err := projectExtensionResolver.Environment()
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), environment)
+	assert.Equal(suite.T(), envId, string(environment.ID()))
 
 	created_at_diff := time.Now().Sub(projectExtensionResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
