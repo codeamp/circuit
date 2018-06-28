@@ -250,6 +250,14 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
+	// Test Releases Query Interface
+	_, err = suite.Resolver.Releases(ctx)
+	assert.NotNil(suite.T(), err)
+
+	releasesList, err := suite.Resolver.Releases(test.ResolverAuthContext())
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), releasesList)
+
 	// Service Spec ID
 	serviceSpecInput := model.ServiceSpecInput{
 		Name:                   "test",
@@ -304,7 +312,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	assert.NotEmpty(suite.T(), featuresList, "Features List Empty")
 
 	_, _ = createProjectResolver.CurrentRelease()
-	releasesList := createProjectResolver.Releases()
+	releasesList = createProjectResolver.Releases()
 	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
 
 	servicesList := createProjectResolver.Services()
