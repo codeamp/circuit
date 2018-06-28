@@ -8,7 +8,6 @@ import (
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -149,38 +148,48 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		Email:       "codeamp",
 		Permissions: []string{"admin"},
 	})
-	projects, err := suite.Resolver.Projects(adminContext, &struct {
-		ProjectSearch *resolvers.ProjectSearchInput
-		Params        *resolvers.PaginatorInput
+	projectList, err := suite.Resolver.Projects(adminContext, &struct {
+		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
-		ProjectSearch: &resolvers.ProjectSearchInput{
+		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: true,
 		},
-		Params: &resolvers.PaginatorInput{},
+		Params: &model.PaginatorInput{},
 	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	assert.Equal(suite.T(), 3, len(projects.ProjectList))
+	entries, err := projectList.Entries()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), 3, len(entries))
 
 	// do a search for 'foo'
 	searchQuery := "foo"
-	projects, err = suite.Resolver.Projects(adminContext, &struct {
-		ProjectSearch *resolvers.ProjectSearchInput
-		Params        *resolvers.PaginatorInput
+	projectList, err = suite.Resolver.Projects(adminContext, &struct {
+		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
-		ProjectSearch: &resolvers.ProjectSearchInput{
+		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
-		Params: &resolvers.PaginatorInput{},
+		Params: &model.PaginatorInput{},
 	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	assert.Equal(suite.T(), 2, len(projects.ProjectList))
+	entries, err = projectList.Entries()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), 2, len(entries))
 
 	suite.TearDownTest(deleteIds)
 }

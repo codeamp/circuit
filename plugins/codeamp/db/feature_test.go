@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	resolvers "github.com/codeamp/circuit/plugins/codeamp/resolvers"
+	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	model "github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/spf13/viper"
@@ -17,7 +18,7 @@ import (
 
 type FeatureTestSuite struct {
 	suite.Suite
-	Resolver *resolvers.Resolver
+	Resolver *graphql_resolver.Resolver
 }
 
 func (suite *FeatureTestSuite) SetupTest() {
@@ -39,16 +40,16 @@ func (suite *FeatureTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 	db.AutoMigrate(
-		&resolvers.Project{},
-		&resolvers.Feature{},
+		&model.Project{},
+		&model.Feature{},
 	)
-	suite.Resolver = &resolvers.Resolver{DB: db}
+	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 }
 
 /* Test successful project permissions update */
 func (suite *FeatureTestSuite) TestCreateFeature() {
 	// setup
-	project := resolvers.Project{
+	project := model.Project{
 		Name:          "foo",
 		Slug:          "foo",
 		Repository:    "foo/foo",
@@ -60,7 +61,7 @@ func (suite *FeatureTestSuite) TestCreateFeature() {
 	}
 	suite.Resolver.DB.Create(&project)
 
-	feature := resolvers.Feature{
+	feature := model.Feature{
 		ProjectID:  project.Model.ID,
 		Message:    "messagefoo",
 		Hash:       "hashfoo",
@@ -71,27 +72,32 @@ func (suite *FeatureTestSuite) TestCreateFeature() {
 
 	suite.Resolver.DB.Create(&feature)
 
-	authContext := context.WithValue(context.Background(), "jwt", resolvers.Claims{
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
 		UserID:      "foo",
 		Email:       "foo@gmail.com",
 		Permissions: []string{"admin"},
 	})
 
 	featureList, err := suite.Resolver.Features(authContext, &struct {
-		Params *resolvers.PaginatorInput
+		Params *model.PaginatorInput
 	}{})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	assert.Equal(suite.T(), len(featureList.FeatureList), 1)
+	entries, err := featureList.Entries()
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	assert.Equal(suite.T(), len(entries), 1)
 
 	suite.TearDownTest()
 }
 
 func (suite *FeatureTestSuite) TearDownTest() {
-	suite.Resolver.DB.Delete(&resolvers.Project{})
-	suite.Resolver.DB.Delete(&resolvers.Feature{})
+	suite.Resolver.DB.Delete(&model.Project{})
+	suite.Resolver.DB.Delete(&model.Feature{})
 }
 
 func TestFeatureTestSuite(t *testing.T) {
