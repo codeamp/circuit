@@ -29,6 +29,7 @@ func (r *ReleaseResolverQuery) Releases(ctx context.Context, args *struct {
 		DBReleaseListResolver: &db_resolver.ReleaseListResolver{
 			Query:          query,
 			PaginatorInput: args.Params,
+			DB:             r.DB,
 		},
 	}, nil
 }

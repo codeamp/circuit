@@ -49,10 +49,10 @@ func (r ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
 	}
 
 	results := make([]*ReleaseResolver, len(releases))
-	for _, release := range releases {
-		results = append(results, &ReleaseResolver{
+	for idx, release := range releases {
+		results[idx] = &ReleaseResolver{
 			DBReleaseResolver: release,
-		})
+		}
 	}
 
 	return results, nil
