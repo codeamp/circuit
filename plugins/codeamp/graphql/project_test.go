@@ -534,6 +534,14 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {
+	for _, id := range suite.cleanupUserPermissionIDs {
+		err := suite.Resolver.DB.Unscoped().Delete(&model.Feature{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	suite.cleanupUserPermissionIDs = make([]uuid.UUID, 0)
+
 	for _, id := range suite.cleanupFeatureIDs {
 		err := suite.Resolver.DB.Unscoped().Delete(&model.Feature{Model: model.Model{ID: id}}).Error
 		if err != nil {

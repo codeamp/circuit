@@ -91,6 +91,6 @@ func (r *Resolver) ReleaseExtensions(ctx context.Context) ([]*ReleaseExtensionRe
 
 // Permissions
 func (r *Resolver) Permissions(ctx context.Context) (model.JSON, error) {
-	initializer := PermissionResolverQuery{DB: r.DB}
+	initializer := UserResolverQuery{DB: r.DB}
 	return initializer.Permissions(ctx)
 }

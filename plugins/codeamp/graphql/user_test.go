@@ -8,7 +8,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 
 	"github.com/codeamp/circuit/plugins/codeamp"
@@ -27,8 +26,9 @@ type UserTestSuite struct {
 	Resolver     *graphql_resolver.Resolver
 	UserResolver *graphql_resolver.UserResolver
 
-	cleanupUserIDs []uuid.UUID
-	createdUserID  uuid.UUID
+	cleanupUserIDs       []uuid.UUID
+	createdUserID        uuid.UUID
+	cleanupPermissionIDs []uuid.UUID
 }
 
 func (suite *UserTestSuite) SetupTest() {
@@ -169,16 +169,56 @@ func (ts *UserTestSuite) TestGQLResolver() {
 	assert.Nil(ts.T(), err)
 }
 
+func (ts *UserTestSuite) TestPermissionInterface() {
+	// Create User
+	user := model.User{
+		Email:    fmt.Sprintf("test%d@example.com", time.Now().Unix()),
+		Password: "TestPermissionInterface",
+	}
+
+	res := ts.Resolver.DB.Create(&user)
+	if res.Error != nil {
+		assert.FailNow(ts.T(), res.Error.Error())
+	}
+	ts.cleanupUserIDs = append(ts.cleanupUserIDs, user.Model.ID)
+
+	userPermission := model.UserPermission{
+		UserID: uuid.FromStringOrNil(user.Model.ID.String()),
+		Value:  "projects/foo/bar",
+	}
+	res = ts.Resolver.DB.Create(&userPermission)
+	if res.Error != nil {
+		assert.FailNow(ts.T(), res.Error.Error())
+	}
+
+	ts.cleanupPermissionIDs = append(ts.cleanupPermissionIDs, userPermission.Model.ID)
+
+	var ctx context.Context
+	_, err := ts.Resolver.Permissions(ctx)
+	assert.NotNil(ts.T(), err)
+
+	permissions, err := ts.Resolver.Permissions(test.ResolverAuthContext())
+	assert.Nil(ts.T(), err)
+	assert.NotNil(ts.T(), permissions)
+	assert.NotEmpty(ts.T(), permissions)
+}
+
 func TearDownTest(ts *UserTestSuite) {
-	log.Warn("user tear down test")
 	ts.UserResolver.DBUserResolver.DB.Unscoped().Delete(&model.User{Model: model.Model{ID: ts.createdUserID}})
 
 	for _, i := range ts.cleanupUserIDs {
 		ts.UserResolver.DBUserResolver.DB.Unscoped().Delete(&model.User{Model: model.Model{ID: i}})
 	}
+
+	for _, id := range ts.cleanupPermissionIDs {
+		err := ts.Resolver.DB.Unscoped().Delete(&model.Secret{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			assert.FailNow(ts.T(), err.Error())
+		}
+	}
+	ts.cleanupPermissionIDs = make([]uuid.UUID, 0)
 }
 
 func TestSuiteUserResolver(t *testing.T) {
-	ts := new(UserTestSuite)
-	suite.Run(t, ts)
+	suite.Run(t, new(UserTestSuite))
 }
