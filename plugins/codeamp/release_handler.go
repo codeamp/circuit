@@ -67,11 +67,13 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
 					if err != nil {
 						log.Error(err.Error())
+						return nil
 					}
 				} else {
 					artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
 					if err != nil {
 						log.Error(err.Error())
+						return nil
 					}
 				}
 
