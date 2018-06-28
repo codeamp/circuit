@@ -209,6 +209,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		log.WarnWithFields("no services found", log.Fields{
 			"project_id": nextQueuedRelease.ProjectID,
 		})
+		return nil
 	}
 
 	if x.DB.Where("id = ?", nextQueuedRelease.ProjectID).First(&project).RecordNotFound() {

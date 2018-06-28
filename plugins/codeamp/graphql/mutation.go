@@ -270,7 +270,6 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 				Environment: "",
 			}
 
-			log.Warn("sending release event 2")
 			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
 			event.State = transistor.GetState("failed")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
