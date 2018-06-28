@@ -662,7 +662,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	} else {
 		r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 
-		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: model.Release{}}}, nil
+		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 	}
 }
 
