@@ -40,7 +40,6 @@ func (suite *ExtensionTestSuite) SetupTest() {
 	}
 
 	_ = codeamp.CodeAmp{}
-	_ = &graphql_resolver.Resolver{DB: db, Events: nil, Redis: nil}
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.ExtensionResolver = &graphql_resolver.ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: db}}
