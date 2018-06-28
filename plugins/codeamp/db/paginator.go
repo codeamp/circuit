@@ -37,7 +37,7 @@ func (r *ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
 		return nil, fmt.Errorf("Query attribute cannot be empty")
 	}
 
-	if r.PaginatorInput != nil {
+	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
 			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
@@ -131,7 +131,7 @@ func (r *SecretListResolver) Entries() ([]*SecretResolver, error) {
 		return nil, fmt.Errorf("Query attribute cannot be empty")
 	}
 
-	if r.PaginatorInput != nil {
+	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
 			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
@@ -225,7 +225,7 @@ func (r *ServiceListResolver) Entries() ([]*ServiceResolver, error) {
 		return nil, fmt.Errorf("Query attribute cannot be empty")
 	}
 
-	if r.PaginatorInput != nil {
+	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
 			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
@@ -319,7 +319,7 @@ func (r *FeatureListResolver) Entries() ([]*FeatureResolver, error) {
 		return nil, fmt.Errorf("Query attribute cannot be empty")
 	}
 
-	if r.PaginatorInput != nil {
+	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
 			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
@@ -413,7 +413,7 @@ func (r *ProjectListResolver) Entries() ([]*ProjectResolver, error) {
 		return nil, fmt.Errorf("Query attribute cannot be empty")
 	}
 
-	if r.PaginatorInput != nil {
+	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
 			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
