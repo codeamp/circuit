@@ -220,6 +220,7 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 	releaseExtensionResolver := releaseExtensionResolvers[0]
 	_ = releaseExtensionResolver.ID()
 	_, err = releaseExtensionResolver.Release()
+	_, err = releaseExtensionResolver.Extension()
 
 	assert.Equal(ts.T(), releaseExtension.ServicesSignature, releaseExtensionResolver.ServicesSignature())
 	assert.Equal(ts.T(), releaseExtension.SecretsSignature, releaseExtensionResolver.SecretsSignature())
@@ -230,7 +231,7 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 	_ = releaseExtensionResolver.Artifacts()
 	_ = releaseExtensionResolver.Finished()
 
-	created_at_diff := time.Now().Sub(envResolver.Created().Time)
+	created_at_diff := time.Now().Sub(releaseExtensionResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
 		assert.FailNow(ts.T(), "Created at time is too old")
 	}
