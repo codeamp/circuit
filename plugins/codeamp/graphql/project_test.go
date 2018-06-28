@@ -133,6 +133,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
+	suite.cleanupExtensionIDs = append(suite.cleanupExtensionIDs, extensionResolver.DBExtensionResolver.Extension.Model.ID)
 
 	// Move this to model namespace!
 	type ExtConfig struct {
