@@ -1,6 +1,7 @@
 package graphql_resolver_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -151,12 +152,30 @@ func (ts *ServiceTestSuite) TestCreateService() {
 		assert.FailNow(ts.T(), "Created at time is too old")
 	}
 
+	var ctx context.Context
+	_, err = serviceResolver.Environment(ctx)
+	log.Error(err)
+	assert.NotNil(ts.T(), err)
+
+	serviceEnvironment, err := serviceResolver.Environment(test.ResolverAuthContext())
+	assert.Nil(ts.T(), err)
+	assert.Equal(ts.T(), envResolver.ID(), serviceEnvironment.ID())
+
 	data, err := serviceResolver.MarshalJSON()
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), data)
 
 	err = serviceResolver.UnmarshalJSON(data)
 	assert.Nil(ts.T(), err)
+
+	// Test Service Query
+	_, err = ts.Resolver.Services(ctx)
+	assert.NotNil(ts.T(), err)
+
+	serviceResolvers, err := ts.Resolver.Services(test.ResolverAuthContext())
+	assert.Nil(ts.T(), err)
+	assert.NotNil(ts.T(), serviceResolvers)
+	assert.NotEmpty(ts.T(), serviceResolvers, "Service Resolvers was empty")
 }
 
 func (ts *ServiceTestSuite) TearDownTest() {
