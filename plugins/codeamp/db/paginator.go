@@ -424,6 +424,13 @@ func (r *ProjectListResolver) Entries() ([]*ProjectResolver, error) {
 		r.Query.Order("created_at desc").Find(&rows)
 	}
 
+	for _, row := range rows {
+		results = append(results, &ProjectResolver{
+			Project: row,
+			DB:      r.DB,
+		})
+	}
+
 	return results, nil
 }
 
