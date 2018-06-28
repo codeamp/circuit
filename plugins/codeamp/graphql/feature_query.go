@@ -26,6 +26,7 @@ func (r *FeatureResolverQuery) Features(ctx context.Context, args *struct {
 	query = r.DB.Order("created_at desc")
 	return FeatureListResolver{
 		DBFeatureListResolver: &db_resolver.FeatureListResolver{
+			DB:             r.DB,
 			Query:          query,
 			PaginatorInput: args.Params,
 		},

@@ -27,6 +27,7 @@ func (r *ServiceResolverQuery) Services(ctx context.Context, args *struct {
 
 	return ServiceListResolver{
 		DBServiceListResolver: &db_resolver.ServiceListResolver{
+			DB:             r.DB,
 			Query:          query,
 			PaginatorInput: args.Params,
 		},

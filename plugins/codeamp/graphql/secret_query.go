@@ -27,6 +27,7 @@ func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
 
 	return SecretListResolver{
 		DBSecretListResolver: &db_resolver.SecretListResolver{
+			DB:             r.DB,
 			Query:          query,
 			PaginatorInput: args.Params,
 		},

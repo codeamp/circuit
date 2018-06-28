@@ -88,11 +88,10 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 		return ProjectListResolver{}, err
 	}
 
-	var rows []model.Project
 	var query *gorm.DB
 
-	if args.ProjectSearch.Repository != nil {
-		u.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository)).Find(&rows)
+	if args.ProjectSearch != nil && args.ProjectSearch.Repository != nil {
+		query = u.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository))
 	} else {
 		var projectBookmarks []model.ProjectBookmark
 
@@ -102,11 +101,12 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 		for _, bookmark := range projectBookmarks {
 			projectIds = append(projectIds, bookmark.ProjectID)
 		}
-		query = u.DB.Where("id in (?)", projectIds).Find(&rows)
+		query = u.DB.Where("id in (?)", projectIds)
 	}
 
 	return ProjectListResolver{
 		DBProjectListResolver: &db_resolver.ProjectListResolver{
+			DB:             u.DB,
 			Query:          query,
 			PaginatorInput: args.Params,
 		},

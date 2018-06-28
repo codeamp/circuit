@@ -22,6 +22,10 @@ type Model struct {
 	DeletedAt *time.Time `json:"deletedAt" sql:"index"`
 }
 
+type DBObject struct {
+	Model `json:",inline"`
+}
+
 // User
 type User struct {
 	Model `json:",inline"`

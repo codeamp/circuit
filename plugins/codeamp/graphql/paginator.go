@@ -15,7 +15,7 @@ func (r FeatureListResolver) Entries() ([]*FeatureResolver, error) {
 		return []*FeatureResolver{}, err
 	}
 
-	results := make([]*FeatureResolver, len(features))
+	results := []*FeatureResolver{}
 	for _, feature := range features {
 		results = append(results, &FeatureResolver{
 			DBFeatureResolver: feature,
@@ -48,11 +48,11 @@ func (r ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
 		return []*ReleaseResolver{}, err
 	}
 
-	results := make([]*ReleaseResolver, len(releases))
-	for idx, release := range releases {
-		results[idx] = &ReleaseResolver{
+	results := []*ReleaseResolver{}
+	for _, release := range releases {
+		results = append(results, &ReleaseResolver{
 			DBReleaseResolver: release,
-		}
+		})
 	}
 
 	return results, nil
@@ -76,15 +76,15 @@ type ServiceListResolver struct {
 }
 
 func (r ServiceListResolver) Entries() ([]*ServiceResolver, error) {
-	features, err := r.DBServiceListResolver.Entries()
+	services, err := r.DBServiceListResolver.Entries()
 	if err != nil {
 		return []*ServiceResolver{}, err
 	}
 
-	results := make([]*ServiceResolver, len(features))
-	for _, feature := range features {
+	results := []*ServiceResolver{}
+	for _, service := range services {
 		results = append(results, &ServiceResolver{
-			DBServiceResolver: feature,
+			DBServiceResolver: service,
 		})
 	}
 
@@ -109,15 +109,15 @@ type SecretListResolver struct {
 }
 
 func (r SecretListResolver) Entries() ([]*SecretResolver, error) {
-	features, err := r.DBSecretListResolver.Entries()
+	secrets, err := r.DBSecretListResolver.Entries()
 	if err != nil {
 		return []*SecretResolver{}, err
 	}
 
-	results := make([]*SecretResolver, len(features))
-	for _, feature := range features {
+	results := []*SecretResolver{}
+	for _, secret := range secrets {
 		results = append(results, &SecretResolver{
-			DBSecretResolver: feature,
+			DBSecretResolver: secret,
 		})
 	}
 
@@ -142,15 +142,15 @@ type ProjectListResolver struct {
 }
 
 func (r ProjectListResolver) Entries() ([]*ProjectResolver, error) {
-	features, err := r.DBProjectListResolver.Entries()
+	projects, err := r.DBProjectListResolver.Entries()
 	if err != nil {
 		return []*ProjectResolver{}, err
 	}
 
-	results := make([]*ProjectResolver, len(features))
-	for _, feature := range features {
+	results := []*ProjectResolver{}
+	for _, project := range projects {
 		results = append(results, &ProjectResolver{
-			DBProjectResolver: feature,
+			DBProjectResolver: project,
 		})
 	}
 
