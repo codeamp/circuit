@@ -115,6 +115,10 @@ func (ts *ExtensionTestSuite) TestExtensionInterface() {
 	extensionResolvers, err := ts.Resolver.Extensions(test.ResolverAuthContext(), &struct{ EnvironmentID *string }{&envId})
 	assert.Nil(ts.T(), err)
 	assert.NotEmpty(ts.T(), extensionResolvers)
+
+	extensionResolvers, err = ts.Resolver.Extensions(test.ResolverAuthContext(), &struct{ EnvironmentID *string }{})
+	assert.Nil(ts.T(), err)
+	assert.NotEmpty(ts.T(), extensionResolvers)
 }
 
 func (ts *ExtensionTestSuite) TearDownTest() {

@@ -288,6 +288,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	var servicesJsonb postgres.Jsonb
 	var projectExtensionsJsonb postgres.Jsonb
 
+	userID, err := auth.CheckAuth(ctx, []string{})
+	if err != nil {
+		return nil, err
+	}
+
 	// Check if project can create release in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create release in given environment")
@@ -460,11 +465,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
 	} else {
 		tailFeatureID = currentRelease.HeadFeatureID
-	}
-
-	userID, err := auth.CheckAuth(ctx, []string{})
-	if err != nil {
-		return &ReleaseResolver{}, err
 	}
 
 	// Create Release
@@ -659,7 +659,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	} else {
 		r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 
-		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: model.Release{}}}, nil
+		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 	}
 }
 
