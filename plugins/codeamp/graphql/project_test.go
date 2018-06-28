@@ -173,6 +173,49 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
 	suite.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
 
+	// Test ProjectExtension Interface while its here.
+	// ADB This should probably be moved out into a separate test.
+	// Leaving this here now until all this is organized a bit better
+	// Project Extension Interface
+	_ = projectExtensionResolver.ID()
+
+	assert.Equal(suite.T(), projectID, projectExtensionResolver.Project().DBProjectResolver.Project.Model.ID.String())
+	assert.Equal(suite.T(), extensionID, projectExtensionResolver.Extension().DBExtensionResolver.Extension.Model.ID.String())
+
+	_ = projectExtensionResolver.Artifacts()
+
+	assert.Equal(suite.T(), projExtensionInput.Config, projectExtensionResolver.Config())
+	assert.Equal(suite.T(), projExtensionInput.CustomConfig, projectExtensionResolver.CustomConfig())
+
+	_ = projectExtensionResolver.State()
+	_ = projectExtensionResolver.StateMessage()
+
+	environment, err := projectExtensionResolver.Environment()
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), environment)
+
+	created_at_diff := time.Now().Sub(projectExtensionResolver.Created().Time)
+	if created_at_diff.Minutes() > 1 {
+		assert.FailNow(suite.T(), "Created at time is too old")
+	}
+
+	data, err := projectExtensionResolver.MarshalJSON()
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), data)
+
+	err = projectExtensionResolver.UnmarshalJSON(data)
+	assert.Nil(suite.T(), err)
+
+	// Test ProjectExtension Query Interface
+	var ctx context.Context
+	_, err = suite.Resolver.ProjectExtensions(ctx)
+	assert.NotNil(suite.T(), err)
+
+	projectExtensionResolvers, err := suite.Resolver.ProjectExtensions(test.ResolverAuthContext())
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), projectExtensionResolvers)
+	assert.NotEmpty(suite.T(), projectExtensionResolvers)
+
 	// Features
 	projectIDUUID, err := uuid.FromString(strings.ToUpper(projectID))
 	assert.Nil(suite.T(), err)
@@ -266,7 +309,6 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	servicesList := createProjectResolver.Services()
 	assert.NotEmpty(suite.T(), servicesList, "Services List Empty")
 
-	var ctx context.Context
 	_, err = createProjectResolver.Secrets(ctx)
 	assert.NotNil(suite.T(), err)
 
@@ -286,12 +328,12 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = createProjectResolver.Bookmarked(ctx)
 	_ = createProjectResolver.Bookmarked(test.ResolverAuthContext())
 
-	created_at_diff := time.Now().Sub(createProjectResolver.Created().Time)
+	created_at_diff = time.Now().Sub(createProjectResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
 		assert.FailNow(suite.T(), "Created at time is too old")
 	}
 
-	data, err := createProjectResolver.MarshalJSON()
+	data, err = createProjectResolver.MarshalJSON()
 	assert.Nil(suite.T(), err)
 
 	err = createProjectResolver.UnmarshalJSON(data)
