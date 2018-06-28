@@ -46,6 +46,8 @@ func (suite *ProjectTestSuite) SetupTest() {
 		&model.UserPermission{},
 		&model.Environment{},
 		&model.Extension{},
+		&model.Service{},
+		&model.ServiceSpec{},
 		&model.Secret{},
 		&model.Feature{},
 	}
@@ -283,7 +285,10 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = createProjectResolver.Bookmarked(ctx)
 	_ = createProjectResolver.Bookmarked(test.ResolverAuthContext())
 
-	_ = createProjectResolver.Created()
+	created_at_diff := time.Now().Sub(createProjectResolver.Created().Time)
+	if created_at_diff.Minutes() > 1 {
+		assert.FailNow(suite.T(), "Created at time is too old")
+	}
 
 	data, err := createProjectResolver.MarshalJSON()
 	assert.Nil(suite.T(), err)
