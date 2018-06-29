@@ -1470,20 +1470,13 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	var artifacts []transistor.Artifact
 	var err error
 
-	type ExtConfig struct {
-		Key           string `json:"key"`
-		Value         string `json:"value"`
-		Secret        bool   `json:"secret"`
-		AllowOverride bool   `json:"allowOverride"`
-	}
-
-	extensionConfig := []ExtConfig{}
+	extensionConfig := []model.ExtConfig{}
 	err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
 	if err != nil {
 		log.Error(err.Error())
 	}
 
-	projectConfig := []ExtConfig{}
+	projectConfig := []model.ExtConfig{}
 	if projectExtension.Config.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 		if err != nil {
