@@ -18,6 +18,7 @@ import (
 
 type Helper struct {
 	Resolver *graphql_resolver.Resolver
+	name     string
 
 	cleanupExtensionIDs        []uuid.UUID
 	cleanupEnvironmentIDs      []uuid.UUID
@@ -28,16 +29,18 @@ type Helper struct {
 	cleanupFeatureIDs          []uuid.UUID
 	cleanupServiceIDs          []uuid.UUID
 	cleanupServiceSpecIDs      []uuid.UUID
+	cleanupReleaseIDs          []uuid.UUID
 }
 
-func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver) {
+func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver, name string) {
 	helper.Resolver = resolver
+	helper.name = name
 }
 
 func (helper *Helper) CreateEnvironment(t *testing.T) *graphql_resolver.EnvironmentResolver {
 	// Environment
 	envInput := model.EnvironmentInput{
-		Name:      "TestProjectInterface",
+		Name:      helper.name,
 		Key:       "foo",
 		IsDefault: true,
 		Color:     "color",
@@ -49,8 +52,8 @@ func (helper *Helper) CreateEnvironment(t *testing.T) *graphql_resolver.Environm
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
-	helper.cleanupEnvironmentIDs = append(helper.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
 
+	helper.cleanupEnvironmentIDs = append(helper.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
 	return envResolver
 }
 
@@ -77,8 +80,8 @@ func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_r
 	// If an ID for an Environment is supplied, Project should try to look that up and return resolver
 	// that includes project AND environment
 	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
-	helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
 
+	helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
 	return projectResolver
 }
 
@@ -90,7 +93,7 @@ func (helper *Helper) CreateSecret(t *testing.T,
 	// Secret
 	projectID := string(projectResolver.ID())
 	secretInput := model.SecretInput{
-		Key:           "TestProjectInterface",
+		Key:           helper.name,
 		Type:          "env",
 		Scope:         "extension",
 		EnvironmentID: envID,
@@ -113,7 +116,7 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
 	// Extension
 	extensionInput := model.ExtensionInput{
-		Name:          "TestProjectInterface",
+		Name:          helper.name,
 		Key:           "test-project-interface",
 		Component:     "",
 		EnvironmentID: envId,
@@ -126,6 +129,7 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
+
 	helper.cleanupExtensionIDs = append(helper.cleanupExtensionIDs, extensionResolver.DBExtensionResolver.Extension.Model.ID)
 	return extensionResolver
 }
@@ -160,8 +164,8 @@ func (helper *Helper) CreateProjectExtension(t *testing.T,
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
-	helper.cleanupProjectExtensionIDs = append(helper.cleanupProjectExtensionIDs, projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.Model.ID)
 
+	helper.cleanupProjectExtensionIDs = append(helper.cleanupProjectExtensionIDs, projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.Model.ID)
 	return projectExtensionResolver
 }
 
@@ -175,7 +179,7 @@ func (helper *Helper) CreateFeature(t *testing.T, projectResolver *graphql_resol
 	feature := model.Feature{
 		ProjectID:  projectIDUUID,
 		Message:    "A test feature message",
-		User:       "TestProjectInterface",
+		User:       helper.name,
 		Hash:       "42941a0900e952f7f78994d53b699aea23926804",
 		ParentHash: "",
 		Ref:        "refs/heads/master",
@@ -186,8 +190,34 @@ func (helper *Helper) CreateFeature(t *testing.T, projectResolver *graphql_resol
 	if db.Error != nil {
 		assert.FailNow(t, db.Error.Error())
 	}
-	helper.cleanupFeatureIDs = append(helper.cleanupFeatureIDs, feature.Model.ID)
 
+	helper.cleanupFeatureIDs = append(helper.cleanupFeatureIDs, feature.Model.ID)
+	return &graphql_resolver.FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: helper.Resolver.DB, Feature: feature}}
+}
+
+func (helper *Helper) CreateFeatureWithParent(t *testing.T, projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.FeatureResolver {
+	projectID := string(projectResolver.ID())
+
+	// Features
+	projectIDUUID, err := uuid.FromString(strings.ToUpper(projectID))
+	assert.Nil(t, err)
+
+	feature := model.Feature{
+		ProjectID:  projectIDUUID,
+		Message:    "A test feature message",
+		User:       helper.name,
+		Hash:       "42941a0900e952f7f78994d53b699aea23926804",
+		ParentHash: "7f78994d53b699aea239268950441a090952f0e9",
+		Ref:        "refs/heads/master",
+		Created:    time.Now(),
+	}
+
+	db := helper.Resolver.DB.Create(&feature)
+	if db.Error != nil {
+		assert.FailNow(t, db.Error.Error())
+	}
+
+	helper.cleanupFeatureIDs = append(helper.cleanupFeatureIDs, feature.Model.ID)
 	return &graphql_resolver.FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: helper.Resolver.DB, Feature: feature}}
 }
 
@@ -211,13 +241,14 @@ func (helper *Helper) CreateRelease(t *testing.T,
 		assert.FailNow(t, err.Error())
 	}
 
+	helper.cleanupReleaseIDs = append(helper.cleanupServiceSpecIDs, releaseResolver.DBReleaseResolver.Release.Model.ID)
 	return releaseResolver
 }
 
 func (helper *Helper) CreateServiceSpec(t *testing.T) *graphql_resolver.ServiceSpecResolver {
 	// Service Spec ID
 	serviceSpecInput := model.ServiceSpecInput{
-		Name:                   "test",
+		Name:                   helper.name,
 		CpuRequest:             "500",
 		CpuLimit:               "500",
 		MemoryRequest:          "500",
@@ -228,6 +259,7 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *graphql_resolver.ServiceS
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
+
 	helper.cleanupServiceSpecIDs = append(helper.cleanupServiceSpecIDs, serviceSpecResolver.DBServiceSpecResolver.ServiceSpec.Model.ID)
 	return serviceSpecResolver
 }
@@ -244,7 +276,7 @@ func (helper *Helper) CreateService(t *testing.T,
 	serviceInput := model.ServiceInput{
 		ProjectID:     projectID,
 		Command:       "echo \"hello\" && exit 0",
-		Name:          "test-service",
+		Name:          helper.name,
 		ServiceSpecID: string(serviceSpecResolver.ID()),
 		Count:         "0",
 		Ports:         &servicePortInputs,
@@ -256,6 +288,7 @@ func (helper *Helper) CreateService(t *testing.T,
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
+
 	helper.cleanupServiceIDs = append(helper.cleanupServiceIDs, serviceResolver.DBServiceResolver.Service.Model.ID)
 	return serviceResolver
 }
@@ -292,6 +325,14 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 		}
 	}
 	helper.cleanupExtensionIDs = make([]uuid.UUID, 0)
+
+	for _, id := range helper.cleanupReleaseIDs {
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Release{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	helper.cleanupReleaseIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupProjectExtensionIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.ProjectExtension{Model: model.Model{ID: id}}).Error

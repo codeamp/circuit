@@ -5,14 +5,11 @@ import (
 	"time"
 
 	log "github.com/codeamp/logger"
-	graphql "github.com/graph-gophers/graphql-go"
 
-	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -21,8 +18,7 @@ type EnvironmentTestSuite struct {
 	suite.Suite
 	Resolver *graphql_resolver.Resolver
 
-	cleanupEnvironmentIDs []uuid.UUID
-	cleanupProjectIDs     []uuid.UUID
+	helper Helper
 }
 
 func (suite *EnvironmentTestSuite) SetupTest() {
@@ -36,80 +32,32 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 	}
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
+	suite.helper.SetResolver(suite.Resolver, "TestEnvironment")
 }
 
 /* Test successful env. creation */
 func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
-	envInput := model.EnvironmentInput{
-		Name:      "test",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
-
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
-
-	assert.Equal(suite.T(), envResolver.Name(), "test")
-	assert.Equal(suite.T(), envResolver.Key(), "foo")
-	assert.Equal(suite.T(), envResolver.IsDefault(), true)
-	assert.Equal(suite.T(), envResolver.Color(), "color")
-	assert.NotEqual(suite.T(), envResolver.Color(), "wrongcolor")
-
-	js, err := envResolver.MarshalJSON()
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-
-	unmarshalledEnvResolver := &graphql_resolver.EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{Environment: model.Environment{}}}
-	err = unmarshalledEnvResolver.UnmarshalJSON(js)
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	// Environment
+	suite.helper.CreateEnvironment(suite.T())
 }
 
-func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
-	envInput := model.EnvironmentInput{
-		Name:      "test",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
+func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
+	// Environment
+	envResolver := suite.helper.CreateEnvironment(suite.T())
 
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
+	// Project
+	projectResolver := suite.helper.CreateProject(suite.T(), envResolver)
 
-	assert.Equal(suite.T(), envResolver.Name(), "test")
-	assert.Equal(suite.T(), envResolver.Key(), "foo")
-	assert.Equal(suite.T(), envResolver.IsDefault(), true)
-	assert.Equal(suite.T(), envResolver.Color(), "color")
-	assert.NotEqual(suite.T(), envResolver.Color(), "wrongcolor")
+	assert.Equal(suite.T(), "TestEnvironment", envResolver.Name())
+	assert.Equal(suite.T(), "foo", envResolver.Key())
+	assert.Equal(suite.T(), true, envResolver.IsDefault())
+	assert.Equal(suite.T(), "color", envResolver.Color())
 
-	environmentID := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
-	projectInput := model.ProjectInput{
-		GitProtocol:   "HTTPS",
-		GitUrl:        "https://github.com/foo/bar.git",
-		EnvironmentID: &environmentID,
-	}
+	js, err := envResolver.MarshalJSON()
+	assert.Nil(suite.T(), err)
 
-	createProjectResolver, err := suite.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
-		Project *model.ProjectInput
-	}{Project: &projectInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-
-	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.ID)
+	err = envResolver.UnmarshalJSON(js)
+	assert.Nil(suite.T(), err)
 
 	created_at_diff := time.Now().Sub(envResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
@@ -120,154 +68,27 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentAndProject() {
 	assert.NotEmpty(suite.T(), projects, "Environment is missing associated projects")
 
 	// Test Environments Query endpoint with a ProjectSlug
-	projectSlug := string(createProjectResolver.Slug())
-	_, err = suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{ProjectSlug: &projectSlug})
+	projectSlug := string(projectResolver.Slug())
+	_, err = suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{&projectSlug})
 	assert.Nil(suite.T(), err)
 
 	// Test without authorization
-	_, err = suite.Resolver.Environments(nil, &struct{ ProjectSlug *string }{ProjectSlug: &projectSlug})
+	_, err = suite.Resolver.Environments(nil, &struct{ ProjectSlug *string }{&projectSlug})
 	assert.NotNil(suite.T(), err)
 
 	// Test with an incorrect slug
 	invalid_slug := "this-is-an-invalid-slug"
-	_, err = suite.Resolver.Environments(nil, &struct{ ProjectSlug *string }{ProjectSlug: &invalid_slug})
+	_, err = suite.Resolver.Environments(nil, &struct{ ProjectSlug *string }{&invalid_slug})
 	assert.NotNil(suite.T(), err)
 }
 
-/* Test successful env. update */
-func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
-	envInput := model.EnvironmentInput{
-		Name:      "test",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
-
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
-
-	// update environment's name with same id
-	envId := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
-	envInput.ID = &envId
-	envInput.Color = "red"
-	envInput.Name = "test2"
-	// key SHOULD be ignored
-	envInput.Key = "diffkey"
-	// IsDefault SHOULD be ignored since it's the only default env
-	envInput.IsDefault = false
-
-	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-
-	assert.Equal(suite.T(), updateEnvResolver.ID(), graphql.ID(envResolver.DBEnvironmentResolver.Environment.Model.ID.String()))
-	assert.Equal(suite.T(), updateEnvResolver.Name(), "test2")
-	assert.Equal(suite.T(), updateEnvResolver.Color(), "red")
-	assert.Equal(suite.T(), updateEnvResolver.Key(), "foo")
-
-	assert.Equal(suite.T(), false, updateEnvResolver.IsDefault())
-	assert.NotEqual(suite.T(), updateEnvResolver.Name(), "diffkey")
-}
-
-func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
-	envInput := model.EnvironmentInput{
-		Name:      "test",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
-
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
-
-	assert.Equal(suite.T(), envResolver.Key(), "foo")
-
-	envInput2 := model.EnvironmentInput{
-		Name:      "test",
-		Key:       "foo2",
-		IsDefault: true,
-		Color:     "color",
-	}
-
-	envResolver2, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput2})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver2.DBEnvironmentResolver.Environment.Model.ID)
-
-	assert.Equal(suite.T(), envResolver2.IsDefault(), true)
-	assert.Equal(suite.T(), envResolver2.Key(), "foo2")
-
-	envInput.IsDefault = false
-	envId := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
-	envInput.ID = &envId
-
-	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-
-	// Expecting this to be false since we just updated it above
-	assert.Equal(suite.T(), false, updateEnvResolver.IsDefault())
-
-	// IsDefault SHOULD be ignored since it's the only default env left
-	envInput2.IsDefault = false
-	envId = envResolver2.DBEnvironmentResolver.Environment.Model.ID.String()
-	envInput2.ID = &envId
-
-	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput2})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-
-	// There are issues with this test on circle
-	// Temporarily Disabling
-	// ADB
-	// Expecting this to be false since we just updated it above
-	assert.Equal(suite.T(), false, updateEnvResolver2.IsDefault())
-
-}
-
 func (suite *EnvironmentTestSuite) TestEnvironmentsQuery() {
-	envInput := model.EnvironmentInput{
-		Name:      "test",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-	envId := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
-	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
-
-	environmentResolvers, err := suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{ProjectSlug: nil})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	envId := string(environmentResolver.ID())
+	environmentResolvers, err := suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{nil})
+	assert.Nil(suite.T(), err)
 
 	foundNeedle := false
 	for _, env := range environmentResolvers {
@@ -277,27 +98,88 @@ func (suite *EnvironmentTestSuite) TestEnvironmentsQuery() {
 		}
 	}
 
-	if foundNeedle == false {
-		assert.FailNow(suite.T(), "Was not able to find Environment in Environments table!")
+	assert.True(suite.T(), foundNeedle, "Was not able to find Environment in Environments table!")
+}
+
+/* Test successful env. update */
+func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// update environment's name with same id
+	envInput := model.EnvironmentInput{}
+	envId := string(environmentResolver.ID())
+	envInput.ID = &envId
+	envInput.Color = "red"
+	envInput.Name = "TestUpdateEnvironment"
+	envInput.Key = "bar"
+
+	// key SHOULD be ignored
+	envInput.Key = "diffkey"
+	// IsDefault SHOULD be ignored since it's the only default env
+	envInput.IsDefault = false
+
+	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct {
+		Environment *model.EnvironmentInput
+	}{&envInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
 	}
+
+	assert.Equal(suite.T(), environmentResolver.ID(), updateEnvResolver.ID())
+	assert.Equal(suite.T(), "TestUpdateEnvironment", updateEnvResolver.Name())
+	assert.Equal(suite.T(), "red", updateEnvResolver.Color())
+	assert.Equal(suite.T(), "bar", updateEnvResolver.Key())
+
+	assert.False(suite.T(), updateEnvResolver.IsDefault())
+}
+
+func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
+	envResolvers := []*graphql_resolver.EnvironmentResolver{
+		suite.helper.CreateEnvironment(suite.T()),
+		suite.helper.CreateEnvironment(suite.T()),
+	}
+
+	// 1
+	assert.Equal(suite.T(), "foo", envResolvers[0].Key())
+
+	// 2
+	assert.Equal(suite.T(), true, envResolvers[1].IsDefault())
+	assert.Equal(suite.T(), "foo2", envResolvers[1].Key())
+
+	envInput := model.EnvironmentInput{}
+	envInput.IsDefault = false
+	envId := string(envResolvers[0].ID())
+	envInput.ID = &envId
+
+	updateEnvResolver, err := suite.Resolver.UpdateEnvironment(nil, &struct {
+		Environment *model.EnvironmentInput
+	}{&envInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	// Expecting this to be false since we just updated it above
+	assert.Equal(suite.T(), false, updateEnvResolver.IsDefault())
+
+	// IsDefault SHOULD be ignored since it's the only default env left
+	envInput2 := model.EnvironmentInput{}
+	envInput2.IsDefault = false
+	envId = string(envResolvers[1].ID())
+	envInput2.ID = &envId
+
+	updateEnvResolver2, err := suite.Resolver.UpdateEnvironment(nil, &struct {
+		Environment *model.EnvironmentInput
+	}{&envInput2})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	assert.Equal(suite.T(), false, updateEnvResolver2.IsDefault())
 }
 
 func (suite *EnvironmentTestSuite) TearDownTest() {
-	for _, id := range suite.cleanupProjectIDs {
-		err := suite.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			assert.FailNow(suite.T(), err.Error())
-		}
-	}
-	suite.cleanupProjectIDs = make([]uuid.UUID, 0)
-
-	for _, id := range suite.cleanupEnvironmentIDs {
-		err := suite.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			assert.FailNow(suite.T(), err.Error())
-		}
-	}
-	suite.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
+	suite.helper.TearDownTest(suite.T())
 }
 
 func TestEnvironmentTestSuite(t *testing.T) {

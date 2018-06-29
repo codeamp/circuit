@@ -2,16 +2,11 @@ package graphql_resolver_test
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	uuid "github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 
@@ -23,12 +18,9 @@ import (
 
 type FeatureTestSuite struct {
 	suite.Suite
-	Resolver        *graphql_resolver.Resolver
-	FeatureResolver *graphql_resolver.FeatureResolver
+	Resolver *graphql_resolver.Resolver
 
-	cleanupProjectIDs     []uuid.UUID
-	cleanupFeatureIDs     []uuid.UUID
-	cleanupEnvironmentIDs []uuid.UUID
+	helper Helper
 }
 
 func (suite *FeatureTestSuite) SetupTest() {
@@ -41,92 +33,48 @@ func (suite *FeatureTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	_ = codeamp.CodeAmp{}
-
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
-	suite.FeatureResolver = &graphql_resolver.FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: db}}
+	suite.helper.SetResolver(suite.Resolver, "TestFeature")
 }
 
 func (suite *FeatureTestSuite) TestCreateFeature() {
 	// Environment
-	envInput := model.EnvironmentInput{
-		Name:      "TestCreateFeature",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
-
-	envResolver, err := suite.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-	suite.cleanupEnvironmentIDs = append(suite.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
-	projectInput := model.ProjectInput{
-		GitProtocol:   "HTTPS",
-		GitUrl:        "https://github.com/foo/goo.git",
-		EnvironmentID: &envId,
-	}
+	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
 
-	createProjectResolver, err := suite.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
-		Project *model.ProjectInput
-	}{Project: &projectInput})
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	suite.cleanupProjectIDs = append(suite.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.Model.ID)
-	projectID := string(createProjectResolver.ID())
+	// Feature
+	suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)
+}
 
-	projectIDUUID, err := uuid.FromString(strings.ToUpper(projectID))
-	assert.Nil(suite.T(), err)
+func (suite *FeatureTestSuite) TestFeatureResolverInterface() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
-	feature := model.Feature{
-		ProjectID:  projectIDUUID,
-		Message:    "A test feature message",
-		User:       "TestCreateFeature",
-		Hash:       "42941a0900e952f7f78994d53b699aea23926804",
-		ParentHash: "",
-		Ref:        "refs/heads/master",
-		Created:    time.Now(),
-	}
+	// Project
+	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
 
-	db := suite.Resolver.DB.Create(&feature)
-	if db.Error != nil {
-		assert.FailNow(suite.T(), db.Error.Error())
-	}
-	suite.cleanupFeatureIDs = append(suite.cleanupFeatureIDs, feature.Model.ID)
+	// Feature
+	featureResolver := suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)
 
-	var ctx context.Context
-	_, err = suite.Resolver.Features(ctx)
-	assert.NotNil(suite.T(), err)
-
-	featureResolvers, err := suite.Resolver.Features(test.ResolverAuthContext())
-	assert.Nil(suite.T(), err)
-	assert.NotEmpty(suite.T(), featureResolvers)
-
-	featureResolver := featureResolvers[0]
-	assert.NotNil(suite.T(), featureResolver)
-
+	// Test FeatureResolver Interface
 	_ = featureResolver.ID()
 	_ = featureResolver.Project()
 	message := featureResolver.Message()
-	assert.Equal(suite.T(), feature.Message, message)
+	assert.Equal(suite.T(), "A test feature message", message)
 
 	user := featureResolver.User()
-	assert.Equal(suite.T(), feature.User, user)
+	assert.Equal(suite.T(), "TestFeature", user)
 
 	hash := featureResolver.Hash()
-	assert.Equal(suite.T(), feature.Hash, hash)
+	assert.Equal(suite.T(), "42941a0900e952f7f78994d53b699aea23926804", hash)
 
 	parentHash := featureResolver.ParentHash()
-	assert.Equal(suite.T(), feature.ParentHash, parentHash)
+	assert.Equal(suite.T(), "7f78994d53b699aea239268950441a090952f0e9", parentHash)
 
 	ref := featureResolver.Ref()
-	assert.Equal(suite.T(), feature.Ref, ref)
+	assert.Equal(suite.T(), "refs/heads/master", ref)
 
 	created_at_diff := time.Now().Sub(featureResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
@@ -141,35 +89,33 @@ func (suite *FeatureTestSuite) TestCreateFeature() {
 	assert.Nil(suite.T(), err)
 }
 
+func (suite *FeatureTestSuite) TestFeatureQueryInterface() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+
+	// Feature
+	suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)
+
+	// Test Features Query Interface
+	var ctx context.Context
+	_, err := suite.Resolver.Features(ctx)
+	assert.NotNil(suite.T(), err)
+
+	featureResolvers, err := suite.Resolver.Features(test.ResolverAuthContext())
+	assert.Nil(suite.T(), err)
+	assert.NotEmpty(suite.T(), featureResolvers)
+
+	featureResolver := featureResolvers[0]
+	assert.NotNil(suite.T(), featureResolver)
+}
+
 func (suite *FeatureTestSuite) TearDownTest() {
-	for _, id := range suite.cleanupFeatureIDs {
-		err := suite.Resolver.DB.Unscoped().Delete(&model.Feature{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	suite.cleanupFeatureIDs = make([]uuid.UUID, 0)
-
-	for _, id := range suite.cleanupProjectIDs {
-		err := suite.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			assert.FailNow(suite.T(), err.Error())
-		}
-	}
-	suite.cleanupProjectIDs = make([]uuid.UUID, 0)
-
-	for _, id := range suite.cleanupEnvironmentIDs {
-		err := suite.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			assert.FailNow(suite.T(), err.Error())
-		}
-	}
-	suite.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
+	suite.helper.TearDownTest(suite.T())
 }
 
 func TestSuiteFeatureResolver(t *testing.T) {
-	ts := new(FeatureTestSuite)
-	suite.Run(t, ts)
-
-	ts.TearDownTest()
+	suite.Run(t, new(FeatureTestSuite))
 }
