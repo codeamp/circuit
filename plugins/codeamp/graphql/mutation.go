@@ -1428,6 +1428,11 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct {
 				ProjectID:     project.Model.ID,
 			}
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectEnvironment)
+			r.DB.Create(&model.ProjectSettings{
+				EnvironmentID: environment.Model.ID,
+				ProjectID:     project.Model.ID,
+				GitBranch:     "master",
+			})
 			results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
 		} else {
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&model.ProjectEnvironment{})
