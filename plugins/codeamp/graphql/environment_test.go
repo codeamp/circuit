@@ -49,7 +49,7 @@ func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	projectResolver := suite.helper.CreateProject(suite.T(), envResolver)
 
 	assert.Equal(suite.T(), "TestEnvironment", envResolver.Name())
-	assert.Equal(suite.T(), "foo", envResolver.Key())
+	assert.Equal(suite.T(), "TestEnvironment", envResolver.Key())
 	assert.Equal(suite.T(), true, envResolver.IsDefault())
 	assert.Equal(suite.T(), "color", envResolver.Color())
 
@@ -129,23 +129,23 @@ func (suite *EnvironmentTestSuite) TestUpdateEnvironment() {
 	assert.Equal(suite.T(), environmentResolver.ID(), updateEnvResolver.ID())
 	assert.Equal(suite.T(), "TestUpdateEnvironment", updateEnvResolver.Name())
 	assert.Equal(suite.T(), "red", updateEnvResolver.Color())
-	assert.Equal(suite.T(), "bar", updateEnvResolver.Key())
+	assert.Equal(suite.T(), "TestEnvironment", updateEnvResolver.Key())
 
 	assert.False(suite.T(), updateEnvResolver.IsDefault())
 }
 
 func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse() {
 	envResolvers := []*graphql_resolver.EnvironmentResolver{
-		suite.helper.CreateEnvironment(suite.T()),
-		suite.helper.CreateEnvironment(suite.T()),
+		suite.helper.CreateEnvironmentWithName(suite.T(), "TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse"),
+		suite.helper.CreateEnvironmentWithName(suite.T(), "TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse2"),
 	}
 
 	// 1
-	assert.Equal(suite.T(), "foo", envResolvers[0].Key())
+	assert.Equal(suite.T(), "TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse", envResolvers[0].Key())
 
 	// 2
 	assert.Equal(suite.T(), true, envResolvers[1].IsDefault())
-	assert.Equal(suite.T(), "foo2", envResolvers[1].Key())
+	assert.Equal(suite.T(), "TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse2", envResolvers[1].Key())
 
 	envInput := model.EnvironmentInput{}
 	envInput.IsDefault = false

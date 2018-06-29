@@ -866,7 +866,7 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 
 		return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: env}}, nil
 	} else {
-		return nil, fmt.Errorf("CreateEnvironment: name already exists")
+		return nil, fmt.Errorf("CreateEnvironment: name '%s' already exists", args.Environment.Name)
 	}
 }
 

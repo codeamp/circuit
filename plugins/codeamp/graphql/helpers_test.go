@@ -39,16 +39,21 @@ func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver, name stri
 
 func (helper *Helper) CreateEnvironment(t *testing.T) *graphql_resolver.EnvironmentResolver {
 	// Environment
+	return helper.CreateEnvironmentWithName(t, helper.name)
+}
+
+func (helper *Helper) CreateEnvironmentWithName(t *testing.T, name string) *graphql_resolver.EnvironmentResolver {
+	// Environment
 	envInput := model.EnvironmentInput{
-		Name:      helper.name,
-		Key:       "foo",
+		Name:      name,
+		Key:       name,
 		IsDefault: true,
 		Color:     "color",
 	}
 
 	envResolver, err := helper.Resolver.CreateEnvironment(nil, &struct {
 		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
+	}{&envInput})
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
