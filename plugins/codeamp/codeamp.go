@@ -83,7 +83,8 @@ func (x *CodeAmp) GraphQLListen() {
 	fs := http.FileServer(http.Dir(path.Join(path.Dir(filename), "graphql/static/")))
 	http.Handle("/", fs)
 
-	http.Handle("/query", graphql_resolver.CorsMiddleware(x.Resolver.AuthMiddleware(&relay.Handler{Schema: x.Schema})))
+	middleware := graphql_resolver.Middleware{x.Resolver}
+	http.Handle("/query", middleware.Cors(middleware.Auth(&relay.Handler{Schema: x.Schema})))
 
 	log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
