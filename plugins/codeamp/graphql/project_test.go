@@ -81,8 +81,8 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 
 	_ = projectExtensionResolver.Artifacts()
 
-	// assert.Equal(suite.T(), projectExtensionInput.Config, projectExtensionResolver.Config())
-	// assert.Equal(suite.T(), projectExtensionInput.CustomConfig, projectExtensionResolver.CustomConfig())
+	assert.Equal(suite.T(), model.JSON{[]byte("[]")}, projectExtensionResolver.Config())
+	assert.Equal(suite.T(), model.JSON{[]byte("{}")}, projectExtensionResolver.CustomConfig())
 
 	_ = projectExtensionResolver.State()
 	_ = projectExtensionResolver.StateMessage()
@@ -140,12 +140,8 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = projectResolver.Repository()
 	_ = projectResolver.Secret()
 
-	// ADB Resolve this
-	// gitUrl := projectResolver.GitUrl()
-	// assert.Equal(suite.T(), projectInput.GitUrl, gitUrl)
-
-	// gitProtocol := projectResolver.GitProtocol()
-	// assert.Equal(suite.T(), projectInput.GitProtocol, gitProtocol)
+	assert.Equal(suite.T(), "https://github.com/foo/goo.git", projectResolver.GitUrl())
+	assert.Equal(suite.T(), "HTTPS", projectResolver.GitProtocol())
 
 	_ = projectResolver.RsaPrivateKey()
 	_ = projectResolver.RsaPublicKey()
@@ -172,7 +168,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	assert.Nil(suite.T(), err)
 	assert.NotEmpty(suite.T(), extensionsList, "Extensions List Empty")
 
-	_ = projectResolver.GitBranch()
+	assert.Equal(suite.T(), "master", projectResolver.GitBranch())
 	_ = projectResolver.ContinuousDeploy()
 	projectEnvironments := projectResolver.Environments()
 	assert.NotEmpty(suite.T(), projectEnvironments, "Project Environments Empty")
@@ -208,7 +204,7 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	initialProjectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	var ctx context.Context
 	_, err := suite.Resolver.Projects(ctx, &struct {
@@ -230,8 +226,10 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	assert.NotEmpty(suite.T(), projects)
 
 	envID := string(environmentResolver.ID())
-	projectID := projectResolver.ID()
-	_, err = suite.Resolver.Project(ctx, &struct {
+	projectID := initialProjectResolver.ID()
+
+	// By ID - Should Fail
+	projectResolver, err := suite.Resolver.Project(ctx, &struct {
 		ID            *graphql.ID
 		Slug          *string
 		Name          *string
@@ -241,8 +239,10 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 		EnvironmentID: &envID,
 	})
 	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
 
-	_, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+	// By ID - Should Succeed
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
 		ID            *graphql.ID
 		Slug          *string
 		Name          *string
@@ -252,7 +252,111 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 		EnvironmentID: &envID,
 	})
 	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), projectResolver)
 
+	// By Slug
+	projectSlug := projectResolver.Slug()
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		Slug:          &projectSlug,
+		EnvironmentID: &envID,
+	})
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), projectResolver)
+
+	// By Name
+	projectName := projectResolver.Name()
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		Name:          &projectName,
+		EnvironmentID: &envID,
+	})
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), projectResolver)
+
+	// Environment Errors
+	// No ID
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		ID:            &projectID,
+		EnvironmentID: nil,
+	})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
+
+	// Should Fail
+	// Not a UUID
+	invalidEnvironmentID := "not-a-valid-id"
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		ID:            &projectID,
+		EnvironmentID: &invalidEnvironmentID,
+	})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
+
+	// Expected Failure, no ID provided
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		ID:            nil,
+		EnvironmentID: nil,
+	})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
+
+	// Permission to access environment
+	// Delete the project_environments entry for this	
+	suite.Resolver.DB.Unscoped().Where("project_id = ?", initialProjectResolver.ID()).Delete(&model.ProjectEnvironment{})
+	
+	// Should Fail	
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		ID:            &projectID,
+		EnvironmentID: &envID,
+	})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
+
+	// Environment does not exist
+	// Delete the environment
+	suite.Resolver.DB.Unscoped().Where("id = ?", envID).Delete(&model.Environment{})
+
+	// Should fail, no environment exists now
+	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
+		ID            *graphql.ID
+		Slug          *string
+		Name          *string
+		EnvironmentID *string
+	}{
+		ID:            &projectID,
+		EnvironmentID: &envID,
+	})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
 }
 
 /* Test successful project permissions update */

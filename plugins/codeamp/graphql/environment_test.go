@@ -78,7 +78,7 @@ func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 
 	// Test with an incorrect slug
 	invalid_slug := "this-is-an-invalid-slug"
-	_, err = suite.Resolver.Environments(nil, &struct{ ProjectSlug *string }{&invalid_slug})
+	_, err = suite.Resolver.Environments(test.ResolverAuthContext(), &struct{ ProjectSlug *string }{&invalid_slug})
 	assert.NotNil(suite.T(), err)
 }
 

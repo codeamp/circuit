@@ -71,7 +71,7 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
-	// Autocreated extensions
+	// Remove Autocreated ReleaseExtension from Release
 	for re := range releaseResolver.ReleaseExtensions() {
 		spew.Dump(re)
 		ts.Resolver.DB.Unscoped().Delete(&re)
