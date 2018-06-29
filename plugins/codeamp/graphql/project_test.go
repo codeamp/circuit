@@ -81,8 +81,8 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 
 	_ = projectExtensionResolver.Artifacts()
 
-	// assert.Equal(suite.T(), projectExtensionInput.Config, projectExtensionResolver.Config())
-	// assert.Equal(suite.T(), projectExtensionInput.CustomConfig, projectExtensionResolver.CustomConfig())
+	assert.Equal(suite.T(), model.JSON{[]byte("[]")}, projectExtensionResolver.Config())
+	assert.Equal(suite.T(), model.JSON{[]byte("{}")}, projectExtensionResolver.CustomConfig())
 
 	_ = projectExtensionResolver.State()
 	_ = projectExtensionResolver.StateMessage()
@@ -140,12 +140,11 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = projectResolver.Repository()
 	_ = projectResolver.Secret()
 
-	// ADB Resolve this
-	// gitUrl := projectResolver.GitUrl()
-	// assert.Equal(suite.T(), projectInput.GitUrl, gitUrl)
+	gitUrl := projectResolver.GitUrl()
+	assert.Equal(suite.T(), "https://github.com/foo/goo.git", gitUrl)
 
-	// gitProtocol := projectResolver.GitProtocol()
-	// assert.Equal(suite.T(), projectInput.GitProtocol, gitProtocol)
+	gitProtocol := projectResolver.GitProtocol()
+	assert.Equal(suite.T(), "HTTPS", gitProtocol)
 
 	_ = projectResolver.RsaPrivateKey()
 	_ = projectResolver.RsaPublicKey()
