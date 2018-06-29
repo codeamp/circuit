@@ -12,6 +12,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
+	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,6 +31,7 @@ type Helper struct {
 	cleanupServiceIDs          []uuid.UUID
 	cleanupServiceSpecIDs      []uuid.UUID
 	cleanupReleaseIDs          []uuid.UUID
+	cleanupReleaseExtensionIDs []uuid.UUID
 }
 
 func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver, name string) {
@@ -126,7 +128,7 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 		Component:     "",
 		EnvironmentID: envId,
 		Config:        model.JSON{[]byte("[]")},
-		Type:          "workflow",
+		Type:          "once",
 	}
 	extensionResolver, err := helper.Resolver.CreateExtension(&struct {
 		Extension *model.ExtensionInput
@@ -250,6 +252,37 @@ func (helper *Helper) CreateRelease(t *testing.T,
 	return releaseResolver
 }
 
+func (helper *Helper) CreateReleaseExtension(t *testing.T,
+	releaseResolver *graphql_resolver.ReleaseResolver,
+	projectExtensionResolver *graphql_resolver.ProjectExtensionResolver) *graphql_resolver.ReleaseExtensionResolver {
+
+	releaseID, err := uuid.FromString(string(releaseResolver.ID()))
+	assert.Nil(t, err)
+
+	projectExtensionID, err := uuid.FromString(string(projectExtensionResolver.ID()))
+	assert.Nil(t, err)
+
+	releaseExtension := model.ReleaseExtension{
+		State:              transistor.GetState("waiting"),
+		StateMessage:       helper.name,
+		ReleaseID:          releaseID,
+		FeatureHash:        "42941a0900e952f7f78994d53b699aea23926804",
+		ServicesSignature:  "ServicesSignature",
+		SecretsSignature:   "SecretsSignature",
+		ProjectExtensionID: projectExtensionID,
+		Type:               "workflow",
+	}
+
+	res := helper.Resolver.DB.Create(&releaseExtension)
+	if res.Error != nil {
+		assert.FailNow(t, res.Error.Error())
+	}
+
+	helper.cleanupReleaseExtensionIDs = append(helper.cleanupReleaseExtensionIDs, releaseID)
+
+	return &graphql_resolver.ReleaseExtensionResolver{DBReleaseExtensionResolver: &db_resolver.ReleaseExtensionResolver{ReleaseExtension: releaseExtension, DB: helper.Resolver.DB}}
+}
+
 func (helper *Helper) CreateServiceSpec(t *testing.T) *graphql_resolver.ServiceSpecResolver {
 	// Service Spec ID
 	serviceSpecInput := model.ServiceSpecInput{
@@ -322,6 +355,14 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 		}
 	}
 	helper.cleanupServiceSpecIDs = make([]uuid.UUID, 0)
+
+	for _, id := range helper.cleanupReleaseExtensionIDs {
+		err := helper.Resolver.DB.Unscoped().Delete(&model.ReleaseExtension{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	helper.cleanupReleaseExtensionIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupExtensionIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.Extension{Model: model.Model{ID: id}}).Error
