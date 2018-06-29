@@ -236,45 +236,10 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 	r.DB.Save(&release)
 
 	for _, releaseExtension := range releaseExtensions {
-		var projectExtension model.ProjectExtension
-		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
-			log.WarnWithFields("Associated project extension not found", log.Fields{
-				"id": args.ID,
-				"release_extension_id": releaseExtension.ID,
-				"project_extension_id": releaseExtension.ProjectExtensionID,
-			})
+		releaseExtension.State = transistor.GetState("failed")
+		releaseExtension.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
 
-			return nil, errors.New("Project Extension Not Found")
-		}
-
-		// find associated ProjectExtension Extension
-		var extension model.Extension
-		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
-			log.WarnWithFields("Associated extension not found", log.Fields{
-				"id": args.ID,
-				"release_extension_id": releaseExtension.ID,
-				"project_extension_id": releaseExtension.ProjectExtensionID,
-				"extension_id":         projectExtension.ExtensionID,
-			})
-
-			return nil, errors.New("Extension Not Found")
-		}
-
-		if releaseExtension.State == transistor.GetState("waiting") {
-			releaseExtensionEvent := plugins.ReleaseExtension{
-				ID:      releaseExtension.ID.String(),
-				Project: plugins.Project{},
-				Release: plugins.Release{
-					ID: releaseExtension.ReleaseID.String(),
-				},
-				Environment: "",
-			}
-
-			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
-			event.State = transistor.GetState("failed")
-			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
-			r.Events <- event
-		}
+		r.DB.Save(&releaseExtension)
 	}
 
 	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
