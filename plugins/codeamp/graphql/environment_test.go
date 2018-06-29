@@ -29,8 +29,6 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	// clean, just in case
-	db.Delete(&model.Environment{})
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 }
 
@@ -116,6 +114,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 		log.Fatal(err.Error())
 	}
 
+	assert.Equal(suite.T(), envResolver.IsDefault(), true)
 	assert.Equal(suite.T(), envResolver.Key(), "foo")
 
 	envInput2 := model.EnvironmentInput{
