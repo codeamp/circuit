@@ -399,7 +399,7 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	assert.Nil(suite.T(), projectResolver)
 }
 
-func (suite *ProjectTestSuite) TestUpdateProjectSuccess() {
+func (suite *ProjectTestSuite) TestUpdateProjectHTTPSSuccess() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
@@ -429,6 +429,86 @@ func (suite *ProjectTestSuite) TestUpdateProjectSuccess() {
 	assert.Equal(suite.T(), updatedProjectInput.GitUrl, updatedProjectResolver.GitUrl())
 }
 
+func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	envID := string(environmentResolver.ID())
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	projectResolver := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+
+	projectID := string(projectResolver.ID())
+	branch := "master"
+	continuousDeploy := false
+	updatedProjectInput := model.ProjectInput{
+		ID:               &projectID,
+		GitProtocol:      "SSH",
+		GitUrl:           "git@github.com:goo/foo.git",
+		GitBranch:        &branch,
+		EnvironmentID:    &envID,
+		ContinuousDeploy: &continuousDeploy,
+	}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), updatedProjectResolver)
+
+	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
+	assert.Equal(suite.T(), updatedProjectInput.GitUrl, updatedProjectResolver.GitUrl())
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccessNoEnvironment() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	envID := string(environmentResolver.ID())
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	projectResolver := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+
+	projectID := string(projectResolver.ID())
+	branch := "master"
+	continuousDeploy := false
+	updatedProjectInput := model.ProjectInput{
+		ID:               &projectID,
+		GitProtocol:      "SSH",
+		GitUrl:           "git@github.com:goo/foo.git",
+		GitBranch:        &branch,
+		EnvironmentID:    &envID,
+		ContinuousDeploy: &continuousDeploy,
+	}
+
+	// Delete Project Settings for testing purposes
+	projectSettings := &model.ProjectSettings{}
+	err := suite.Resolver.DB.Where("environment_id = ? and project_id = ?", envID, projectID).First(&projectSettings).Error
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	err = suite.Resolver.DB.Unscoped().Delete(&projectSettings).Error
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), updatedProjectResolver)
+
+	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
+	assert.Equal(suite.T(), updatedProjectInput.GitUrl, updatedProjectResolver.GitUrl())
+}
+
 func (suite *ProjectTestSuite) TestUpdateProjectFailureNoID() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
@@ -437,6 +517,28 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureNoID() {
 	suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	updateProjectInput := model.ProjectInput{}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), updatedProjectResolver)
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectFailureWrongProjectID() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	suite.helper.CreateProject(suite.T(), environmentResolver)
+
+	projectID := "123e4567-e89b-12d3-a456-426655440000"
+	gitBranch := "master"
+	continuousDeploy := false
+
+	updateProjectInput := model.ProjectInput{
+		ID:               &projectID,
+		GitBranch:        &gitBranch,
+		ContinuousDeploy: &continuousDeploy,
+	}
 
 	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
 	assert.NotNil(suite.T(), err)
