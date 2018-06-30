@@ -96,20 +96,7 @@ func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_r
 		EnvironmentID: &envId,
 	}
 
-	projectResolver, err := helper.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
-		Project *model.ProjectInput
-	}{Project: &projectInput})
-	if err != nil {
-		assert.FailNow(t, err.Error(), gitUrl)
-	}
-
-	// TODO: ADB This should be happening in the CreateProject function!
-	// If an ID for an Environment is supplied, Project should try to look that up and return resolver
-	// that includes project AND environment
-	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
-
-	helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
-	return projectResolver
+	return helper.CreateProjectWithInput(t, envResolver, &projectInput)
 }
 
 func (helper *Helper) CreateSecret(t *testing.T,
@@ -411,7 +398,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupProjectBookmarkIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.ProjectBookmark{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			log.Error(err)
 		}
 	}
 	helper.cleanupProjectBookmarkIDs = make([]uuid.UUID, 0)
@@ -419,7 +406,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupProjectIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			log.Error(err)
 		}
 
 		// Delete all associated bookmarks as well
@@ -449,7 +436,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupEnvironmentIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			log.Error(err)
 		}
 	}
 	helper.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
@@ -457,7 +444,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupSecretIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.Secret{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			log.Error(err)
 		}
 	}
 	helper.cleanupSecretIDs = make([]uuid.UUID, 0)

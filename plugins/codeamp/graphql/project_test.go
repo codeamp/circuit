@@ -3,9 +3,11 @@ package graphql_resolver_test
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -13,6 +15,7 @@ import (
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -47,6 +50,14 @@ func (suite *ProjectTestSuite) SetupTest() {
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestProject")
+
+	events := []interface{}{
+		plugins.ProjectExtension{},
+		plugins.Release{},
+	}
+	for _, i := range events {
+		transistor.EventRegistry[reflect.TypeOf(i).String()] = i
+	}
 }
 
 func (suite *ProjectTestSuite) TestProjectInterface() {
@@ -201,7 +212,7 @@ func (suite *ProjectTestSuite) TestCreateProjectFailure() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project Input
-	envID := "invalid-env-id"
+	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
 	projectInput := model.ProjectInput{
 		GitUrl:        "git@github.com:foo/goo.git",
 		GitProtocol:   "SSH",
@@ -439,9 +450,14 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidProjectID() {
 	// Project
 	suite.helper.CreateProject(suite.T(), environmentResolver)
 
-	projectID := "invlaid-project-id"
+	projectID := "123e4567-e89b-1zd3-a456-426655440000"
+	gitBranch := "master"
+	continuousDeploy := false
+
 	updateProjectInput := model.ProjectInput{
-		ID: &projectID,
+		ID:               &projectID,
+		GitBranch:        &gitBranch,
+		ContinuousDeploy: &continuousDeploy,
 	}
 
 	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
@@ -457,10 +473,18 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidEnvironmentID() {
 	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	projectID := string(projectResolver.ID())
-	envID := "invalid-env-id"
+	envID := "123e4567-e89b-1zd3-a456-426655440000"
+	gitBranch := "master"
+	continuousDeploy := false
+
+	environmentID, err := uuid.FromString(envID)
+	log.Warn(environmentID, " ", err)
+
 	updateProjectInput := model.ProjectInput{
-		ID:            &projectID,
-		EnvironmentID: &envID,
+		ID:               &projectID,
+		GitBranch:        &gitBranch,
+		EnvironmentID:    &envID,
+		ContinuousDeploy: &continuousDeploy,
 	}
 
 	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
