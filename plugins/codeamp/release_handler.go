@@ -67,11 +67,13 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
 					if err != nil {
 						log.Error(err.Error())
+						return nil
 					}
 				} else {
 					artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
 					if err != nil {
 						log.Error(err.Error())
+						return nil
 					}
 				}
 
@@ -209,6 +211,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		log.WarnWithFields("no services found", log.Fields{
 			"project_id": nextQueuedRelease.ProjectID,
 		})
+		return nil
 	}
 
 	if x.DB.Where("id = ?", nextQueuedRelease.ProjectID).First(&project).RecordNotFound() {

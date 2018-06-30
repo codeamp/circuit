@@ -258,7 +258,6 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 }
 
 func (x *Kubernetes) doDeploy(e transistor.Event) error {
-	log.Info(e.Payload)
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)

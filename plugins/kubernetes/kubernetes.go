@@ -176,10 +176,6 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 		return "", err
 	}
 
-	if err != nil {
-		log.Error("ERROR: %s", err.Error())
-		return "", err
-	}
 	log.Info("Using kubeconfig file: ", fmt.Sprintf("%s/kubeconfig", randomDirectory))
 
 	// generate client cert, client key

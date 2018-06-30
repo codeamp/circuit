@@ -86,6 +86,7 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
 		log.ErrorWithFields("Environment not found", log.Fields{
 			"id": release.EnvironmentID,
 		})
+		return
 	}
 
 	payload := plugins.WebsocketMsg{
@@ -94,7 +95,8 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
 	}
 	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases/reCompleted", project.Slug, environment.Key), false)
-	x.Events <- transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+
+	x.Events <- event
 
 	// loop through and check if all same-type elease extensions are completed
 	done := true

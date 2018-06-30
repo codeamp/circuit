@@ -245,6 +245,7 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *model.Release,
 	if x.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID.String(),
 		project.Model.ID.String()).First(&projectSettings).RecordNotFound() {
 		log.WarnWithFields("no env project branch found", log.Fields{})
+		return nil
 	}
 
 	user := model.User{}
@@ -252,6 +253,7 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *model.Release,
 		log.InfoWithFields("user not found", log.Fields{
 			"id": release.UserID,
 		})
+		return nil
 	}
 
 	projectModel := plugins.Project{

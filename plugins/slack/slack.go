@@ -18,7 +18,7 @@ type Slack struct {
 func init() {
 	transistor.RegisterPlugin("slack", func() transistor.Plugin {
 		return &Slack{}
-	}, plugins.NotificationExtension{})
+	}, plugins.NotificationExtension{}, plugins.ProjectExtension{})
 }
 
 // Description: Plugin description
