@@ -188,15 +188,44 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	assert.Nil(suite.T(), err)
 }
 
-func (suite *ProjectTestSuite) TestCreateProject() {
+func (suite *ProjectTestSuite) TestCreateProjectSuccess() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	_ = suite.helper.CreateProject(suite.T(), environmentResolver)
+	suite.helper.CreateProject(suite.T(), environmentResolver)
+}
 
-	// assert permissions exist for dev env
-	//assert.Equal(suite.T(), createProjectResolver.Permissions(), []string{env.Model.ID.String()})
+func (suite *ProjectTestSuite) TestCreateProjectFailure() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project Input
+	envID := "invalid-env-id"
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+}
+
+func (suite *ProjectTestSuite) TestCreateProjectWithSSH() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project Input
+	envID := string(environmentResolver.ID())
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
 }
 
 func (suite *ProjectTestSuite) TestQueryProject() {
@@ -325,10 +354,10 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	assert.Nil(suite.T(), projectResolver)
 
 	// Permission to access environment
-	// Delete the project_environments entry for this	
+	// Delete the project_environments entry for this
 	suite.Resolver.DB.Unscoped().Where("project_id = ?", initialProjectResolver.ID()).Delete(&model.ProjectEnvironment{})
-	
-	// Should Fail	
+
+	// Should Fail
 	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
 		ID            *graphql.ID
 		Slug          *string
@@ -357,6 +386,86 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	})
 	assert.NotNil(suite.T(), err)
 	assert.Nil(suite.T(), projectResolver)
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectSuccess() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	envID := string(environmentResolver.ID())
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	projectResolver := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+
+	projectID := string(projectResolver.ID())
+	updatedProjectInput := model.ProjectInput{
+		ID:            &projectID,
+		GitProtocol:   "HTTPS",
+		GitUrl:        "https://github.com/foo/goo.git",
+		EnvironmentID: &envID,
+	}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), updatedProjectResolver)
+
+	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
+	assert.Equal(suite.T(), updatedProjectInput.GitUrl, updatedProjectResolver.GitUrl())
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectFailureNoID() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	suite.helper.CreateProject(suite.T(), environmentResolver)
+
+	updateProjectInput := model.ProjectInput{}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), updatedProjectResolver)
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidProjectID() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	suite.helper.CreateProject(suite.T(), environmentResolver)
+
+	projectID := "invlaid-project-id"
+	updateProjectInput := model.ProjectInput{
+		ID: &projectID,
+	}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), updatedProjectResolver)
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidEnvironmentID() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+
+	projectID := string(projectResolver.ID())
+	envID := "invalid-env-id"
+	updateProjectInput := model.ProjectInput{
+		ID:            &projectID,
+		EnvironmentID: &envID,
+	}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), updatedProjectResolver)
 }
 
 /* Test successful project permissions update */
