@@ -2,17 +2,16 @@ package graphql_resolver_test
 
 import (
 	"context"
-	"fmt"
+
 	"testing"
 	"time"
 
-	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	uuid "github.com/satori/go.uuid"
+	_ "github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
+	"github.com/codeamp/transistor"
 
 	log "github.com/codeamp/logger"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -25,10 +24,7 @@ type ServiceTestSuite struct {
 	Resolver        *graphql_resolver.Resolver
 	ServiceResolver *graphql_resolver.ServiceResolver
 
-	cleanupEnvironmentIDs []uuid.UUID
-	cleanupProjectIDs     []uuid.UUID
-	cleanupServiceIDs     []uuid.UUID
-	cleanupServiceSpecIDs []uuid.UUID
+	helper Helper
 }
 
 func (suite *ServiceTestSuite) SetupTest() {
@@ -43,110 +39,63 @@ func (suite *ServiceTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	_ = codeamp.CodeAmp{}
-	_ = &graphql_resolver.Resolver{DB: db, Events: nil, Redis: nil}
-
-	suite.Resolver = &graphql_resolver.Resolver{DB: db}
-	suite.ServiceResolver = &graphql_resolver.ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: db}}
+	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
+	suite.helper.SetResolver(suite.Resolver, "TestService")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
-func (ts *ServiceTestSuite) TestCreateService() {
+func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 	// Environment
-	envInput := model.EnvironmentInput{
-		Name:      "TestProjectInterface",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
-
-	envResolver, err := ts.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
-	ts.cleanupEnvironmentIDs = append(ts.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
+	envResolver := ts.helper.CreateEnvironment(ts.T())
 
 	// Project
-	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
-	projectInput := model.ProjectInput{
-		GitProtocol:   "HTTPS",
-		GitUrl:        "https://github.com/foo/goo.git",
-		EnvironmentID: &envId,
-	}
-
-	createProjectResolver, err := ts.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
-		Project *model.ProjectInput
-	}{Project: &projectInput})
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	projectId := string(createProjectResolver.ID())
-
-	// TODO: ADB This should be happening in the CreateProject function!
-	// If an ID for an Environment is supplied, Project should try to look that up and return resolver
-	// that includes project AND environment
-	createProjectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
-	ts.cleanupProjectIDs = append(ts.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.Model.ID)
-
-	// Service Spec ID
-	serviceSpecInput := model.ServiceSpecInput{
-		Name:                   "test",
-		CpuRequest:             "500",
-		CpuLimit:               "500",
-		MemoryRequest:          "500",
-		MemoryLimit:            "500",
-		TerminationGracePeriod: "300",
-	}
-	serviceSpecResolver, err := ts.Resolver.CreateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-	ts.cleanupServiceSpecIDs = append(ts.cleanupServiceSpecIDs, serviceSpecResolver.DBServiceSpecResolver.ServiceSpec.Model.ID)
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+}
+
+func (ts *ServiceTestSuite) TestServiceInterface() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 	serviceSpecID := serviceSpecResolver.ID()
 
 	// Services
-	servicePortInputs := []model.ServicePortInput{
-		model.ServicePortInput{
-			Port:     "80",
-			Protocol: "HTTP",
-		},
-	}
-	serviceInput := model.ServiceInput{
-		ProjectID:     projectId,
-		Command:       "echo \"hello\" && exit 0",
-		Name:          "test-service",
-		ServiceSpecID: string(serviceSpecResolver.ID()),
-		Count:         "0",
-		Ports:         &servicePortInputs,
-		Type:          "general",
-		EnvironmentID: envId,
-	}
-
-	serviceResolver, err := ts.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
-	ts.cleanupServiceIDs = append(ts.cleanupServiceIDs, serviceResolver.DBServiceResolver.Service.Model.ID)
+	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
 
 	// Test Service Interface
 	_ = serviceResolver.ID()
-	projectResolver := serviceResolver.Project()
-	assert.Equal(ts.T(), createProjectResolver.ID(), projectResolver.ID())
+	serviceProjectResolver := serviceResolver.Project()
+	assert.Equal(ts.T(), projectResolver.ID(), serviceProjectResolver.ID())
 
-	assert.Equal(ts.T(), serviceInput.Command, serviceResolver.Command())
-	assert.Equal(ts.T(), serviceInput.Name, serviceResolver.Name())
+	assert.Equal(ts.T(), "echo \"hello\" && exit 0", serviceResolver.Command())
+	assert.Equal(ts.T(), "TestService", serviceResolver.Name())
 
 	serviceSpecResolver = serviceResolver.ServiceSpec()
 	assert.Equal(ts.T(), serviceSpecID, serviceSpecResolver.ID())
 
-	assert.Equal(ts.T(), serviceInput.Count, serviceResolver.Count())
+	assert.Equal(ts.T(), "1", serviceResolver.Count())
 
 	servicePorts, err := serviceResolver.Ports()
 	assert.Nil(ts.T(), err)
 	assert.NotEmpty(ts.T(), servicePorts, "Service Ports was empty")
 
-	assert.Equal(ts.T(), serviceInput.Type, serviceResolver.Type())
+	assert.Equal(ts.T(), "general", serviceResolver.Type())
 	created_at_diff := time.Now().Sub(serviceResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
 		assert.FailNow(ts.T(), "Created at time is too old")
@@ -167,8 +116,26 @@ func (ts *ServiceTestSuite) TestCreateService() {
 
 	err = serviceResolver.UnmarshalJSON(data)
 	assert.Nil(ts.T(), err)
+}
+
+func (ts *ServiceTestSuite) TestServiceQuery() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
 
 	// Test Service Query
+	var ctx context.Context
 	_, err = ts.Resolver.Services(ctx)
 	assert.NotNil(ts.T(), err)
 
@@ -179,42 +146,9 @@ func (ts *ServiceTestSuite) TestCreateService() {
 }
 
 func (ts *ServiceTestSuite) TearDownTest() {
-	for _, id := range ts.cleanupServiceIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Service{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	ts.cleanupServiceIDs = make([]uuid.UUID, 0)
-
-	for _, id := range ts.cleanupServiceSpecIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.ServiceSpec{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	ts.cleanupServiceSpecIDs = make([]uuid.UUID, 0)
-
-	for _, id := range ts.cleanupProjectIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			assert.FailNow(ts.T(), err.Error())
-		}
-	}
-	ts.cleanupProjectIDs = make([]uuid.UUID, 0)
-
-	for _, id := range ts.cleanupEnvironmentIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			assert.FailNow(ts.T(), err.Error())
-		}
-	}
-	ts.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
+	ts.helper.TearDownTest(ts.T())
 }
 
 func TestSuiteServiceResolver(t *testing.T) {
-	ts := new(ServiceTestSuite)
-	suite.Run(t, ts)
-
-	ts.TearDownTest()
+	suite.Run(t, new(ServiceTestSuite))
 }

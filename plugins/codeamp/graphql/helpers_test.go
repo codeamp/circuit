@@ -342,14 +342,20 @@ func (helper *Helper) CreateService(t *testing.T,
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
+	servicePortInputs := []model.ServicePortInput{
+		model.ServicePortInput{
+			Port:     "80",
+			Protocol: "HTTP",
+		},
+	}
+
 	// Services
-	servicePortInputs := []model.ServicePortInput{}
 	serviceInput := model.ServiceInput{
 		ProjectID:     projectID,
 		Command:       "echo \"hello\" && exit 0",
 		Name:          helper.name,
 		ServiceSpecID: string(serviceSpecResolver.ID()),
-		Count:         "0",
+		Count:         "1",
 		Ports:         &servicePortInputs,
 		Type:          "general",
 		EnvironmentID: envID,
