@@ -61,7 +61,7 @@ jobs:
             set -x
 
             docker-compose up -d registry
-            docker-compose run --rm circuit /bin/sh -c "gotest -v -covermode=count -coverprofile=coverage.out ./... | tee go-test-output.txt" || EXIT_CODE=$? && true
+            docker-compose run --rm circuit /bin/sh -c "(set -o pipefail && gotest -v -covermode=count -coverprofile=coverage.out ./... | tee go-test-output.txt") || EXIT_CODE=$? && true
             
             # Generate Report XML
             mkdir -p test-results/junit
