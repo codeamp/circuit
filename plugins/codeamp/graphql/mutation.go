@@ -52,7 +52,8 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
 	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
 	if r.DB.Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
-		log.WarnWithFields("[+] Project not found", log.Fields{
+		log.Debug("Creating Project")
+		log.DebugWithFields("[+] Does Project already Exist? No", log.Fields{
 			"repository": repository,
 		})
 	} else {
