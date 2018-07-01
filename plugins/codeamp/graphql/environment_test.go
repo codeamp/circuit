@@ -33,12 +33,21 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestEnvironment")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
 /* Test successful env. creation */
-func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
+func (suite *EnvironmentTestSuite) TestCreateEnvironmentSuccess() {
 	// Environment
 	suite.helper.CreateEnvironment(suite.T())
+}
+
+func (suite *EnvironmentTestSuite) TestCreateEnvironmentFailure() {
+	// Environment
+	suite.helper.CreateEnvironment(suite.T())
+
+	_, err := suite.helper.CreateEnvironmentWithError("TestEnvironment")
+	assert.NotNil(suite.T(), err)
 }
 
 func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {

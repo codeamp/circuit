@@ -45,6 +45,7 @@ func (suite *ReleaseExtensionTestSuite) SetupTest() {
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestReleaseExtension")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
 func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {

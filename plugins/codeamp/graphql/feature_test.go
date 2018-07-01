@@ -35,6 +35,7 @@ func (suite *FeatureTestSuite) SetupTest() {
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestFeature")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
 func (suite *FeatureTestSuite) TestCreateFeature() {

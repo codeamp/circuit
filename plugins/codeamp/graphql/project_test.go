@@ -3,11 +3,9 @@ package graphql_resolver_test
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -50,14 +48,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestProject")
-
-	events := []interface{}{
-		plugins.ProjectExtension{},
-		plugins.Release{},
-	}
-	for _, i := range events {
-		transistor.EventRegistry[reflect.TypeOf(i).String()] = i
-	}
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
 func (suite *ProjectTestSuite) TestProjectInterface() {

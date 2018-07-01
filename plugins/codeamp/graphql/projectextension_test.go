@@ -1,17 +1,16 @@
 package graphql_resolver_test
 
 import (
-	"encoding/json"
+	"context"
 	"testing"
+	"time"
 
-	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	log "github.com/codeamp/logger"
+	"github.com/codeamp/transistor"
+	uuid "github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
-	uuid "github.com/satori/go.uuid"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/assert"
@@ -20,14 +19,9 @@ import (
 
 type ProjectExtensionTestSuite struct {
 	suite.Suite
-	Resolver                 *graphql_resolver.Resolver
-	ProjectExtensionResolver *graphql_resolver.ProjectExtensionResolver
-	EnvironmentResolver      *graphql_resolver.EnvironmentResolver
+	Resolver *graphql_resolver.Resolver
 
-	cleanupProjectIDs          []uuid.UUID
-	cleanupProjectExtensionIDs []uuid.UUID
-	cleanupEnvironmentIDs      []uuid.UUID
-	cleanupExtensionIDs        []uuid.UUID
+	helper Helper
 }
 
 func (suite *ProjectExtensionTestSuite) SetupTest() {
@@ -47,187 +41,175 @@ func (suite *ProjectExtensionTestSuite) SetupTest() {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	_ = codeamp.CodeAmp{}
-	_ = &graphql_resolver.Resolver{DB: db, Events: nil, Redis: nil}
-
-	suite.Resolver = &graphql_resolver.Resolver{DB: db}
-	suite.ProjectExtensionResolver = &graphql_resolver.ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: db}}
-	suite.EnvironmentResolver = &graphql_resolver.EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: db}}
+	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
+	suite.helper.SetResolver(suite.Resolver, "TestProjectExtension")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
-func (ts *ProjectExtensionTestSuite) createTestEnvironment(useAuth bool) (*graphql_resolver.EnvironmentResolver, error) {
-	// setup
-	envInput := model.EnvironmentInput{
-		Name:      "projectextensiontest",
-		Color:     "purple",
-		Key:       "projectextensiontest",
-		IsDefault: true,
-	}
+func (ts *ProjectExtensionTestSuite) TestCreateProjectExtensionSuccess() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
-	ctx := test.ResolverAuthContext()
-	if useAuth == false {
-		ctx = nil
-	}
-	envResolver, err := ts.Resolver.CreateEnvironment(ctx, &struct{ Environment *model.EnvironmentInput }{Environment: &envInput})
-	if err == nil {
-		ts.cleanupEnvironmentIDs = append(ts.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
-	}
-
-	return envResolver, err
-}
-
-func (ts *ProjectExtensionTestSuite) createTestProject(useAuth bool, envResolver *graphql_resolver.EnvironmentResolver) (*graphql_resolver.ProjectResolver, error) {
-	environmentID := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
-	projectInput := model.ProjectInput{
-		GitProtocol:   "HTTPS",
-		GitUrl:        "https://github.com/foo/goo.git",
-		EnvironmentID: &environmentID,
-	}
-
-	ctx := test.ResolverAuthContext()
-	if useAuth == false {
-		ctx = nil
-	}
-	createProjectResolver, err := ts.Resolver.CreateProject(ctx, &struct {
-		Project *model.ProjectInput
-	}{Project: &projectInput})
-	if err == nil {
-		log.Warn("Adding ID: ", createProjectResolver.DBProjectResolver.Project.ID)
-		ts.cleanupProjectIDs = append(ts.cleanupProjectIDs, createProjectResolver.DBProjectResolver.Project.ID)
-	}
-	return createProjectResolver, err
-}
-
-func (ts *ProjectExtensionTestSuite) createTestExtension(useAuth bool, envResolver *graphql_resolver.EnvironmentResolver) (*graphql_resolver.ExtensionResolver, error) {
-	// ctx := test.ResolverAuthContext()
-	// if useAuth == false {
-	// 	ctx = nil
-	// }
-
-	envID := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
-	extensionInput := &model.ExtensionInput{
-		Name:          "Extension Test",
-		Key:           "extensiontest",
-		Type:          "once",
-		EnvironmentID: envID,
-		Config:        model.JSON{json.RawMessage("[{\"key\": \"value\"}]")},
-	}
-	extensionResolver, err := ts.Resolver.CreateExtension(&struct{ Extension *model.ExtensionInput }{Extension: extensionInput})
-	ts.cleanupExtensionIDs = append(ts.cleanupExtensionIDs, extensionResolver.DBExtensionResolver.Model.ID)
-	log.Warn(ts.cleanupExtensionIDs)
-
-	return extensionResolver, err
-}
-
-func (ts *ProjectExtensionTestSuite) Test1CreateProjectExtensionSuccess() {
-	envResolver, err := ts.createTestEnvironment(true)
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	_, err = ts.createTestProject(true, envResolver)
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
 
-	_, err = ts.createTestExtension(true, envResolver)
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
 
-	// projectID := projectResolver.DBProjectResolver.Project.Model.ID.String()
-	// envID := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
-	// extensionID := extensionResolver.DBExtensionResolver.Extension.Model.ID.String()
+	// Project Extension
+	ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
 
-	// projectExtensionInput := model.ProjectExtensionInput{
-	// 	ProjectID:   projectID,
-	// 	ExtensionID: extensionID,
-	// 	Config: model.JSON{
-	// 		RawMessage: json.RawMessage(""),
-	// 	},
-	// 	CustomConfig: model.JSON{
-	// 		RawMessage: json.RawMessage(""),
-	// 	},
-	// 	EnvironmentID: envID,
-	// }
-
-	// spew.Dump(projectExtensionInput)
-	// projectExtension, err := ts.Resolver.CreateProjectExtension(test.ResolverAuthContext(), &struct{ ProjectExtension *model.ProjectExtensionInput }{ProjectExtension: &projectExtensionInput})
-	// if err != nil {
-	// 	assert.FailNow(ts.T(), err.Error())
-	// }
-
-	// ts.cleanupProjectExtensionIDs = append(ts.cleanupProjectExtensionIDs, projectExtension.DBProjectExtensionResolver.ProjectExtension.ID)
-
-	ts.TearDownTest()
 }
 
-func (ts *ProjectExtensionTestSuite) Test2CreateProjectExtensionFailure() {
-	envResolver, err := ts.createTestEnvironment(true)
+func (ts *ProjectExtensionTestSuite) TestCreateProjectExtensionFailure() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	_, err = ts.createTestProject(true, envResolver)
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	var ctx context.Context
+	ts.helper.SetContext(ctx)
+
+	_, err = ts.helper.CreateProjectExtensionWithError(ts.T(), extensionResolver, projectResolver)
+	assert.NotNil(ts.T(), err)
+
+	ts.helper.SetContext(test.ResolverAuthContext())
+}
+
+func (ts *ProjectExtensionTestSuite) TestCreateProjectExtensionEnvIDFailure() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	_, err = ts.createTestProject(true, envResolver)
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectResolver.DBProjectResolver.Environment.Model.ID, _ = uuid.FromString("123e4567-e89b-12d3-a456-426655440000")
+	_, err = ts.helper.CreateProjectExtensionWithError(ts.T(), extensionResolver, projectResolver)
 	assert.NotNil(ts.T(), err)
 }
 
-func (ts *ProjectExtensionTestSuite) Test3CreateProjectNoAuth() {
-	envResolver, err := ts.createTestEnvironment(true)
+func (ts *ProjectExtensionTestSuite) TestProjectExtensionInterface() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	_, err = ts.createTestProject(false, envResolver)
-	assert.NotNil(ts.T(), err)
+	// Secret
+	ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Project Extension Interface
+	_ = projectExtensionResolver.ID()
+
+	assert.Equal(ts.T(), projectResolver.ID(), projectExtensionResolver.Project().ID())
+	assert.Equal(ts.T(), extensionResolver.ID(), projectExtensionResolver.Extension().ID())
+
+	_ = projectExtensionResolver.Artifacts()
+
+	assert.Equal(ts.T(), model.JSON{[]byte("[]")}, projectExtensionResolver.Config())
+	assert.Equal(ts.T(), model.JSON{[]byte("{}")}, projectExtensionResolver.CustomConfig())
+
+	_ = projectExtensionResolver.State()
+	_ = projectExtensionResolver.StateMessage()
+
+	environment, err := projectExtensionResolver.Environment()
+	assert.Nil(ts.T(), err)
+	assert.NotNil(ts.T(), environment)
+	assert.Equal(ts.T(), environmentResolver.ID(), environment.ID())
+
+	created_at_diff := time.Now().Sub(projectExtensionResolver.Created().Time)
+	if created_at_diff.Minutes() > 1 {
+		assert.FailNow(ts.T(), "Created at time is too old")
+	}
+
+	data, err := projectExtensionResolver.MarshalJSON()
+	assert.Nil(ts.T(), err)
+	assert.NotNil(ts.T(), data)
+
+	err = projectExtensionResolver.UnmarshalJSON(data)
+	assert.Nil(ts.T(), err)
 }
 
-// func (ts *ProjectExtensionTestSuite) Test2GormCreateProjectExtension() {
+func (ts *ProjectExtensionTestSuite) TestProjectExtensionQuery() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
-// }
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Test ProjectExtension Query Interface
+	var ctx context.Context
+	_, err = ts.Resolver.ProjectExtensions(ctx)
+	assert.NotNil(ts.T(), err)
+
+	projectExtensionResolvers, err := ts.Resolver.ProjectExtensions(test.ResolverAuthContext())
+	assert.Nil(ts.T(), err)
+	assert.NotNil(ts.T(), projectExtensionResolvers)
+	assert.NotEmpty(ts.T(), projectExtensionResolvers)
+}
 
 func (ts *ProjectExtensionTestSuite) TearDownTest() {
-	for _, id := range ts.cleanupProjectExtensionIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.ProjectExtension{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	ts.cleanupProjectExtensionIDs = make([]uuid.UUID, 0)
-
-	for _, id := range ts.cleanupProjectIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	ts.cleanupProjectIDs = make([]uuid.UUID, 0)
-
-	for _, id := range ts.cleanupExtensionIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Extension{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	ts.cleanupExtensionIDs = make([]uuid.UUID, 0)
-
-	for _, id := range ts.cleanupEnvironmentIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	ts.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
+	ts.helper.TearDownTest(ts.T())
 }
 
 func TestSuiteProjectExtensionResolver(t *testing.T) {
-	ts := new(ProjectExtensionTestSuite)
-	suite.Run(t, ts)
-
-	ts.TearDownTest()
+	suite.Run(t, new(ProjectExtensionTestSuite))
 }

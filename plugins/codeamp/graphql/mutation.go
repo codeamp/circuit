@@ -1107,6 +1107,10 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput
 }
 
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
 	var projectExtension model.ProjectExtension
 	// Check if project can create project extension in environment
 	if err := r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
