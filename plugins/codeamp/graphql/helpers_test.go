@@ -64,31 +64,30 @@ func (helper *Helper) CreateEnvironmentWithName(t *testing.T, name string) *grap
 	return envResolver
 }
 
-func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) *graphql_resolver.ProjectResolver {
+func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) (*graphql_resolver.ProjectResolver, error) {
 	return helper.CreateProjectWithRepo(t, envResolver, "https://github.com/foo/goo.git")
 }
 
 func (helper *Helper) CreateProjectWithInput(t *testing.T,
 	envResolver *graphql_resolver.EnvironmentResolver,
-	projectInput *model.ProjectInput) *graphql_resolver.ProjectResolver {
+	projectInput *model.ProjectInput) (*graphql_resolver.ProjectResolver, error) {
 
 	projectResolver, err := helper.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
 		Project *model.ProjectInput
 	}{Project: projectInput})
-	if err != nil {
-		assert.FailNow(t, err.Error(), projectInput.GitUrl)
-	}
 
 	// TODO: ADB This should be happening in the CreateProject function!
 	// If an ID for an Environment is supplied, Project should try to look that up and return resolver
 	// that includes project AND environment
-	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
 
-	helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
-	return projectResolver
+	if err == nil {
+		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+		helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
+	}
+	return projectResolver, err
 }
 
-func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver, gitUrl string) *graphql_resolver.ProjectResolver {
+func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver, gitUrl string) (*graphql_resolver.ProjectResolver, error) {
 	envId := string(envResolver.ID())
 	projectInput := model.ProjectInput{
 		GitProtocol:   "HTTPS",

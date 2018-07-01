@@ -65,7 +65,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	// Secret
 	_ = suite.helper.CreateSecret(suite.T(), projectResolver)
@@ -223,6 +223,23 @@ func (suite *ProjectTestSuite) TestCreateProjectFailure() {
 	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
 }
 
+func (suite *ProjectTestSuite) TestCreateProjectNoEnvFailure() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project Input
+	envID := "123e4567-e89b-12d3-a456-426655440000"
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:boo/hoo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	_, err := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	assert.NotNil(suite.T(), err)
+}
+
 func (suite *ProjectTestSuite) TestCreateProjectWithSSH() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
@@ -244,7 +261,7 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	initialProjectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	initialProjectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	var ctx context.Context
 	_, err := suite.Resolver.Projects(ctx, &struct {
@@ -411,7 +428,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSSuccess() {
 	}
 
 	// Project
-	projectResolver := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
 
 	projectID := string(projectResolver.ID())
 	updatedProjectInput := model.ProjectInput{
@@ -426,7 +443,37 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSSuccess() {
 	assert.NotNil(suite.T(), updatedProjectResolver)
 
 	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
-	assert.Equal(suite.T(), updatedProjectInput.GitUrl, updatedProjectResolver.GitUrl())
+	assert.Equal(suite.T(), "https://github.com/foo/goo.git", updatedProjectResolver.GitUrl())
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectHTTPSMismatchSuccess() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	envID := string(environmentResolver.ID())
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "HTTPS",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+
+	projectID := string(projectResolver.ID())
+	updatedProjectInput := model.ProjectInput{
+		ID:            &projectID,
+		GitProtocol:   "SSH",
+		GitUrl:        "https://github.com/foo/goo.git",
+		EnvironmentID: &envID,
+	}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), updatedProjectResolver)
+
+	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
+	assert.Equal(suite.T(), "git@github.com:foo/goo.git", updatedProjectResolver.GitUrl())
 }
 
 func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
@@ -441,7 +488,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
 	}
 
 	// Project
-	projectResolver := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
 
 	projectID := string(projectResolver.ID())
 	branch := "master"
@@ -463,6 +510,40 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
 	assert.Equal(suite.T(), updatedProjectInput.GitUrl, updatedProjectResolver.GitUrl())
 }
 
+func (suite *ProjectTestSuite) TestUpdateProjectSSHMismatchSuccess() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	envID := string(environmentResolver.ID())
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "HTTP",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+
+	projectID := string(projectResolver.ID())
+	branch := "master"
+	continuousDeploy := false
+	updatedProjectInput := model.ProjectInput{
+		ID:               &projectID,
+		GitProtocol:      "HTTPS",
+		GitUrl:           "git@github.com:goo/foo.git",
+		GitBranch:        &branch,
+		EnvironmentID:    &envID,
+		ContinuousDeploy: &continuousDeploy,
+	}
+
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), updatedProjectResolver)
+
+	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
+	assert.Equal(suite.T(), "https://github.com/foo/goo.git", updatedProjectResolver.GitUrl())
+}
+
 func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccessNoEnvironment() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
@@ -475,7 +556,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccessNoEnvironment() {
 	}
 
 	// Project
-	projectResolver := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
 
 	projectID := string(projectResolver.ID())
 	branch := "master"
@@ -572,7 +653,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidEnvironmentID() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	projectID := string(projectResolver.ID())
 	envID := "123e4567-e89b-1zd3-a456-426655440000"
@@ -600,7 +681,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	// Update Project Environments
 	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
@@ -647,7 +728,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 	for _, name := range projectNames {
-		projectResolver := suite.helper.CreateProjectWithRepo(suite.T(), environmentResolver, fmt.Sprintf("https://github.com/test/%s", name))
+		projectResolver, _ := suite.helper.CreateProjectWithRepo(suite.T(), environmentResolver, fmt.Sprintf("https://github.com/test/%s", name))
 		suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
 	}
 

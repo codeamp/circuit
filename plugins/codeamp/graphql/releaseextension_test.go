@@ -52,7 +52,7 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
 	// Project
-	projectResolver := ts.helper.CreateProject(ts.T(), environmentResolver)
+	projectResolver, _ := ts.helper.CreateProject(ts.T(), environmentResolver)
 
 	// Extension
 	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)

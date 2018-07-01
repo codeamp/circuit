@@ -46,7 +46,7 @@ func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	envResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), envResolver)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), envResolver)
 
 	assert.Equal(suite.T(), "TestEnvironment", envResolver.Name())
 	assert.Equal(suite.T(), "TestEnvironment", envResolver.Key())
