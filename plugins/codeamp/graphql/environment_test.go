@@ -50,6 +50,32 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentFailure() {
 	assert.NotNil(suite.T(), err)
 }
 
+func (suite *EnvironmentTestSuite) TestDeleteEnvironmentFailure() {
+	// Environment
+	suite.helper.CreateEnvironment(suite.T())
+
+	envID := "123e4567-e89b-12d3-a456-426655440000"
+	envInput := model.EnvironmentInput{
+		ID: &envID,
+	}
+
+	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&envInput})
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *EnvironmentTestSuite) TestDeleteLastEnvironment() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	envID := string(environmentResolver.ID())
+	envInput := model.EnvironmentInput{
+		ID: &envID,
+	}
+
+	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&envInput})
+	assert.NotNil(suite.T(), err)
+}
+
 func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	// Environment
 	envResolver := suite.helper.CreateEnvironment(suite.T())
