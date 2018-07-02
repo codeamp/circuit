@@ -72,6 +72,8 @@ func (suite *EnvironmentTestSuite) TestDeleteLastEnvironment() {
 		ID: &envID,
 	}
 
+	suite.Resolver.DB.LogMode(true)
+	defer suite.Resolver.DB.LogMode(false)
 	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&envInput})
 	assert.NotNil(suite.T(), err)
 }
