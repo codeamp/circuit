@@ -116,7 +116,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 							if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
 								adminContext := context.WithValue(context.Background(), "jwt", model.Claims{
 									UserID:      uuid.FromStringOrNil("codeamp").String(),
-									Email:       "codeamp",
+									Email:       "codeamp@codeamp.com",
 									Permissions: []string{"admin"},
 								})
 
@@ -127,6 +127,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 										HeadFeatureID: feature.Model.ID.String(),
 										ProjectID:     setting.ProjectID.String(),
 										EnvironmentID: setting.EnvironmentID.String(),
+										ForceRebuild:  false,
 									},
 								})
 							}
