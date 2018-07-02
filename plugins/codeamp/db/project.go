@@ -71,9 +71,7 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 func (r *ProjectResolver) Releases(args *struct {
 	Params *model.PaginatorInput
 }) *ReleaseListResolver {
-	var rows []model.Release
-
-	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
+	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
 
 	return &ReleaseListResolver{
 		PaginatorInput: args.Params,
