@@ -127,7 +127,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 										HeadFeatureID: feature.Model.ID.String(),
 										ProjectID:     setting.ProjectID.String(),
 										EnvironmentID: setting.EnvironmentID.String(),
-										ForceRebuild:  false,
 									},
 								})
 							}
