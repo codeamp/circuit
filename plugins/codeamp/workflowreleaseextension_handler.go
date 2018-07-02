@@ -46,11 +46,13 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 	}
 
 	user := model.User{}
+	email := ""
 	if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
 		log.InfoWithFields("user not found", log.Fields{
 			"id": release.UserID,
 		})
-		return
+	} else {
+		email = user.Email
 	}
 
 	// get all branches relevant for the projec
@@ -242,7 +244,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 						Message:    tailFeature.Message,
 						Created:    tailFeature.Created,
 					},
-					User: user.Email,
+					User: email,
 					Project: plugins.Project{
 						ID:         project.Model.ID.String(),
 						Slug:       project.Slug,
