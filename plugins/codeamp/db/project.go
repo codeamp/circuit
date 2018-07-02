@@ -47,6 +47,7 @@ func (r *ProjectResolver) Features(args *struct {
 	return &FeatureListResolver{
 		PaginatorInput: args.Params,
 		Query:          query,
+		DB:             r.DB,
 	}
 }
 
@@ -77,6 +78,7 @@ func (r *ProjectResolver) Releases(args *struct {
 	return &ReleaseListResolver{
 		PaginatorInput: args.Params,
 		Query:          query,
+		DB:             r.DB,
 	}
 }
 
@@ -87,6 +89,7 @@ func (r *ProjectResolver) Services(args *struct {
 	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 
 	return &ServiceListResolver{
+		DB:             r.DB,
 		Query:          query,
 		PaginatorInput: args.Params,
 	}
@@ -102,6 +105,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 
 	query := r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc")
 	return &SecretListResolver{
+		DB:             r.DB,
 		Query:          query,
 		PaginatorInput: args.Params,
 	}, nil
