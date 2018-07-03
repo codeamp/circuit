@@ -172,12 +172,12 @@ func (r *Resolver) UpdateProject(args *struct {
 	if args.Project.GitBranch != nil {
 		projectID, err := uuid.FromString(*args.Project.ID)
 		if err != nil {
-			return &ProjectResolver{}, fmt.Errorf("Couldn't parse project ID")
+			return nil, fmt.Errorf("Couldn't parse project ID")
 		}
 
 		environmentID, err := uuid.FromString(*args.Project.EnvironmentID)
 		if err != nil {
-			return &ProjectResolver{}, fmt.Errorf("Couldn't parse environment ID")
+			return nil, fmt.Errorf("Couldn't parse environment ID")
 		}
 
 		var projectSettings model.ProjectSettings
