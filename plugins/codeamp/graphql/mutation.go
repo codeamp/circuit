@@ -841,14 +841,18 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 
 func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
 	var existingEnv model.Environment
+
+	if args.Environment.ID == nil {
+		return &EnvironmentResolver{}, fmt.Errorf("EnvironmentID required param")
+	}
+
 	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
 		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
 	} else {
 		existingEnv.Name = args.Environment.Name
 		existingEnv.Color = args.Environment.Color
-
 		// Check if this is the only default env.
-		if args.Environment.IsDefault && existingEnv.IsDefault {
+		if args.Environment.IsDefault == false && existingEnv.IsDefault == true {
 			var defaultEnvs []model.Environment
 			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
 			// Update IsDefault as long as the current is false or
@@ -857,7 +861,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 				existingEnv.IsDefault = args.Environment.IsDefault
 			}
 		} else {
-			// If IsDefault is false, then no harm in updating
+			// If IsDefault is true, then no harm in updating
 			existingEnv.IsDefault = args.Environment.IsDefault
 		}
 

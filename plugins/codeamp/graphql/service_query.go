@@ -14,18 +14,22 @@ type ServiceResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *ServiceResolverQuery) Services(ctx context.Context) ([]*ServiceResolver, error) {
+func (r *ServiceResolverQuery) Services(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (ServiceListResolver, error) {
+	var query *gorm.DB
+
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
+		return ServiceListResolver{}, err
 	}
 
-	var rows []model.Service
-	var results []*ServiceResolver
+	query = r.DB.Order("created_at desc")
 
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, service := range rows {
-		results = append(results, &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}})
-	}
-
-	return results, nil
+	return ServiceListResolver{
+		DBServiceListResolver: &db_resolver.ServiceListResolver{
+			DB:             r.DB,
+			Query:          query,
+			PaginatorInput: args.Params,
+		},
+	}, nil
 }

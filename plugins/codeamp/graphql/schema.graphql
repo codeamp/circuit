@@ -15,19 +15,19 @@ type Query {
   # Project
   project(id: ID, slug: String, name: String, environmentID: String): Project
   # Projects
-  projects(projectSearch: ProjectSearchInput): [Project]!
+  projects(projectSearch: ProjectSearchInput, params: PaginatorInput): ProjectList!
   # Features
-  features(): [Feature]!
+  features(params: PaginatorInput): FeatureList!
   # Services
-  services(): [Service]!
+  services(params: PaginatorInput): ServiceList!
   # Service specs
   serviceSpecs(): [ServiceSpec]!
   # Releases
-  releases(): [Release]!
+  releases(params: PaginatorInput): ReleaseList!
   # Environments
   environments(projectSlug: String): [Environment]!
   # Environment variables
-  secrets(): [Secret]!
+  secrets(params: PaginatorInput): SecretList!
   # ProjectExtension spec
   extensions(environmentID: String): [Extension]!
   # ProjectExtensions
@@ -90,6 +90,53 @@ type Mutation {
   updateProjectEnvironments(projectEnvironments: ProjectEnvironmentsInput): [Environment!]!
   # Bookmark project
   bookmarkProject(id: ID!): Boolean!
+}
+
+# Paginator
+interface Paginator {
+  page: Int!
+  count: Int!
+  nextCursor: String!
+}
+
+# ReleaseList
+type ReleaseList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Release]!
+  nextCursor: String!
+}
+
+# SecretList
+type SecretList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Secret]!
+  nextCursor: String!
+}
+
+# ServiceList
+type ServiceList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Service]!
+  nextCursor: String!
+}
+
+# FeatureList
+type FeatureList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Feature]!
+  nextCursor: String!
+}
+
+# ProjectList
+type ProjectList implements Paginator {
+  page: Int!
+  count: Int!
+  entries: [Project]!
+  nextCursor: String!
 }
 
 # User
@@ -190,11 +237,11 @@ type Project {
   gitProtocol: String!
   rsaPrivateKey: String!
   rsaPublicKey: String!
-  features(showDeployed: Boolean): [Feature]!
+  features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
   currentRelease: Release
-  releases: [Release]!
-  services: [Service]!
-  secrets: [Secret]!
+  releases(params: PaginatorInput): ReleaseList!
+  services(params: PaginatorInput): ServiceList!
+  secrets(params: PaginatorInput): SecretList!
   extensions: [ProjectExtension]!
   gitBranch: String!
   continuousDeploy: Boolean!
@@ -259,6 +306,12 @@ input ProjectInput {
 input ProjectSearchInput {
   repository: String
   bookmarked: Boolean!
+}
+
+# Pagination input
+input PaginatorInput {
+  cursor: String
+  limit: Int
 }
 
 # Release input

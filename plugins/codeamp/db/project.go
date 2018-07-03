@@ -19,9 +19,10 @@ type ProjectResolver struct {
 }
 
 // Features
-func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*FeatureResolver {
-	var rows []model.Feature
-	var results []*FeatureResolver
+func (r *ProjectResolver) Features(args *struct {
+	ShowDeployed *bool
+	Params       *model.PaginatorInput
+}) *FeatureListResolver {
 
 	created := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
 	showDeployed := false
@@ -41,13 +42,13 @@ func (r *ProjectResolver) Features(args *struct{ ShowDeployed *bool }) []*Featur
 		}
 	}
 
-	r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), created).Order("created desc").Find(&rows)
+	query := r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), created).Order("created desc")
 
-	for _, feature := range rows {
-		results = append(results, &FeatureResolver{DB: r.DB, Feature: feature})
+	return &FeatureListResolver{
+		PaginatorInput: args.Params,
+		Query:          query,
+		DB:             r.DB,
 	}
-
-	return results
 }
 
 // CurrentRelease
@@ -67,46 +68,45 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 }
 
 // Releases
-func (r *ProjectResolver) Releases() []*ReleaseResolver {
-	var rows []model.Release
-	var results []*ReleaseResolver
+func (r *ProjectResolver) Releases(args *struct {
+	Params *model.PaginatorInput
+}) *ReleaseListResolver {
+	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
 
-	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").Find(&rows)
-	for _, release := range rows {
-		results = append(results, &ReleaseResolver{DB: r.DB, Release: release})
+	return &ReleaseListResolver{
+		PaginatorInput: args.Params,
+		Query:          query,
+		DB:             r.DB,
 	}
-
-	return results
 }
 
 // Services
-func (r *ProjectResolver) Services() []*ServiceResolver {
-	var rows []model.Service
-	var results []*ServiceResolver
+func (r *ProjectResolver) Services(args *struct {
+	Params *model.PaginatorInput
+}) *ServiceListResolver {
+	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 
-	r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Find(&rows)
-	for _, service := range rows {
-		results = append(results, &ServiceResolver{DB: r.DB, Service: service})
+	return &ServiceListResolver{
+		DB:             r.DB,
+		Query:          query,
+		PaginatorInput: args.Params,
 	}
-
-	return results
 }
 
 // Secrets
-func (r *ProjectResolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
+func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (*SecretListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []model.Secret
-	var results []*SecretResolver
-
-	r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc").Find(&rows)
-	for _, secret := range rows {
-		results = append(results, &SecretResolver{DB: r.DB, Secret: secret})
-	}
-
-	return results, nil
+	query := r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key, created_at desc")
+	return &SecretListResolver{
+		DB:             r.DB,
+		Query:          query,
+		PaginatorInput: args.Params,
+	}, nil
 }
 
 // ProjectExtensions
@@ -156,6 +156,7 @@ func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	var results []*EnvironmentResolver
 
 	r.DB.Where("project_id = ?", r.Project.ID).Find(&permissions)
+
 	for _, permission := range permissions {
 		var environment model.Environment
 		r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)

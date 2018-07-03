@@ -10,12 +10,19 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 )
 
+// ReleaseResolver resolver for Release
 type ReleaseResolver struct {
 	model.Release
 	DB *gorm.DB
+}
+
+// ID
+func (r *ReleaseResolver) ID() graphql.ID {
+	return graphql.ID(r.Release.Model.ID.String())
 }
 
 // Project
