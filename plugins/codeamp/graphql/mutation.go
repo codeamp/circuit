@@ -1493,7 +1493,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 
 		var artifact transistor.Artifact
 		// check if val is UUID. If so, query in environment variables for id
-		secretID := uuid.FromStringOrNil(ec.Value)
+		secretID := uuid.FromStringOrNil(extensionConfig[i].Value)
 		if secretID != uuid.Nil {
 			secret := model.SecretValue{}
 			if db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).RecordNotFound() {
@@ -1505,7 +1505,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 			artifact.Value = secret.Value
 		} else {
 			artifact.Key = ec.Key
-			artifact.Value = ec.Value
+			artifact.Value = extensionConfig[i].Value
 		}
 		artifacts = append(artifacts, artifact)
 	}
@@ -1529,5 +1529,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		artifact.Secret = false
 		artifacts = append(artifacts, artifact)
 	}
+
 	return artifacts, nil
 }
