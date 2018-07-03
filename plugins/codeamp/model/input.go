@@ -102,6 +102,14 @@ type ProjectSearchInput struct {
 	Bookmarked bool `json:"bookmarked"`
 }
 
+// PaginatorInput
+type PaginatorInput struct {
+	// Cursor
+	Cursor *string `json:"cursor"`
+	// Limit
+	Limit *int32 `json:"limit"`
+}
+
 // ReleaseInput
 type ReleaseInput struct {
 	// ID

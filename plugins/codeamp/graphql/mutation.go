@@ -839,14 +839,18 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 
 func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
 	var existingEnv model.Environment
+
+	if args.Environment.ID == nil {
+		return &EnvironmentResolver{}, fmt.Errorf("EnvironmentID required param")
+	}
+
 	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
 		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
 	} else {
 		existingEnv.Name = args.Environment.Name
 		existingEnv.Color = args.Environment.Color
-
 		// Check if this is the only default env.
-		if args.Environment.IsDefault && existingEnv.IsDefault {
+		if args.Environment.IsDefault == false && existingEnv.IsDefault == true {
 			var defaultEnvs []model.Environment
 			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
 			// Update IsDefault as long as the current is false or
@@ -855,7 +859,7 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 				existingEnv.IsDefault = args.Environment.IsDefault
 			}
 		} else {
-			// If IsDefault is false, then no harm in updating
+			// If IsDefault is true, then no harm in updating
 			existingEnv.IsDefault = args.Environment.IsDefault
 		}
 
@@ -1484,7 +1488,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 
 		var artifact transistor.Artifact
 		// check if val is UUID. If so, query in environment variables for id
-		secretID := uuid.FromStringOrNil(ec.Value)
+		secretID := uuid.FromStringOrNil(extensionConfig[i].Value)
 		if secretID != uuid.Nil {
 			secret := model.SecretValue{}
 			if db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).RecordNotFound() {
@@ -1496,7 +1500,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 			artifact.Value = secret.Value
 		} else {
 			artifact.Key = ec.Key
-			artifact.Value = ec.Value
+			artifact.Value = extensionConfig[i].Value
 		}
 		artifacts = append(artifacts, artifact)
 	}
@@ -1521,5 +1525,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		artifact.Secret = false
 		artifacts = append(artifacts, artifact)
 	}
+
 	return artifacts, nil
 }

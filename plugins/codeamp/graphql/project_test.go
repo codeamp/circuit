@@ -417,33 +417,48 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	}
 
 	projects, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
+	projectList, err := suite.Resolver.Projects(adminContext, &struct {
 		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
 		&model.ProjectSearchInput{
 			Bookmarked: true,
 		},
+		Params: &model.PaginatorInput{},
 	})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	assert.Equal(suite.T(), 3, len(projects))
+	entries, err := projectList.Entries()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), 3, len(entries))
 
 	// do a search for 'foo'
 	searchQuery := "foo"
-	projects, err = suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
+	projectList, err = suite.Resolver.Projects(adminContext, &struct {
 		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
 		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
+		Params: &model.PaginatorInput{},
 	})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	assert.Equal(suite.T(), 2, len(projects))
+	entries, err = projectList.Entries()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	assert.Equal(suite.T(), 2, len(entries))
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {

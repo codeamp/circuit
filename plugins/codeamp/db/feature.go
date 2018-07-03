@@ -6,8 +6,8 @@ import (
 )
 
 type FeatureResolver struct {
-	model.Feature
-	DB *gorm.DB
+	Feature model.Feature
+	DB      *gorm.DB
 }
 
 func (r *FeatureResolver) Project() *ProjectResolver {

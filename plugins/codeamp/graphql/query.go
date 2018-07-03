@@ -39,19 +39,24 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 // Projects
 func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
-}) ([]*ProjectResolver, error) {
+	Params        *model.PaginatorInput
+}) (ProjectListResolver, error) {
 	initializer := ProjectResolverQuery{DB: r.DB}
-	return initializer.Projects(ctx, args.ProjectSearch)
+	return initializer.Projects(ctx, args)
 }
 
-func (r *Resolver) Features(ctx context.Context) ([]*FeatureResolver, error) {
+func (r *Resolver) Features(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (FeatureListResolver, error) {
 	initializer := FeatureResolverQuery{DB: r.DB}
-	return initializer.Features(ctx)
+	return initializer.Features(ctx, args)
 }
 
-func (r *Resolver) Services(ctx context.Context) ([]*ServiceResolver, error) {
+func (r *Resolver) Services(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (ServiceListResolver, error) {
 	initializer := ServiceResolverQuery{DB: r.DB}
-	return initializer.Services(ctx)
+	return initializer.Services(ctx, args)
 }
 
 func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
@@ -59,9 +64,11 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 	return initializer.ServiceSpecs(ctx)
 }
 
-func (r *Resolver) Releases(ctx context.Context) ([]*ReleaseResolver, error) {
+func (r *Resolver) Releases(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (ReleaseListResolver, error) {
 	initializer := ReleaseResolverQuery{DB: r.DB}
-	return initializer.Releases(ctx)
+	return initializer.Releases(ctx, args)
 }
 
 func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *string }) ([]*EnvironmentResolver, error) {
@@ -69,9 +76,11 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 	return initializer.Environments(ctx, args)
 }
 
-func (r *Resolver) Secrets(ctx context.Context) ([]*SecretResolver, error) {
+func (r *Resolver) Secrets(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (SecretListResolver, error) {
 	initializer := SecretResolverQuery{DB: r.DB}
-	return initializer.Secrets(ctx)
+	return initializer.Secrets(ctx, args)
 }
 
 func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
