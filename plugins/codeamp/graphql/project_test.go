@@ -121,10 +121,10 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = suite.helper.CreateRelease(suite.T(), featureResolver, projectResolver)
 
 	// Test Releases Query Interface
-	_, err = suite.Resolver.Releases(ctx)
+	_, err = suite.Resolver.Releases(ctx, nil)
 	assert.NotNil(suite.T(), err)
 
-	releasesList, err := suite.Resolver.Releases(test.ResolverAuthContext())
+	releasesList, err := suite.Resolver.Releases(test.ResolverAuthContext(), nil)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), releasesList)
 
@@ -147,20 +147,23 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = projectResolver.RsaPublicKey()
 
 	showDeployed := false
-	featuresList := projectResolver.Features(&struct{ ShowDeployed *bool }{ShowDeployed: &showDeployed})
+	featuresList := projectResolver.Features(&struct {
+		ShowDeployed *bool
+		Params       *model.PaginatorInput
+	}{&showDeployed, nil})
 	assert.NotEmpty(suite.T(), featuresList, "Features List Empty")
 
 	_, _ = projectResolver.CurrentRelease()
-	releasesList = projectResolver.Releases()
+	releasesList = projectResolver.Releases(nil)
 	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
 
-	servicesList := projectResolver.Services()
+	servicesList := projectResolver.Services(nil)
 	assert.NotEmpty(suite.T(), servicesList, "Services List Empty")
 
-	_, err = projectResolver.Secrets(ctx)
+	_, err = projectResolver.Secrets(ctx, nil)
 	assert.NotNil(suite.T(), err)
 
-	secretsList, err := projectResolver.Secrets(test.ResolverAuthContext())
+	secretsList, err := projectResolver.Secrets(test.ResolverAuthContext(), nil)
 	assert.Nil(suite.T(), err)
 	assert.NotEmpty(suite.T(), secretsList, "Secrets List Empty")
 
@@ -209,13 +212,15 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	var ctx context.Context
 	_, err := suite.Resolver.Projects(ctx, &struct {
 		ProjectSearch *model.ProjectSearchInput
-	}{nil})
+		Params        *model.PaginatorInput
+	}{})
 	assert.NotNil(suite.T(), err)
 
 	// do a search for 'foo'
 	searchQuery := "foo"
 	projects, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
 		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
 		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: false,
@@ -325,10 +330,10 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	assert.Nil(suite.T(), projectResolver)
 
 	// Permission to access environment
-	// Delete the project_environments entry for this	
+	// Delete the project_environments entry for this
 	suite.Resolver.DB.Unscoped().Where("project_id = ?", initialProjectResolver.ID()).Delete(&model.ProjectEnvironment{})
-	
-	// Should Fail	
+
+	// Should Fail
 	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
 		ID            *graphql.ID
 		Slug          *string
@@ -416,12 +421,11 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
 	}
 
-	projects, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
-	projectList, err := suite.Resolver.Projects(adminContext, &struct {
+	projectList, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
 		ProjectSearch *model.ProjectSearchInput
 		Params        *model.PaginatorInput
 	}{
-		&model.ProjectSearchInput{
+		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: true,
 		},
 		Params: &model.PaginatorInput{},
@@ -439,7 +443,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 	// do a search for 'foo'
 	searchQuery := "foo"
-	projectList, err = suite.Resolver.Projects(adminContext, &struct {
+	projectList, err = suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
 		ProjectSearch *model.ProjectSearchInput
 		Params        *model.PaginatorInput
 	}{

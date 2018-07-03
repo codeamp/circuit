@@ -138,7 +138,6 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 	envResolvers := []*graphql_resolver.EnvironmentResolver{
 		suite.helper.CreateEnvironmentWithName(suite.T(), "TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse"),
 		suite.helper.CreateEnvironmentWithName(suite.T(), "TestCreate2EnvsUpdateFirstEnvironmentIsDefaultToFalse2"),
-	assert.Equal(suite.T(), envResolver.IsDefault(), true)
 	}
 
 	// 1
