@@ -90,6 +90,10 @@ func (suite *FeatureTestSuite) TestFeatureResolverInterface() {
 }
 
 func (suite *FeatureTestSuite) TestFeatureQueryInterface() {
+	emptyPaginatorInput := &struct {
+		Params *model.PaginatorInput
+	}{nil}
+
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
@@ -101,10 +105,15 @@ func (suite *FeatureTestSuite) TestFeatureQueryInterface() {
 
 	// Test Features Query Interface
 	var ctx context.Context
-	_, err := suite.Resolver.Features(ctx)
+	_, err := suite.Resolver.Features(ctx, emptyPaginatorInput)
 	assert.NotNil(suite.T(), err)
 
-	featureResolvers, err := suite.Resolver.Features(test.ResolverAuthContext())
+	featureListResolver, err := suite.Resolver.Features(test.ResolverAuthContext(), emptyPaginatorInput)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	featureResolvers, err := featureListResolver.Entries()
 	assert.Nil(suite.T(), err)
 	assert.NotEmpty(suite.T(), featureResolvers)
 

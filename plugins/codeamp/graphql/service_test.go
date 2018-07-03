@@ -51,6 +51,10 @@ func (suite *ServiceTestSuite) SetupTest() {
 }
 
 func (ts *ServiceTestSuite) TestCreateService() {
+	emptyPaginatorInput := &struct {
+		Params *model.PaginatorInput
+	}{nil}
+
 	// Environment
 	envInput := model.EnvironmentInput{
 		Name:      "TestProjectInterface",
@@ -169,10 +173,10 @@ func (ts *ServiceTestSuite) TestCreateService() {
 	assert.Nil(ts.T(), err)
 
 	// Test Service Query
-	_, err = ts.Resolver.Services(ctx)
+	_, err = ts.Resolver.Services(ctx, emptyPaginatorInput)
 	assert.NotNil(ts.T(), err)
 
-	serviceResolvers, err := ts.Resolver.Services(test.ResolverAuthContext())
+	serviceResolvers, err := ts.Resolver.Services(test.ResolverAuthContext(), emptyPaginatorInput)
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), serviceResolvers)
 	assert.NotEmpty(ts.T(), serviceResolvers, "Service Resolvers was empty")
