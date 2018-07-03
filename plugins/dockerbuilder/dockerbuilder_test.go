@@ -1,6 +1,7 @@
 package dockerbuilder_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
@@ -93,8 +94,10 @@ func (suite *TestSuite) TestDockerBuilder() {
 	image, err := e.GetArtifact("image")
 	assert.Nil(suite.T(), err)
 
+	imagePrefixCheck := strings.HasPrefix(image.String(), "0.0.0.0:5000/testorg/checkr-deploy-test:")
+
 	if err == nil {
-		assert.Equal(suite.T(), image.String(), "0.0.0.0:5000/testorg/checkr-deploy-test:4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9.testing")
+		assert.Equal(suite.T(), true, imagePrefixCheck)
 	}
 }
 
