@@ -156,6 +156,10 @@ func (r *Resolver) UpdateProject(args *struct {
 		return nil, fmt.Errorf("Project not found.")
 	}
 
+	if args.Project.GitUrl != "" {
+		project.GitUrl = args.Project.GitUrl
+	}
+
 	switch args.Project.GitProtocol {
 	case "private", "PRIVATE", "ssh", "SSH":
 		project.GitProtocol = "SSH"
