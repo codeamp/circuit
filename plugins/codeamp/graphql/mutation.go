@@ -1047,7 +1047,8 @@ func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *model
 	} else {
 		// check if any configs are using the secret
 		extensions := []model.Extension{}
-		r.DB.Where(`config @> '{"config": [{"value": "?"}]}'"`, secret.Model.ID.String()).Find(&extensions)
+		where := fmt.Sprintf(`config @> '{"config": [{"value": "%s"}]}'"`, secret.Model.ID.String())
+		r.DB.Where(where).Find(&extensions)
 		if len(extensions) == 0 {
 			versions := []model.SecretValue{}
 
@@ -1145,6 +1146,10 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput
 
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
+
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
 
 	// Check if project can create project extension in environment
 	if err := r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
