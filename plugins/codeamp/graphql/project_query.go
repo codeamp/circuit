@@ -83,9 +83,9 @@ func (u *ProjectResolverQuery) Project(ctx context.Context, args *struct {
 func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
 	Params        *model.PaginatorInput
-}) (ProjectListResolver, error) {
+}) (*ProjectListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return ProjectListResolver{}, err
+		return nil, err
 	}
 
 	var query *gorm.DB
@@ -104,7 +104,7 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 		query = u.DB.Where("id in (?)", projectIds)
 	}
 
-	return ProjectListResolver{
+	return &ProjectListResolver{
 		DBProjectListResolver: &db_resolver.ProjectListResolver{
 			DB:             u.DB,
 			Query:          query,

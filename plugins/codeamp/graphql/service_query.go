@@ -16,16 +16,16 @@ type ServiceResolverQuery struct {
 
 func (r *ServiceResolverQuery) Services(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) (ServiceListResolver, error) {
+}) (*ServiceListResolver, error) {
 	var query *gorm.DB
 
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return ServiceListResolver{}, err
+		return nil, err
 	}
 
 	query = r.DB.Order("created_at desc")
 
-	return ServiceListResolver{
+	return &ServiceListResolver{
 		DBServiceListResolver: &db_resolver.ServiceListResolver{
 			DB:             r.DB,
 			Query:          query,

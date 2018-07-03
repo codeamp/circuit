@@ -124,7 +124,9 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_, err = suite.Resolver.Releases(ctx, nil)
 	assert.NotNil(suite.T(), err)
 
-	releasesList, err := suite.Resolver.Releases(test.ResolverAuthContext(), nil)
+	releasesList, err := suite.Resolver.Releases(test.ResolverAuthContext(), &struct {
+		Params *model.PaginatorInput
+	}{nil})
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), releasesList)
 
@@ -154,16 +156,21 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	assert.NotEmpty(suite.T(), featuresList, "Features List Empty")
 
 	_, _ = projectResolver.CurrentRelease()
-	releasesList = projectResolver.Releases(nil)
+
+	emptyPaginatorInput := &struct {
+		Params *model.PaginatorInput
+	}{nil}
+
+	releasesList = projectResolver.Releases(emptyPaginatorInput)
 	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
 
-	servicesList := projectResolver.Services(nil)
+	servicesList := projectResolver.Services(emptyPaginatorInput)
 	assert.NotEmpty(suite.T(), servicesList, "Services List Empty")
 
-	_, err = projectResolver.Secrets(ctx, nil)
+	_, err = projectResolver.Secrets(ctx, emptyPaginatorInput)
 	assert.NotNil(suite.T(), err)
 
-	secretsList, err := projectResolver.Secrets(test.ResolverAuthContext(), nil)
+	secretsList, err := projectResolver.Secrets(test.ResolverAuthContext(), emptyPaginatorInput)
 	assert.Nil(suite.T(), err)
 	assert.NotEmpty(suite.T(), secretsList, "Secrets List Empty")
 

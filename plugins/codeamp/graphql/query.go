@@ -40,21 +40,21 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
 	Params        *model.PaginatorInput
-}) (ProjectListResolver, error) {
+}) (*ProjectListResolver, error) {
 	initializer := ProjectResolverQuery{DB: r.DB}
 	return initializer.Projects(ctx, args)
 }
 
 func (r *Resolver) Features(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) (FeatureListResolver, error) {
+}) (*FeatureListResolver, error) {
 	initializer := FeatureResolverQuery{DB: r.DB}
 	return initializer.Features(ctx, args)
 }
 
 func (r *Resolver) Services(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) (ServiceListResolver, error) {
+}) (*ServiceListResolver, error) {
 	initializer := ServiceResolverQuery{DB: r.DB}
 	return initializer.Services(ctx, args)
 }
@@ -66,7 +66,7 @@ func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, er
 
 func (r *Resolver) Releases(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) (ReleaseListResolver, error) {
+}) (*ReleaseListResolver, error) {
 	initializer := ReleaseResolverQuery{DB: r.DB}
 	return initializer.Releases(ctx, args)
 }
@@ -78,7 +78,7 @@ func (r *Resolver) Environments(ctx context.Context, args *struct{ ProjectSlug *
 
 func (r *Resolver) Secrets(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) (SecretListResolver, error) {
+}) (*SecretListResolver, error) {
 	initializer := SecretResolverQuery{DB: r.DB}
 	return initializer.Secrets(ctx, args)
 }

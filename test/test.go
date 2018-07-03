@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -41,6 +43,14 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 
 	configLogLevel()
 	configLogFormat()
+
+	events := []interface{}{
+		plugins.ProjectExtension{},
+		plugins.Release{},
+	}
+	for _, i := range events {
+		transistor.EventRegistry[reflect.TypeOf(i).String()] = i
+	}
 
 	return db, nil
 }
