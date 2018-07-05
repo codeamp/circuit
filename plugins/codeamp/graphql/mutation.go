@@ -1473,8 +1473,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 		if err != nil {
 			log.Error(err.Error())
-			log.Info(projectExtension.Artifacts.RawMessage)
-
 			return nil, err
 		}
 	}
