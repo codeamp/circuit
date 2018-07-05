@@ -16,15 +16,15 @@ type FeatureResolverQuery struct {
 
 func (r *FeatureResolverQuery) Features(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) (FeatureListResolver, error) {
+}) (*FeatureListResolver, error) {
 	var query *gorm.DB
 
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return FeatureListResolver{}, err
+		return nil, err
 	}
 
 	query = r.DB.Order("created_at desc")
-	return FeatureListResolver{
+	return &FeatureListResolver{
 		DBFeatureListResolver: &db_resolver.FeatureListResolver{
 			DB:             r.DB,
 			Query:          query,

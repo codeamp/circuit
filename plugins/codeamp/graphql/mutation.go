@@ -105,27 +105,25 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	r.DB.Create(&project)
 
 	// Create git branch for env per env
-	environments := []model.Environment{}
-	if r.DB.Find(&environments).RecordNotFound() {
+	environment := model.Environment{}
+	if r.DB.Where("id = ?", *args.Project.EnvironmentID).Find(&environment).RecordNotFound() {
 		log.InfoWithFields("Environment doesn't exist.", log.Fields{
 			"args": args,
 		})
-		return nil, fmt.Errorf("No environments initialized.")
+		return nil, fmt.Errorf("Invalid Environment ID Provided")
 	}
 
-	for _, env := range environments {
-		r.DB.Create(&model.ProjectSettings{
-			EnvironmentID: env.Model.ID,
+	r.DB.Create(&model.ProjectSettings{
+		EnvironmentID: environment.Model.ID,
+		ProjectID:     project.Model.ID,
+		GitBranch:     "master",
+	})
+	// Create ProjectEnvironment rows for default envs
+	if environment.IsDefault {
+		r.DB.Create(&model.ProjectEnvironment{
+			EnvironmentID: environment.Model.ID,
 			ProjectID:     project.Model.ID,
-			GitBranch:     "master",
 		})
-		// Create ProjectEnvironment rows for default envs
-		if env.IsDefault {
-			r.DB.Create(&model.ProjectEnvironment{
-				EnvironmentID: env.Model.ID,
-				ProjectID:     project.Model.ID,
-			})
-		}
 	}
 
 	if userId, err := auth.CheckAuth(ctx, []string{}); err != nil {
@@ -254,6 +252,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	var secretsJsonb postgres.Jsonb
 	var servicesJsonb postgres.Jsonb
 	var projectExtensionsJsonb postgres.Jsonb
+
+	userID, err := auth.CheckAuth(ctx, []string{})
+	if err != nil {
+		return nil, err
+	}
 
 	// Check if project can create release in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
@@ -427,11 +430,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
 	} else {
 		tailFeatureID = currentRelease.HeadFeatureID
-	}
-
-	userID, err := auth.CheckAuth(ctx, []string{})
-	if err != nil {
-		return &ReleaseResolver{}, err
 	}
 
 	// Create Release
@@ -835,7 +833,7 @@ func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environm
 
 		return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: env}}, nil
 	} else {
-		return nil, fmt.Errorf("CreateEnvironment: name already exists")
+		return nil, fmt.Errorf("CreateEnvironment: name '%s' already exists", args.Environment.Name)
 	}
 }
 
@@ -1453,14 +1451,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	var artifacts []transistor.Artifact
 	var err error
 
-	type ExtConfig struct {
-		Key           string `json:"key"`
-		Value         string `json:"value"`
-		Secret        bool   `json:"secret"`
-		AllowOverride bool   `json:"allowOverride"`
-	}
-
-	extensionConfig := []ExtConfig{}
+	extensionConfig := []model.ExtConfig{}
 	if extension.Config.RawMessage != nil {
 		err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
 		if err != nil {
@@ -1468,10 +1459,11 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		}
 	}
 
-	projectConfig := []ExtConfig{}
+	projectConfig := []model.ExtConfig{}
 	if projectExtension.Config.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 		if err != nil {
+			log.Error(err.Error())
 			return nil, err
 		}
 	}
@@ -1480,6 +1472,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	if projectExtension.Artifacts.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 		if err != nil {
+			log.Error(err.Error())
 			return nil, err
 		}
 	}
@@ -1518,6 +1511,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	if projectExtension.CustomConfig.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
 		if err != nil {
+			log.Error(err.Error())
 			return nil, err
 		}
 	}

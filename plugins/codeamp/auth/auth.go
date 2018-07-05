@@ -7,65 +7,57 @@ import (
 	"strings"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
-var authDisabled bool
-var enabledMap = map[bool]string{
-	true:  "ENABLED",
-	false: "DISABLED",
-}
-
-func SetAuthEnabled(enabled bool) {
-	log.Warn(fmt.Sprintf("AUTHENTICATION %s", enabledMap[enabled]))
-	authDisabled = !enabled
-}
-
-func checkAuthentication(ctx context.Context, scopes []string) (string, error) {
+func getJWTToken(ctx context.Context) (*model.Claims, error) {
+	if ctx == nil || ctx.Value("jwt") == nil {
+		return nil, fmt.Errorf("No JWT was provided")
+	}
 	claims := ctx.Value("jwt").(model.Claims)
-
 	if claims.UserID == "" {
-		return "", errors.New(claims.TokenError)
+		return nil, errors.New(claims.TokenError)
 	}
 
-	if transistor.SliceContains("admin", claims.Permissions) {
-		return claims.UserID, nil
-	}
+	return &claims, nil
+}
 
-	if len(scopes) == 0 {
-		return claims.UserID, nil
-	} else {
-		for _, scope := range scopes {
-			level := 0
-			levels := strings.Count(scope, "/")
+func isAdmin(claims *model.Claims) bool {
+	return transistor.SliceContains("admin", claims.Permissions)
+}
 
-			if levels > 0 {
-				for level < levels {
-					if transistor.SliceContains(scope, claims.Permissions) {
-						return claims.UserID, nil
-					}
-					scope = scope[0:strings.LastIndexByte(scope, '/')]
-					level += 1
-				}
-			} else {
-				if transistor.SliceContains(scope, claims.Permissions) {
-					return claims.UserID, nil
-				}
-			}
+func hasScopePermission(claims *model.Claims, scope string) bool {
+	for _, scope := range strings.Split(scope, "/") {
+		if transistor.SliceContains(scope, claims.Permissions) {
+			return true
 		}
-		return claims.UserID, errors.New("you dont have permission to access this resource")
 	}
+
+	return false
+}
+
+func userHasPermission(claims *model.Claims, scopes []string) bool {
+	for _, scope := range scopes {
+		if hasScopePermission(claims, scope) == true {
+			return true
+		}
+	}
+
+	// If they don't have any scope, then return true
+	return len(scopes) == 0
 }
 
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
-	if authDisabled {
-		return passAuthentication(ctx, scopes)
+	claims, err := getJWTToken(ctx)
+	if err != nil {
+		return "", err
 	}
 
-	return checkAuthentication(ctx, scopes)
-}
+	if isAdmin(claims) == false {
+		if userHasPermission(claims, scopes) == false {
+			return claims.UserID, errors.New("You don't have permission to access this resource")
+		}
+	}
 
-func passAuthentication(ctx context.Context, scopes []string) (string, error) {
-	return "Testing Mode", nil
+	return claims.UserID, nil
 }

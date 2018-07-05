@@ -2,6 +2,7 @@ package graphql_resolver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
@@ -52,4 +53,31 @@ func (u *UserResolverQuery) Users(ctx context.Context) ([]*UserResolver, error) 
 	}
 
 	return results, nil
+}
+
+// Permissions
+func (r *UserResolverQuery) Permissions(ctx context.Context) (model.JSON, error) {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return model.JSON{}, err
+	}
+
+	var rows []model.UserPermission
+	var results = make(map[string]bool)
+
+	r.DB.Unscoped().Select("DISTINCT(value)").Find(&rows)
+
+	for _, userPermission := range rows {
+		if _, err := auth.CheckAuth(ctx, []string{userPermission.Value}); err != nil {
+			results[userPermission.Value] = false
+		} else {
+			results[userPermission.Value] = true
+		}
+	}
+
+	bytes, err := json.Marshal(results)
+	if err != nil {
+		return model.JSON{}, err
+	}
+
+	return model.JSON{bytes}, nil
 }

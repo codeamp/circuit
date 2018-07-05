@@ -309,6 +309,14 @@ type Feature struct {
 	Created time.Time `json:"created"`
 }
 
+// ExtConfig
+type ExtConfig struct {
+	Key           string `json:"key"`
+	Value         string `json:"value"`
+	Secret        bool   `json:"secret"`
+	AllowOverride bool   `json:"allowOverride"`
+}
+
 /////////////////////////////
 /////////////////////////////
 func (s *Secret) AfterFind(tx *gorm.DB) (err error) {

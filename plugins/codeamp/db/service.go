@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
@@ -68,6 +69,10 @@ func (r *ServiceResolver) Ports() ([]*model.JSON, error) {
 
 // Environment
 func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
 	var environment model.Environment
 
 	if r.DB.Where("id = ?", r.Service.EnvironmentID).First(&environment).RecordNotFound() {

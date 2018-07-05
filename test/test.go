@@ -2,10 +2,14 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
@@ -40,7 +44,27 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 	configLogLevel()
 	configLogFormat()
 
+	events := []interface{}{
+		plugins.ProjectExtension{},
+		plugins.Release{},
+	}
+	for _, i := range events {
+		transistor.EventRegistry[reflect.TypeOf(i).String()] = i
+	}
+
 	return db, nil
+}
+
+// Generates a fake JWT token for testing purposes
+// Use for testing graphql resolvers
+func ResolverAuthContext() context.Context {
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      "11075553-5309-494B-9085-2D79A6ED1EB3",
+		Email:       "foo@gmail.com",
+		Permissions: []string{"admin"},
+	})
+
+	return authContext
 }
 
 func setupPostgresDB() (*gorm.DB, error) {
@@ -55,7 +79,7 @@ func setupPostgresDB() (*gorm.DB, error) {
 		},
 	)
 
-	return gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		viper.GetString("plugins.codeamp.postgres.host"),
 		viper.GetString("plugins.codeamp.postgres.port"),
 		viper.GetString("plugins.codeamp.postgres.user"),
@@ -63,6 +87,9 @@ func setupPostgresDB() (*gorm.DB, error) {
 		viper.GetString("plugins.codeamp.postgres.sslmode"),
 		viper.GetString("plugins.codeamp.postgres.password"),
 	))
+
+	// db.LogMode(true)
+	return db, err
 }
 
 // Setup logic common to all Plugin tests

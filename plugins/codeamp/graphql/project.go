@@ -79,10 +79,10 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 // Releases
 func (r *ProjectResolver) Releases(args *struct {
 	Params *model.PaginatorInput
-}) ReleaseListResolver {
+}) *ReleaseListResolver {
 	db_resolver := r.DBProjectResolver.Releases(args)
 
-	return ReleaseListResolver{
+	return &ReleaseListResolver{
 		DBReleaseListResolver: db_resolver,
 	}
 }

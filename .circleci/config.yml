@@ -30,21 +30,49 @@ jobs:
             set -x
 
             echo "RUN go get -u golang.org/x/tools/cmd/cover" >> Dockerfile
-            echo "RUN go get -u github.com/mattn/goveralls" >> Dockerfile
-            echo "RUN go get -u github.com/rakyll/gotest" >> Dockerfile
+            echo "RUN go get -u github.com/rakyll/gotest" >> Dockerfile            
+
             docker-compose build circuit 
-      # - run: 
-      #     name: Bootstrap Postgres
-      #     command: |
-      #       set -x
-      #       docker exec circuit_postgres /bin/bash && createdb codeamp_test -U postgres
       - run: 
-          name: Run Tests
+          name: Setup Test Environment
           command: |
+            set -x
+
+            curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+
             echo '{ "insecure-registries":["0.0.0.0:5000"] }' | sudo tee /etc/docker/daemon.json
             sudo service docker restart
 
+            sudo npm install -g codeclimate-test-reporter
+
+            go get -u github.com/mattn/goveralls
+            go get -u github.com/jstemmer/go-junit-report
+      - run:
+          name: Run Migration
+          command: |
+            set -x
+
+            docker-compose run --rm "circuit" go run main.go migrate --config "./configs/circuit.yml"
+            
+      - run: 
+          name: Run Tests
+          command: |
+            set -x
+
             docker-compose up -d registry
-            docker-compose run --rm circuit /bin/sh -c "gotest -v -covermode=count -coverprofile=coverage.out ./..." || EXIT_CODE=$? && true
-            docker-compose run -e COVERALLS_TOKEN=$COVERALS_TOKEN circuit /bin/sh -c "goveralls -coverprofile=coverage.out -service=circle-ci -repotoken ${COVERALLS_TOKEN}"
+            docker-compose run --rm circuit /bin/sh -c "gotest -v -covermode=count -coverprofile=coverage.out ./... | tee go-test-output.txt" || EXIT_CODE=$? && true
+            
+            # Generate Report XML
+            mkdir -p test-results/junit
+            go-junit-report < go-test-output.txt > test-results/junit/results.xml
+            
+            # Report to CodeBeat
+            codeclimate-test-reporter < coverage.out
+
+            # Report to CodeCov
+            bash <(curl -s https://codecov.io/bash) -t ${CODECOV_IO_TOKEN}
+
             exit $EXIT_CODE
+      - store_test_results:
+          path: test-results

@@ -48,6 +48,10 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (model.JSON, error) {
 	artifacts := []transistor.Artifact{}
 	var releaseExtensions []model.ReleaseExtension
 
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return model.JSON{[]byte("[]")}, err
+	}
+
 	isAdmin := false
 	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err == nil {
 		isAdmin = true

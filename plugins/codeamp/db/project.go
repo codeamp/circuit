@@ -61,7 +61,7 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 			"project_id":     r.Project.Model.ID,
 			"environment_id": r.Environment.Model.ID,
 		})
-		return &ReleaseResolver{}, fmt.Errorf("CurrentRelease does not exist.")
+		return nil, fmt.Errorf("CurrentRelease does not exist.")
 	}
 
 	return &ReleaseResolver{DB: r.DB, Release: currentRelease}, nil
