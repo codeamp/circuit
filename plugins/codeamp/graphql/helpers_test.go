@@ -69,11 +69,9 @@ func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.
 }
 
 func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver, gitUrl string) *graphql_resolver.ProjectResolver {
-	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
 	projectInput := model.ProjectInput{
-		GitProtocol:   "HTTPS",
-		GitUrl:        gitUrl,
-		EnvironmentID: &envId,
+		GitProtocol: "HTTPS",
+		GitUrl:      gitUrl,
 	}
 
 	projectResolver, err := helper.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
