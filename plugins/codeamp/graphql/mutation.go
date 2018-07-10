@@ -108,10 +108,10 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 
 	environments := []model.Environment{}
 	if r.DB.Find(&environments).RecordNotFound() {
-		log.InfoWithFields("No default envs found.", log.Fields{
+		log.InfoWithFields("No envs found.", log.Fields{
 			"args": args,
 		})
-		return nil, fmt.Errorf("No default envs found")
+		return nil, fmt.Errorf("No envs found")
 	}
 
 	for _, environment := range environments {
