@@ -14,18 +14,22 @@ type FeatureResolverQuery struct {
 	DB *gorm.DB
 }
 
-func (r *FeatureResolverQuery) Features(ctx context.Context) ([]*FeatureResolver, error) {
+func (r *FeatureResolverQuery) Features(ctx context.Context, args *struct {
+	Params *model.PaginatorInput
+}) (*FeatureListResolver, error) {
+	var query *gorm.DB
+
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	var rows []model.Feature
-	var results []*FeatureResolver
+	query = r.DB.Order("created_at desc")
+	return &FeatureListResolver{
+		DBFeatureListResolver: &db_resolver.FeatureListResolver{
+			DB:             r.DB,
+			Query:          query,
+			PaginatorInput: args.Params,
+		},
+	}, nil
 
-	r.DB.Order("created_at desc").Find(&rows)
-	for _, feature := range rows {
-		results = append(results, &FeatureResolver{DBFeatureResolver: &db_resolver.FeatureResolver{DB: r.DB, Feature: feature}})
-	}
-
-	return results, nil
 }

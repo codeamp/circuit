@@ -242,7 +242,7 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 			buildArgs = append(buildArgs, ba)
 		}
 	}
-	fullImagePath := fullImagePath(event)
+	fullImageName := fullImageName(event)
 	authConfigs := docker.AuthConfigurations{
 		Configs: map[string]docker.AuthConfiguration{
 			registryHost.String(): {
@@ -255,7 +255,7 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 	}
 	buildOptions := docker.BuildImageOptions{
 		Dockerfile:   fmt.Sprintf("Dockerfile"),
-		Name:         fullImagePath,
+		Name:         fullImageName,
 		OutputStream: dockerBuildOut,
 		InputStream:  dockerBuildIn,
 		BuildArgs:    buildArgs,
@@ -298,9 +298,26 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 	}
 
 	dockerClient, err := docker.NewClient(x.Socket)
+
+	fullImageName := fullImageName(event)
+	imageID, err := x.getImageID(fullImageName)
+	if err != nil {
+		return err
+	}
+
+	tagOptions := docker.TagImageOptions{
+		Repo:  imagePathGen(event),
+		Tag:   imageIDTagGen(imageID, event),
+		Force: true,
+	}
+
+	if err = dockerClient.TagImage(fullImageName, tagOptions); err != nil {
+		return err
+	}
+
 	err = dockerClient.PushImage(docker.PushImageOptions{
-		Name:         imagePathGen(event),
-		Tag:          imageTagGen(event),
+		Name:         fullImageName,
+		Tag:          imageIDTagGen(imageID, event),
 		OutputStream: buildlog,
 	}, docker.AuthConfiguration{
 		Username: user.String(),
@@ -311,15 +328,13 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 		return err
 	}
 
-	tagOptions := docker.TagImageOptions{
+	tagOptions = docker.TagImageOptions{
 		Repo:  imagePathGen(event),
 		Tag:   imageTagLatest(event),
 		Force: true,
 	}
 
-	fullImagePath := imagePathGen(event) + ":" + imageTagGen(event)
-
-	if err = dockerClient.TagImage(fullImagePath, tagOptions); err != nil {
+	if err = dockerClient.TagImage(fullImageName, tagOptions); err != nil {
 		return err
 	}
 
@@ -337,6 +352,36 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 	}
 
 	return nil
+}
+
+func imageIDTagGen(imageID string, e transistor.Event) string {
+	payload := e.Payload.(plugins.ReleaseExtension)
+	return fmt.Sprintf("%s.%s", imageID, payload.Release.Environment)
+}
+
+func imageIDTagLatestGen(e transistor.Event) string {
+	payload := e.Payload.(plugins.ReleaseExtension)
+	if payload.Release.Environment == "production" {
+		return ("latest")
+	}
+	return (fmt.Sprintf("%s.%s", "latest", payload.Release.Environment))
+}
+
+func (x *DockerBuilder) getImageID(name string) (string, error) {
+	dockerClient, err := docker.NewClient(x.Socket)
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+
+	image, err := dockerClient.InspectImage(name)
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+
+	truncatedID := image.ID[len(image.ID)-12:]
+	return truncatedID, nil
 }
 
 func (x *DockerBuilder) Process(e transistor.Event) error {
@@ -412,12 +457,20 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 			log.Error(err)
 		}
 
+		imageID, err := x.getImageID(fullImageName(e))
+		if err != nil {
+			log.Error(err)
+		}
+		imagePath := imagePathGen(e)
+		imageTag := imageIDTagGen(imageID, e)
+		fullImagePath := fmt.Sprintf("%s:%s", imagePath, imageTag)
+
 		ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Completed")
 		ev.AddArtifact("user", user.String(), user.Secret)
 		ev.AddArtifact("password", password.String(), password.Secret)
 		ev.AddArtifact("email", email.String(), email.Secret)
 		ev.AddArtifact("host", registryHost.String(), registryHost.Secret)
-		ev.AddArtifact("image", fullImagePath(e), false)
+		ev.AddArtifact("image", fullImagePath, false)
 		ev.AddArtifact("build_log", buildlogBuf.String(), false)
 		x.events <- ev
 	}
@@ -426,7 +479,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 }
 
 // generate image tag name
-func imageTagGen(event transistor.Event) string {
+func imagePostfixGen(event transistor.Event) string {
 	payload := event.Payload.(plugins.ReleaseExtension)
 	return (fmt.Sprintf("%s.%s", payload.Release.HeadFeature.Hash, payload.Release.Environment))
 }
@@ -456,6 +509,6 @@ func imagePathGen(event transistor.Event) string {
 }
 
 // return the full image path with featureHash tag
-func fullImagePath(event transistor.Event) string {
-	return (fmt.Sprintf("%s:%s", imagePathGen(event), imageTagGen(event)))
+func fullImageName(event transistor.Event) string {
+	return (fmt.Sprintf("%s:%s", imagePathGen(event), imagePostfixGen(event)))
 }

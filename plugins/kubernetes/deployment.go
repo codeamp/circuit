@@ -220,7 +220,7 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 				v1.ResourceMemory: resource.MustParse(podConfig.Service.Spec.MemoryRequest),
 			},
 		},
-		ImagePullPolicy: v1.PullAlways,
+		ImagePullPolicy: v1.PullIfNotPresent,
 		Env:             podConfig.Env,
 		VolumeMounts:    podConfig.VolumeMounts,
 	}

@@ -123,10 +123,12 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = suite.helper.CreateRelease(suite.T(), featureResolver, projectResolver)
 
 	// Test Releases Query Interface
-	_, err = suite.Resolver.Releases(ctx)
+	_, err = suite.Resolver.Releases(ctx, nil)
 	assert.NotNil(suite.T(), err)
 
-	releasesList, err := suite.Resolver.Releases(test.ResolverAuthContext())
+	releasesList, err := suite.Resolver.Releases(test.ResolverAuthContext(), &struct {
+		Params *model.PaginatorInput
+	}{nil})
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), releasesList)
 
@@ -149,22 +151,20 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = projectResolver.RsaPublicKey()
 
 	showDeployed := false
-	featuresList := projectResolver.Features(&struct{ ShowDeployed *bool }{ShowDeployed: &showDeployed})
+	featuresList := projectResolver.Features(&struct {
+		ShowDeployed *bool
+		Params       *model.PaginatorInput
+	}{&showDeployed, nil})
 	assert.NotEmpty(suite.T(), featuresList, "Features List Empty")
 
 	_, _ = projectResolver.CurrentRelease()
-	releasesList = projectResolver.Releases()
+
+	emptyPaginatorInput := &struct {
+		Params *model.PaginatorInput
+	}{nil}
+
+	releasesList = projectResolver.Releases(emptyPaginatorInput)
 	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
-
-	servicesList := projectResolver.Services()
-	assert.NotEmpty(suite.T(), servicesList, "Services List Empty")
-
-	_, err = projectResolver.Secrets(ctx)
-	assert.NotNil(suite.T(), err)
-
-	secretsList, err := projectResolver.Secrets(test.ResolverAuthContext())
-	assert.Nil(suite.T(), err)
-	assert.NotEmpty(suite.T(), secretsList, "Secrets List Empty")
 
 	extensionsList, err := projectResolver.Extensions()
 	assert.Nil(suite.T(), err)
@@ -257,18 +257,21 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	var ctx context.Context
 	_, err := suite.Resolver.Projects(ctx, &struct {
 		ProjectSearch *model.ProjectSearchInput
-	}{nil})
+		Params        *model.PaginatorInput
+	}{nil, nil})
 	assert.NotNil(suite.T(), err)
 
 	// do a search for 'foo'
 	searchQuery := "foo"
 	projects, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
 		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
-		ProjectSearch: &model.ProjectSearchInput{
+		&model.ProjectSearchInput{
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
+		nil,
 	})
 	assert.Nil(suite.T(), err)
 	assert.NotEmpty(suite.T(), projects)
@@ -424,8 +427,6 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSSuccess() {
 	projectID := string(projectResolver.ID())
 	updatedProjectInput := model.ProjectInput{
 		ID:            &projectID,
-		GitProtocol:   "HTTPS",
-		GitUrl:        "https://github.com/foo/goo.git",
 		EnvironmentID: &envID,
 	}
 
@@ -723,34 +724,46 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
 	}
 
-	projects, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
+	projectList, err := suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
 		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
 		&model.ProjectSearchInput{
 			Bookmarked: true,
 		},
+		nil,
 	})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	assert.Equal(suite.T(), 3, len(projects))
+	entries, err := projectList.Entries()
+	if err != nil {
+	}
+
+	assert.Equal(suite.T(), 3, len(entries))
 
 	// do a search for 'foo'
 	searchQuery := "foo"
-	projects, err = suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
+	projectList, err = suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
 		ProjectSearch *model.ProjectSearchInput
+		Params        *model.PaginatorInput
 	}{
 		ProjectSearch: &model.ProjectSearchInput{
 			Bookmarked: false,
 			Repository: &searchQuery,
 		},
+		Params: &model.PaginatorInput{},
 	})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	assert.Equal(suite.T(), 2, len(projects))
+	entries, err = projectList.Entries()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	assert.Equal(suite.T(), 2, len(entries))
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {

@@ -70,7 +70,7 @@ func (helper *Helper) CreateEnvironmentWithError(name string) (*graphql_resolver
 	envResolver, err := helper.Resolver.CreateEnvironment(nil, &struct {
 		Environment *model.EnvironmentInput
 	}{&envInput})
-	if err == nil {
+	if err != nil {
 		helper.cleanupEnvironmentIDs = append(helper.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
 	}
 	return envResolver, err
@@ -260,6 +260,7 @@ func (helper *Helper) CreateRelease(t *testing.T,
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
+	// Releases
 	featureID := featureResolver.DBFeatureResolver.Feature.Model.ID.String()
 	releaseInput := &model.ReleaseInput{
 		HeadFeatureID: featureID,
@@ -430,7 +431,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupProjectBookmarkIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.ProjectBookmark{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			log.Error(err)
+			assert.FailNow(t, err.Error())
 		}
 	}
 	helper.cleanupProjectBookmarkIDs = make([]uuid.UUID, 0)
@@ -438,7 +439,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupProjectIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			log.Error(err)
+			assert.FailNow(t, err.Error())
 		}
 
 		// Delete all associated bookmarks as well
@@ -468,7 +469,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupEnvironmentIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			log.Error(err)
+			assert.FailNow(t, err.Error())
 		}
 	}
 	helper.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
@@ -476,7 +477,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupSecretIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.Secret{Model: model.Model{ID: id}}).Error
 		if err != nil {
-			log.Error(err)
+			assert.FailNow(t, err.Error())
 		}
 	}
 	helper.cleanupSecretIDs = make([]uuid.UUID, 0)

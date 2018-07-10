@@ -149,6 +149,9 @@ func (ts *SecretTestSuite) TestSecretInterface() {
 }
 
 func (ts *SecretTestSuite) TestSecretsQuery() {
+	emptyPaginatorInput := &struct {
+		Params *model.PaginatorInput
+	}{nil}
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -162,13 +165,18 @@ func (ts *SecretTestSuite) TestSecretsQuery() {
 	ts.helper.CreateSecret(ts.T(), projectResolver)
 
 	// Test with auth
-	secretResolvers, err := ts.Resolver.Secrets(test.ResolverAuthContext())
+	secretPaginator, err := ts.Resolver.Secrets(test.ResolverAuthContext(), emptyPaginatorInput)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	secretResolvers, err := secretPaginator.Entries()
 	assert.Nil(ts.T(), err)
 	assert.NotEmpty(ts.T(), secretResolvers)
 
 	// Test without auth
 	var ctx context.Context
-	_, err = ts.Resolver.Secrets(ctx)
+	secretPaginator, err = ts.Resolver.Secrets(ctx, emptyPaginatorInput)
 	assert.NotNil(ts.T(), err)
 }
 
