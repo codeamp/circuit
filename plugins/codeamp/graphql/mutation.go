@@ -1051,7 +1051,7 @@ func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *model
 	} else {
 		// check if any configs are using the secret
 		extensions := []model.Extension{}
-		where := fmt.Sprintf(`config @> '{"config": [{"value": "%s"}]}'"`, secret.Model.ID.String())
+		where := fmt.Sprintf(`config @> '{"config": [{"value": "%s"}]}'`, secret.Model.ID.String())
 		r.DB.Where(where).Find(&extensions)
 		if len(extensions) == 0 {
 			versions := []model.SecretValue{}

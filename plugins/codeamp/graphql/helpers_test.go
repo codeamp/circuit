@@ -70,7 +70,7 @@ func (helper *Helper) CreateEnvironmentWithError(name string) (*graphql_resolver
 	envResolver, err := helper.Resolver.CreateEnvironment(nil, &struct {
 		Environment *model.EnvironmentInput
 	}{&envInput})
-	if err != nil {
+	if err == nil {
 		helper.cleanupEnvironmentIDs = append(helper.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
 	}
 	return envResolver, err
@@ -228,6 +228,9 @@ func (helper *Helper) CreateFeature(t *testing.T, projectResolver *graphql_resol
 }
 
 func (helper *Helper) CreateFeatureWithParent(t *testing.T, projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.FeatureResolver {
+	if projectResolver == nil {
+		assert.FailNow(t, "Project Resolver is NULL")
+	}
 	projectID := string(projectResolver.ID())
 
 	// Features

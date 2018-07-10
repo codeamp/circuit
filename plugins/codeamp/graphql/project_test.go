@@ -427,6 +427,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSSuccess() {
 	projectID := string(projectResolver.ID())
 	updatedProjectInput := model.ProjectInput{
 		ID:            &projectID,
+		GitProtocol:   "HTTPS",
+		GitUrl:        "https://github.com/foo/goo.git",
 		EnvironmentID: &envID,
 	}
 
