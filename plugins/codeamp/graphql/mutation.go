@@ -105,25 +105,28 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	r.DB.Create(&project)
 
 	// Create git branch for env per env
-	environment := model.Environment{}
-	if r.DB.Where("id = ?", *args.Project.EnvironmentID).Find(&environment).RecordNotFound() {
-		log.InfoWithFields("Environment doesn't exist.", log.Fields{
+
+	environments := []model.Environment{}
+	if r.DB.Where("default = ?", true).Find(&environments).RecordNotFound() {
+		log.InfoWithFields("No default envs found.", log.Fields{
 			"args": args,
 		})
-		return nil, fmt.Errorf("Invalid Environment ID Provided")
+		return nil, fmt.Errorf("No default envs found")
 	}
 
-	r.DB.Create(&model.ProjectSettings{
-		EnvironmentID: environment.Model.ID,
-		ProjectID:     project.Model.ID,
-		GitBranch:     "master",
-	})
-	// Create ProjectEnvironment rows for default envs
-	if environment.IsDefault {
-		r.DB.Create(&model.ProjectEnvironment{
+	for _, environment := range environments {
+		r.DB.Create(&model.ProjectSettings{
 			EnvironmentID: environment.Model.ID,
 			ProjectID:     project.Model.ID,
+			GitBranch:     "master",
 		})
+		// Create ProjectEnvironment rows for default envs
+		if environment.IsDefault {
+			r.DB.Create(&model.ProjectEnvironment{
+				EnvironmentID: environment.Model.ID,
+				ProjectID:     project.Model.ID,
+			})
+		}
 	}
 
 	if userId, err := auth.CheckAuth(ctx, []string{}); err != nil {
