@@ -107,7 +107,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	// Create git branch for env per env
 
 	environments := []model.Environment{}
-	if r.DB.Where("default = ?", true).Find(&environments).RecordNotFound() {
+	if r.DB.Find(&environments).RecordNotFound() {
 		log.InfoWithFields("No default envs found.", log.Fields{
 			"args": args,
 		})
@@ -120,6 +120,7 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 			ProjectID:     project.Model.ID,
 			GitBranch:     "master",
 		})
+
 		// Create ProjectEnvironment rows for default envs
 		if environment.IsDefault {
 			r.DB.Create(&model.ProjectEnvironment{
