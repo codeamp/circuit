@@ -167,7 +167,7 @@ func (r *SecretListResolver) Page() (int32, error) {
 	if (r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0) || r.PaginatorInput.Limit == nil {
 		r.DB.Where("id = ?", r.PaginatorInput.Cursor).Find(&cursorRow)
 		r.Query.Order("created_at asc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
-		return int32((index / int(*r.PaginatorInput.Limit))), nil
+		return int32((index / int(*r.PaginatorInput.Limit)) + 1), nil
 	} else {
 		return int32(1), nil
 	}
