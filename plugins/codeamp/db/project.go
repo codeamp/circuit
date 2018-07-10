@@ -106,7 +106,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	query := r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
+	query := r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 	return &SecretListResolver{
 		DB:             r.DB,
 		Query:          query,
