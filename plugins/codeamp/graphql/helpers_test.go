@@ -1,6 +1,7 @@
 package graphql_resolver_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
@@ -20,6 +20,7 @@ import (
 type Helper struct {
 	Resolver *graphql_resolver.Resolver
 	name     string
+	context  context.Context
 
 	cleanupExtensionIDs        []uuid.UUID
 	cleanupEnvironmentIDs      []uuid.UUID
@@ -39,6 +40,10 @@ func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver, name stri
 	helper.name = name
 }
 
+func (helper *Helper) SetContext(context context.Context) {
+	helper.context = context
+}
+
 func (helper *Helper) CreateEnvironment(t *testing.T) *graphql_resolver.EnvironmentResolver {
 	// Environment
 	return helper.CreateEnvironmentWithName(t, helper.name)
@@ -46,6 +51,15 @@ func (helper *Helper) CreateEnvironment(t *testing.T) *graphql_resolver.Environm
 
 func (helper *Helper) CreateEnvironmentWithName(t *testing.T, name string) *graphql_resolver.EnvironmentResolver {
 	// Environment
+	resolver, err := helper.CreateEnvironmentWithError(name)
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
+
+	return resolver
+}
+
+func (helper *Helper) CreateEnvironmentWithError(name string) (*graphql_resolver.EnvironmentResolver, error) {
 	envInput := model.EnvironmentInput{
 		Name:      name,
 		Key:       name,
@@ -56,44 +70,50 @@ func (helper *Helper) CreateEnvironmentWithName(t *testing.T, name string) *grap
 	envResolver, err := helper.Resolver.CreateEnvironment(nil, &struct {
 		Environment *model.EnvironmentInput
 	}{&envInput})
-	if err != nil {
-		assert.FailNow(t, err.Error())
+	if err == nil {
+		helper.cleanupEnvironmentIDs = append(helper.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
 	}
-
-	helper.cleanupEnvironmentIDs = append(helper.cleanupEnvironmentIDs, envResolver.DBEnvironmentResolver.Environment.Model.ID)
-	return envResolver
+	return envResolver, err
 }
 
-func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) *graphql_resolver.ProjectResolver {
+func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) (*graphql_resolver.ProjectResolver, error) {
 	return helper.CreateProjectWithRepo(t, envResolver, "https://github.com/foo/goo.git")
 }
 
-func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver, gitUrl string) *graphql_resolver.ProjectResolver {
-	projectInput := model.ProjectInput{
-		GitProtocol: "HTTPS",
-		GitUrl:      gitUrl,
-	}
+func (helper *Helper) CreateProjectWithInput(t *testing.T,
+	envResolver *graphql_resolver.EnvironmentResolver,
+	projectInput *model.ProjectInput) (*graphql_resolver.ProjectResolver, error) {
 
-	projectResolver, err := helper.Resolver.CreateProject(test.ResolverAuthContext(), &struct {
+	projectResolver, err := helper.Resolver.CreateProject(helper.context, &struct {
 		Project *model.ProjectInput
-	}{Project: &projectInput})
-	if err != nil {
-		assert.FailNow(t, err.Error(), gitUrl)
-	}
+	}{Project: projectInput})
 
 	// TODO: ADB This should be happening in the CreateProject function!
 	// If an ID for an Environment is supplied, Project should try to look that up and return resolver
 	// that includes project AND environment
-	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
 
-	helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
-	return projectResolver
+	if err == nil {
+		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+		helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
+	}
+	return projectResolver, err
+}
+
+func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver, gitUrl string) (*graphql_resolver.ProjectResolver, error) {
+	envId := string(envResolver.ID())
+	projectInput := model.ProjectInput{
+		GitProtocol:   "HTTPS",
+		GitUrl:        gitUrl,
+		EnvironmentID: &envId,
+	}
+
+	return helper.CreateProjectWithInput(t, envResolver, &projectInput)
 }
 
 func (helper *Helper) CreateSecret(t *testing.T,
 	projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.SecretResolver {
 
-	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+	envID := string(projectResolver.Environments()[0].ID())
 
 	// Secret
 	projectID := string(projectResolver.ID())
@@ -106,7 +126,7 @@ func (helper *Helper) CreateSecret(t *testing.T,
 		IsSecret:      false,
 	}
 
-	secretResolver, err := helper.Resolver.CreateSecret(test.ResolverAuthContext(), &struct {
+	secretResolver, err := helper.Resolver.CreateSecret(helper.context, &struct {
 		Secret *model.SecretInput
 	}{Secret: &secretInput})
 	if err != nil {
@@ -143,6 +163,14 @@ func (helper *Helper) CreateProjectExtension(t *testing.T,
 	extensionResolver *graphql_resolver.ExtensionResolver,
 	projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.ProjectExtensionResolver {
 
+	resolver, _ := helper.CreateProjectExtensionWithError(t, extensionResolver, projectResolver)
+	return resolver
+}
+
+func (helper *Helper) CreateProjectExtensionWithError(t *testing.T,
+	extensionResolver *graphql_resolver.ExtensionResolver,
+	projectResolver *graphql_resolver.ProjectResolver) (*graphql_resolver.ProjectExtensionResolver, error) {
+
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
@@ -163,15 +191,14 @@ func (helper *Helper) CreateProjectExtension(t *testing.T,
 		CustomConfig:  model.JSON{extCustomConfigJSON},
 		EnvironmentID: envID,
 	}
-	projectExtensionResolver, err := helper.Resolver.CreateProjectExtension(test.ResolverAuthContext(), &struct {
+
+	projectExtensionResolver, err := helper.Resolver.CreateProjectExtension(helper.context, &struct {
 		ProjectExtension *model.ProjectExtensionInput
 	}{ProjectExtension: &projectExtensionInput})
-	if err != nil {
-		assert.FailNow(t, err.Error())
+	if err == nil {
+		helper.cleanupProjectExtensionIDs = append(helper.cleanupProjectExtensionIDs, projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.Model.ID)
 	}
-
-	helper.cleanupProjectExtensionIDs = append(helper.cleanupProjectExtensionIDs, projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.Model.ID)
-	return projectExtensionResolver
+	return projectExtensionResolver, err
 }
 
 func (helper *Helper) CreateFeature(t *testing.T, projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.FeatureResolver {
@@ -201,6 +228,9 @@ func (helper *Helper) CreateFeature(t *testing.T, projectResolver *graphql_resol
 }
 
 func (helper *Helper) CreateFeatureWithParent(t *testing.T, projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.FeatureResolver {
+	if projectResolver == nil {
+		assert.FailNow(t, "Project Resolver is NULL")
+	}
 	projectID := string(projectResolver.ID())
 
 	// Features
@@ -235,13 +265,22 @@ func (helper *Helper) CreateRelease(t *testing.T,
 
 	// Releases
 	featureID := featureResolver.DBFeatureResolver.Feature.Model.ID.String()
-	releaseInput := model.ReleaseInput{
+	releaseInput := &model.ReleaseInput{
 		HeadFeatureID: featureID,
 		ProjectID:     projectID,
 		EnvironmentID: envID,
 		ForceRebuild:  false,
 	}
-	releaseResolver, err := helper.Resolver.CreateRelease(test.ResolverAuthContext(), &struct{ Release *model.ReleaseInput }{Release: &releaseInput})
+
+	return helper.CreateReleaseWithInput(t, projectResolver, releaseInput)
+}
+
+func (helper *Helper) CreateReleaseWithInput(t *testing.T,
+	projectResolver *graphql_resolver.ProjectResolver,
+	releaseInput *model.ReleaseInput) *graphql_resolver.ReleaseResolver {
+
+	// Release
+	releaseResolver, err := helper.Resolver.CreateRelease(helper.context, &struct{ Release *model.ReleaseInput }{releaseInput})
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -307,14 +346,20 @@ func (helper *Helper) CreateService(t *testing.T,
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
+	servicePortInputs := []model.ServicePortInput{
+		model.ServicePortInput{
+			Port:     "80",
+			Protocol: "HTTP",
+		},
+	}
+
 	// Services
-	servicePortInputs := []model.ServicePortInput{}
 	serviceInput := model.ServiceInput{
 		ProjectID:     projectID,
 		Command:       "echo \"hello\" && exit 0",
 		Name:          helper.name,
 		ServiceSpecID: string(serviceSpecResolver.ID()),
-		Count:         "0",
+		Count:         "1",
 		Ports:         &servicePortInputs,
 		Type:          "general",
 		EnvironmentID: envID,

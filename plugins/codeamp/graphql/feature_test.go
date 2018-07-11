@@ -35,6 +35,7 @@ func (suite *FeatureTestSuite) SetupTest() {
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestFeature")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
 func (suite *FeatureTestSuite) TestCreateFeature() {
@@ -42,7 +43,7 @@ func (suite *FeatureTestSuite) TestCreateFeature() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	// Feature
 	suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)
@@ -53,7 +54,7 @@ func (suite *FeatureTestSuite) TestFeatureResolverInterface() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	// Feature
 	featureResolver := suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)
@@ -98,7 +99,7 @@ func (suite *FeatureTestSuite) TestFeatureQueryInterface() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
 	// Feature
 	suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)

@@ -33,6 +33,7 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestEnvironment")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
 /* Test successful env. creation */
@@ -46,7 +47,10 @@ func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	envResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver := suite.helper.CreateProject(suite.T(), envResolver)
+	projectResolver, err := suite.helper.CreateProject(suite.T(), envResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	assert.Equal(suite.T(), "TestEnvironment", envResolver.Name())
 	assert.Equal(suite.T(), "TestEnvironment", envResolver.Key())
@@ -65,7 +69,9 @@ func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	}
 
 	projects := envResolver.Projects()
-	assert.NotEmpty(suite.T(), projects, "Environment is missing associated projects")
+	if len(projects) == 0 {
+		assert.FailNow(suite.T(), "Environment is missing associated projects")
+	}
 
 	// Test Environments Query endpoint with a ProjectSlug
 	projectSlug := string(projectResolver.Slug())

@@ -90,7 +90,6 @@ func (suite *TestSuite) TestDockerBuilder() {
 
 	image, err := e.GetArtifact("image")
 	imagePrefixCheck := strings.HasPrefix(image.String(), "0.0.0.0:5000/testorg/checkr-deploy-test:")
-
 	if err == nil {
 		assert.Equal(suite.T(), true, imagePrefixCheck)
 	} else {

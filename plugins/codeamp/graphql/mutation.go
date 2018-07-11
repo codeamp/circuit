@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"runtime"
 	"strings"
 	"time"
 
@@ -105,7 +104,6 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	r.DB.Create(&project)
 
 	// Create git branch for env per env
-
 	environments := []model.Environment{}
 	if r.DB.Find(&environments).RecordNotFound() {
 		log.InfoWithFields("No envs found.", log.Fields{
@@ -161,6 +159,10 @@ func (r *Resolver) UpdateProject(args *struct {
 		return nil, fmt.Errorf("Project not found.")
 	}
 
+	if args.Project.GitUrl != "" {
+		project.GitUrl = args.Project.GitUrl
+	}
+
 	switch args.Project.GitProtocol {
 	case "private", "PRIVATE", "ssh", "SSH":
 		project.GitProtocol = "SSH"
@@ -177,12 +179,12 @@ func (r *Resolver) UpdateProject(args *struct {
 	if args.Project.GitBranch != nil {
 		projectID, err := uuid.FromString(*args.Project.ID)
 		if err != nil {
-			return &ProjectResolver{}, fmt.Errorf("Couldn't parse project ID")
+			return nil, fmt.Errorf("Couldn't parse project ID")
 		}
 
 		environmentID, err := uuid.FromString(*args.Project.EnvironmentID)
 		if err != nil {
-			return &ProjectResolver{}, fmt.Errorf("Couldn't parse environment ID")
+			return nil, fmt.Errorf("Couldn't parse environment ID")
 		}
 
 		var projectSettings model.ProjectSettings
@@ -238,10 +240,44 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 	r.DB.Save(&release)
 
 	for _, releaseExtension := range releaseExtensions {
-		releaseExtension.State = transistor.GetState("failed")
-		releaseExtension.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
+		var projectExtension model.ProjectExtension
+		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+			log.WarnWithFields("Associated project extension not found", log.Fields{
+				"id": args.ID,
+				"release_extension_id": releaseExtension.ID,
+				"project_extension_id": releaseExtension.ProjectExtensionID,
+			})
 
-		r.DB.Save(&releaseExtension)
+			return nil, errors.New("Project Extension Not Found")
+		}
+
+		// find associated ProjectExtension Extension
+		var extension model.Extension
+		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+			log.WarnWithFields("Associated extension not found", log.Fields{
+				"id": args.ID,
+				"release_extension_id": releaseExtension.ID,
+				"project_extension_id": releaseExtension.ProjectExtensionID,
+				"extension_id":         projectExtension.ExtensionID,
+			})
+
+			return nil, errors.New("Extension Not Found")
+		}
+
+		if releaseExtension.State == transistor.GetState("waiting") {
+			releaseExtensionEvent := plugins.ReleaseExtension{
+				ID:      releaseExtension.ID.String(),
+				Project: plugins.Project{},
+				Release: plugins.Release{
+					ID: releaseExtension.ReleaseID.String(),
+				},
+				Environment: "",
+			}
+			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
+			event.State = transistor.GetState("failed")
+			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
+			r.Events <- event
+		}
 	}
 
 	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
@@ -902,7 +938,6 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 			}
 
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.Release{})
-			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ReleaseExtension{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ProjectExtension{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ProjectSettings{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.Extension{})
@@ -1017,7 +1052,8 @@ func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *model
 	} else {
 		// check if any configs are using the secret
 		extensions := []model.Extension{}
-		r.DB.Where(`config @> '{"config": [{"value": "?"}]}'"`, secret.Model.ID.String()).Find(&extensions)
+		where := fmt.Sprintf(`config @> '{"config": [{"value": "%s"}]}'`, secret.Model.ID.String())
+		r.DB.Where(where).Find(&extensions)
 		if len(extensions) == 0 {
 			versions := []model.SecretValue{}
 
@@ -1115,6 +1151,11 @@ func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput
 
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
+
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
 	// Check if project can create project extension in environment
 	if err := r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
 		return nil, errors.New("Project not allowed to install extensions in given environment")
@@ -1180,7 +1221,6 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			},
 			Environment: env.Key,
 		}
-
 		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("create"), projectExtensionEvent)
 		ev.Artifacts = artifacts
 		r.Events <- ev
@@ -1299,7 +1339,7 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 	}
 
 	// delete all release extension objects with extension id
-	if r.DB.Where("project_extension_id = ?", args.ProjectExtension.ID).Find(&res).RecordNotFound() {
+	if r.DB.Where("extension_id = ?", args.ProjectExtension.ID).Find(&res).RecordNotFound() {
 		log.InfoWithFields("no release extensions found", log.Fields{
 			"extension": extension,
 		})
@@ -1314,11 +1354,6 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 
 	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
-		if ok {
-			log.Warn(fmt.Sprintf("%s : ln %d", file, line))
-		}
-
 		log.Error(err.Error())
 		return nil, err
 	}
@@ -1395,11 +1430,6 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct {
 				ProjectID:     project.Model.ID,
 			}
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectEnvironment)
-			r.DB.Create(&model.ProjectSettings{
-				EnvironmentID: environment.Model.ID,
-				ProjectID:     project.Model.ID,
-				GitBranch:     "master",
-			})
 			results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
 		} else {
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&model.ProjectEnvironment{})
