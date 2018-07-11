@@ -1485,9 +1485,11 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	var err error
 
 	extensionConfig := []model.ExtConfig{}
-	err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
-	if err != nil {
-		log.Error(err.Error())
+	if extension.Config.RawMessage != nil {
+		err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	projectConfig := []model.ExtConfig{}
@@ -1504,8 +1506,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 		if err != nil {
 			log.Error(err.Error())
-			log.Info(projectExtension.Artifacts.RawMessage)
-
 			return nil, err
 		}
 	}
@@ -1516,12 +1516,10 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 				extensionConfig[i].Value = pc.Value
 			}
 		}
-	}
 
-	for _, ec := range extensionConfig {
 		var artifact transistor.Artifact
 		// check if val is UUID. If so, query in environment variables for id
-		secretID := uuid.FromStringOrNil(ec.Value)
+		secretID := uuid.FromStringOrNil(extensionConfig[i].Value)
 		if secretID != uuid.Nil {
 			secret := model.SecretValue{}
 			if db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).RecordNotFound() {
@@ -1533,7 +1531,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 			artifact.Value = secret.Value
 		} else {
 			artifact.Key = ec.Key
-			artifact.Value = ec.Value
+			artifact.Value = extensionConfig[i].Value
 		}
 		artifacts = append(artifacts, artifact)
 	}
