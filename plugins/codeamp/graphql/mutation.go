@@ -935,8 +935,6 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 			}
 
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.Release{})
-			// ADB ReleaseExtension does not hae an environment ID
-			//r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ReleaseExtension{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ProjectExtension{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ProjectSettings{})
 			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.Extension{})
