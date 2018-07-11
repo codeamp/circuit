@@ -214,22 +214,22 @@ func (suite *ProjectTestSuite) TestCreateProjectFailure() {
 	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
 }
 
-func (suite *ProjectTestSuite) TestCreateProjectNoEnvFailure() {
-	// Environment
-	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+// func (suite *ProjectTestSuite) TestCreateProjectNoEnvFailure() {
+// 	// Environment
+// 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
-	// Project Input
-	envID := "123e4567-e89b-12d3-a456-426655440000"
-	projectInput := model.ProjectInput{
-		GitUrl:        "git@github.com:boo/hoo.git",
-		GitProtocol:   "SSH",
-		EnvironmentID: &envID,
-	}
+// 	// Project Input
+// 	envID := "123e4567-e89b-12d3-a456-426655440000"
+// 	projectInput := model.ProjectInput{
+// 		GitUrl:        "git@github.com:boo/hoo.git",
+// 		GitProtocol:   "SSH",
+// 		EnvironmentID: &envID,
+// 	}
 
-	// Project
-	_, err := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
-	assert.NotNil(suite.T(), err)
-}
+// 	// Project
+// 	_, err := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+// 	assert.NotNil(suite.T(), err)
+// }
 
 func (suite *ProjectTestSuite) TestCreateProjectWithSSH() {
 	// Environment
@@ -669,52 +669,52 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidEnvironmentID() {
 	assert.Nil(suite.T(), updatedProjectResolver)
 }
 
-/* Test successful project permissions update */
-func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
-	// Environment
-	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+// /* Test successful project permissions update */
+// func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
+// 	// Environment
+// 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
-	// Project
-	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+// 	// Project
+// 	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
-	// Update Project Environments
-	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
-		ProjectID: string(projectResolver.ID()),
-		Permissions: []model.ProjectEnvironmentInput{
-			{
-				EnvironmentID: string(environmentResolver.ID()),
-				Grant:         true,
-			},
-		},
-	}
+// 	// Update Project Environments
+// 	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
+// 		ProjectID: string(projectResolver.ID()),
+// 		Permissions: []model.ProjectEnvironmentInput{
+// 			{
+// 				EnvironmentID: string(environmentResolver.ID()),
+// 				Grant:         true,
+// 			},
+// 		},
+// 	}
 
-	updateProjectEnvironmentsResp, err := suite.Resolver.UpdateProjectEnvironments(nil, &struct {
-		ProjectEnvironments *model.ProjectEnvironmentsInput
-	}{&projectEnvironmentsInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+// 	updateProjectEnvironmentsResp, err := suite.Resolver.UpdateProjectEnvironments(nil, &struct {
+// 		ProjectEnvironments *model.ProjectEnvironmentsInput
+// 	}{&projectEnvironmentsInput})
+// 	if err != nil {
+// 		assert.FailNow(suite.T(), err.Error())
+// 	}
 
-	// check if env is found in response
-	assert.Equal(suite.T(), 1, len(updateProjectEnvironmentsResp))
-	assert.Equal(suite.T(), environmentResolver.ID(), updateProjectEnvironmentsResp[0].ID())
-	projectEnvironmentResolvers := projectResolver.Environments()
+// 	// check if env is found in response
+// 	assert.Equal(suite.T(), 1, len(updateProjectEnvironmentsResp))
+// 	assert.Equal(suite.T(), environmentResolver.ID(), updateProjectEnvironmentsResp[0].ID())
+// 	projectEnvironmentResolvers := projectResolver.Environments()
 
-	assert.Equal(suite.T(), 1, len(projectEnvironmentResolvers), string(projectResolver.ID()))
-	assert.Equal(suite.T(), environmentResolver.ID(), projectEnvironmentResolvers[0].ID())
+// 	assert.Equal(suite.T(), 1, len(projectEnvironmentResolvers), string(projectResolver.ID()))
+// 	assert.Equal(suite.T(), environmentResolver.ID(), projectEnvironmentResolvers[0].ID())
 
-	// take away access
-	projectEnvironmentsInput.Permissions[0].Grant = false
-	updateProjectEnvironmentsResp, err = suite.Resolver.UpdateProjectEnvironments(nil, &struct {
-		ProjectEnvironments *model.ProjectEnvironmentsInput
-	}{&projectEnvironmentsInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+// 	// take away access
+// 	projectEnvironmentsInput.Permissions[0].Grant = false
+// 	updateProjectEnvironmentsResp, err = suite.Resolver.UpdateProjectEnvironments(nil, &struct {
+// 		ProjectEnvironments *model.ProjectEnvironmentsInput
+// 	}{&projectEnvironmentsInput})
+// 	if err != nil {
+// 		assert.FailNow(suite.T(), err.Error())
+// 	}
 
-	assert.Empty(suite.T(), updateProjectEnvironmentsResp)
-	assert.Empty(suite.T(), projectResolver.Environments(), string(projectResolver.ID()))
-}
+// 	assert.Empty(suite.T(), updateProjectEnvironmentsResp)
+// 	assert.Empty(suite.T(), projectResolver.Environments(), string(projectResolver.ID()))
+// }
 
 func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	// init 3 projects into db
