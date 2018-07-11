@@ -2,7 +2,6 @@ package db_resolver
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
@@ -41,7 +40,7 @@ func (r *ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
 	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
-			r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
+			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		} else {
 			r.Query.Order("created_at desc").Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		}
@@ -72,8 +71,8 @@ func (r *ReleaseListResolver) Page() (int32, error) {
 
 	if (r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0) || r.PaginatorInput.Limit == nil {
 		r.DB.Where("id = ?", r.PaginatorInput.Cursor).Find(&cursorRow)
-		r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
-		return int32(math.Ceil((float64(index) / float64(*r.PaginatorInput.Limit)))), nil
+		r.Query.Order("created_at desc").Where("created_at >= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
+		return int32((index / int(*r.PaginatorInput.Limit)) + 1), nil
 	} else {
 		return int32(1), nil
 	}
@@ -135,7 +134,7 @@ func (r *SecretListResolver) Entries() ([]*SecretResolver, error) {
 	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
-			r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
+			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		} else {
 			r.Query.Order("created_at desc").Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		}
@@ -167,7 +166,7 @@ func (r *SecretListResolver) Page() (int32, error) {
 	if (r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0) || r.PaginatorInput.Limit == nil {
 		r.DB.Where("id = ?", r.PaginatorInput.Cursor).Find(&cursorRow)
 		r.Query.Order("created_at desc").Where("created_at >= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
-		return int32(math.Ceil((float64(index) / float64(*r.PaginatorInput.Limit)))), nil
+		return int32((index / int(*r.PaginatorInput.Limit)) + 1), nil
 	} else {
 		return int32(1), nil
 	}
@@ -186,7 +185,7 @@ func (r *SecretListResolver) NextCursor() (string, error) {
 
 	if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 		r.DB.Where("id = ?", r.PaginatorInput.Cursor).Find(&cursorRow)
-		r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Limit(nextCursorIdx).Find(&rows)
+		r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(nextCursorIdx).Find(&rows)
 	} else {
 		r.Query.Order("created_at desc").Limit(nextCursorIdx).Find(&rows)
 	}
@@ -229,7 +228,7 @@ func (r *ServiceListResolver) Entries() ([]*ServiceResolver, error) {
 	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
-			r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
+			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		} else {
 			r.Query.Order("created_at desc").Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		}
@@ -261,7 +260,7 @@ func (r *ServiceListResolver) Page() (int32, error) {
 	if (r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0) || r.PaginatorInput.Limit == nil {
 		r.DB.Where("id = ?", r.PaginatorInput.Cursor).Find(&cursorRow)
 		r.Query.Order("created_at desc").Where("created_at >= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
-		return int32(math.Ceil((float64(index) / float64(*r.PaginatorInput.Limit)))), nil
+		return int32((index / int(*r.PaginatorInput.Limit)) + 1), nil
 	} else {
 		return int32(1), nil
 	}
@@ -323,7 +322,7 @@ func (r *FeatureListResolver) Entries() ([]*FeatureResolver, error) {
 	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
-			r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
+			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		} else {
 			r.Query.Order("created_at desc").Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		}
@@ -354,8 +353,8 @@ func (r *FeatureListResolver) Page() (int32, error) {
 
 	if (r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0) || r.PaginatorInput.Limit == nil {
 		r.DB.Where("id = ?", r.PaginatorInput.Cursor).Find(&cursorRow)
-		r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
-		return int32(math.Ceil((float64(index) / float64(*r.PaginatorInput.Limit)))), nil
+		r.Query.Order("created_at desc").Where("created_at >= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
+		return int32((index / int(*r.PaginatorInput.Limit)) + 1), nil
 	} else {
 		return int32(1), nil
 	}
@@ -417,7 +416,7 @@ func (r *ProjectListResolver) Entries() ([]*ProjectResolver, error) {
 	if r.PaginatorInput != nil && r.PaginatorInput.Limit != nil {
 		if r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0 {
 			r.DB.Where("id = ?", *r.PaginatorInput.Cursor).First(&cursorRow)
-			r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
+			r.Query.Order("created_at desc").Where("created_at < ?", cursorRow.Model.CreatedAt).Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		} else {
 			r.Query.Order("created_at desc").Limit(int(*r.PaginatorInput.Limit)).Find(&rows)
 		}
@@ -448,8 +447,8 @@ func (r *ProjectListResolver) Page() (int32, error) {
 
 	if (r.PaginatorInput.Cursor != nil && len(*r.PaginatorInput.Cursor) > 0) || r.PaginatorInput.Limit == nil {
 		r.DB.Where("id = ?", r.PaginatorInput.Cursor).Find(&cursorRow)
-		r.Query.Order("created_at desc").Where("created_at <= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
-		return int32(math.Ceil((float64(index) / float64(*r.PaginatorInput.Limit)))), nil
+		r.Query.Order("created_at desc").Where("created_at >= ?", cursorRow.Model.CreatedAt).Find(&rows).Count(&index)
+		return int32((index / int(*r.PaginatorInput.Limit)) + 1), nil
 	} else {
 		return int32(1), nil
 	}
