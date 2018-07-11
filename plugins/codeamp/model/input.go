@@ -144,6 +144,10 @@ type ServiceInput struct {
 	Type string `json:"type"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
+	// ExtensionID
+	ExtensionID string `json:"extensionID"`
+	// CustomConfig
+	CustomConfig JSON `json:"customConfig"`
 }
 
 // ServiceSpecInput

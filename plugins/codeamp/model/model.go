@@ -119,6 +119,10 @@ type Service struct {
 	Ports []ServicePort `json:"servicePorts"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	// ExtensionID
+	ExtensionID uuid.UUID `bson:"extensionID" json:"projectID" gorm:"type:uuid"`
+	// CustomConfig
+	CustomConfig postgres.Jsonb `json:"customConfig" gorm:"type:jsonb;not null"`
 }
 
 type ServicePort struct {

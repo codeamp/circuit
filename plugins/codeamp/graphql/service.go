@@ -55,6 +55,16 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
+func (r *ServiceResolver) Extension(ctx context.Context) (*ExtensionResolver, err) {
+	resolver, err := r.DBServiceResolver.Extension(ctx)
+	return &ExtensionResolver{DBExtensionResolver: resolver}, err
+}
+
+// CustomConfig
+func (r *ServiceResolver) CustomConfig() model.JSON {
+	return model.JSON{r.DBServiceResolver.Service.CustomConfig.RawMessage}
+}
+
 // Type
 func (r *ServiceResolver) Type() string {
 	return string(r.DBServiceResolver.Service.Type)

@@ -84,3 +84,21 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 
 	return &EnvironmentResolver{DB: r.DB, Environment: environment}, nil
 }
+
+// ProjectExtension
+func (r *ServiceResolver) Extension(ctx context.Context) (*ExtensionResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		return nil, err
+	}
+
+	var extension model.Extension
+
+	if r.DB.Where("id = ?", r.Service.ExtensionID).First(&extension).RecordNotFound() {
+		log.InfoWithFields("Deployment Extension Not found", log.Fields{
+			"service": r.Service,
+		})
+		return nil, fmt.Errorf("Extension not found.")
+	}
+
+	return &ExtensionResolver{DB: r.DB, Extension: extension}, nil
+}
