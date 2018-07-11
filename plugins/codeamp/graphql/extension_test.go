@@ -10,7 +10,6 @@ import (
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 
@@ -38,8 +37,6 @@ func (suite *ExtensionTestSuite) SetupTest() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	_ = codeamp.CodeAmp{}
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.ExtensionResolver = &graphql_resolver.ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: db}}

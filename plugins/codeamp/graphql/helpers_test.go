@@ -139,13 +139,41 @@ func (helper *Helper) CreateSecret(t *testing.T,
 
 func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) *graphql_resolver.ExtensionResolver {
 	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
+
+	extConfig := make([]model.ExtConfig, 4)
+	extConfig[0] = model.ExtConfig{
+		Key:           "WEBHOOK_URL",
+		Value:         "d84107b6-e820-4a6b-a277-1b2604b5a737",
+		AllowOverride: true,
+	}
+	extConfig[1] = model.ExtConfig{
+		Key:           "CHANNEL",
+		Value:         "d84107b6-e820-4a6b-a277-1b2604b5a737",
+		AllowOverride: true,
+	}
+	extConfig[2] = model.ExtConfig{
+		Key:           "NO_OVERRIDE",
+		Value:         "d84107b6-e820-4a6b-a277-1b2604b5a737",
+		AllowOverride: false,
+	}
+
+	extConfig[3] = model.ExtConfig{
+		Key:   "UNSET_OVERRIDE",
+		Value: "d84107b6-e820-4a6b-a277-1b2604b5a737",
+	}
+
+	extConfigData, err := json.Marshal(&extConfig)
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
+
 	// Extension
 	extensionInput := model.ExtensionInput{
 		Name:          helper.name,
 		Key:           "test-project-interface",
 		Component:     "",
 		EnvironmentID: envId,
-		Config:        model.JSON{[]byte("[]")},
+		Config:        model.JSON{extConfigData},
 		Type:          "once",
 	}
 	extensionResolver, err := helper.Resolver.CreateExtension(&struct {
@@ -175,9 +203,28 @@ func (helper *Helper) CreateProjectExtensionWithError(t *testing.T,
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	// Project Extension
-	extConfigMap := make([]model.ExtConfig, 0)
-	extConfigJSON, err := json.Marshal(extConfigMap)
-	assert.Nil(t, err)
+	extConfig := make([]model.ExtConfig, 3)
+	extConfig[0] = model.ExtConfig{
+		Key:           "WEBHOOK_URL",
+		Value:         "d84107b6-e820-4a6b-a277-1b2604b5a737",
+		AllowOverride: true,
+	}
+	extConfig[1] = model.ExtConfig{
+		Key:           "CHANNEL",
+		Value:         "6b350ce4-447e-4693-bdaf-6a22b3aa4473",
+		AllowOverride: true,
+	}
+
+	extConfig[2] = model.ExtConfig{
+		Key:           "DASHBOARD_URL",
+		Value:         "5ec2b1c9-4b0e-4252-97dd-28392974038b",
+		AllowOverride: true,
+	}
+
+	extConfigJSON, err := json.Marshal(&extConfig)
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
 
 	extCustomConfigMap := make(map[string]model.ExtConfig)
 	extCustomConfigJSON, err := json.Marshal(extCustomConfigMap)

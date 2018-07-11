@@ -2,11 +2,15 @@ package graphql_resolver_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -147,8 +151,21 @@ func (ts *ProjectExtensionTestSuite) TestProjectExtensionInterface() {
 
 	_ = projectExtensionResolver.Artifacts()
 
-	assert.Equal(ts.T(), model.JSON{[]byte("[]")}, projectExtensionResolver.Config())
-	assert.Equal(ts.T(), model.JSON{[]byte("{}")}, projectExtensionResolver.CustomConfig())
+	if projectExtensionResolver.Config().RawMessage != nil {
+		var configMap []map[string]interface{}
+		err = json.Unmarshal(projectExtensionResolver.Config().RawMessage, &configMap)
+		if err != nil {
+			assert.FailNow(ts.T(), err.Error())
+		}
+	}
+
+	if projectExtensionResolver.CustomConfig().RawMessage != nil {
+		var customConfigMap map[string]interface{}
+		err = json.Unmarshal(projectExtensionResolver.CustomConfig().RawMessage, &customConfigMap)
+		if err != nil {
+			assert.FailNow(ts.T(), err.Error())
+		}
+	}
 
 	_ = projectExtensionResolver.State()
 	_ = projectExtensionResolver.StateMessage()
@@ -204,6 +221,43 @@ func (ts *ProjectExtensionTestSuite) TestProjectExtensionQuery() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), projectExtensionResolvers)
 	assert.NotEmpty(ts.T(), projectExtensionResolvers)
+}
+
+func (ts *ProjectExtensionTestSuite) TestAllowOverrideMarshaling() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	_ = ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Grab the Extension
+	var extension model.Extension
+	ts.Resolver.DB.Where("id = ?", fmt.Sprintf("%v", extensionResolver.ID())).Find(&extension)
+
+	spew.Dump(extension)
+
+	data, err := extensionResolver.MarshalJSON()
+	assert.Nil(ts.T(), err)
+	assert.NotNil(ts.T(), data)
+
+	log.Error(string(data))
+
+	err = extensionResolver.UnmarshalJSON(data)
+	assert.Nil(ts.T(), err)
+
+	spew.Dump(data)
 }
 
 func (ts *ProjectExtensionTestSuite) TearDownTest() {
