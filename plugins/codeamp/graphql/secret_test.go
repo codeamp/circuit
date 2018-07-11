@@ -2,30 +2,23 @@ package graphql_resolver_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
-	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 
-	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 
 	log "github.com/codeamp/logger"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
 type SecretTestSuite struct {
 	suite.Suite
-	Resolver       *graphql_resolver.Resolver
-	SecretResolver *graphql_resolver.SecretResolver
-
-	cleanupSecretIDs      []interface{}
-	cleanupEnvironmentIDs []interface{}
+	Resolver *graphql_resolver.Resolver
+	helper   Helper
 }
 
 func (suite *SecretTestSuite) SetupTest() {
@@ -38,43 +31,103 @@ func (suite *SecretTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	_ = codeamp.CodeAmp{}
-
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
-	suite.SecretResolver = &graphql_resolver.SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: db}}
+	suite.helper.SetResolver(suite.Resolver, "TestSecret")
+	suite.helper.SetContext(test.ResolverAuthContext())
 }
 
 func (ts *SecretTestSuite) TestCreateSecret() {
-	envInput := model.EnvironmentInput{
-		Name:      "TestCreateSecret",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
 
-	envResolver, err := ts.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-	ts.cleanupEnvironmentIDs = append(ts.cleanupEnvironmentIDs, envResolver.ID())
 
+	// Secret
+	ts.helper.CreateSecret(ts.T(), projectResolver)
+}
+
+func (ts *SecretTestSuite) TestUpdateSecret() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	secretResolver := ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	secretID := string(secretResolver.ID())
 	secretInput := model.SecretInput{
-		Key:           "TestCreateSecret",
-		Type:          "env",
-		Scope:         "extension",
-		EnvironmentID: string(envResolver.ID()),
-		IsSecret:      false,
+		ID: &secretID,
 	}
 
-	secretResolver, err := ts.Resolver.CreateSecret(test.ResolverAuthContext(), &struct {
-		Secret *model.SecretInput
-	}{Secret: &secretInput})
+	_, err = ts.Resolver.UpdateSecret(test.ResolverAuthContext(), &struct{ Secret *model.SecretInput }{&secretInput})
+	assert.Nil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestDeleteSecretSuccess() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-	ts.cleanupSecretIDs = append(ts.cleanupSecretIDs, secretResolver.ID())
+
+	// Secret
+	secretResolver := ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	secretID := string(secretResolver.ID())
+	secretInput := model.SecretInput{
+		ID: &secretID,
+	}
+
+	_, err = ts.Resolver.DeleteSecret(test.ResolverAuthContext(), &struct{ Secret *model.SecretInput }{&secretInput})
+	assert.Nil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestDeleteSecretFailure() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	secretID := "123e4567-e89b-12d3-a456-426655440000"
+	secretInput := model.SecretInput{
+		ID: &secretID,
+	}
+
+	_, err = ts.Resolver.DeleteSecret(test.ResolverAuthContext(), &struct{ Secret *model.SecretInput }{&secretInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestSecretInterface() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	secretResolver := ts.helper.CreateSecret(ts.T(), projectResolver)
 
 	_ = secretResolver.ID()
 	_ = secretResolver.Key()
@@ -99,37 +152,17 @@ func (ts *SecretTestSuite) TestSecretsQuery() {
 	emptyPaginatorInput := &struct {
 		Params *model.PaginatorInput
 	}{nil}
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
 
-	envInput := model.EnvironmentInput{
-		Name:      "TestSecretsQuery",
-		Key:       "foo",
-		IsDefault: true,
-		Color:     "color",
-	}
-
-	envResolver, err := ts.Resolver.CreateEnvironment(nil, &struct {
-		Environment *model.EnvironmentInput
-	}{Environment: &envInput})
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-	ts.cleanupEnvironmentIDs = append(ts.cleanupEnvironmentIDs, envResolver.ID())
 
-	secretInput := model.SecretInput{
-		Key:           "TestSecretsQuery",
-		Type:          "env",
-		Scope:         "extension",
-		EnvironmentID: string(envResolver.ID()),
-		IsSecret:      false,
-	}
-
-	secretResolver, err := ts.Resolver.CreateSecret(test.ResolverAuthContext(), &struct {
-		Secret *model.SecretInput
-	}{Secret: &secretInput})
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
-	ts.cleanupSecretIDs = append(ts.cleanupSecretIDs, secretResolver.ID())
+	// Secret
+	ts.helper.CreateSecret(ts.T(), projectResolver)
 
 	// Test with auth
 	secretPaginator, err := ts.Resolver.Secrets(test.ResolverAuthContext(), emptyPaginatorInput)
@@ -163,28 +196,9 @@ func (ts *SecretTestSuite) TestSecretScopes() {
 }
 
 func (ts *SecretTestSuite) TearDownTest() {
-	for _, id := range ts.cleanupSecretIDs {
-		uid, _ := uuid.FromString(fmt.Sprintf("%v", id))
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Secret{Model: model.Model{ID: uid}}).Error
-		if err != nil {
-			assert.FailNow(ts.T(), err.Error())
-		}
-	}
-	ts.cleanupSecretIDs = make([]interface{}, 0)
-
-	for _, id := range ts.cleanupEnvironmentIDs {
-		uid, _ := uuid.FromString(fmt.Sprintf("%v", id))
-		err := ts.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: uid}}).Error
-		if err != nil {
-			assert.FailNow(ts.T(), err.Error())
-		}
-	}
-	ts.cleanupEnvironmentIDs = make([]interface{}, 0)
+	ts.helper.TearDownTest(ts.T())
 }
 
 func TestSuiteSecretResolver(t *testing.T) {
-	ts := new(SecretTestSuite)
-	suite.Run(t, ts)
-
-	ts.TearDownTest()
+	suite.Run(t, new(SecretTestSuite))
 }

@@ -61,21 +61,21 @@ func (ts *MiddlewareTestSuite) GetTestHandler() http.HandlerFunc {
 	return http.HandlerFunc(fn)
 }
 
-func (ts *MiddlewareTestSuite) TestAuthFailure() {
-	testserver := httptest.NewServer(ts.Middleware.Auth(ts.GetTestHandler()))
-	defer testserver.Close()
+// func (ts *MiddlewareTestSuite) TestAuthFailure() {
+// 	testserver := httptest.NewServer(ts.Middleware.Auth(ts.GetTestHandler()))
+// 	defer testserver.Close()
 
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
+// 	req, err := http.NewRequest("GET", "/", nil)
+// 	if err != nil {
+// 		assert.FailNow(ts.T(), err.Error())
+// 	}
 
-	rr := httptest.NewRecorder()
-	handler := ts.Middleware.Auth(ts.GetTestHandler())
-	handler.ServeHTTP(rr, req)
+// 	rr := httptest.NewRecorder()
+// 	handler := ts.Middleware.Auth(ts.GetTestHandler())
+// 	handler.ServeHTTP(rr, req)
 
-	assert.Equal(ts.T(), http.StatusForbidden, rr.Code)
-}
+// 	assert.Equal(ts.T(), http.StatusForbidden, rr.Code)
+// }
 
 func (ts *MiddlewareTestSuite) TestAuthSuccess() {
 	testserver := httptest.NewServer(ts.Middleware.Auth(ts.GetTestHandler()))

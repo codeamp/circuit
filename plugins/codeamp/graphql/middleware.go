@@ -27,7 +27,7 @@ func (middleware *Middleware) Auth(next http.Handler) http.Handler {
 		if len(authString) < 8 {
 			claims.TokenError = "invalid access token"
 			log.Error(claims.TokenError)
-			w.WriteHeader(http.StatusForbidden)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
 
@@ -54,7 +54,7 @@ func (middleware *Middleware) Auth(next http.Handler) http.Handler {
 			claims.TokenError = fmt.Sprintf("could not verify bearer token: %v", err.Error())
 			log.Error(claims.TokenError)
 			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
-			w.WriteHeader(http.StatusForbidden)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
 
@@ -62,7 +62,7 @@ func (middleware *Middleware) Auth(next http.Handler) http.Handler {
 			log.Error(claims.TokenError)
 			claims.TokenError = fmt.Sprintf("failed to parse claims: %v", err.Error())
 			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
-			w.WriteHeader(http.StatusForbidden)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
 
@@ -70,7 +70,7 @@ func (middleware *Middleware) Auth(next http.Handler) http.Handler {
 			log.Error(claims.TokenError)
 			claims.TokenError = fmt.Sprintf("email (%q) in returned claims was not verified", claims.Email)
 			w.Header().Set("Www-Authenticate", "Bearer token_type=\"JWT\"")
-			w.WriteHeader(http.StatusForbidden)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 			return
 		}
 
@@ -97,14 +97,14 @@ func (middleware *Middleware) Auth(next http.Handler) http.Handler {
 			serializedClaims, err := json.Marshal(claims)
 			if err != nil {
 				log.Error(err)
-				w.WriteHeader(http.StatusInternalServerError)
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 				return
 			}
 
 			err = middleware.Resolver.Redis.Set(fmt.Sprintf("%s_%s", idToken.Nonce, claims.Email), serializedClaims, 24*time.Hour).Err()
 			if err != nil {
 				log.Error(err)
-				w.WriteHeader(http.StatusInternalServerError)
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 				return
 			}
 		} else if err != nil {
@@ -115,7 +115,7 @@ func (middleware *Middleware) Auth(next http.Handler) http.Handler {
 			err := json.Unmarshal([]byte(c), &claims)
 			if err != nil {
 				log.Error(err)
-				w.WriteHeader(http.StatusInternalServerError)
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
 				return
 			}
 		}
