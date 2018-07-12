@@ -27,7 +27,7 @@ func (x *CodeAmp) Migrate() {
 		log.Fatal(err)
 	}
 
-	db.LogMode(false)
+	db.LogMode(true)
 	db.Set("gorm:auto_preload", true)
 
 	db.AutoMigrate(

@@ -55,7 +55,7 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
-func (r *ServiceResolver) Extension(ctx context.Context) (*ExtensionResolver, err) {
+func (r *ServiceResolver) Extension(ctx context.Context) (*ExtensionResolver, error) {
 	resolver, err := r.DBServiceResolver.Extension(ctx)
 	return &ExtensionResolver{DBExtensionResolver: resolver}, err
 }

@@ -334,6 +334,8 @@ input ServiceInput {
   ports: [ServicePortInput!]
   type: String!
   environmentID: String!
+  extensionID: String!
+  customConfig: JSON!
 }
 
 # Container port input

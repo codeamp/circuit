@@ -19,6 +19,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -399,6 +400,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		}
 	}
 
+	spew.Dump(services)
+
 	// check if there's a previous release in waiting state that
 	// has the same secrets and services signatures
 	secretsSha1 := sha1.New()
@@ -670,6 +673,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 // CreateService Create service
 func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
+
+	r.DB.LogMode(true)
+	defer r.DB.LogMode(false)
 	// Check if project can create service in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create service in given environment")
@@ -690,6 +696,11 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		return &ServiceResolver{}, err
 	}
 
+	extensionID, err := uuid.FromString(args.Service.ExtensionID)
+	if err != nil {
+		return &ServiceResolver{}, err
+	}
+
 	service := model.Service{
 		Name:          args.Service.Name,
 		Command:       args.Service.Command,
@@ -698,6 +709,8 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		Count:         args.Service.Count,
 		ProjectID:     projectID,
 		EnvironmentID: environmentID,
+		ExtensionID:   extensionID,
+		CustomConfig:  postgres.Jsonb{[]byte(args.Service.CustomConfig.RawMessage)},
 	}
 
 	r.DB.Create(&service)

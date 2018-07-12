@@ -85,7 +85,7 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{DB: r.DB, Environment: environment}, nil
 }
 
-// ProjectExtension
+// Extension
 func (r *ServiceResolver) Extension(ctx context.Context) (*ExtensionResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
@@ -101,4 +101,14 @@ func (r *ServiceResolver) Extension(ctx context.Context) (*ExtensionResolver, er
 	}
 
 	return &ExtensionResolver{DB: r.DB, Extension: extension}, nil
+}
+
+// CustomConfig
+func (r *ServiceResolver) CustomConfig(ctx context.Context) (*model.JSON, error) {
+	customConfig, err := json.Marshal(&r.Service.CustomConfig)
+	if err != nil {
+		return nil, fmt.Errorf("JSON marshal failed")
+	}
+
+	return &model.JSON{customConfig}, nil
 }

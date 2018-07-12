@@ -122,7 +122,7 @@ type Service struct {
 	// ExtensionID
 	ExtensionID uuid.UUID `bson:"extensionID" json:"projectID" gorm:"type:uuid"`
 	// CustomConfig
-	CustomConfig postgres.Jsonb `json:"customConfig" gorm:"type:jsonb;not null"`
+	CustomConfig postgres.Jsonb `json:"customConfig" gorm:"type:jsonb;not null;default:'{}'"`
 }
 
 type ServicePort struct {
