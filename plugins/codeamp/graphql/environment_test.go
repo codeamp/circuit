@@ -42,6 +42,50 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironment() {
 	suite.helper.CreateEnvironment(suite.T())
 }
 
+func (suite *EnvironmentTestSuite) TestUpdateEnvironmentSuccess() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	environmentID := string(environmentResolver.ID())
+	environmentInput := model.EnvironmentInput{
+		ID: &environmentID,
+	}
+
+	_, err := suite.Resolver.UpdateEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&environmentInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+}
+
+func (suite *EnvironmentTestSuite) TestDeleteEnvironmentSuccess() {
+	// Environment
+	suite.helper.CreateEnvironmentWithName(suite.T(), "TestDeleteEnvironmentFailure")
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	environmentID := string(environmentResolver.ID())
+	environmentInput := model.EnvironmentInput{
+		ID: &environmentID,
+	}
+
+	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&environmentInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+}
+
+func (suite *EnvironmentTestSuite) TestDeleteEnvironmentFailure() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	environmentID := string(environmentResolver.ID())
+	environmentInput := model.EnvironmentInput{
+		ID: &environmentID,
+	}
+
+	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&environmentInput})
+	assert.NotNil(suite.T(), err)
+}
+
 func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	// Environment
 	envResolver := suite.helper.CreateEnvironment(suite.T())
