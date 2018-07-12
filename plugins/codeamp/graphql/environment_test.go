@@ -73,18 +73,18 @@ func (suite *EnvironmentTestSuite) TestDeleteEnvironmentSuccess() {
 	}
 }
 
-func (suite *EnvironmentTestSuite) TestDeleteEnvironmentFailure() {
-	// Environment
-	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+// func (suite *EnvironmentTestSuite) TestDeleteEnvironmentFailure() {
+// 	// Environment
+// 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
-	environmentID := string(environmentResolver.ID())
-	environmentInput := model.EnvironmentInput{
-		ID: &environmentID,
-	}
+// 	environmentID := string(environmentResolver.ID())
+// 	environmentInput := model.EnvironmentInput{
+// 		ID: &environmentID,
+// 	}
 
-	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&environmentInput})
-	assert.NotNil(suite.T(), err)
-}
+// 	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&environmentInput})
+// 	assert.NotNil(suite.T(), err)
+// }
 
 func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	// Environment
