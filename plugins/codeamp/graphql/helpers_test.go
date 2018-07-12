@@ -143,7 +143,7 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 	extensionInput := model.ExtensionInput{
 		Name:          helper.name,
 		Key:           "test-project-interface",
-		Component:     "",
+		Component:     "test-component",
 		EnvironmentID: envId,
 		Config:        model.JSON{[]byte("[]")},
 		Type:          "once",
