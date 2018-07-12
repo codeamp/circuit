@@ -1474,16 +1474,6 @@ func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql
 	}
 }
 
-func GetProjectExtensionsWithRoute53Subdomain(subdomain string, db *gorm.DB) []model.ProjectExtension {
-	var existingProjectExtensions []model.ProjectExtension
-
-	if db.Where("custom_config ->> 'subdomain' ilike ?", subdomain).Find(&existingProjectExtensions).RecordNotFound() {
-		return []model.ProjectExtension{}
-	}
-
-	return existingProjectExtensions
-}
-
 /* fills in Config by querying config ids and getting the actual value */
 func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.Extension, db *gorm.DB) ([]transistor.Artifact, error) {
 	var artifacts []transistor.Artifact
