@@ -183,6 +183,13 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		assert.FailNow(suite.T(), "Created at time is too old")
 	}
 
+	servicePaginator := projectResolver.Services(emptyPaginatorInput)
+	assert.NotNil(suite.T(), servicePaginator)
+
+	secretPaginator, err := projectResolver.Secrets(test.ResolverAuthContext(), emptyPaginatorInput)
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), secretPaginator)
+
 	data, err = projectResolver.MarshalJSON()
 	assert.Nil(suite.T(), err)
 
