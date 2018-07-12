@@ -54,7 +54,6 @@ func (r *ProjectResolver) Features(args *struct {
 // CurrentRelease
 func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 	var currentRelease model.Release
-	log.Warn("CurrentRelease Called")
 
 	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
 		log.InfoWithFields("currentRelease does not exist", log.Fields{
