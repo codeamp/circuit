@@ -206,6 +206,66 @@ func (ts *ProjectExtensionTestSuite) TestProjectExtensionQuery() {
 	assert.NotEmpty(ts.T(), projectExtensionResolvers)
 }
 
+func (ts *ProjectExtensionTestSuite) TestUpdateProjectExtensionSuccess() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtension := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Update Project Extension
+	projectExtensionID := string(projectExtension.ID())
+	projectExtensionInput := model.ProjectExtensionInput{
+		ID: &projectExtensionID,
+	}
+	_, err = ts.Resolver.UpdateProjectExtension(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+}
+
+func (ts *ProjectExtensionTestSuite) TestDeleteProjectExtensionSuccess() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtension := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Delete Project Extension
+	projectExtensionID := string(projectExtension.ID())
+	projectExtensionInput := model.ProjectExtensionInput{
+		ID: &projectExtensionID,
+	}
+	_, err = ts.Resolver.DeleteProjectExtension(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+}
+
 func (ts *ProjectExtensionTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
 }

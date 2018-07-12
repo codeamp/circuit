@@ -116,13 +116,6 @@ func (ts *ExtensionTestSuite) TestDeleteExtensionSuccess() {
 }
 
 func (ts *ExtensionTestSuite) TestDeleteExtensionFailureNoID() {
-	// Environment
-	envResolver := ts.helper.CreateEnvironment(ts.T())
-
-	// Extension
-	extensionResolver := ts.helper.CreateExtension(ts.T(), envResolver)
-
-	extensionID := string(extensionResolver.ID())
 	extensionInput := model.ExtensionInput{}
 	_, err := ts.Resolver.DeleteExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
 	if err != nil {

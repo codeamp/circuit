@@ -1122,9 +1122,13 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *model.ExtensionInput
 func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
 	ext := model.Extension{}
 	extensions := []model.ProjectExtension{}
+	if args.Extension.ID == nil {
+		return nil, fmt.Errorf("Missing argument id")
+	}
+
 	extID, err := uuid.FromString(*args.Extension.ID)
 	if err != nil {
-		return nil, fmt.Errorf("Missing argument id")
+		return nil, fmt.Errorf("Invalid argument id")
 	}
 
 	if r.DB.Where("id=?", extID).Find(&ext).RecordNotFound() {
