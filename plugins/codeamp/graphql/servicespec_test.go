@@ -5,11 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	uuid "github.com/satori/go.uuid"
 
-	"github.com/codeamp/circuit/plugins/codeamp"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 
@@ -21,10 +18,9 @@ import (
 
 type ServiceSpecTestSuite struct {
 	suite.Suite
-	Resolver            *graphql_resolver.Resolver
-	ServiceSpecResolver *graphql_resolver.ServiceSpecResolver
+	Resolver *graphql_resolver.Resolver
 
-	cleanupServiceSpecIDs []uuid.UUID
+	helper Helper
 }
 
 func (suite *ServiceSpecTestSuite) SetupTest() {
@@ -37,35 +33,53 @@ func (suite *ServiceSpecTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	_ = codeamp.CodeAmp{}
-
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
-	suite.ServiceSpecResolver = &graphql_resolver.ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: db}}
+	suite.helper.SetResolver(suite.Resolver, "TestServiceSpec")
+	suite.helper.SetContext(test.ResolverAuthContext())
+}
+
+func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
+	// Service Spec
+	ts.helper.CreateServiceSpec(ts.T())
+}
+
+func (ts *ServiceSpecTestSuite) TestUpdateServiceSpecSuccess() {
+	// Service Spec
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Update Service Spec
+	serviceSpecID := string(serviceSpecResolver.ID())
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: &serviceSpecID,
+	}
+	_, err := ts.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{&serviceSpecInput})
+	assert.Nil(ts.T(), err)
+}
+
+func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecSuccess() {
+	// Service Spec
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Delete Service Spec
+	serviceSpecID := string(serviceSpecResolver.ID())
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: &serviceSpecID,
+	}
+	_, err := ts.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{&serviceSpecInput})
+	assert.Nil(ts.T(), err)
 }
 
 func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
-	// Service Spec ID
-	serviceSpecInput := model.ServiceSpecInput{
-		Name:                   "TestServiceSpecInterface",
-		CpuRequest:             "500",
-		CpuLimit:               "500",
-		MemoryRequest:          "500",
-		MemoryLimit:            "500",
-		TerminationGracePeriod: "300",
-	}
-	serviceSpecResolver, err := ts.Resolver.CreateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{&serviceSpecInput})
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
-	ts.cleanupServiceSpecIDs = append(ts.cleanupServiceSpecIDs, serviceSpecResolver.DBServiceSpecResolver.ServiceSpec.Model.ID)
+	// Service Spec
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	_ = serviceSpecResolver.ID()
-	assert.Equal(ts.T(), serviceSpecInput.Name, serviceSpecResolver.Name())
-	assert.Equal(ts.T(), serviceSpecInput.CpuRequest, serviceSpecResolver.CpuRequest())
-	assert.Equal(ts.T(), serviceSpecInput.CpuLimit, serviceSpecResolver.CpuLimit())
-	assert.Equal(ts.T(), serviceSpecInput.MemoryRequest, serviceSpecResolver.MemoryRequest())
-	assert.Equal(ts.T(), serviceSpecInput.MemoryLimit, serviceSpecResolver.MemoryLimit())
-	assert.Equal(ts.T(), serviceSpecInput.TerminationGracePeriod, serviceSpecResolver.TerminationGracePeriod())
+	assert.Equal(ts.T(), "TestServiceSpec", serviceSpecResolver.Name())
+	assert.Equal(ts.T(), "100", serviceSpecResolver.CpuRequest())
+	assert.Equal(ts.T(), "200", serviceSpecResolver.CpuLimit())
+	assert.Equal(ts.T(), "300", serviceSpecResolver.MemoryRequest())
+	assert.Equal(ts.T(), "400", serviceSpecResolver.MemoryLimit())
+	assert.Equal(ts.T(), "500", serviceSpecResolver.TerminationGracePeriod())
 
 	data, err := serviceSpecResolver.MarshalJSON()
 	assert.Nil(ts.T(), err)
@@ -89,18 +103,9 @@ func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 }
 
 func (ts *ServiceSpecTestSuite) TearDownTest() {
-	for _, id := range ts.cleanupServiceSpecIDs {
-		err := ts.Resolver.DB.Unscoped().Delete(&model.ServiceSpec{Model: model.Model{ID: id}}).Error
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	ts.cleanupServiceSpecIDs = make([]uuid.UUID, 0)
+	ts.helper.TearDownTest(ts.T())
 }
 
 func TestSuiteServiceSpecResolver(t *testing.T) {
-	ts := new(ServiceSpecTestSuite)
-	suite.Run(t, ts)
-
-	ts.TearDownTest()
+	suite.Run(t, new(ServiceSpecTestSuite))
 }
