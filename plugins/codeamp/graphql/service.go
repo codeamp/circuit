@@ -55,7 +55,7 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
-func (r *ServiceResolver) DeploymentStrategy(ctx context.Context) (model.JSON, error) {
+func (r *ServiceResolver) DeploymentStrategy(ctx context.Context) (*model.JSON, error) {
 	return r.DBServiceResolver.DeploymentStrategy()
 }
 
