@@ -171,7 +171,7 @@ type Service {
   environment: Environment!
   type: String!
   created: Time!
-  deploymentStrategy: [JSON]!
+  deploymentStrategy: JSON!
 }
 
 # Environment
@@ -335,7 +335,7 @@ input ServiceInput {
   ports: [ServicePortInput!]
   type: String!
   environmentID: String!
-  deploymentStrategy: [DeploymentStrategyInput!]
+  deploymentStrategy: DeploymentStrategyInput!
 }
 
 # Container port input

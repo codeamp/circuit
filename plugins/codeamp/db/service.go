@@ -72,13 +72,7 @@ func (r *ServiceResolver) DeploymentStrategy() (*model.JSON, error) {
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	var results *model.JSON
 
-	if r.DB.Where("service_id = ?", r.Service.ID).First(&deploymentStrategy).RecordNotFound() {
-		log.InfoWithFields("DeploymentStrategy not specified. Deployment will use defaults", log.Fields{
-			"service": r.Service,
-		})
-
-		return results, fmt.Errorf("json not found")
-	}
+	r.DB.Where("service_id = ?", r.Service.ID).First(&deploymentStrategy)
 
 	marshaled, err := json.Marshal(&deploymentStrategy)
 	if err != nil {
