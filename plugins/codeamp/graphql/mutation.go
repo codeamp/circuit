@@ -1122,9 +1122,13 @@ func (r *Resolver) UpdateExtension(args *struct{ Extension *model.ExtensionInput
 func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
 	ext := model.Extension{}
 	extensions := []model.ProjectExtension{}
+	if args.Extension.ID == nil {
+		return nil, fmt.Errorf("Missing argument id")
+	}
+
 	extID, err := uuid.FromString(*args.Extension.ID)
 	if err != nil {
-		return nil, fmt.Errorf("Missing argument id")
+		return nil, fmt.Errorf("Invalid argument id")
 	}
 
 	if r.DB.Where("id=?", extID).Find(&ext).RecordNotFound() {
@@ -1468,16 +1472,6 @@ func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql
 		r.DB.Delete(&projectBookmark)
 		return false, nil
 	}
-}
-
-func GetProjectExtensionsWithRoute53Subdomain(subdomain string, db *gorm.DB) []model.ProjectExtension {
-	var existingProjectExtensions []model.ProjectExtension
-
-	if db.Where("custom_config ->> 'subdomain' ilike ?", subdomain).Find(&existingProjectExtensions).RecordNotFound() {
-		return []model.ProjectExtension{}
-	}
-
-	return existingProjectExtensions
 }
 
 /* fills in Config by querying config ids and getting the actual value */

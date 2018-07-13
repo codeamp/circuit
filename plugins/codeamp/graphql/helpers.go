@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/jinzhu/gorm"
 )
 
 func AppendPluginService(pluginServices []plugins.Service, service model.Service, spec model.ServiceSpec) []plugins.Service {
@@ -100,6 +101,16 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 		Secrets:  secrets,
 		Services: services,
 	}
+}
+
+func GetProjectExtensionsWithRoute53Subdomain(subdomain string, db *gorm.DB) []model.ProjectExtension {
+	var existingProjectExtensions []model.ProjectExtension
+
+	if db.Where("custom_config ->> 'subdomain' ilike ?", subdomain).Find(&existingProjectExtensions).RecordNotFound() {
+		return []model.ProjectExtension{}
+	}
+
+	return existingProjectExtensions
 }
 
 func (r *Resolver) handleExtensionRoute53(args *struct{ ProjectExtension *model.ProjectExtensionInput }, projectExtension *model.ProjectExtension) error {

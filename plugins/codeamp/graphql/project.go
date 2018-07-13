@@ -90,10 +90,10 @@ func (r *ProjectResolver) Releases(args *struct {
 // Services
 func (r *ProjectResolver) Services(args *struct {
 	Params *model.PaginatorInput
-}) ServiceListResolver {
+}) *ServiceListResolver {
 	db_resolver := r.DBProjectResolver.Services(args)
 
-	return ServiceListResolver{
+	return &ServiceListResolver{
 		DBServiceListResolver: db_resolver,
 	}
 }
@@ -101,13 +101,13 @@ func (r *ProjectResolver) Services(args *struct {
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
-}) (SecretListResolver, error) {
+}) (*SecretListResolver, error) {
 	db_resolver, err := r.DBProjectResolver.Secrets(ctx, args)
 	if err != nil {
-		return SecretListResolver{}, err
+		return nil, err
 	}
 
-	return SecretListResolver{
+	return &SecretListResolver{
 		DBSecretListResolver: db_resolver,
 	}, nil
 }

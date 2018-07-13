@@ -61,6 +61,70 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
 }
 
+func (ts *ServiceTestSuite) TestUpdateService() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Update Service
+	serviceID := string(serviceResolver.ID())
+	projectID := string(projectResolver.ID())
+	serviceSpecID := string(serviceSpecResolver.ID())
+
+	serviceInput := &model.ServiceInput{
+		ID:            &serviceID,
+		ProjectID:     projectID,
+		ServiceSpecID: serviceSpecID,
+	}
+	_, err = ts.Resolver.UpdateService(&struct{ Service *model.ServiceInput }{serviceInput})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+}
+
+func (ts *ServiceTestSuite) TestDeleteService() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Update Service
+	serviceID := string(serviceResolver.ID())
+	projectID := string(projectResolver.ID())
+	serviceSpecID := string(serviceSpecResolver.ID())
+
+	serviceInput := &model.ServiceInput{
+		ID:            &serviceID,
+		ProjectID:     projectID,
+		ServiceSpecID: serviceSpecID,
+	}
+	_, err = ts.Resolver.DeleteService(&struct{ Service *model.ServiceInput }{serviceInput})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+}
+
 func (ts *ServiceTestSuite) TestServiceInterface() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
