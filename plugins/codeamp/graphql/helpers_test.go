@@ -143,7 +143,7 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 	extensionInput := model.ExtensionInput{
 		Name:          helper.name,
 		Key:           "test-project-interface",
-		Component:     "",
+		Component:     "test-component",
 		EnvironmentID: envId,
 		Config:        model.JSON{[]byte("[]")},
 		Type:          "once",
@@ -324,11 +324,11 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *graphql_resolver.ServiceS
 	// Service Spec ID
 	serviceSpecInput := model.ServiceSpecInput{
 		Name:                   helper.name,
-		CpuRequest:             "500",
-		CpuLimit:               "500",
-		MemoryRequest:          "500",
-		MemoryLimit:            "500",
-		TerminationGracePeriod: "300",
+		CpuRequest:             "100",
+		CpuLimit:               "200",
+		MemoryRequest:          "300",
+		MemoryLimit:            "400",
+		TerminationGracePeriod: "500",
 	}
 	serviceSpecResolver, err := helper.Resolver.CreateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	if err != nil {
@@ -372,6 +372,20 @@ func (helper *Helper) CreateService(t *testing.T,
 
 	helper.cleanupServiceIDs = append(helper.cleanupServiceIDs, serviceResolver.DBServiceResolver.Service.Model.ID)
 	return serviceResolver
+}
+
+func (helper *Helper) CreateUser(t *testing.T) *graphql_resolver.UserResolver {
+	user := model.User{
+		Email:    "test@example.com",
+		Password: "example",
+	}
+
+	res := helper.Resolver.DB.Create(&user)
+	if res.Error != nil {
+		assert.FailNow(t, res.Error.Error())
+	}
+
+	return &graphql_resolver.UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: helper.Resolver.DB, User: user}}
 }
 
 func (helper *Helper) TearDownTest(t *testing.T) {
