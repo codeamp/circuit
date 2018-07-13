@@ -145,7 +145,7 @@ type ServiceInput struct {
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
 	//DeploymentStrategy
-	DeploymentStrategy JSON `json:"deploymentStrategy"`
+	DeploymentStrategy DeploymentStrategyInput `json:"deploymentStrategy"`
 }
 
 type DeploymentStrategyInput struct {
