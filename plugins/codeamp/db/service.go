@@ -68,9 +68,9 @@ func (r *ServiceResolver) Ports() ([]*model.JSON, error) {
 }
 
 // DeploymentStrategy
-func (r *ServiceResolver) DeploymentStrategy() (*model.JSON, error) {
+func (r *ServiceResolver) DeploymentStrategy() (model.JSON, error) {
 	var deploymentStrategy model.ServiceDeploymentStrategy
-	var results *model.JSON
+	var results model.JSON
 
 	r.DB.Where("service_id = ?", r.Service.ID).First(&deploymentStrategy)
 
@@ -79,7 +79,7 @@ func (r *ServiceResolver) DeploymentStrategy() (*model.JSON, error) {
 		return results, fmt.Errorf("DeploymentStrategy: JSON marshal failed")
 	}
 
-	return &model.JSON{marshaled}, nil
+	return model.JSON{marshaled}, nil
 }
 
 // Environment
