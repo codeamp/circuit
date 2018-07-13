@@ -65,6 +65,8 @@ func GetType(s string) Type {
 		"deployment",
 		"general",
 		"one-shot",
+		"recreate",
+		"rollingUpdate",
 	}
 
 	for _, t := range types {

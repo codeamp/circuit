@@ -690,14 +690,23 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		return &ServiceResolver{}, err
 	}
 
+	var deploymentStrategy model.ServiceDeploymentStrategy
+	if args.Service.DeploymentStrategy != nil {
+		deploymentStrategy, err = validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
+		if err != nil {
+			return &ServiceResolver{}, err
+		}
+	}
+
 	service := model.Service{
-		Name:          args.Service.Name,
-		Command:       args.Service.Command,
-		ServiceSpecID: serviceSpecID,
-		Type:          plugins.Type(args.Service.Type),
-		Count:         args.Service.Count,
-		ProjectID:     projectID,
-		EnvironmentID: environmentID,
+		Name:               args.Service.Name,
+		Command:            args.Service.Command,
+		ServiceSpecID:      serviceSpecID,
+		Type:               plugins.Type(args.Service.Type),
+		Count:              args.Service.Count,
+		ProjectID:          projectID,
+		EnvironmentID:      environmentID,
+		DeploymentStrategy: &deploymentStrategy,
 	}
 
 	r.DB.Create(&service)
@@ -713,9 +722,29 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
-	//r.ServiceCreated(&service)
-
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+}
+
+func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
+	if plugins.GetType("recreate") == plugins.Type(input.Type) {
+		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
+	}
+
+	if input.MaxUnavailable == "" {
+		return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
+	}
+
+	if input.MaxSurge == "" {
+		return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
+	}
+
+	deploymentStrategy := model.ServiceDeploymentStrategy{
+		Type:           plugins.Type(input.Type),
+		MaxUnavailable: input.MaxUnavailable,
+		MaxSurge:       input.MaxSurge,
+	}
+
+	return deploymentStrategy, nil
 }
 
 // UpdateService Update Service
@@ -762,7 +791,20 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
-	//r.ServiceUpdated(&service)
+	var deploymentStrategy model.ServiceDeploymentStrategy
+	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
+	updatedDeploymentStrategy, err := validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
+	if err != nil {
+		return &ServiceResolver{}, err
+	}
+
+	deploymentStrategy.Type = updatedDeploymentStrategy.Type
+	deploymentStrategy.MaxUnavailable = updatedDeploymentStrategy.MaxUnavailable
+	deploymentStrategy.MaxSurge = updatedDeploymentStrategy.MaxSurge
+
+	r.DB.Save(&deploymentStrategy)
+	service.DeploymentStrategy = &deploymentStrategy
+	r.DB.Save(&service)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
@@ -790,7 +832,9 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 		r.DB.Delete(&cp)
 	}
 
-	//r.ServiceDeleted(&service)
+	var deploymentStrategy model.ServiceDeploymentStrategy
+	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
+	r.DB.Delete(&deploymentStrategy)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
@@ -806,8 +850,6 @@ func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpe
 	}
 
 	r.DB.Create(&serviceSpec)
-
-	//r.ServiceSpecCreated(&serviceSpec)
 
 	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 }

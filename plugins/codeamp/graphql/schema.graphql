@@ -171,7 +171,7 @@ type Service {
   environment: Environment!
   type: String!
   created: Time!
-  deploymentStrategy: JSON!
+  deploymentStrategy: JSON
 }
 
 # Environment
