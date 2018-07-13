@@ -298,6 +298,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		return nil, err
 	}
 
+	isRollback := false
+
 	// Check if project can create release in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create release in given environment")
@@ -398,6 +400,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		projectExtensionsJsonb = postgres.Jsonb{projectExtensionsMarshaled}
 	} else {
 		log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
+		isRollback = true
 		// Rollback
 		release := model.Release{}
 
@@ -624,6 +627,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	releaseEvent := plugins.Release{
 		ID:          release.Model.ID.String(),
 		Environment: environment.Key,
+		IsRollback:  isRollback,
 		HeadFeature: plugins.Feature{
 			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,
