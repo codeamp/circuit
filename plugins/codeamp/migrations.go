@@ -39,6 +39,7 @@ func (x *CodeAmp) Migrate() {
 		&model.Feature{},
 		&model.Service{},
 		&model.ServicePort{},
+		&model.ServiceDeploymentStrategy{},
 		&model.ServiceSpec{},
 		&model.Extension{},
 		&model.ProjectExtension{},

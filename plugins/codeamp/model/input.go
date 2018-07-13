@@ -144,6 +144,17 @@ type ServiceInput struct {
 	Type string `json:"type"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
+	//DeploymentStrategy
+	DeploymentStrategy JSON `json:"deploymentStrategy"`
+}
+
+type DeploymentStrategyInput struct {
+	// Type
+	Type string `json:"type"`
+	// MaxUnavailable
+	MaxUnavailable string `json:"maxUnavailable"`
+	// MaxSurge
+	MaxSurge string `json:"maxSurge"`
 }
 
 // ServiceSpecInput
