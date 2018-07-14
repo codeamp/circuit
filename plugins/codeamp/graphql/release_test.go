@@ -26,6 +26,7 @@ type ReleaseTestSuite struct {
 func (suite *ReleaseTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Extension{},
+		&model.ReleaseExtension{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
@@ -98,6 +99,9 @@ func (ts *ReleaseTestSuite) TestStopReleaseSuccess() {
 
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	// Release Extension
+	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
 
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
 	if err != nil {

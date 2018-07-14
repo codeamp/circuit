@@ -46,6 +46,7 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 
 	events := []interface{}{
 		plugins.ProjectExtension{},
+		plugins.ReleaseExtension{},
 		plugins.Release{},
 	}
 	for _, i := range events {
