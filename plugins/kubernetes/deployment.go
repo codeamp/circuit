@@ -186,6 +186,51 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 	return "", false
 }
 
+func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
+	var defaultDeploymentStrategy = v1beta1.DeploymentStrategy{
+		Type: v1beta1.RollingUpdateDeploymentStrategyType,
+		RollingUpdate: &v1beta1.RollingUpdateDeployment{
+			MaxUnavailable: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "30%",
+			},
+			MaxSurge: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "60%",
+			},
+		},
+	}
+
+	deploymentStrategy := plugins.DeploymentStrategy{}
+
+	if service.DeploymentStrategy == deploymentStrategy {
+		return defaultDeploymentStrategy
+	}
+
+	switch service.DeploymentStrategy.Type {
+	case plugins.GetType("recreate"):
+		return v1beta1.DeploymentStrategy{
+			Type: v1beta1.RecreateDeploymentStrategyType,
+		}
+	case plugins.GetType("rollingUpdate"):
+		customDeploymentStrategy := defaultDeploymentStrategy
+		customDeploymentStrategy.RollingUpdate = &v1beta1.RollingUpdateDeployment{
+			MaxUnavailable: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: fmt.Sprintf("%s%", service.DeploymentStrategy.MaxUnavailable),
+			},
+			MaxSurge: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: fmt.Sprintf("%s%", service.DeploymentStrategy.MaxSurge),
+			},
+		}
+
+		return customDeploymentStrategy
+	default:
+		return defaultDeploymentStrategy
+	}
+}
+
 func getContainerPorts(service plugins.Service) []v1.ContainerPort {
 	var deployPorts []v1.ContainerPort
 
@@ -651,19 +696,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 					},
 				},
 			}
-			deployStrategy = v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
-				RollingUpdate: &v1beta1.RollingUpdateDeployment{
-					MaxUnavailable: &intstr.IntOrString{
-						Type:   intstr.String,
-						StrVal: "30%",
-					},
-					MaxSurge: &intstr.IntOrString{
-						Type:   intstr.String,
-						StrVal: "60%",
-					},
-				},
-			}
+			deployStrategy = getDeploymentStrategy(service)
 		} else {
 			// If the service is non-TCP or has no ports use a simple exec probe
 			runThis := []string{"/bin/true"}
@@ -686,19 +719,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 					},
 				},
 			}
-			deployStrategy = v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
-				RollingUpdate: &v1beta1.RollingUpdateDeployment{
-					MaxUnavailable: &intstr.IntOrString{
-						Type:   intstr.String,
-						StrVal: "30%",
-					},
-					MaxSurge: &intstr.IntOrString{
-						Type:   intstr.String,
-						StrVal: "60%",
-					},
-				},
-			}
+			deployStrategy = getDeploymentStrategy(service)
 		}
 
 		// Deployment

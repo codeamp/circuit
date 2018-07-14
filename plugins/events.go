@@ -148,9 +148,16 @@ type Service struct {
 	Spec      ServiceSpec `json:"spec"`
 	Type      string      `json:"type"`
 
-	State        transistor.State  `json:"state"`
-	StateMessage string            `json:"stateMessage"`
-	Action       transistor.Action `json:"action"`
+	State              transistor.State   `json:"state"`
+	StateMessage       string             `json:"stateMessage"`
+	Action             transistor.Action  `json:"action"`
+	DeploymentStrategy DeploymentStrategy `json:"deploymentStrategy"`
+}
+
+type DeploymentStrategy struct {
+	Type           Type   `json:"type"`
+	MaxUnavailable string `json:"maxUnavailable`
+	MaxSurge       string `json:"MaxSurge`
 }
 
 // ServiceSpec event data struct
