@@ -227,6 +227,9 @@ func (ts *ReleaseTestSuite) TestStopReleaseSuccess() {
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
+	// Release Extension
+	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
+
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
@@ -262,9 +265,6 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureNoAuth() {
 
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
-
-	// Release Extension
-	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
 
 	// Failure Case - No Authorization
 	var ctx context.Context
