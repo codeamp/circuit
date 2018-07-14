@@ -120,7 +120,7 @@ type Service struct {
 	// EnvironmentID
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 	// DeploymentStrategy
-	DeploymentStrategy *ServiceDeploymentStrategy `json:"deploymentStrategy"`
+	DeploymentStrategy ServiceDeploymentStrategy `json:"deploymentStrategy"`
 }
 
 // ServicePort

@@ -208,6 +208,8 @@ func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
 	}
 
 	switch service.DeploymentStrategy.Type {
+	case plugins.GetType("default"):
+		return defaultDeploymentStrategy
 	case plugins.GetType("recreate"):
 		return v1beta1.DeploymentStrategy{
 			Type: v1beta1.RecreateDeploymentStrategyType,

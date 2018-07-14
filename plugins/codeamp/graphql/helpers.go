@@ -46,6 +46,11 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 			TerminationGracePeriodSeconds: terminationGracePeriod,
 		},
 		Type: string(service.Type),
+		DeploymentStrategy: plugins.DeploymentStrategy{
+			Type:           service.DeploymentStrategy.Type,
+			MaxUnavailable: service.DeploymentStrategy.MaxUnavailable,
+			MaxSurge:       service.DeploymentStrategy.MaxSurge,
+		},
 	})
 }
 

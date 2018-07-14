@@ -65,6 +65,7 @@ func GetType(s string) Type {
 		"deployment",
 		"general",
 		"one-shot",
+		"default",
 		"recreate",
 		"rollingUpdate",
 	}
