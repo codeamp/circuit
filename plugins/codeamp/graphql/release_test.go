@@ -263,9 +263,55 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureNoAuth() {
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
+	// Release Extension
+	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
+
 	// Failure Case - No Authorization
 	var ctx context.Context
 	_, err = ts.Resolver.StopRelease(ctx, &struct{ ID graphql.ID }{releaseResolver.ID()})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ReleaseTestSuite) TestStopReleaseFailureReleaseNotFound() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Release
+	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	// Release Extension
+	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
+
+	// Delete the release
+	err = ts.Resolver.DB.Where("id = ?", string(releaseResolver.ID())).Delete(&model.Release{}).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
 	assert.NotNil(ts.T(), err)
 }
 
