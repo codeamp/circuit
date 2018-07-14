@@ -219,11 +219,11 @@ func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
 		customDeploymentStrategy.RollingUpdate = &v1beta1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
-				StrVal: fmt.Sprintf("%s%", service.DeploymentStrategy.MaxUnavailable),
+				StrVal: fmt.Sprintf("%s%%", service.DeploymentStrategy.MaxUnavailable),
 			},
 			MaxSurge: &intstr.IntOrString{
 				Type:   intstr.String,
-				StrVal: fmt.Sprintf("%s%", service.DeploymentStrategy.MaxSurge),
+				StrVal: fmt.Sprintf("%s%%", service.DeploymentStrategy.MaxSurge),
 			},
 		}
 
