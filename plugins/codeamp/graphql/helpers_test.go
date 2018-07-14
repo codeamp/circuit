@@ -13,6 +13,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,6 +42,7 @@ func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver, name stri
 }
 
 func (helper *Helper) SetContext(context context.Context) {
+	log.Error("Setting Context")
 	helper.context = context
 }
 
@@ -84,6 +86,7 @@ func (helper *Helper) CreateProjectWithInput(t *testing.T,
 	envResolver *graphql_resolver.EnvironmentResolver,
 	projectInput *model.ProjectInput) (*graphql_resolver.ProjectResolver, error) {
 
+	spew.Dump(helper.context)
 	projectResolver, err := helper.Resolver.CreateProject(helper.context, &struct {
 		Project *model.ProjectInput
 	}{Project: projectInput})
@@ -280,13 +283,23 @@ func (helper *Helper) CreateReleaseWithInput(t *testing.T,
 	releaseInput *model.ReleaseInput) *graphql_resolver.ReleaseResolver {
 
 	// Release
-	releaseResolver, err := helper.Resolver.CreateRelease(helper.context, &struct{ Release *model.ReleaseInput }{releaseInput})
+	releaseResolver, err := helper.CreateReleaseWithError(t, projectResolver, releaseInput)
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
-
-	helper.cleanupReleaseIDs = append(helper.cleanupServiceSpecIDs, releaseResolver.DBReleaseResolver.Release.Model.ID)
 	return releaseResolver
+}
+
+func (helper *Helper) CreateReleaseWithError(t *testing.T,
+	projectResolver *graphql_resolver.ProjectResolver,
+	releaseInput *model.ReleaseInput) (*graphql_resolver.ReleaseResolver, error) {
+
+	// Release
+	releaseResolver, err := helper.Resolver.CreateRelease(helper.context, &struct{ Release *model.ReleaseInput }{releaseInput})
+	if err == nil {
+		helper.cleanupReleaseIDs = append(helper.cleanupServiceSpecIDs, releaseResolver.DBReleaseResolver.Release.Model.ID)
+	}
+	return releaseResolver, err
 }
 
 func (helper *Helper) CreateReleaseExtension(t *testing.T,

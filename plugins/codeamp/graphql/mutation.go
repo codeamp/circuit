@@ -31,7 +31,9 @@ import (
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+	var userId string
+	var err error
+	if userId, err = auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -128,16 +130,12 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		}
 	}
 
-	if userId, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	} else {
-		// Create user permission for project
-		userPermission := model.UserPermission{
-			UserID: uuid.FromStringOrNil(userId),
-			Value:  fmt.Sprintf("projects/%s", project.Repository),
-		}
-		r.DB.Create(&userPermission)
+	// Create user permission for project
+	userPermission := model.UserPermission{
+		UserID: uuid.FromStringOrNil(userId),
+		Value:  fmt.Sprintf("projects/%s", project.Repository),
 	}
+	r.DB.Create(&userPermission)
 
 	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
 }

@@ -61,7 +61,7 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
 }
 
-func (ts *ServiceTestSuite) TestUpdateService() {
+func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -79,13 +79,18 @@ func (ts *ServiceTestSuite) TestUpdateService() {
 
 	// Update Service
 	serviceID := string(serviceResolver.ID())
-	projectID := string(projectResolver.ID())
-	serviceSpecID := string(serviceSpecResolver.ID())
 
+	servicePorts := []model.ServicePortInput{
+		model.ServicePortInput{
+			Port:     "80",
+			Protocol: "HTTP",
+		},
+	}
 	serviceInput := &model.ServiceInput{
 		ID:            &serviceID,
-		ProjectID:     projectID,
-		ServiceSpecID: serviceSpecID,
+		ProjectID:     string(projectResolver.ID()),
+		ServiceSpecID: string(serviceSpecResolver.ID()),
+		Ports:         &servicePorts,
 	}
 	_, err = ts.Resolver.UpdateService(&struct{ Service *model.ServiceInput }{serviceInput})
 	if err != nil {
@@ -93,7 +98,30 @@ func (ts *ServiceTestSuite) TestUpdateService() {
 	}
 }
 
-func (ts *ServiceTestSuite) TestDeleteService() {
+func (ts *ServiceTestSuite) TestUpdateServiceFailureNoID() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Update Service
+	serviceID := "null"
+	serviceInput := &model.ServiceInput{ID: &serviceID}
+	_, err = ts.Resolver.UpdateService(&struct{ Service *model.ServiceInput }{serviceInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -123,6 +151,31 @@ func (ts *ServiceTestSuite) TestDeleteService() {
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
+}
+
+func (ts *ServiceTestSuite) TestDeleteServiceFailure() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Update Service
+	serviceID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
+	serviceInput := &model.ServiceInput{
+		ID: &serviceID,
+	}
+	_, err = ts.Resolver.DeleteService(&struct{ Service *model.ServiceInput }{serviceInput})
+	assert.NotNil(ts.T(), err)
 }
 
 func (ts *ServiceTestSuite) TestServiceInterface() {

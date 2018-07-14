@@ -221,6 +221,28 @@ func (suite *ProjectTestSuite) TestCreateProjectFailure() {
 	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
 }
 
+func (suite *ProjectTestSuite) TestCreateProjectFailureNoAuth() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project Input
+	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	var ctx context.Context
+	suite.helper.SetContext(ctx)
+	defer suite.helper.SetContext(test.ResolverAuthContext())
+
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
+}
+
 // func (suite *ProjectTestSuite) TestCreateProjectNoEnvFailure() {
 // 	// Environment
 // 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
