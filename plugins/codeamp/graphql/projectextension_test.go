@@ -64,7 +64,6 @@ func (ts *ProjectExtensionTestSuite) TestCreateProjectExtensionSuccess() {
 
 	// Project Extension
 	ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
-
 }
 
 func (ts *ProjectExtensionTestSuite) TestCreateProjectExtensionFailure() {

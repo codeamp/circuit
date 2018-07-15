@@ -13,7 +13,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
+	_ "github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -78,24 +78,18 @@ func (helper *Helper) CreateEnvironmentWithError(name string) (*graphql_resolver
 }
 
 func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) (*graphql_resolver.ProjectResolver, error) {
-	return helper.CreateProjectWithRepo(t, envResolver, "https://github.com/foo/goo.git")
+	projectResolver, err := helper.CreateProjectWithRepo(t, envResolver, "https://github.com/foo/goo.git")
+	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+	return projectResolver, err
 }
 
 func (helper *Helper) CreateProjectWithInput(t *testing.T,
-	envResolver *graphql_resolver.EnvironmentResolver,
 	projectInput *model.ProjectInput) (*graphql_resolver.ProjectResolver, error) {
 
-	spew.Dump(helper.context)
 	projectResolver, err := helper.Resolver.CreateProject(helper.context, &struct {
 		Project *model.ProjectInput
 	}{Project: projectInput})
-
-	// TODO: ADB This should be happening in the CreateProject function!
-	// If an ID for an Environment is supplied, Project should try to look that up and return resolver
-	// that includes project AND environment
-
 	if err == nil {
-		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
 		helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
 	}
 	return projectResolver, err
@@ -109,7 +103,7 @@ func (helper *Helper) CreateProjectWithRepo(t *testing.T, envResolver *graphql_r
 		EnvironmentID: &envId,
 	}
 
-	return helper.CreateProjectWithInput(t, envResolver, &projectInput)
+	return helper.CreateProjectWithInput(t, &projectInput)
 }
 
 func (helper *Helper) CreateSecret(t *testing.T,
@@ -184,7 +178,10 @@ func (helper *Helper) CreateProjectExtension(t *testing.T,
 	extensionResolver *graphql_resolver.ExtensionResolver,
 	projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.ProjectExtensionResolver {
 
-	resolver, _ := helper.CreateProjectExtensionWithError(t, extensionResolver, projectResolver)
+	resolver, err := helper.CreateProjectExtensionWithError(t, extensionResolver, projectResolver)
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
 	return resolver
 }
 

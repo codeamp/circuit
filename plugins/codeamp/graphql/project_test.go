@@ -56,7 +56,11 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	projectResolver.DBProjectResolver.Environment = environmentResolver.DBEnvironmentResolver.Environment
 
 	// Secret
 	_ = suite.helper.CreateSecret(suite.T(), projectResolver)
@@ -205,10 +209,38 @@ func (suite *ProjectTestSuite) TestCreateProjectSuccess() {
 	suite.helper.CreateProject(suite.T(), environmentResolver)
 }
 
-func (suite *ProjectTestSuite) TestCreateProjectFailureSameRepo() {
-	// Environment
-	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+func (suite *ProjectTestSuite) TestCreateProjectFailureNoEnvironments() {
+	// DB Backup all Environments
+	existingEnvironments := []*model.Environment{}
+	err := suite.Resolver.DB.Find(&existingEnvironments).Error
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
+	// Delete existing Environments
+	err = suite.Resolver.DB.Delete(&existingEnvironments).Error
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:too/loo.git",
+		GitProtocol:   "SSH",		
+	}
+
+	// Project
+	_, err = suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	assert.NotNil(suite.T(), err)
+
+	for _, env := range existingEnvironments {
+		err = suite.Resolver.DB.Unscoped().Save(&env).Error
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}	
+}
+
+func (suite *ProjectTestSuite) TestCreateProjectFailureSameRepo() {
 	// Project
 	// Project Input
 	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
@@ -219,16 +251,13 @@ func (suite *ProjectTestSuite) TestCreateProjectFailureSameRepo() {
 	}
 
 	// Project
-	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
 
-	_, err := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	_, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
 	assert.NotNil(suite.T(), err)
 }
 
 func (suite *ProjectTestSuite) TestCreateProjectFailure() {
-	// Environment
-	environmentResolver := suite.helper.CreateEnvironment(suite.T())
-
 	// Project Input
 	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
 	projectInput := model.ProjectInput{
@@ -238,13 +267,10 @@ func (suite *ProjectTestSuite) TestCreateProjectFailure() {
 	}
 
 	// Project
-	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
 }
 
 func (suite *ProjectTestSuite) TestCreateProjectFailureNoAuth() {
-	// Environment
-	environmentResolver := suite.helper.CreateEnvironment(suite.T())
-
 	// Project Input
 	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
 	projectInput := model.ProjectInput{
@@ -258,7 +284,7 @@ func (suite *ProjectTestSuite) TestCreateProjectFailureNoAuth() {
 	suite.helper.SetContext(ctx)
 	defer suite.helper.SetContext(test.ResolverAuthContext())
 
-	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
 	assert.NotNil(suite.T(), err)
 	assert.Nil(suite.T(), projectResolver)
 }
@@ -293,7 +319,7 @@ func (suite *ProjectTestSuite) TestCreateProjectWithSSH() {
 	}
 
 	// Project
-	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
 }
 
 func (suite *ProjectTestSuite) TestQueryProject() {
@@ -301,10 +327,13 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	initialProjectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+	initialProjectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	var ctx context.Context
-	_, err := suite.Resolver.Projects(ctx, &struct {
+	_, err = suite.Resolver.Projects(ctx, &struct {
 		ProjectSearch *model.ProjectSearchInput
 		Params        *model.PaginatorInput
 	}{nil, nil})
@@ -471,7 +500,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSSuccess() {
 	}
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	projectID := string(projectResolver.ID())
 	updatedProjectInput := model.ProjectInput{
@@ -501,7 +533,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSMismatchSuccess() {
 	}
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	projectID := string(projectResolver.ID())
 	updatedProjectInput := model.ProjectInput{
@@ -531,7 +566,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
 	}
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	projectID := string(projectResolver.ID())
 	branch := "master"
@@ -565,7 +603,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHMismatchSuccess() {
 	}
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	projectID := string(projectResolver.ID())
 	branch := "master"
@@ -599,7 +640,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccessNoEnvironment() {
 	}
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	projectID := string(projectResolver.ID())
 	branch := "master"
@@ -615,7 +659,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccessNoEnvironment() {
 
 	// Delete Project Settings for testing purposes
 	projectSettings := &model.ProjectSettings{}
-	err := suite.Resolver.DB.Where("environment_id = ? and project_id = ?", envID, projectID).First(&projectSettings).Error
+	err = suite.Resolver.DB.Where("environment_id = ? and project_id = ?", envID, projectID).First(&projectSettings).Error
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
@@ -696,7 +740,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidEnvironmentID() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	projectID := string(projectResolver.ID())
 	envID := "123e4567-e89b-1zd3-a456-426655440000"
@@ -724,7 +771,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 
 	// Update Project Environments
 	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
