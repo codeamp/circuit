@@ -147,7 +147,7 @@ func (ts *ExtensionTestSuite) TestExtensionInterface() {
 	assert.Equal(ts.T(), "TestExtension", extensionResolver.Name())
 	assert.Equal(ts.T(), "test-component", extensionResolver.Component())
 
-	assert.Equal(ts.T(), "once", extensionResolver.Type())
+	assert.Equal(ts.T(), "workflow", extensionResolver.Type())
 	assert.Equal(ts.T(), "test-project-interface", extensionResolver.Key())
 
 	environmentResolver, err := extensionResolver.Environment()

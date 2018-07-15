@@ -299,7 +299,7 @@ func (helper *Helper) CreateRelease(t *testing.T,
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	// Releases
-	featureID := featureResolver.DBFeatureResolver.Feature.Model.ID.String()
+	featureID := string(featureResolver.ID())
 	releaseInput := &model.ReleaseInput{
 		HeadFeatureID: featureID,
 		ProjectID:     projectID,

@@ -70,6 +70,132 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 }
 
+func (ts *ReleaseTestSuite) TestCreateReleaseFailureSameSignatures() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	projectID := string(projectResolver.ID())
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+
+	featureID := string(featureResolver.ID())
+	releaseInput := &model.ReleaseInput{
+		HeadFeatureID: featureID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		ForceRebuild:  false,
+	}
+
+	// Release
+	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ReleaseTestSuite) TestCreateReleaseFailureBadHeadFeature() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	projectID := string(projectResolver.ID())
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+
+	featureID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
+	releaseInput := &model.ReleaseInput{
+		HeadFeatureID: featureID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		ForceRebuild:  false,
+	}
+
+	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ReleaseTestSuite) TestCreateReleaseFailureBadEnvID() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	projectID := string(projectResolver.ID())
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+
+	featureID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
+	releaseInput := &model.ReleaseInput{
+		HeadFeatureID: featureID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		ForceRebuild:  false,
+	}
+
+	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ReleaseTestSuite) TestCreateReleaseRollbackSuccess() {
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
