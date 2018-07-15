@@ -124,7 +124,7 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 	assert.NotNil(ts.T(), releaseExtensionResolvers)
 	assert.NotEmpty(ts.T(), releaseExtensionResolvers)
 
-	releaseExtensionResolver = releaseExtensionResolvers[1]
+	releaseExtensionResolver = releaseExtensionResolvers[0]
 	_ = releaseExtensionResolver.ID()
 	_, err = releaseExtensionResolver.Release()
 	_, err = releaseExtensionResolver.Extension()
