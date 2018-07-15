@@ -42,7 +42,6 @@ func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver, name stri
 }
 
 func (helper *Helper) SetContext(context context.Context) {
-	log.Error("Setting Context")
 	helper.context = context
 }
 
@@ -168,7 +167,7 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 		Component:     "test-component",
 		EnvironmentID: envId,
 		Config:        model.JSON{configData},
-		Type:          "once",
+		Type:          "workflow",
 	}
 	extensionResolver, err := helper.Resolver.CreateExtension(&struct {
 		Extension *model.ExtensionInput

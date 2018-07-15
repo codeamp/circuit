@@ -350,6 +350,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		// check if any project extensions that are not 'once' exists
 		r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", args.Release.ProjectID, args.Release.EnvironmentID, transistor.GetState("complete")).Find(&projectExtensions)
 
+		log.Error("FOUND PROJECT EXTENSIONS ", len(projectExtensions))
 		if len(projectExtensions) == 0 {
 			log.InfoWithFields("project has no extensions", log.Fields{
 				"project_id":     args.Release.ProjectID,
@@ -623,6 +624,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	// Create/Emit Release ProjectExtensions
 	for _, projectExtension := range projectExtensions {
+		log.Error("PROJECT EXTENSIONS LOOP")
 		extension := model.Extension{}
 		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.ErrorWithFields("extension spec not found", log.Fields{
@@ -632,6 +634,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		}
 
 		if plugins.Type(extension.Type) == plugins.GetType("workflow") || plugins.Type(extension.Type) == plugins.GetType("deployment") {
+			log.Error("INSIDE NOT A ONCE")
 			var headFeature model.Feature
 			if r.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
 				log.ErrorWithFields("head feature not found", log.Fields{
@@ -1478,7 +1481,9 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	var err error
 
 	extensionConfig := []model.ExtConfig{}
+	log.Error(extension.Config.RawMessage)
 	if extension.Config.RawMessage != nil {
+		log.Error("extract 1")
 		err = json.Unmarshal(extension.Config.RawMessage, &extensionConfig)
 		if err != nil {
 			return nil, err
@@ -1486,7 +1491,9 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	projectConfig := []model.ExtConfig{}
+	log.Error(projectExtension.Config.RawMessage)
 	if projectExtension.Config.RawMessage != nil {
+		log.Error("extract 2")
 		err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 		if err != nil {
 			log.Error(err.Error())
@@ -1494,8 +1501,10 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		}
 	}
 
+	log.Error(projectExtension.Artifacts.RawMessage)
 	existingArtifacts := []transistor.Artifact{}
 	if projectExtension.Artifacts.RawMessage != nil {
+		log.Error("extract 3")
 		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 		if err != nil {
 			log.Error(err.Error())
@@ -1504,7 +1513,9 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	for i, ec := range extensionConfig {
+		log.Error("extract loop")
 		for _, pc := range projectConfig {
+			log.Error("extract loop 2")
 			if ec.AllowOverride && ec.Key == pc.Key && pc.Value != "" {
 				extensionConfig[i].Value = pc.Value
 			}
@@ -1530,11 +1541,13 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	for _, ea := range existingArtifacts {
+		log.Error("existing loop")
 		artifacts = append(artifacts, ea)
 	}
 
 	projectCustomConfig := make(map[string]interface{})
 	if projectExtension.CustomConfig.RawMessage != nil {
+		log.Error("extract 4")
 		err = json.Unmarshal(projectExtension.CustomConfig.RawMessage, &projectCustomConfig)
 		if err != nil {
 			log.Error(err.Error())
@@ -1543,6 +1556,7 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	}
 
 	for key, val := range projectCustomConfig {
+		log.Error("extract loop 4")
 		var artifact transistor.Artifact
 		artifact.Key = key
 		artifact.Value = val

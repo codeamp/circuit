@@ -205,6 +205,26 @@ func (suite *ProjectTestSuite) TestCreateProjectSuccess() {
 	suite.helper.CreateProject(suite.T(), environmentResolver)
 }
 
+func (suite *ProjectTestSuite) TestCreateProjectFailureSameRepo() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	// Project Input
+	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
+	projectInput := model.ProjectInput{
+		GitUrl:        "git@github.com:foo/goo.git",
+		GitProtocol:   "SSH",
+		EnvironmentID: &envID,
+	}
+
+	// Project
+	suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+
+	_, err := suite.helper.CreateProjectWithInput(suite.T(), environmentResolver, &projectInput)
+	assert.NotNil(suite.T(), err)
+}
+
 func (suite *ProjectTestSuite) TestCreateProjectFailure() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
