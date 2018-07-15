@@ -142,13 +142,32 @@ func (helper *Helper) CreateSecret(t *testing.T,
 
 func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) *graphql_resolver.ExtensionResolver {
 	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
+
+	config := []model.ExtConfig{
+		model.ExtConfig{
+			Key:           "test-key",
+			Value:         "test-value",
+			AllowOverride: true,
+		},
+		model.ExtConfig{
+			Key:           "test-key",
+			Value:         "test-value",
+			AllowOverride: true,
+			Secret:        true,
+		},
+	}
+	configData, err := json.Marshal(&config)
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
+
 	// Extension
 	extensionInput := model.ExtensionInput{
 		Name:          helper.name,
 		Key:           "test-project-interface",
 		Component:     "test-component",
 		EnvironmentID: envId,
-		Config:        model.JSON{[]byte("[]")},
+		Config:        model.JSON{configData},
 		Type:          "once",
 	}
 	extensionResolver, err := helper.Resolver.CreateExtension(&struct {
@@ -179,10 +198,24 @@ func (helper *Helper) CreateProjectExtensionWithError(t *testing.T,
 
 	// Project Extension
 	extConfigMap := make([]model.ExtConfig, 0)
+	extConfigMap = append(extConfigMap,
+		model.ExtConfig{
+			Key:           "test-key",
+			Value:         "test-value",
+			AllowOverride: true,
+			Secret:        false,
+		})
+
 	extConfigJSON, err := json.Marshal(extConfigMap)
 	assert.Nil(t, err)
 
 	extCustomConfigMap := make(map[string]model.ExtConfig)
+	extCustomConfigMap["test"] = model.ExtConfig{
+		Key:           "test-key",
+		Value:         "test-value",
+		AllowOverride: true,
+		Secret:        false,
+	}
 	extCustomConfigJSON, err := json.Marshal(extCustomConfigMap)
 	assert.Nil(t, err)
 
