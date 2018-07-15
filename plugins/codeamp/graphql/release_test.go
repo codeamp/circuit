@@ -140,7 +140,6 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureBadHeadFeature() {
 
 	// Feature
 	projectID := string(projectResolver.ID())
-	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	featureID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
@@ -181,7 +180,6 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureBadEnvID() {
 
 	// Feature
 	projectID := string(projectResolver.ID())
-	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	featureID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
