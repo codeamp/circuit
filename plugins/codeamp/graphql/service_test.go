@@ -2,10 +2,12 @@ package graphql_resolver_test
 
 import (
 	"context"
+	"fmt"
 
 	"testing"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	_ "github.com/satori/go.uuid"
 
@@ -57,10 +59,126 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 	// Service Spec ID
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.GetType("recreate"),
+	}
+
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
 }
 
+func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.GetType("default"),
+	}
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.GetType("recreate"),
+	}
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: "30",
+		MaxSurge:       "60",
+	}
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFailure() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.GetType("rollingUpdate"),
+	}
+
+	// Services
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	if err == nil {
+		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy of type rollingUpdate created with invalid inputs"))
+	}
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyInvalid() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.Type("invalidStrategy"),
+	}
+
+	// Services
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	if err == nil {
+		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy created with invalid parameters"))
+	}
+}
 func (ts *ServiceTestSuite) TestServiceInterface() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
@@ -75,8 +193,12 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 	serviceSpecID := serviceSpecResolver.ID()
 
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.GetType("recreate"),
+	}
+
 	// Services
-	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
 
 	// Test Service Interface
 	_ = serviceResolver.ID()
@@ -133,8 +255,12 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 	// Service Spec ID
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.GetType("recreate"),
+	}
+
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
 
 	// Test Service Query
 	var ctx context.Context

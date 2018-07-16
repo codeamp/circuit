@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -135,8 +136,12 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	// Service Spec ID
 	serviceSpecResolver := suite.helper.CreateServiceSpec(suite.T())
 
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type: plugins.GetType("recreate"),
+	}
+
 	// Services
-	_ = suite.helper.CreateService(suite.T(), serviceSpecResolver, projectResolver)
+	_ = suite.helper.CreateService(suite.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
 
 	// Test
 	_ = projectResolver.ID()
