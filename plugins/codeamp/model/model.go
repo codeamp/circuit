@@ -119,8 +119,11 @@ type Service struct {
 	Ports []ServicePort `json:"servicePorts"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	// DeploymentStrategy
+	DeploymentStrategy ServiceDeploymentStrategy `json:"deploymentStrategy"`
 }
 
+// ServicePort
 type ServicePort struct {
 	Model `json:",inline"`
 	// ServiceID
@@ -129,6 +132,20 @@ type ServicePort struct {
 	Protocol string `json:"protocol"`
 	// Port
 	Port string `json:"port"`
+}
+
+// DeploymentStrategy
+type ServiceDeploymentStrategy struct {
+	// Model
+	Model `json:",inline"`
+	// ServiceID
+	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	// Type
+	Type plugins.Type `json:"type"`
+	// MaxUnavailable
+	MaxUnavailable string `json:"maxUnavailable"`
+	// MaxSurge
+	MaxSurge string `json:"maxSurge"`
 }
 
 // Secret

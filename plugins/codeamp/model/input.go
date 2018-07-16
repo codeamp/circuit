@@ -1,5 +1,7 @@
 package model
 
+import "github.com/codeamp/circuit/plugins"
+
 // ServicePortInput
 type ServicePortInput struct {
 	// Port
@@ -144,6 +146,17 @@ type ServiceInput struct {
 	Type string `json:"type"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
+	//DeploymentStrategy
+	DeploymentStrategy *DeploymentStrategyInput `json:"deploymentStrategy"`
+}
+
+type DeploymentStrategyInput struct {
+	// Type
+	Type plugins.Type `json:"type"`
+	// MaxUnavailable
+	MaxUnavailable string `json:"maxUnavailable"`
+	// MaxSurge
+	MaxSurge string `json:"maxSurge"`
 }
 
 // ServiceSpecInput
