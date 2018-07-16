@@ -22,17 +22,18 @@ type Helper struct {
 	name     string
 	context  context.Context
 
-	cleanupExtensionIDs        []uuid.UUID
-	cleanupEnvironmentIDs      []uuid.UUID
-	cleanupProjectIDs          []uuid.UUID
-	cleanupSecretIDs           []uuid.UUID
-	cleanupProjectBookmarkIDs  []uuid.UUID
-	cleanupProjectExtensionIDs []uuid.UUID
-	cleanupFeatureIDs          []uuid.UUID
-	cleanupServiceIDs          []uuid.UUID
-	cleanupServiceSpecIDs      []uuid.UUID
-	cleanupReleaseIDs          []uuid.UUID
-	cleanupReleaseExtensionIDs []uuid.UUID
+	cleanupExtensionIDs                 []uuid.UUID
+	cleanupEnvironmentIDs               []uuid.UUID
+	cleanupProjectIDs                   []uuid.UUID
+	cleanupSecretIDs                    []uuid.UUID
+	cleanupProjectBookmarkIDs           []uuid.UUID
+	cleanupProjectExtensionIDs          []uuid.UUID
+	cleanupFeatureIDs                   []uuid.UUID
+	cleanupServiceIDs                   []uuid.UUID
+	cleanupServiceDeploymentStrategyIDs []uuid.UUID
+	cleanupServiceSpecIDs               []uuid.UUID
+	cleanupReleaseIDs                   []uuid.UUID
+	cleanupReleaseExtensionIDs          []uuid.UUID
 }
 
 func (helper *Helper) SetResolver(resolver *graphql_resolver.Resolver, name string) {
@@ -341,7 +342,8 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *graphql_resolver.ServiceS
 
 func (helper *Helper) CreateService(t *testing.T,
 	serviceSpecResolver *graphql_resolver.ServiceSpecResolver,
-	projectResolver *graphql_resolver.ProjectResolver) *graphql_resolver.ServiceResolver {
+	projectResolver *graphql_resolver.ProjectResolver,
+	deploymentStrategy *model.DeploymentStrategyInput) *graphql_resolver.ServiceResolver {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
@@ -355,14 +357,15 @@ func (helper *Helper) CreateService(t *testing.T,
 
 	// Services
 	serviceInput := model.ServiceInput{
-		ProjectID:     projectID,
-		Command:       "echo \"hello\" && exit 0",
-		Name:          helper.name,
-		ServiceSpecID: string(serviceSpecResolver.ID()),
-		Count:         "1",
-		Ports:         &servicePortInputs,
-		Type:          "general",
-		EnvironmentID: envID,
+		ProjectID:          projectID,
+		Command:            "echo \"hello\" && exit 0",
+		Name:               helper.name,
+		ServiceSpecID:      string(serviceSpecResolver.ID()),
+		Count:              "1",
+		Ports:              &servicePortInputs,
+		Type:               "general",
+		EnvironmentID:      envID,
+		DeploymentStrategy: deploymentStrategy,
 	}
 
 	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
@@ -386,6 +389,43 @@ func (helper *Helper) CreateUser(t *testing.T) *graphql_resolver.UserResolver {
 	}
 
 	return &graphql_resolver.UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: helper.Resolver.DB, User: user}}
+}
+
+func (helper *Helper) CreateServiceWithError(t *testing.T,
+	serviceSpecResolver *graphql_resolver.ServiceSpecResolver,
+	projectResolver *graphql_resolver.ProjectResolver,
+	deploymentStrategy *model.DeploymentStrategyInput) (*graphql_resolver.ServiceResolver, error) {
+
+	projectID := string(projectResolver.ID())
+	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+
+	servicePortInputs := []model.ServicePortInput{
+		model.ServicePortInput{
+			Port:     "80",
+			Protocol: "HTTP",
+		},
+	}
+
+	// Services
+	serviceInput := model.ServiceInput{
+		ProjectID:          projectID,
+		Command:            "echo \"hello\" && exit 0",
+		Name:               helper.name,
+		ServiceSpecID:      string(serviceSpecResolver.ID()),
+		Count:              "1",
+		Ports:              &servicePortInputs,
+		Type:               "general",
+		EnvironmentID:      envID,
+		DeploymentStrategy: deploymentStrategy,
+	}
+
+	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
+	if err != nil {
+		return serviceResolver, err
+	}
+
+	helper.cleanupServiceIDs = append(helper.cleanupServiceIDs, serviceResolver.DBServiceResolver.Service.Model.ID)
+	return serviceResolver, nil
 }
 
 func (helper *Helper) TearDownTest(t *testing.T) {
@@ -413,12 +453,22 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	}
 	helper.cleanupServiceSpecIDs = make([]uuid.UUID, 0)
 
+	for _, id := range helper.cleanupServiceDeploymentStrategyIDs {
+		err := helper.Resolver.DB.Unscoped().Delete(&model.ServiceDeploymentStrategy{Model: model.Model{ID: id}}).Error
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
+	helper.cleanupServiceDeploymentStrategyIDs = make([]uuid.UUID, 0)
+
 	for _, id := range helper.cleanupReleaseExtensionIDs {
 		err := helper.Resolver.DB.Unscoped().Delete(&model.ReleaseExtension{Model: model.Model{ID: id}}).Error
 		if err != nil {
 			log.Error(err)
 		}
 	}
+
 	helper.cleanupReleaseExtensionIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupExtensionIDs {
