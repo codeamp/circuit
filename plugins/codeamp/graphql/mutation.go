@@ -293,12 +293,12 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	var servicesJsonb postgres.Jsonb
 	var projectExtensionsJsonb postgres.Jsonb
 
+	isRollback := false
+
 	userID, err := auth.CheckAuth(ctx, []string{})
 	if err != nil {
 		return nil, err
 	}
-
-	isRollback := false
 
 	// Check if project can create release in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
@@ -400,8 +400,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		projectExtensionsJsonb = postgres.Jsonb{projectExtensionsMarshaled}
 	} else {
 		log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
-		isRollback = true
 		// Rollback
+		isRollback = true
 		release := model.Release{}
 
 		if r.DB.Where("id = ?", string(*args.Release.ID)).Find(&release).RecordNotFound() {
@@ -571,6 +571,14 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		return &ReleaseResolver{}, err
 	}
 
+	if isRollback {
+		for i, svc := range pluginServices {
+			svc.DeploymentStrategy.MaxSurge = "100%"
+			svc.DeploymentStrategy.MaxUnavailable = "70%"
+			pluginServices[i] = svc
+		}
+	}
+
 	var pluginSecrets []plugins.Secret
 	for _, secret := range secrets {
 		pluginSecrets = append(pluginSecrets, plugins.Secret{
@@ -627,7 +635,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	releaseEvent := plugins.Release{
 		ID:          release.Model.ID.String(),
 		Environment: environment.Key,
-		IsRollback:  isRollback,
 		HeadFeature: plugins.Feature{
 			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,
