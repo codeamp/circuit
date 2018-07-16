@@ -681,24 +681,24 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 
 	projectID, err := uuid.FromString(args.Service.ProjectID)
 	if err != nil {
-		return &ServiceResolver{}, err
+		return nil, err
 	}
 
 	environmentID, err := uuid.FromString(args.Service.EnvironmentID)
 	if err != nil {
-		return &ServiceResolver{}, err
+		return nil, err
 	}
 
 	serviceSpecID, err := uuid.FromString(args.Service.ServiceSpecID)
 	if err != nil {
-		return &ServiceResolver{}, err
+		return nil, err
 	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	if args.Service.DeploymentStrategy != nil {
 		deploymentStrategy, err = validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
 		if err != nil {
-			return &ServiceResolver{}, err
+			return nil, err
 		}
 	}
 
@@ -802,7 +802,7 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
 	updatedDeploymentStrategy, err := validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
 	if err != nil {
-		return &ServiceResolver{}, err
+		return nil, err
 	}
 
 	deploymentStrategy.Type = updatedDeploymentStrategy.Type
@@ -821,7 +821,7 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	serviceID, err := uuid.FromString(*args.Service.ID)
 
 	if err != nil {
-		return &ServiceResolver{}, err
+		return nil, err
 	}
 
 	var service model.Service

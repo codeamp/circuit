@@ -201,9 +201,7 @@ func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
 		},
 	}
 
-	deploymentStrategy := plugins.DeploymentStrategy{}
-
-	if service.DeploymentStrategy == deploymentStrategy {
+	if service.DeploymentStrategy == (plugins.DeploymentStrategy{}) {
 		return defaultDeploymentStrategy
 	}
 
@@ -698,7 +696,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 					},
 				},
 			}
-			deployStrategy = getDeploymentStrategy(service)
 		} else {
 			// If the service is non-TCP or has no ports use a simple exec probe
 			runThis := []string{"/bin/true"}
@@ -721,8 +718,9 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 					},
 				},
 			}
-			deployStrategy = getDeploymentStrategy(service)
 		}
+
+		deployStrategy = getDeploymentStrategy(service)
 
 		// Deployment
 		replicas := int32(service.Replicas)
