@@ -3,12 +3,14 @@ package transistor
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"regexp"
 	"time"
 
 	log "github.com/codeamp/logger"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func RandomString(strlen int) string {
@@ -22,8 +24,10 @@ func RandomString(strlen int) string {
 }
 
 func SliceContains(name string, list []string) bool {
+	spew.Dump("SliceContins", name, list)
 	for _, b := range list {
-		matched, err := regexp.MatchString(b, name)
+		exactMatch := name == b
+		slashBeforeMatch, err := regexp.MatchString(fmt.Sprintf("/%s", name), b)
 		if err != nil {
 			log.InfoWithFields("SliceContains method encountered an error", log.Fields{
 				"regex":  b,
@@ -32,7 +36,16 @@ func SliceContains(name string, list []string) bool {
 			})
 		}
 
-		if matched {
+		slashAfterMatch, err := regexp.MatchString(fmt.Sprintf("%s/", name), b)
+		if err != nil {
+			log.InfoWithFields("SliceContains method encountered an error", log.Fields{
+				"regex":  b,
+				"string": name,
+				"error":  err,
+			})
+		}
+
+		if exactMatch || slashAfterMatch || slashBeforeMatch {
 			return true
 		}
 	}
