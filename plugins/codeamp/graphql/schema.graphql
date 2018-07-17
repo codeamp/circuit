@@ -355,7 +355,7 @@ input DeploymentStrategyInput {
 }
 
 input HealthProbeInput {
-  type: String!
+  type: String
   method: String!
   command: String
   port: String

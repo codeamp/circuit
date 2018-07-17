@@ -705,6 +705,8 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 	var livenessProbes []model.ServiceHealthProbe
 	if args.Service.LivenessProbes != nil {
 		for _, probe := range *args.Service.LivenessProbes {
+			probeType := plugins.GetType("livenessProbe")
+			probe.Type = &probeType
 			livenessProbe, err := validateHealthProbe(*probe)
 			if err != nil {
 				return nil, err
@@ -717,6 +719,8 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 
 	if args.Service.ReadinessProbes != nil {
 		for _, probe := range *args.Service.ReadinessProbes {
+			probeType := plugins.GetType("readinessProbe")
+			probe.Type = &probeType
 			readinessProbe, err := validateHealthProbe(*probe)
 			if err != nil {
 				return nil, err
@@ -800,6 +804,7 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	var livenessProbes []model.ServiceHealthProbe
 	if args.Service.LivenessProbes != nil {
 		for _, probe := range *args.Service.LivenessProbes {
+			*probe.Type = plugins.GetType("livenessProbe")
 			livenessProbe, err := validateHealthProbe(*probe)
 			if err != nil {
 				return nil, err
@@ -812,6 +817,7 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	if args.Service.ReadinessProbes != nil {
 		for _, probe := range *args.Service.ReadinessProbes {
+			*probe.Type = plugins.GetType("readinessProbe")
 			readinessProbe, err := validateHealthProbe(*probe)
 			if err != nil {
 				return nil, err
@@ -884,7 +890,7 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 func validateHealthProbe(input model.ServiceHealthProbeInput) (*model.ServiceHealthProbe, error) {
 	healthProbe := model.ServiceHealthProbe{}
 
-	switch probeType := input.Type; probeType {
+	switch probeType := *input.Type; probeType {
 	case plugins.GetType("livenessProbe"), plugins.GetType("readinessProbe"):
 		healthProbe.Type = probeType
 		if input.InitialDelaySeconds != nil {
@@ -903,7 +909,7 @@ func validateHealthProbe(input model.ServiceHealthProbeInput) (*model.ServiceHea
 			healthProbe.FailureThreshold = *input.FailureThreshold
 		}
 	default:
-		return nil, fmt.Errorf("Unsuported Probe Type %s", string(input.Type))
+		return nil, fmt.Errorf("Unsuported Probe Type %s", string(*input.Type))
 	}
 
 	switch probeMethod := input.Method; probeMethod {

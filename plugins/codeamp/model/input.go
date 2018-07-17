@@ -167,7 +167,7 @@ type DeploymentStrategyInput struct {
 // Further documentation can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
 type ServiceHealthProbeInput struct {
 	// Type currently supports ReadinessProbe and LivenessProbe
-	Type plugins.Type `json:"type"`
+	Type *plugins.Type `json:"type"`
 	//Method supports `exec`, `http`, and `tcp`
 	Method string `json:"method"`
 	// Command is only evaluated if Method is `exec`
