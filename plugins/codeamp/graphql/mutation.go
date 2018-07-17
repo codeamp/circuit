@@ -885,8 +885,6 @@ func validateHealthProbe(input model.ServiceHealthProbeInput) (*model.ServiceHea
 	healthProbe := model.ServiceHealthProbe{}
 
 	switch probeType := input.Type; probeType {
-	case plugins.GetType("default"):
-		return &model.ServiceHealthProbe{Type: plugins.Type("default"), Method: "tcp"}, nil
 	case plugins.GetType("livenessProbe"), plugins.GetType("readinessProbe"):
 		healthProbe.Type = probeType
 		if input.InitialDelaySeconds != nil {
