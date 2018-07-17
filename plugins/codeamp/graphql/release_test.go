@@ -396,6 +396,47 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureNoAuth() {
 	assert.NotNil(ts.T(), err)
 }
 
+func (ts *ReleaseTestSuite) TestStopReleaseFailureBadProjectExtension() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Release
+	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	// Release Extension
+	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
+
+	// Delete the project resolver to trigger the error condition
+	ts.Resolver.DB.Delete(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
+	assert.NotNil(ts.T(), err)
+
+}
+
 func (ts *ReleaseTestSuite) TestStopReleaseFailureReleaseNotFound() {
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
@@ -436,6 +477,51 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureReleaseNotFound() {
 	}
 
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ReleaseTestSuite) TestStopReleaseFailureBadReleaseExtension() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Release
+	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	// Release Extension
+	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
+
+	// Delete the project resolver to trigger the error condition
+	ts.Resolver.DB.Delete(&extensionResolver.DBExtensionResolver.Extension)
+
+	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ReleaseTestSuite) TestStopReleaseFailureNoReleaseExtensions() {
+	_, err := ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{graphql.ID("b3d43558-0ec0-44a5-9755-0a3a0387d8eb")})
 	assert.NotNil(ts.T(), err)
 }
 

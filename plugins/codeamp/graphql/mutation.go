@@ -222,7 +222,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 
 	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
 	if len(releaseExtensions) < 1 {
-		log.Warn("No release extensions found for release")
+		return nil, fmt.Errorf("No release extensions found for release: %s", args.ID)
 	}
 
 	if r.DB.Where("id = ?", args.ID).Find(&release).RecordNotFound() {
