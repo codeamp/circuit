@@ -68,6 +68,8 @@ func GetType(s string) Type {
 		"default",
 		"recreate",
 		"rollingUpdate",
+		"livenessProbe",
+		"readinessProbe",
 	}
 
 	for _, t := range types {

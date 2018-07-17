@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
@@ -80,6 +81,42 @@ func (r *ServiceResolver) DeploymentStrategy() (*model.JSON, error) {
 	}
 
 	return &model.JSON{marshaled}, nil
+}
+
+// LivenessProbes
+func (r *ServiceResolver) LivenessProbes() (*[]*model.JSON, error) {
+	var rows []model.ServiceHealthProbe
+	var results []*model.JSON
+
+	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("livenessProbe"))).Order("created_at desc").Find(&rows)
+
+	for _, row := range rows {
+		if probe, err := json.Marshal(&row); err != nil {
+			return &results, fmt.Errorf("JSON marshal failed")
+		} else {
+			results = append(results, &model.JSON{probe})
+		}
+	}
+
+	return &results, nil
+}
+
+// ReadinessProbes
+func (r *ServiceResolver) ReadinessProbes() (*[]*model.JSON, error) {
+	var rows []model.ServiceHealthProbe
+	var results []*model.JSON
+
+	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).Order("created_at desc").Find(&rows)
+
+	for _, row := range rows {
+		if probe, err := json.Marshal(&row); err != nil {
+			return &results, fmt.Errorf("JSON marshal failed")
+		} else {
+			results = append(results, &model.JSON{probe})
+		}
+	}
+
+	return &results, nil
 }
 
 // Environment
