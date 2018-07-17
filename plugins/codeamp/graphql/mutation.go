@@ -573,8 +573,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	if isRollback {
 		for i, svc := range pluginServices {
-			svc.DeploymentStrategy.MaxSurge = "100%"
-			svc.DeploymentStrategy.MaxUnavailable = "70%"
+			svc.DeploymentStrategy = plugins.DeploymentStrategy{
+				MaxSurge:       "100%",
+				MaxUnavailable: "70%",
+			}
 			pluginServices[i] = svc
 		}
 	}
