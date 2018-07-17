@@ -122,9 +122,9 @@ type Service struct {
 	// DeploymentStrategy
 	DeploymentStrategy ServiceDeploymentStrategy `json:"deploymentStrategy"`
 	// ReadinessProbes
-	ReadinessProbes *[]*ServiceHealthProbe `json:"readinessProbes"`
+	ReadinessProbes []ServiceHealthProbe `json:"readinessProbes"`
 	// LivenessProbes
-	LivenessProbes *[]*ServiceHealthProbe `json:"livenessProbes"`
+	LivenessProbes []ServiceHealthProbe `json:"livenessProbes"`
 }
 
 // ServicePort
@@ -152,33 +152,34 @@ type ServiceDeploymentStrategy struct {
 	MaxSurge string `json:"maxSurge"`
 }
 
+// ServiceHealthProbe
 type ServiceHealthProbe struct {
 	// Model
 	Model `json:",inline"`
 	// ServiceID
 	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
-	// Type currently supports readinessProbe and livenessProbe
+	// Type: required; accepts `readinessProbe` and `livenessProbe`
 	Type plugins.Type `json:"type"`
-	//Method supports `exec`, `http`, and `tcp`
+	// Method: required; accepts `exec`, `http`, and `tcp`
 	Method string `json:"method"`
-	// Command is only evaluated if Method is `exec`
-	Command *string `json:"command"`
-	// Port is only evaluated if Method is either `http` or `tcp`
-	Port *string `json:"port"`
-	// Scheme accepts `http` or `https` - it is only evaluated if Method is `http`
-	Scheme *string `json:"scheme"`
-	// Path is only evaluated if Method is `http`
-	Path *string `json:"path"`
+	// Command: Required with Method `exec`
+	Command string `json:"command"`
+	// Port: Required with Method `http` or `tcp`
+	Port string `json:"port"`
+	// Scheme: required with method `http`; accepts `http` or `https`
+	Scheme string `json:"scheme"`
+	// Path: required with Method `http`
+	Path string `json:"path"`
 	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
-	InitialDelaySeconds *int `json:"initialDelaySeconds"`
+	InitialDelaySeconds int `json:"initialDelaySeconds"`
 	// PeriodSeconds is how frequently the probe is executed
-	PeriodSeconds *int `json:"periodSeconds"`
+	PeriodSeconds int `json:"periodSeconds"`
 	// TimeoutSeconds is the number of seconds before the probe times out
-	TimeoutSeconds *int `json:"timeoutSeconds"`
+	TimeoutSeconds int `json:"timeoutSeconds"`
 	// SuccessThreshold minimum consecutive success before the probe is considered successfull
-	SuccessThreshold *int `json:"successThreshold"`
+	SuccessThreshold int `json:"successThreshold"`
 	// FailureThreshold is the number of attempts before a probe is considered failed
-	FailureThreshold *int `json:"failureThreshold"`
+	FailureThreshold int `json:"failureThreshold"`
 }
 
 // Secret
