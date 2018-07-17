@@ -122,15 +122,23 @@ func (helper *Helper) CreateSecret(t *testing.T,
 		IsSecret:      false,
 	}
 
-	secretResolver, err := helper.Resolver.CreateSecret(helper.context, &struct {
-		Secret *model.SecretInput
-	}{Secret: &secretInput})
+	secretResolver, err := helper.CreateSecretWithInput(&secretInput)
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
 
-	helper.cleanupSecretIDs = append(helper.cleanupSecretIDs, secretResolver.DBSecretResolver.Secret.Model.ID)
 	return secretResolver
+}
+
+func (helper *Helper) CreateSecretWithInput(secretInput *model.SecretInput) (*graphql_resolver.SecretResolver, error) {
+	secretResolver, err := helper.Resolver.CreateSecret(helper.context, &struct {
+		Secret *model.SecretInput
+	}{Secret: secretInput})
+
+	if err == nil {
+		helper.cleanupSecretIDs = append(helper.cleanupSecretIDs, secretResolver.DBSecretResolver.Secret.Model.ID)
+	}
+	return secretResolver, err
 }
 
 func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) *graphql_resolver.ExtensionResolver {

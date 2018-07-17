@@ -70,6 +70,36 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
 
+	// Make Project Secret
+	envID := string(environmentResolver.ID())
+	projectID := string(projectResolver.ID())
+	secretInput := model.SecretInput{
+		Key:           "TestCreateReleaseSuccess-project",
+		Type:          "env",
+		Scope:         "project",
+		EnvironmentID: envID,
+		ProjectID:     &projectID,
+		IsSecret:      false,
+	}
+	_, err = ts.helper.CreateSecretWithInput(&secretInput)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Make Global Secret
+	secretInput = model.SecretInput{
+		Key:           "TestCreateReleaseSuccess-global",
+		Type:          "env",
+		Scope:         "global",
+		EnvironmentID: envID,
+		ProjectID:     &projectID,
+		IsSecret:      false,
+	}
+	_, err = ts.helper.CreateSecretWithInput(&secretInput)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
 	// Release
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 }
@@ -330,10 +360,49 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureBadEnvID() {
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
-	featureID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
+	releaseInput := &model.ReleaseInput{
+		HeadFeatureID: test.InvalidUUID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		ForceRebuild:  false,
+	}
+
+	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ReleaseTestSuite) TestCreateReleaseFailureBadProjectID() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+	featureID := string(featureResolver.ID())
 	releaseInput := &model.ReleaseInput{
 		HeadFeatureID: featureID,
-		ProjectID:     projectID,
+		ProjectID:     test.InvalidUUID,
 		EnvironmentID: envID,
 		ForceRebuild:  false,
 	}
@@ -388,6 +457,53 @@ func (ts *ReleaseTestSuite) TestCreateReleaseRollbackSuccess() {
 	ts.helper.CreateReleaseWithInput(ts.T(), projectResolver, &releaseInput)
 }
 
+func (ts *ReleaseTestSuite) TestCreateReleaseRollbackFailureBadEnvironment() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Release
+	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	// Reset state back to blank
+	releaseResolver.DBReleaseResolver.Release.State = ""
+	releaseResolver.DBReleaseResolver.Release.StateMessage = "Forced Empty via Test"
+	ts.Resolver.DB.Save(&releaseResolver.DBReleaseResolver.Release)
+
+	// Rollback
+	releaseID := string(releaseResolver.ID())
+	releaseInput := model.ReleaseInput{
+		ID:            &releaseID,
+		ProjectID:     string(projectResolver.ID()),
+		HeadFeatureID: string(featureResolver.ID()),
+		EnvironmentID: test.InvalidUUID,
+	}
+	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, &releaseInput)
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ReleaseTestSuite) TestCreateReleaseRollbackFailureBadReleaseID() {
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
@@ -424,7 +540,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseRollbackFailureBadReleaseID() {
 	ts.Resolver.DB.Save(&releaseResolver.DBReleaseResolver.Release)
 
 	// Rollback
-	releaseID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
+	releaseID := test.ValidUUID
 	releaseInput := model.ReleaseInput{
 		ID:            &releaseID,
 		ProjectID:     string(projectResolver.ID()),
