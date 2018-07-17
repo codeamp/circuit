@@ -10,7 +10,6 @@ import (
 	"time"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func RandomString(strlen int) string {
@@ -24,7 +23,6 @@ func RandomString(strlen int) string {
 }
 
 func SliceContains(name string, list []string) bool {
-	spew.Dump("SliceContins", name, list)
 	for _, b := range list {
 		exactMatch := name == b
 		slashBeforeMatch, err := regexp.MatchString(fmt.Sprintf("/%s", name), b)
