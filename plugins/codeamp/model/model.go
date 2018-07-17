@@ -121,6 +121,10 @@ type Service struct {
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 	// DeploymentStrategy
 	DeploymentStrategy ServiceDeploymentStrategy `json:"deploymentStrategy"`
+	// ReadinessProbes
+	ReadinessProbes *[]*ServiceHealthProbe `json:"readinessProbes"`
+	// LivenessProbes
+	LivenessProbes *[]*ServiceHealthProbe `json:"livenessProbes"`
 }
 
 // ServicePort
@@ -146,6 +150,35 @@ type ServiceDeploymentStrategy struct {
 	MaxUnavailable string `json:"maxUnavailable"`
 	// MaxSurge
 	MaxSurge string `json:"maxSurge"`
+}
+
+type ServiceHealthProbe struct {
+	// Model
+	Model `json:",inline"`
+	// ServiceID
+	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	// Type currently supports readinessProbe and livenessProbe
+	Type plugins.Type `json:"type"`
+	//Method supports `exec`, `http`, and `tcp`
+	Method string `json:"method"`
+	// Command is only evaluated if Method is `exec`
+	Command *string `json:"command"`
+	// Port is only evaluated if Method is either `http` or `tcp`
+	Port *string `json:"port"`
+	// Scheme accepts `http` or `https` - it is only evaluated if Method is `http`
+	Scheme *string `json:"scheme"`
+	// Path is only evaluated if Method is `http`
+	Path *string `json:"path"`
+	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
+	InitialDelaySeconds *int `json:"initialDelaySeconds"`
+	// PeriodSeconds is how frequently the probe is executed
+	PeriodSeconds *int `json:"periodSeconds"`
+	// TimeoutSeconds is the number of seconds before the probe times out
+	TimeoutSeconds *int `json:"timeoutSeconds"`
+	// SuccessThreshold minimum consecutive success before the probe is considered successfull
+	SuccessThreshold *int `json:"successThreshold"`
+	// FailureThreshold is the number of attempts before a probe is considered failed
+	FailureThreshold *int `json:"failureThreshold"`
 }
 
 // Secret

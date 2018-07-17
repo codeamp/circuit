@@ -172,6 +172,8 @@ type Service {
   type: String!
   created: Time!
   deploymentStrategy: JSON
+  livenessProbes: [JSON]
+  readinessProbes: [JSON]
 }
 
 # Environment
@@ -336,6 +338,8 @@ input ServiceInput {
   type: String!
   environmentID: String!
   deploymentStrategy: DeploymentStrategyInput!
+  livenessProbes: [HealthProbeInput]
+  readinessProbes: [HealthProbeInput]
 }
 
 # Container port input
@@ -348,6 +352,20 @@ input DeploymentStrategyInput {
   type: String!
   maxSurge: String!
   maxUnavailable: String!
+}
+
+input HealthProbeInput {
+  type: String!
+  method: String!
+  command: String
+  port: String
+  scheme: String
+  path: String
+  initialDelaySeconds: Int
+  periodSeconds: Int
+  timeoutSeconds: Int
+  successThreshold: Int
+  failureThreshold: Int
 }
 
 # Service spec input

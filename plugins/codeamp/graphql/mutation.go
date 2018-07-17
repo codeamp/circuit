@@ -702,6 +702,28 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var livenessProbes []*model.ServiceHealthProbe
+	if args.Service.LivenessProbes != nil {
+		for _, probe := range *args.Service.LivenessProbes {
+			livenessProbe, err := validateHealthProbe(*probe)
+			if err != nil {
+				return nil, err
+			}
+			livenessProbes = append(livenessProbes, &livenessProbe)
+		}
+	}
+
+	var readinessProbes []*model.ServiceHealthProbe
+	if args.Service.ReadinessProbes != nil {
+		for _, probe := range *args.Service.ReadinessProbes {
+			readinessProbe, err := validateHealthProbe(*probe)
+			if err != nil {
+				return nil, err
+			}
+			readinessProbes = append(readinessProbes, &readinessProbe)
+		}
+	}
+
 	service := model.Service{
 		Name:               args.Service.Name,
 		Command:            args.Service.Command,
@@ -711,6 +733,8 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		ProjectID:          projectID,
 		EnvironmentID:      environmentID,
 		DeploymentStrategy: deploymentStrategy,
+		LivenessProbes:     &livenessProbes,
+		ReadinessProbes:    &readinessProbes,
 	}
 
 	r.DB.Create(&service)
@@ -727,6 +751,10 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+}
+
+func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
+	return model.ServiceHealthProbe{}, nil
 }
 
 func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {

@@ -55,8 +55,19 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
+// DBServiceResolver
 func (r *ServiceResolver) DeploymentStrategy(ctx context.Context) (*model.JSON, error) {
 	return r.DBServiceResolver.DeploymentStrategy()
+}
+
+// LivenessProbe
+func (r *ServiceResolver) LivenessProbes(ctx context.Context) (*[]*model.JSON, error) {
+	return r.DBServiceResolver.LivenessProbes()
+}
+
+// ReadinessProbe
+func (r *ServiceResolver) ReadinessProbes(ctx context.Context) (*[]*model.JSON, error) {
+	return r.DBServiceResolver.ReadinessProbes()
 }
 
 // Type

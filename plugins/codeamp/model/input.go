@@ -146,8 +146,12 @@ type ServiceInput struct {
 	Type string `json:"type"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
-	//DeploymentStrategy
+	// DeploymentStrategy
 	DeploymentStrategy *DeploymentStrategyInput `json:"deploymentStrategy"`
+	// ReadinessProbes
+	ReadinessProbes *[]*ServiceHealthProbeInput `json:"readinessProbes"`
+	// LivenessProbes
+	LivenessProbes *[]*ServiceHealthProbeInput `json:"livenessProbes"`
 }
 
 type DeploymentStrategyInput struct {
@@ -157,6 +161,33 @@ type DeploymentStrategyInput struct {
 	MaxUnavailable string `json:"maxUnavailable"`
 	// MaxSurge
 	MaxSurge string `json:"maxSurge"`
+}
+
+// ServiceHealthProbe is used for readiness/liveness health checks for services
+// Further documentation can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
+type ServiceHealthProbeInput struct {
+	// Type currently supports ReadinessProbe and LivenessProbe
+	Type plugins.Type `json:"type"`
+	//Method supports `exec`, `http`, and `tcp`
+	Method string `json:"method"`
+	// Command is only evaluated if Method is `exec`
+	Command *string `json:"command"`
+	// Port is only evaluated if Method is either `http` or `tcp`
+	Port *string `json:"port"`
+	// Scheme accepts `http` or `https` - it is only evaluated if Method is `http`
+	Scheme *string `json:"scheme"`
+	// Path is only evaluated if Method is `http`
+	Path *string `json:"path"`
+	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
+	InitialDelaySeconds *int `json:"initialDelaySeconds"`
+	// PeriodSeconds is how frequently the probe is executed
+	PeriodSeconds *int `json:"periodSeconds"`
+	// TimeoutSeconds is the number of seconds before the probe times out
+	TimeoutSeconds *int `json:"timeoutSeconds"`
+	// SuccessThreshold minimum consecutive success before the probe is considered successfull
+	SuccessThreshold *int `json:"successThreshold"`
+	// FailureThreshold is the number of attempts before a probe is considered failed
+	FailureThreshold *int `json:"failureThreshold"`
 }
 
 // ServiceSpecInput
