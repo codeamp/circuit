@@ -127,6 +127,76 @@ func (ts *UserTestSuite) TestUserInterface() {
 	assert.Nil(ts.T(), err)
 }
 
+func (ts *UserTestSuite) TestUpdatePermissionsFailureNoAuth() {
+	// Create User
+	user := ts.helper.CreateUser(ts.T())
+
+	// Create User Permission
+	userPermissionsInput := model.UserPermissionsInput{
+		UserID: string(user.ID()),
+		Permissions: []model.PermissionInput{
+			model.PermissionInput{
+				"admin",
+				true,
+			},
+		},
+	}
+
+	var ctx context.Context
+	_, err := ts.Resolver.UpdateUserPermissions(ctx, &struct{ UserPermissions *model.UserPermissionsInput }{&userPermissionsInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *UserTestSuite) TestUpdatePermissionsFailureBadUser() {
+	// Create User Permission
+	userPermissionsInput := model.UserPermissionsInput{
+		UserID: test.ValidUUID,
+		Permissions: []model.PermissionInput{
+			model.PermissionInput{
+				"admin",
+				true,
+			},
+		},
+	}
+	_, err := ts.Resolver.UpdateUserPermissions(test.ResolverAuthContext(), &struct{ UserPermissions *model.UserPermissionsInput }{&userPermissionsInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *UserTestSuite) TestUpdatePermissionsRemovePermission() {
+	// Create User
+	user := ts.helper.CreateUser(ts.T())
+
+	// Create User Permission
+	userPermissionsInput := model.UserPermissionsInput{
+		UserID: string(user.ID()),
+		Permissions: []model.PermissionInput{
+			model.PermissionInput{
+				"admin",
+				true,
+			},
+		},
+	}
+	_, err := ts.Resolver.UpdateUserPermissions(test.ResolverAuthContext(), &struct{ UserPermissions *model.UserPermissionsInput }{&userPermissionsInput})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Create User Permission
+	userPermissionsInput = model.UserPermissionsInput{
+		UserID: string(user.ID()),
+		Permissions: []model.PermissionInput{
+			model.PermissionInput{
+				"admin",
+				false,
+			},
+		},
+	}
+	_, err = ts.Resolver.UpdateUserPermissions(test.ResolverAuthContext(), &struct{ UserPermissions *model.UserPermissionsInput }{&userPermissionsInput})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+}
+
 func (ts *UserTestSuite) TestPermissionInterface() {
 	// Create User
 	user := ts.helper.CreateUser(ts.T())

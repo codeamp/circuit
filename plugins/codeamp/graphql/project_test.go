@@ -224,8 +224,8 @@ func (suite *ProjectTestSuite) TestCreateProjectFailureNoEnvironments() {
 	}
 
 	projectInput := model.ProjectInput{
-		GitUrl:        "git@github.com:too/loo.git",
-		GitProtocol:   "SSH",		
+		GitUrl:      "git@github.com:too/loo.git",
+		GitProtocol: "SSH",
 	}
 
 	// Project
@@ -237,7 +237,7 @@ func (suite *ProjectTestSuite) TestCreateProjectFailureNoEnvironments() {
 		if err != nil {
 			assert.FailNow(suite.T(), err.Error())
 		}
-	}	
+	}
 }
 
 func (suite *ProjectTestSuite) TestCreateProjectFailureSameRepo() {
@@ -766,7 +766,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidEnvironmentID() {
 }
 
 /* Test successful project permissions update */
-func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
+func (suite *ProjectTestSuite) TestUpdateProjectEnvironmentsSuccess() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
@@ -821,6 +821,60 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironments() {
 	}
 
 	assert.Empty(suite.T(), updateProjectEnvironmentsResp)
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectEnvironmentsFailureBadEnvironment() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	// Update Project Environments
+	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
+		ProjectID: string(projectResolver.ID()),
+		Permissions: []model.ProjectEnvironmentInput{
+			{
+				EnvironmentID: test.ValidUUID,
+				Grant:         true,
+			},
+		},
+	}
+
+	_, err = suite.Resolver.UpdateProjectEnvironments(test.ResolverAuthContext(), &struct {
+		ProjectEnvironments *model.ProjectEnvironmentsInput
+	}{&projectEnvironmentsInput})
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *ProjectTestSuite) TestUpdateProjectEnvironmentsFailureBadProjectID() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	_, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	// Update Project Environments
+	projectEnvironmentsInput := model.ProjectEnvironmentsInput{
+		ProjectID: test.ValidUUID,
+		Permissions: []model.ProjectEnvironmentInput{
+			{
+				EnvironmentID: string(environmentResolver.ID()),
+				Grant:         true,
+			},
+		},
+	}
+
+	_, err = suite.Resolver.UpdateProjectEnvironments(test.ResolverAuthContext(), &struct {
+		ProjectEnvironments *model.ProjectEnvironmentsInput
+	}{&projectEnvironmentsInput})
+	assert.NotNil(suite.T(), err)
 }
 
 func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
