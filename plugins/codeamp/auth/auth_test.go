@@ -65,7 +65,7 @@ func (ts *AuthTestSuite) TestAuthSelfFailure() {
 
 func (ts *AuthTestSuite) TestAuthProjectPermissionHierarchySuccess() {
 	userID := ValidUUID[0]
-	ctx := test.BuildAuthContext(userID, "test@example.com", []string{"projects/checkr"})
+	ctx := test.BuildAuthContext(userID, "test@example.com", []string{"projects"})
 
 	_userID, err := auth.CheckAuth(ctx, []string{"projects/checkr/judy"})
 	assert.Nil(ts.T(), err)
@@ -73,6 +73,15 @@ func (ts *AuthTestSuite) TestAuthProjectPermissionHierarchySuccess() {
 
 	_userID, err = auth.CheckAuth(ctx, []string{"projects/checkr/checkr"})
 	assert.Nil(ts.T(), err)
+	assert.Equal(ts.T(), userID, _userID)
+}
+
+func (ts *AuthTestSuite) TestAuthProjectPermissionHierarchyFailureMoreDifferently() {
+	userID := ValidUUID[0]
+	ctx := test.BuildAuthContext(userID, "test@example.com", []string{"projects/not/checkr"})
+
+	_userID, err := auth.CheckAuth(ctx, []string{"projects"})
+	assert.NotNil(ts.T(), err)
 	assert.Equal(ts.T(), userID, _userID)
 }
 
