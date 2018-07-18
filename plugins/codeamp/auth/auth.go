@@ -27,14 +27,38 @@ func isAdmin(claims *model.Claims) bool {
 }
 
 func hasScopePermission(scope string, permissions []string) bool {
-	// Loop through each permission and see if it is a prefix
-	// of the scope we desire access to
+	// Loop through each permission and see if it matches or covers the scope requested
+	// Permissions are built on a hierarchial basis with each tier being the string
+	// between two tokens '/' ex: "projects/codeamp/circuit" would cover permissions for that project
+	scopeTokens := strings.Split(scope, "/")
 	for _, permission := range permissions {
-		if strings.HasPrefix(scope, permission) {
+		permissionTokens := strings.Split(permission, "/")
+
+		// If the permission hierarchy is deeper
+		// than the requested scope skip processing this one
+		// because the permission is more specific than the requested scope
+		if len(permissionTokens) > len(scopeTokens) {
+			continue
+		}
+
+		// Loop through the tokens to ensure that the permission covers the requested scope
+		permissionCoversScope := true
+		for i, _ := range permissionTokens {
+			if permissionTokens[i] != scopeTokens[i] {
+				permissionCoversScope = false
+				break
+			}
+		}
+
+		// If we found a permission that covers the requested scope, dump early
+		// no need to keep processing as this permission grants this scope
+		if permissionCoversScope == true {
 			return true
 		}
 	}
 
+	// Making it to here means that no permissions were found that
+	// cover the requested scope
 	return false
 }
 
