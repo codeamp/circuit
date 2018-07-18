@@ -94,6 +94,24 @@ func (ts *AuthTestSuite) TestAuthProjectPermissionSuccess() {
 	assert.Equal(ts.T(), userID, _userID)
 }
 
+func (ts *AuthTestSuite) TestAuthProjectPermissionsEmpty() {
+	userID := ValidUUID[0]
+	ctx := test.BuildAuthContext(userID, "test@example.com", []string{"projects/checkr/judy"})
+
+	_userID, err := auth.CheckAuth(ctx, []string{})
+	assert.Nil(ts.T(), err)
+	assert.Equal(ts.T(), userID, _userID)
+}
+
+func (ts *AuthTestSuite) TestAuthProjectPermissionDenied() {
+	userID := ValidUUID[0]
+	ctx := test.BuildAuthContext(userID, "test@example.com", []string{"projects/checkr/judy"})
+
+	_userID, err := auth.CheckAuth(ctx, []string{"projects/codeamp/judy"})
+	assert.NotNil(ts.T(), err)
+	assert.Equal(ts.T(), userID, _userID)
+}
+
 func (ts *AuthTestSuite) TestAuthProjectPermissionFailure() {
 	userID := ValidUUID[0]
 	ctx := test.BuildAuthContext(userID, "test@example.com", []string{"projects/checkr/reginald"})
