@@ -48,7 +48,7 @@ func (suite *EnvironmentTestSuite) TestCreateEnvironmentFailureDuplicateName() {
 	assert.Nil(suite.T(), err)
 
 	_, err = suite.helper.CreateEnvironmentWithError("TestUpdateEnvironmentFailureDuplicateName")
-	assert.NotNil(suite.T(), err)	
+	assert.NotNil(suite.T(), err)
 }
 
 func (suite *EnvironmentTestSuite) TestUpdateEnvironmentSuccess() {
@@ -108,9 +108,7 @@ func (suite *EnvironmentTestSuite) TestDeleteEnvironmentFailureMissingRecord() {
 	}
 
 	_, err := suite.Resolver.DeleteEnvironment(test.ResolverAuthContext(), &struct{ Environment *model.EnvironmentInput }{&environmentInput})
-	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
+	assert.NotNil(suite.T(), err)
 }
 
 // func (suite *EnvironmentTestSuite) TestDeleteEnvironmentFailure() {
@@ -270,6 +268,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 
 func (suite *EnvironmentTestSuite) TearDownTest() {
 	suite.helper.TearDownTest(suite.T())
+	suite.Resolver.DB.Close()
 }
 
 func TestEnvironmentTestSuite(t *testing.T) {

@@ -838,6 +838,7 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureNoReleaseExtensions() {
 
 func (ts *ReleaseTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteReleaseResolver(t *testing.T) {

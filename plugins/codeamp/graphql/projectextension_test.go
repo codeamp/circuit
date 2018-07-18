@@ -295,6 +295,7 @@ func (ts *ProjectExtensionTestSuite) TestDeleteProjectExtensionSuccess() {
 
 func (ts *ProjectExtensionTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteProjectExtensionResolver(t *testing.T) {

@@ -105,7 +105,6 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
 	assert.NotNil(ts.T(), err)
 }
 
-
 func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	// Service Spec
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
@@ -141,6 +140,7 @@ func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 
 func (ts *ServiceSpecTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteServiceSpecResolver(t *testing.T) {

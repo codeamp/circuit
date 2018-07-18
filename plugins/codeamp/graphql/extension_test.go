@@ -209,11 +209,9 @@ func (ts *ExtensionTestSuite) TestExtensionInterface() {
 
 func (ts *ExtensionTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteExtensionResolver(t *testing.T) {
-	ts := new(ExtensionTestSuite)
-	suite.Run(t, ts)
-
-	ts.TearDownTest()
+	suite.Run(t, new(ExtensionTestSuite))
 }

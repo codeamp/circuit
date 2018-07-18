@@ -931,6 +931,7 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 func (suite *ProjectTestSuite) TearDownTest() {
 	suite.helper.TearDownTest(suite.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestProjectTestSuite(t *testing.T) {

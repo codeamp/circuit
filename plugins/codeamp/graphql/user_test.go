@@ -225,6 +225,7 @@ func (ts *UserTestSuite) TestPermissionInterface() {
 
 func TearDownTest(ts *UserTestSuite) {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteUserResolver(t *testing.T) {

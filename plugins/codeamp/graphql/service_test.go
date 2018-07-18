@@ -289,6 +289,7 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 
 func (ts *ServiceTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteServiceResolver(t *testing.T) {
