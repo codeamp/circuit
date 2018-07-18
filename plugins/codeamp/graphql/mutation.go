@@ -1237,10 +1237,10 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 	var projectExtension model.ProjectExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
+		log.InfoWithFields("no project extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
-		return &ProjectExtensionResolver{}, nil
+		return nil, fmt.Errorf("No project extension found")
 	}
 
 	extension := model.Extension{}
@@ -1248,7 +1248,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no extension found", log.Fields{
 			"id": args.ProjectExtension.ExtensionID,
 		})
-		return nil, errors.New("No extension found.")
+		return nil, fmt.Errorf("No extension found.")
 	}
 
 	project := model.Project{}
@@ -1256,7 +1256,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no project found", log.Fields{
 			"id": args.ProjectExtension.ProjectID,
 		})
-		return nil, errors.New("No project found.")
+		return nil, fmt.Errorf("No project found.")
 	}
 
 	env := model.Environment{}
@@ -1264,13 +1264,13 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no env found", log.Fields{
 			"id": args.ProjectExtension.EnvironmentID,
 		})
-		return nil, errors.New("No environment found.")
+		return nil, fmt.Errorf("No environment found.")
 	}
 
 	if extension.Key == "route53" {
 		err := r.handleExtensionRoute53(args, &projectExtension)
 		if err != nil {
-			return &ProjectExtensionResolver{}, err
+			return nil, err
 		}
 	}
 

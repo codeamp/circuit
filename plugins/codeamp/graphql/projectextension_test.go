@@ -263,6 +263,76 @@ func (ts *ProjectExtensionTestSuite) TestUpdateProjectExtensionSuccess() {
 	}
 }
 
+func (ts *ProjectExtensionTestSuite) TestUpdateProjectExtensionFailureProjectExtensionNotFound() {
+	// Update Project Extension
+	projectExtensionID := test.ValidUUID
+	projectExtensionInput := model.ProjectExtensionInput{
+		ID: &projectExtensionID,
+	}
+
+	_, err := ts.Resolver.UpdateProjectExtension(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ProjectExtensionTestSuite) TestUpdateProjectExtensionFailureExtensionNotFound() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtension := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Update Project Extension
+	projectExtensionID := string(projectExtension.ID())
+	projectExtensionInput := model.ProjectExtensionInput{
+		ID:          &projectExtensionID,
+		ExtensionID: test.ValidUUID,
+	}
+	_, err = ts.Resolver.UpdateProjectExtension(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ProjectExtensionTestSuite) TestUpdateProjectExtensionFailureEnvironmentNotFound() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtension := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Update Project Extension
+	projectExtensionID := string(projectExtension.ID())
+	projectExtensionInput := model.ProjectExtensionInput{
+		ID:            &projectExtensionID,
+		ExtensionID:   string(extensionResolver.ID()),
+		EnvironmentID: test.ValidUUID,
+	}
+	_, err = ts.Resolver.UpdateProjectExtension(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput})
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ProjectExtensionTestSuite) TestDeleteProjectExtensionFailureNoProjectID() {
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
