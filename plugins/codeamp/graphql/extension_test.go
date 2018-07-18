@@ -86,6 +86,16 @@ func (ts *ExtensionTestSuite) TestUpdateExtensionFailureNoEnv() {
 	assert.NotNil(ts.T(), err)
 }
 
+func (ts *ExtensionTestSuite) TestUpdateExtensionFailureMissingEnv() {
+	// Update Extension
+	extensionInput := model.ExtensionInput{
+		ID: nil,
+	}
+
+	_, err := ts.Resolver.UpdateExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ExtensionTestSuite) TestUpdateExtensionFailureNotFound() {
 	// Update Extension
 	uuid, _ := uuid.FromString("TestUpdateExtensionFailureNotFound")
@@ -117,6 +127,18 @@ func (ts *ExtensionTestSuite) TestDeleteExtensionSuccess() {
 
 func (ts *ExtensionTestSuite) TestDeleteExtensionFailureNoID() {
 	extensionInput := model.ExtensionInput{}
+	_, err := ts.Resolver.DeleteExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
+	if err != nil {
+		assert.NotNil(ts.T(), err)
+	}
+}
+
+func (ts *ExtensionTestSuite) TestDeleteExtensionFailureInvalidID() {
+	extensionID := test.InvalidUUID
+	extensionInput := model.ExtensionInput{
+		ID: &extensionID,
+	}
+
 	_, err := ts.Resolver.DeleteExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
 	if err != nil {
 		assert.NotNil(ts.T(), err)

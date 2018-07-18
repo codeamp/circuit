@@ -50,7 +50,7 @@ func (ts *SecretTestSuite) TestCreateSecret() {
 	ts.helper.CreateSecret(ts.T(), projectResolver)
 }
 
-func (ts *SecretTestSuite) TestUpdateSecret() {
+func (ts *SecretTestSuite) TestUpdateSecretSuccess() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -70,6 +70,34 @@ func (ts *SecretTestSuite) TestUpdateSecret() {
 
 	_, err = ts.Resolver.UpdateSecret(test.ResolverAuthContext(), &struct{ Secret *model.SecretInput }{&secretInput})
 	assert.Nil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestUpdateFailureNoAuth() {
+	var ctx context.Context
+	_, err = ts.Resolver.UpdateSecret(ctx, nil)
+	assert.Nil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestUpdateFailureEnvMissingRecord() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	secretResolver := ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	secretID := test.ValidUUID
+	secretInput := model.SecretInput{
+		ID: &secretID,
+	}
+
+	_, err = ts.Resolver.UpdateSecret(test.ResolverAuthContext(), &struct{ Secret *model.SecretInput }{&secretInput})
+	assert.NotNil(ts.T(), err)
 }
 
 func (ts *SecretTestSuite) TestDeleteSecretSuccess() {
