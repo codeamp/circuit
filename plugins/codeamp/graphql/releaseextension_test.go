@@ -164,7 +164,7 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 
 func (suite *ReleaseExtensionTestSuite) TearDownTest() {
 	suite.helper.TearDownTest(suite.T())
-	ts.Resolver.DB.Close()
+	suite.Resolver.DB.Close()
 }
 
 func TestSuiteReleaseExtensionResolver(t *testing.T) {
