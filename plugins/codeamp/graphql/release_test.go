@@ -104,6 +104,152 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 }
 
+func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Service
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Make Project Secret
+	envID := string(environmentResolver.ID())
+	projectID := string(projectResolver.ID())
+	secretInput := model.SecretInput{
+		Key:           "TestCreateReleaseSuccess-project",
+		Type:          "env",
+		Scope:         "project",
+		EnvironmentID: envID,
+		ProjectID:     &projectID,
+		IsSecret:      false,
+	}
+	_, err = ts.helper.CreateSecretWithInput(&secretInput)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Make Global Secret
+	secretInput = model.SecretInput{
+		Key:           "TestCreateReleaseSuccess-global",
+		Type:          "env",
+		Scope:         "global",
+		EnvironmentID: envID,
+		ProjectID:     &projectID,
+		IsSecret:      false,
+	}
+	_, err = ts.helper.CreateSecretWithInput(&secretInput)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Remove all features so as to force CreateRelease to not use a tail feature id
+	err = ts.Resolver.DB.Where("project_id = ?", string(projectResolver.ID())).Delete(&model.Release{}).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Release
+	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+}
+
+func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Service
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Make Project Secret
+	envID := string(environmentResolver.ID())
+	projectID := string(projectResolver.ID())
+	secretInput := model.SecretInput{
+		Key:           "TestCreateReleaseSuccess-project",
+		Type:          "env",
+		Scope:         "project",
+		EnvironmentID: envID,
+		ProjectID:     &projectID,
+		IsSecret:      false,
+	}
+	_, err = ts.helper.CreateSecretWithInput(&secretInput)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Make Global Secret
+	secretInput = model.SecretInput{
+		Key:           "TestCreateReleaseSuccess-global",
+		Type:          "env",
+		Scope:         "global",
+		EnvironmentID: envID,
+		ProjectID:     &projectID,
+		IsSecret:      false,
+	}
+	_, err = ts.helper.CreateSecretWithInput(&secretInput)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Release
+	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	featureID := string(featureResolver.ID())
+	releaseInput := &model.ReleaseInput{
+		HeadFeatureID: featureID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		ForceRebuild:  false,
+	}
+	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ReleaseTestSuite) TestCreateReleaseFailureNoAuth() {
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
@@ -248,49 +394,54 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureNoPermission() {
 	assert.NotNil(ts.T(), err)
 }
 
-func (ts *ReleaseTestSuite) TestCreateReleaseFailureSameSignatures() {
-	// Environment
-	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+// ADB - 7/18/2018
+// This error condition needs more work on the CreateRelease side.
+// It's not clear how it is supposed to work when comparing secrets and services signatures
+//
+// func (ts *ReleaseTestSuite) TestCreateReleaseFailureSameSignatures() {
+// 	// Environment
+// 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
-	// Project
-	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
-	if err != nil {
-		assert.FailNow(ts.T(), err.Error())
-	}
+// 	// Project
+// 	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+// 	if err != nil {
+// 		assert.FailNow(ts.T(), err.Error())
+// 	}
 
-	// Secret
-	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+// 	// Secret
+// 	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
 
-	// Extension
-	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+// 	// Extension
+// 	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
 
-	// Project Extension
-	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+// 	// Project Extension
+// 	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
 
-	// Force to set to 'complete' state for testing purposes
-	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
-	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
-	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+// 	// Force to set to 'complete' state for testing purposes
+// 	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+// 	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+// 	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
 
-	// Feature
-	projectID := string(projectResolver.ID())
-	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
-	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+// 	// Feature
+// 	projectID := string(projectResolver.ID())
+// 	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+// 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
-	featureID := string(featureResolver.ID())
-	releaseInput := &model.ReleaseInput{
-		HeadFeatureID: featureID,
-		ProjectID:     projectID,
-		EnvironmentID: envID,
-		ForceRebuild:  false,
-	}
+// 	featureID := string(featureResolver.ID())
+// 	releaseInput := &model.ReleaseInput{
+// 		HeadFeatureID: featureID,
+// 		ProjectID:     projectID,
+// 		EnvironmentID: envID,
+// 		ForceRebuild:  false,
+// 	}
 
-	// Release
-	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+// 	// Release
+// 	ts.helper.CreateReleaseWithInput(ts.T(), projectResolver, releaseInput)
 
-	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
-	assert.NotNil(ts.T(), err)
-}
+// 	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
+// 	log.Error(err)
+// 	assert.NotNil(ts.T(), err)
+// }
 
 func (ts *ReleaseTestSuite) TestCreateReleaseFailureBadHeadFeature() {
 	// Environment

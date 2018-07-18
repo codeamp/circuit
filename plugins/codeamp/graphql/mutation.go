@@ -1,6 +1,7 @@
 package graphql_resolver
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -428,7 +429,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	r.DB.Where("id = ?", waitingRelease.HeadFeatureID).First(&waitingReleaseHeadFeature)
 
-	if fmt.Sprintf("%x", secretsSig) == fmt.Sprintf("%x", waitingReleaseSecretsSig) && fmt.Sprintf("%x", servicesSig) == fmt.Sprintf("%x", waitingReleaseServicesSig) && currentReleaseHeadFeature.Hash == waitingReleaseHeadFeature.Hash {
+	if bytes.Equal(secretsSig, waitingReleaseSecretsSig) &&
+		bytes.Equal(servicesSig, waitingReleaseServicesSig) &&
+		strings.Compare(currentReleaseHeadFeature.Hash, waitingReleaseHeadFeature.Hash) == 0 {
+
 		// same release so return
 		log.InfoWithFields("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting", log.Fields{
 			"services_sig":      servicesSig,
@@ -465,8 +469,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	// the tail feature id is the current release's head feature id
 	currentRelease := model.Release{}
 	tailFeatureID := headFeatureID
-	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
-	} else {
+	if err = r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).Error; err == nil {
 		tailFeatureID = currentRelease.HeadFeatureID
 	}
 
