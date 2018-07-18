@@ -98,7 +98,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	}
 }
 
-func (ts *ServiceTestSuite) TestUpdateServiceFailureNoID() {
+func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -116,6 +116,29 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureNoID() {
 
 	// Update Service
 	serviceID := "null"
+	serviceInput := &model.ServiceInput{ID: &serviceID}
+	_, err = ts.Resolver.UpdateService(&struct{ Service *model.ServiceInput }{serviceInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ServiceTestSuite) TestUpdateServiceFailureBadRecordID() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Update Service
+	serviceID := test.ValidUUID
 	serviceInput := &model.ServiceInput{ID: &serviceID}
 	_, err = ts.Resolver.UpdateService(&struct{ Service *model.ServiceInput }{serviceInput})
 	assert.NotNil(ts.T(), err)

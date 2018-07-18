@@ -69,6 +69,43 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecSuccess() {
 	assert.Nil(ts.T(), err)
 }
 
+func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureBadRecordID() {
+	// Delete Service Spec
+	serviceSpecID := test.ValidUUID
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: &serviceSpecID,
+	}
+	_, err := ts.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{&serviceSpecInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+	projectResolver.DBProjectResolver.Environment = environmentResolver.DBEnvironmentResolver.Environment
+
+	// Service Spec
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+
+	// Delete Service Spec
+	serviceSpecID := test.ValidUUID
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: &serviceSpecID,
+	}
+	_, err = ts.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{&serviceSpecInput})
+	assert.NotNil(ts.T(), err)
+}
+
+
 func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	// Service Spec
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
