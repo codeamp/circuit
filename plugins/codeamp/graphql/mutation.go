@@ -804,7 +804,8 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	var livenessProbes []model.ServiceHealthProbe
 	if args.Service.LivenessProbes != nil {
 		for _, probe := range *args.Service.LivenessProbes {
-			*probe.Type = plugins.GetType("livenessProbe")
+			probeType := plugins.GetType("livenessProbe")
+			probe.Type = &probeType
 			livenessProbe, err := validateHealthProbe(*probe)
 			if err != nil {
 				return nil, err
@@ -817,7 +818,8 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	if args.Service.ReadinessProbes != nil {
 		for _, probe := range *args.Service.ReadinessProbes {
-			*probe.Type = plugins.GetType("readinessProbe")
+			probeType := plugins.GetType("readinessProbe")
+			probe.Type = &probeType
 			readinessProbe, err := validateHealthProbe(*probe)
 			if err != nil {
 				return nil, err
