@@ -877,6 +877,39 @@ func (suite *ProjectTestSuite) TestUpdateProjectEnvironmentsFailureBadProjectID(
 	assert.NotNil(suite.T(), err)
 }
 
+func (suite *ProjectTestSuite) TestBookmarkProjectFailureNoAuth() {
+	var ctx context.Context
+	_, err := suite.Resolver.BookmarkProject(ctx, nil)
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *ProjectTestSuite) TestBookmarkProjectFailureBadProjectID() {
+	projectID := test.InvalidUUID
+
+	var ctx context.Context
+	_, err := suite.Resolver.BookmarkProject(ctx, &struct{ ID graphql.ID }{graphql.ID(projectID)})
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *ProjectTestSuite) TestRemoveBookmarkSuccess() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	bookmarked, err := suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
+	assert.Nil(suite.T(), err)
+	assert.True(suite.T(), bookmarked)
+
+	bookmarked, err = suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
+	assert.Nil(suite.T(), err)
+	assert.False(suite.T(), bookmarked)
+}
+
 func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	// init 3 projects into db
 	projectNames := []string{"foo", "foobar", "boo"}

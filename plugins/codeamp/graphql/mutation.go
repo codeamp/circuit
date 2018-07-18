@@ -1307,13 +1307,13 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
-	var res []model.ReleaseExtension
+	var releaseExtensions []model.ReleaseExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
+		log.InfoWithFields("no project extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
-		return &ProjectExtensionResolver{}, nil
+		return nil, fmt.Errorf("No Project Extension Found")
 	}
 
 	extension := model.Extension{}
@@ -1341,14 +1341,13 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 	}
 
 	// delete all release extension objects with extension id
-	if r.DB.Where("extension_id = ?", args.ProjectExtension.ID).Find(&res).RecordNotFound() {
-		log.InfoWithFields("no release extensions found", log.Fields{
-			"extension": extension,
-		})
-		return &ProjectExtensionResolver{}, nil
-	}
-
-	for _, re := range res {
+	// ADB
+	// This was adjusted because ReleaseExtensions do not have an 'extension_id'
+	// Also, with gorm, when asking for a slice the Find() function will NOT
+	// return a record not found error. This only occurs when you are finding a specific
+	// record using Find(struct) as opposed to Find(slice)
+	r.DB.Where("project_extension_id = ?", args.ProjectExtension.ID).Find(&releaseExtensions)
+	for _, re := range releaseExtensions {
 		r.DB.Delete(&re)
 	}
 
