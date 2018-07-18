@@ -1,14 +1,6 @@
 {
 	"comment": "",
 	"ignore": "",
-	"package": [
-		{
-			"checksumSHA1": "qHyO9B+E6DoSz/ft9HOVJ/AXJtw=",
-			"origin": "github.com/codeamp/circuit/vendor/github.com/codeamp/transistor",
-			"path": "github.com/codeamp/transistor",
-			"revision": "c1a9fb0d8ac642c8de456dbcdd2c29b68863aa61",
-			"revisionTime": "2018-07-17T19:23:11Z"
-		}
-	],
+	"package": [],
 	"rootPath": "github.com/codeamp/circuit"
 }

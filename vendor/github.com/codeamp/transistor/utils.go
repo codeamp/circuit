@@ -3,7 +3,6 @@ package transistor
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/rand"
 	"reflect"
 	"regexp"
@@ -24,7 +23,7 @@ func RandomString(strlen int) string {
 
 func SliceContains(name string, list []string) bool {
 	for _, b := range list {
-		slashBeforeMatch, err := regexp.MatchString(fmt.Sprintf("/%s", name), b)
+		matched, err := regexp.MatchString(b, name)
 		if err != nil {
 			log.InfoWithFields("SliceContains method encountered an error", log.Fields{
 				"regex":  b,
@@ -33,16 +32,7 @@ func SliceContains(name string, list []string) bool {
 			})
 		}
 
-		slashAfterMatch, err := regexp.MatchString(fmt.Sprintf("%s/", name), b)
-		if err != nil {
-			log.InfoWithFields("SliceContains method encountered an error", log.Fields{
-				"regex":  b,
-				"string": name,
-				"error":  err,
-			})
-		}
-
-		if (name == b) || slashAfterMatch || slashBeforeMatch {
+		if matched {
 			return true
 		}
 	}
