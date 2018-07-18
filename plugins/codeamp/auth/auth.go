@@ -26,9 +26,11 @@ func isAdmin(claims *model.Claims) bool {
 	return transistor.SliceContains("admin", claims.Permissions)
 }
 
-func hasScopePermission(claims *model.Claims, scope string) bool {
-	for _, scope := range strings.Split(scope, "/") {
-		if transistor.SliceContains(scope, claims.Permissions) {
+func hasScopePermission(scope string, permissions []string) bool {
+	// Loop through each permission and see if it is a prefix
+	// of the scope we desire access to
+	for _, permission := range permissions {
+		if strings.HasPrefix(scope, permission) {
 			return true
 		}
 	}
@@ -37,14 +39,16 @@ func hasScopePermission(claims *model.Claims, scope string) bool {
 }
 
 func userHasPermission(claims *model.Claims, scopes []string) bool {
+	// Loop through each scope and hand off to ask if scope has permission
 	for _, scope := range scopes {
-		if hasScopePermission(claims, scope) == true {
-			return true
+		if hasScopePermission(scope, claims.Permissions) == false {
+			return false
 		}
 	}
 
-	// If they don't have any scope, then return true
-	return len(scopes) == 0
+	// If we made it this far and we haven't bailed then the above has found the necessary permissions
+	// OR there were no scopes provided in which case it should return true
+	return true
 }
 
 func CheckAuth(ctx context.Context, scopes []string) (string, error) {
