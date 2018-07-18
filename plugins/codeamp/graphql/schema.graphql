@@ -358,7 +358,7 @@ input HealthProbeInput {
   type: String
   method: String!
   command: String
-  port: String
+  port: Int
   scheme: String
   path: String
   initialDelaySeconds: Int

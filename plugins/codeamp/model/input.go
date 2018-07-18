@@ -173,21 +173,21 @@ type ServiceHealthProbeInput struct {
 	// Command is only evaluated if Method is `exec`
 	Command *string `json:"command"`
 	// Port is only evaluated if Method is either `http` or `tcp`
-	Port *string `json:"port"`
+	Port *int32 `json:"port,string"`
 	// Scheme accepts `http` or `https` - it is only evaluated if Method is `http`
 	Scheme *string `json:"scheme"`
 	// Path is only evaluated if Method is `http`
 	Path *string `json:"path"`
 	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
-	InitialDelaySeconds *int `json:"initialDelaySeconds"`
+	InitialDelaySeconds *int32 `json:"initialDelaySeconds,string"`
 	// PeriodSeconds is how frequently the probe is executed
-	PeriodSeconds *int `json:"periodSeconds"`
+	PeriodSeconds *int32 `json:"periodSeconds,string"`
 	// TimeoutSeconds is the number of seconds before the probe times out
-	TimeoutSeconds *int `json:"timeoutSeconds"`
+	TimeoutSeconds *int32 `json:"timeoutSeconds,string"`
 	// SuccessThreshold minimum consecutive success before the probe is considered successfull
-	SuccessThreshold *int `json:"successThreshold"`
+	SuccessThreshold *int32 `json:"successThreshold,string"`
 	// FailureThreshold is the number of attempts before a probe is considered failed
-	FailureThreshold *int `json:"failureThreshold"`
+	FailureThreshold *int32 `json:"failureThreshold,string"`
 }
 
 // ServiceSpecInput
