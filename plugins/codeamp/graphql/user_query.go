@@ -21,17 +21,17 @@ func (u *UserResolverQuery) User(ctx context.Context, args *struct {
 	ID *graphql.ID
 }) (*UserResolver, error) {
 	var userID string
+	var err error
 
 	if args.ID != nil {
 		userID = string(*args.ID)
+
+		if _, err = auth.CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userID)}); err != nil {
+			return nil, err
+		}
 	} else {
 		claims := ctx.Value("jwt").(model.Claims)
 		userID = claims.UserID
-	}
-
-	var err error
-	if _, err = auth.CheckAuth(ctx, []string{fmt.Sprintf("user/%s", userID)}); err != nil {
-		return nil, err
 	}
 
 	resolver := UserResolver{DBUserResolver: &db_resolver.UserResolver{DB: u.DB}}
