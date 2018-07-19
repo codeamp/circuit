@@ -124,6 +124,7 @@ func (suite *FeatureTestSuite) TestFeatureQueryInterface() {
 
 func (suite *FeatureTestSuite) TearDownTest() {
 	suite.helper.TearDownTest(suite.T())
+	suite.Resolver.DB.Close()
 }
 
 func TestSuiteFeatureResolver(t *testing.T) {

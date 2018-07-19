@@ -50,7 +50,7 @@ func (ts *SecretTestSuite) TestCreateSecret() {
 	ts.helper.CreateSecret(ts.T(), projectResolver)
 }
 
-func (ts *SecretTestSuite) TestUpdateSecret() {
+func (ts *SecretTestSuite) TestUpdateSecretSuccess() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -70,6 +70,22 @@ func (ts *SecretTestSuite) TestUpdateSecret() {
 
 	_, err = ts.Resolver.UpdateSecret(test.ResolverAuthContext(), &struct{ Secret *model.SecretInput }{&secretInput})
 	assert.Nil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestUpdateFailureNoAuth() {
+	var ctx context.Context
+	_, err := ts.Resolver.UpdateSecret(ctx, nil)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestUpdateFailureEnvMissingRecord() {
+	secretID := test.ValidUUID
+	secretInput := model.SecretInput{
+		ID: &secretID,
+	}
+
+	_, err := ts.Resolver.UpdateSecret(test.ResolverAuthContext(), &struct{ Secret *model.SecretInput }{&secretInput})
+	assert.NotNil(ts.T(), err)
 }
 
 func (ts *SecretTestSuite) TestDeleteSecretSuccess() {
@@ -197,6 +213,7 @@ func (ts *SecretTestSuite) TestSecretScopes() {
 
 func (ts *SecretTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteSecretResolver(t *testing.T) {

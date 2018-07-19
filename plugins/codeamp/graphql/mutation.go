@@ -1,6 +1,7 @@
 package graphql_resolver
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -31,7 +32,9 @@ import (
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+	var userId string
+	var err error
+	if userId, err = auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -105,7 +108,8 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 
 	// Create git branch for env per env
 	environments := []model.Environment{}
-	if r.DB.Find(&environments).RecordNotFound() {
+	r.DB.Find(&environments)
+	if len(environments) == 0 {
 		log.InfoWithFields("No envs found.", log.Fields{
 			"args": args,
 		})
@@ -128,16 +132,12 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		}
 	}
 
-	if userId, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	} else {
-		// Create user permission for project
-		userPermission := model.UserPermission{
-			UserID: uuid.FromStringOrNil(userId),
-			Value:  fmt.Sprintf("projects/%s", project.Repository),
-		}
-		r.DB.Create(&userPermission)
+	// Create user permission for project
+	userPermission := model.UserPermission{
+		UserID: uuid.FromStringOrNil(userId),
+		Value:  fmt.Sprintf("projects/%s", project.Repository),
 	}
+	r.DB.Create(&userPermission)
 
 	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
 }
@@ -224,7 +224,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 
 	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
 	if len(releaseExtensions) < 1 {
-		log.Warn("No release extensions found for release")
+		return nil, fmt.Errorf("No release extensions found for release: %s", args.ID)
 	}
 
 	if r.DB.Where("id = ?", args.ID).Find(&release).RecordNotFound() {
@@ -434,7 +434,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	r.DB.Where("id = ?", waitingRelease.HeadFeatureID).First(&waitingReleaseHeadFeature)
 
-	if fmt.Sprintf("%x", secretsSig) == fmt.Sprintf("%x", waitingReleaseSecretsSig) && fmt.Sprintf("%x", servicesSig) == fmt.Sprintf("%x", waitingReleaseServicesSig) && currentReleaseHeadFeature.Hash == waitingReleaseHeadFeature.Hash {
+	if bytes.Equal(secretsSig, waitingReleaseSecretsSig) &&
+		bytes.Equal(servicesSig, waitingReleaseServicesSig) &&
+		strings.Compare(currentReleaseHeadFeature.Hash, waitingReleaseHeadFeature.Hash) == 0 {
+
 		// same release so return
 		log.InfoWithFields("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting", log.Fields{
 			"services_sig":      servicesSig,
@@ -471,8 +474,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	// the tail feature id is the current release's head feature id
 	currentRelease := model.Release{}
 	tailFeatureID := headFeatureID
-	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
-	} else {
+	if err = r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).Error; err == nil {
 		tailFeatureID = currentRelease.HeadFeatureID
 	}
 
@@ -1288,10 +1290,10 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 	var projectExtension model.ProjectExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
+		log.InfoWithFields("no project extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
-		return &ProjectExtensionResolver{}, nil
+		return nil, fmt.Errorf("No project extension found")
 	}
 
 	extension := model.Extension{}
@@ -1299,7 +1301,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no extension found", log.Fields{
 			"id": args.ProjectExtension.ExtensionID,
 		})
-		return nil, errors.New("No extension found.")
+		return nil, fmt.Errorf("No extension found.")
 	}
 
 	project := model.Project{}
@@ -1307,7 +1309,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no project found", log.Fields{
 			"id": args.ProjectExtension.ProjectID,
 		})
-		return nil, errors.New("No project found.")
+		return nil, fmt.Errorf("No project found.")
 	}
 
 	env := model.Environment{}
@@ -1315,13 +1317,13 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no env found", log.Fields{
 			"id": args.ProjectExtension.EnvironmentID,
 		})
-		return nil, errors.New("No environment found.")
+		return nil, fmt.Errorf("No environment found.")
 	}
 
 	if extension.Key == "route53" {
 		err := r.handleExtensionRoute53(args, &projectExtension)
 		if err != nil {
-			return &ProjectExtensionResolver{}, err
+			return nil, err
 		}
 	}
 
@@ -1358,13 +1360,13 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
-	var res []model.ReleaseExtension
+	var releaseExtensions []model.ReleaseExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
+		log.InfoWithFields("no project extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
-		return &ProjectExtensionResolver{}, nil
+		return nil, fmt.Errorf("No Project Extension Found")
 	}
 
 	extension := model.Extension{}
@@ -1392,14 +1394,13 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 	}
 
 	// delete all release extension objects with extension id
-	if r.DB.Where("extension_id = ?", args.ProjectExtension.ID).Find(&res).RecordNotFound() {
-		log.InfoWithFields("no release extensions found", log.Fields{
-			"extension": extension,
-		})
-		return &ProjectExtensionResolver{}, nil
-	}
-
-	for _, re := range res {
+	// ADB
+	// This was adjusted because ReleaseExtensions do not have an 'extension_id'
+	// Also, with gorm, when asking for a slice the Find() function will NOT
+	// return a record not found error. This only occurs when you are finding a specific
+	// record using Find(struct) as opposed to Find(slice)
+	r.DB.Where("project_extension_id = ?", args.ProjectExtension.ID).Find(&releaseExtensions)
+	for _, re := range releaseExtensions {
 		r.DB.Delete(&re)
 	}
 
@@ -1540,7 +1541,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	if projectExtension.Config.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 		if err != nil {
-			log.Error(err.Error())
 			return nil, err
 		}
 	}
@@ -1549,7 +1549,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	if projectExtension.Artifacts.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 		if err != nil {
-			log.Error(err.Error())
 			return nil, err
 		}
 	}
