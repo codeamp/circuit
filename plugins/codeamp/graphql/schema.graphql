@@ -166,7 +166,7 @@ type Service {
   command: String!
   name: String!
   serviceSpec: ServiceSpec!
-  count: String!
+  count: Int!
   ports: [JSON]!
   environment: Environment!
   type: String!
@@ -333,7 +333,7 @@ input ServiceInput {
   command: String!
   name: String!
   serviceSpecID: String!
-  count: String!
+  count: Int!
   ports: [ServicePortInput!]
   type: String!
   environmentID: String!
@@ -344,14 +344,14 @@ input ServiceInput {
 
 # Container port input
 input ServicePortInput {
-  port: String!
-  protocol: String!
+  port: Int!
+  protocol: Int!
 }
 
 input DeploymentStrategyInput {
   type: String!
-  maxSurge: String!
-  maxUnavailable: String!
+  maxSurge: Int!
+  maxUnavailable: Int!
 }
 
 input HealthProbeInput {

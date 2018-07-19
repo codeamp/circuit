@@ -956,11 +956,11 @@ func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (mode
 	case plugins.GetType("default"), plugins.GetType("recreate"):
 		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
 	case plugins.GetType("rollingUpdate"):
-		if input.MaxUnavailable == "" {
+		if input.MaxUnavailable == 0 {
 			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
 		}
 
-		if input.MaxSurge == "" {
+		if input.MaxSurge == 0 {
 			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
 		}
 	default:

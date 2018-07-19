@@ -40,7 +40,7 @@ func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 }
 
 // Count
-func (r *ServiceResolver) Count() string {
+func (r *ServiceResolver) Count() int32 {
 	return r.DBServiceResolver.Service.Count
 }
 

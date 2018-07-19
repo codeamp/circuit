@@ -5,7 +5,7 @@ import "github.com/codeamp/circuit/plugins"
 // ServicePortInput
 type ServicePortInput struct {
 	// Port
-	Port string `json:"port"`
+	Port int32 `json:"port,string"`
 	// Protocol
 	Protocol string `json:"protocol"`
 }
@@ -139,7 +139,7 @@ type ServiceInput struct {
 	// ServiceSpecID
 	ServiceSpecID string `json:"serviceSpecID"`
 	// Count
-	Count string `json:"count"`
+	Count int32 `json:"count,string"`
 	// ContainerPorts
 	Ports *[]ServicePortInput `json:"ports"`
 	// Type
@@ -158,9 +158,9 @@ type DeploymentStrategyInput struct {
 	// Type
 	Type plugins.Type `json:"type"`
 	// MaxUnavailable
-	MaxUnavailable string `json:"maxUnavailable"`
+	MaxUnavailable int32 `json:"maxUnavailable,string"`
 	// MaxSurge
-	MaxSurge string `json:"maxSurge"`
+	MaxSurge int32 `json:"maxSurge,string"`
 }
 
 // ServiceHealthProbe is used for readiness/liveness health checks for services
