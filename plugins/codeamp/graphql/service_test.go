@@ -247,7 +247,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
 
 	// Update Service
 	serviceID := "null"
@@ -270,7 +270,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureBadRecordID() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
 
 	// Update Service
 	serviceID := test.ValidUUID
@@ -330,7 +330,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceFailure() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
 
 	// Update Service
 	serviceID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
