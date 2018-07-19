@@ -702,30 +702,25 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
-	var livenessProbes []model.ServiceHealthProbe
-	if args.Service.LivenessProbes != nil {
-		for _, probe := range *args.Service.LivenessProbes {
-			probeType := plugins.GetType("livenessProbe")
-			probe.Type = &probeType
-			livenessProbe, err := validateHealthProbe(*probe)
-			if err != nil {
-				return nil, err
-			}
-			livenessProbes = append(livenessProbes, *livenessProbe)
+	var livenessProbe model.ServiceHealthProbe
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	var readinessProbes []model.ServiceHealthProbe
-
-	if args.Service.ReadinessProbes != nil {
-		for _, probe := range *args.Service.ReadinessProbes {
-			probeType := plugins.GetType("readinessProbe")
-			probe.Type = &probeType
-			readinessProbe, err := validateHealthProbe(*probe)
-			if err != nil {
-				return nil, err
-			}
-			readinessProbes = append(readinessProbes, *readinessProbe)
+	var readinessProbe model.ServiceHealthProbe
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -738,8 +733,8 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		ProjectID:          projectID,
 		EnvironmentID:      environmentID,
 		DeploymentStrategy: deploymentStrategy,
-		LivenessProbes:     livenessProbes,
-		ReadinessProbes:    readinessProbes,
+		LivenessProbe:      livenessProbe,
+		ReadinessProbe:     readinessProbe,
 	}
 
 	r.DB.Create(&service)
@@ -801,30 +796,26 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
-	var livenessProbes []model.ServiceHealthProbe
-	if args.Service.LivenessProbes != nil {
-		for _, probe := range *args.Service.LivenessProbes {
-			probeType := plugins.GetType("livenessProbe")
-			probe.Type = &probeType
-			livenessProbe, err := validateHealthProbe(*probe)
-			if err != nil {
-				return nil, err
-			}
-			livenessProbes = append(livenessProbes, *livenessProbe)
+	var livenessProbe = model.ServiceHealthProbe{}
+	var err error
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	var readinessProbes []model.ServiceHealthProbe
-
-	if args.Service.ReadinessProbes != nil {
-		for _, probe := range *args.Service.ReadinessProbes {
-			probeType := plugins.GetType("readinessProbe")
-			probe.Type = &probeType
-			readinessProbe, err := validateHealthProbe(*probe)
-			if err != nil {
-				return nil, err
-			}
-			readinessProbes = append(readinessProbes, *readinessProbe)
+	var readinessProbe = model.ServiceHealthProbe{}
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -847,8 +838,8 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	r.DB.Save(&deploymentStrategy)
 	service.DeploymentStrategy = deploymentStrategy
-	service.ReadinessProbes = readinessProbes
-	service.LivenessProbes = livenessProbes
+	service.ReadinessProbe = readinessProbe
+	service.LivenessProbe = livenessProbe
 	r.DB.Save(&service)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
@@ -889,7 +880,7 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
 
-func validateHealthProbe(input model.ServiceHealthProbeInput) (*model.ServiceHealthProbe, error) {
+func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
 	healthProbe := model.ServiceHealthProbe{}
 
 	switch probeType := *input.Type; probeType {
@@ -911,44 +902,46 @@ func validateHealthProbe(input model.ServiceHealthProbeInput) (*model.ServiceHea
 			healthProbe.FailureThreshold = *input.FailureThreshold
 		}
 	default:
-		return nil, fmt.Errorf("Unsuported Probe Type %s", string(*input.Type))
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Type %s", string(*input.Type))
 	}
 
 	switch probeMethod := input.Method; probeMethod {
+	case "default", "":
+		return model.ServiceHealthProbe{}, nil
 	case "exec":
 		healthProbe.Method = input.Method
 		if input.Command == nil {
-			return nil, fmt.Errorf("Command is required if Probe method is exec")
+			return model.ServiceHealthProbe{}, fmt.Errorf("Command is required if Probe method is exec")
 		}
 		healthProbe.Command = *input.Command
 	case "http":
 		healthProbe.Method = input.Method
 		if input.Port == nil {
-			return nil, fmt.Errorf("http probe require a port to be set")
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe require a port to be set")
 		}
 		healthProbe.Port = *input.Port
 		if input.Path == nil {
-			return nil, fmt.Errorf("http probe requires a path to be set")
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires a path to be set")
 		}
 		healthProbe.Path = *input.Path
 
 		// httpStr := "http"
 		// httpsStr := "https"
 		if input.Scheme == nil || (*input.Scheme != "http" && *input.Scheme != "https") {
-			return nil, fmt.Errorf("http probe requires scheme to be set to either http or https")
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires scheme to be set to either http or https")
 		}
 		healthProbe.Scheme = *input.Scheme
 	case "tcp":
 		healthProbe.Method = input.Method
 		if input.Port == nil {
-			return nil, fmt.Errorf("tcp probe requires a port to be set")
+			return model.ServiceHealthProbe{}, fmt.Errorf("tcp probe requires a port to be set")
 		}
 		healthProbe.Port = *input.Port
 	default:
-		return nil, fmt.Errorf("Unsuported Probe Method %s", string(input.Method))
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Method %s", string(input.Method))
 	}
 
-	return &healthProbe, nil
+	return healthProbe, nil
 }
 
 func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {

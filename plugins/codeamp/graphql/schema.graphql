@@ -172,8 +172,8 @@ type Service {
   type: String!
   created: Time!
   deploymentStrategy: JSON
-  livenessProbes: [JSON]
-  readinessProbes: [JSON]
+  livenessProbe: JSON
+  readinessProbe: JSON
 }
 
 # Environment
@@ -338,8 +338,8 @@ input ServiceInput {
   type: String!
   environmentID: String!
   deploymentStrategy: DeploymentStrategyInput!
-  livenessProbes: [HealthProbeInput]
-  readinessProbes: [HealthProbeInput]
+  livenessProbe: HealthProbeInput
+  readinessProbe: HealthProbeInput
 }
 
 # Container port input

@@ -231,6 +231,141 @@ func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
 	}
 }
 
+func getReadinessProbe(service plugins.Service) v1.Probe {
+	defaults := ProbeDefaults{
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+		SuccessThreshold:    1,
+		FailureThreshold:    3,
+		TimeoutSeconds:      1,
+	}
+
+	if service.ReadinessProbe != (plugins.ServiceHealthProbe{}) {
+		return getHealthProbe(service.ReadinessProbe, defaults)
+	}
+
+	// no service listeners defined,
+	var probe plugins.ServiceHealthProbe
+	if len(service.Listeners) >= 1 && service.Listeners[0].Protocol == "TCP" {
+		probe = plugins.ServiceHealthProbe{
+			Method: "tcp",
+			Port:   service.Listeners[0].Port,
+		}
+	} else {
+		probe = plugins.ServiceHealthProbe{
+			Method:  "exec",
+			Command: "/bin/true",
+		}
+	}
+	return getHealthProbe(probe, defaults)
+}
+
+func getLivenessProbe(service plugins.Service) v1.Probe {
+	defaults := ProbeDefaults{
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       20,
+		SuccessThreshold:    1,
+		FailureThreshold:    3,
+		TimeoutSeconds:      1,
+	}
+
+	if service.LivenessProbe != (plugins.ServiceHealthProbe{}) {
+		return getHealthProbe(service.LivenessProbe, defaults)
+	}
+
+	var probe plugins.ServiceHealthProbe
+	if len(service.Listeners) >= 1 && service.Listeners[0].Protocol == "TCP" {
+		probe = plugins.ServiceHealthProbe{
+			Method: "tcp",
+			Port:   service.Listeners[0].Port,
+		}
+	} else {
+		probe = plugins.ServiceHealthProbe{
+			Method:  "exec",
+			Command: "bin/true",
+		}
+	}
+
+	return getHealthProbe(probe, defaults)
+}
+
+func getHealthProbe(probe plugins.ServiceHealthProbe, defaults ProbeDefaults) v1.Probe {
+
+	var v1Probe v1.Probe
+	var handler v1.Handler
+
+	// set handler
+	switch method := probe.Method; method {
+	case "http":
+		var scheme v1.URIScheme
+		if probe.Scheme == "https" {
+			scheme = v1.URISchemeHTTPS
+		} else {
+			scheme = v1.URISchemeHTTP
+		}
+		handler = v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path:   probe.Path,
+				Port:   intstr.IntOrString{IntVal: probe.Port},
+				Scheme: scheme,
+			},
+		}
+	case "exec":
+		command := strings.Split(probe.Command, " ")
+		handler = v1.Handler{
+			Exec: &v1.ExecAction{
+				Command: command,
+			},
+		}
+	case "tcp":
+		handler = v1.Handler{
+			TCPSocket: &v1.TCPSocketAction{
+				Port: intstr.IntOrString{IntVal: probe.Port},
+			},
+		}
+	default:
+		handler = v1.Handler{
+			TCPSocket: &v1.TCPSocketAction{
+				Port: intstr.IntOrString{IntVal: probe.Port},
+			},
+		}
+	}
+	v1Probe.Handler = handler
+
+	// set default thresholds
+	if probe.InitialDelaySeconds > 0 {
+		v1Probe.InitialDelaySeconds = probe.InitialDelaySeconds
+	} else {
+		v1Probe.InitialDelaySeconds = defaults.InitialDelaySeconds
+	}
+
+	if probe.PeriodSeconds > 0 {
+		v1Probe.PeriodSeconds = probe.PeriodSeconds
+	} else {
+		v1Probe.PeriodSeconds = defaults.PeriodSeconds
+	}
+
+	if probe.SuccessThreshold > 0 {
+		v1Probe.SuccessThreshold = probe.SuccessThreshold
+	} else {
+		v1Probe.SuccessThreshold = defaults.SuccessThreshold
+	}
+
+	if probe.FailureThreshold > 0 {
+		v1Probe.FailureThreshold = probe.FailureThreshold
+	} else {
+		v1Probe.FailureThreshold = defaults.FailureThreshold
+	}
+
+	if probe.TimeoutSeconds > 0 {
+		v1Probe.TimeoutSeconds = probe.TimeoutSeconds
+	} else {
+		v1Probe.TimeoutSeconds = defaults.TimeoutSeconds
+	}
+
+	return v1Probe
+}
+
 func getContainerPorts(service plugins.Service) []v1.ContainerPort {
 	var deployPorts []v1.ContainerPort
 
@@ -270,8 +405,8 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 		VolumeMounts:    podConfig.VolumeMounts,
 	}
 	if kind == "Deployment" {
-		container.ReadinessProbe = &podConfig.ReadyProbe
-		container.LivenessProbe = &podConfig.LiveProbe
+		container.ReadinessProbe = &podConfig.ReadinessProbe
+		container.LivenessProbe = &podConfig.LivenessProbe
 	}
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: meta_v1.ObjectMeta{
@@ -665,60 +800,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		deploymentName := genDeploymentName(projectSlug, service.Name)
 		deployPorts := getContainerPorts(service)
 
-		// Support ready and liveness probes
-		var readyProbe v1.Probe
-		var liveProbe v1.Probe
 		var deployStrategy v1beta1.DeploymentStrategy
-		if len(service.Listeners) >= 1 && service.Listeners[0].Protocol == "TCP" {
-			// If the service is TCP, use a TCP Probe
-			myPort := service.Listeners[0].Port
-			readyProbe = v1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-				SuccessThreshold:    1,
-				FailureThreshold:    3,
-				TimeoutSeconds:      1,
-				Handler: v1.Handler{
-					TCPSocket: &v1.TCPSocketAction{
-						Port: intstr.IntOrString{IntVal: myPort},
-					},
-				},
-			}
-			liveProbe = v1.Probe{
-				InitialDelaySeconds: 15,
-				PeriodSeconds:       20,
-				SuccessThreshold:    1,
-				FailureThreshold:    3,
-				TimeoutSeconds:      1,
-				Handler: v1.Handler{
-					TCPSocket: &v1.TCPSocketAction{
-						Port: intstr.IntOrString{IntVal: myPort},
-					},
-				},
-			}
-		} else {
-			// If the service is non-TCP or has no ports use a simple exec probe
-			runThis := []string{"/bin/true"}
-			readyProbe = v1.Probe{
-				Handler: v1.Handler{
-					Exec: &v1.ExecAction{
-						Command: runThis,
-					},
-				},
-			}
-			liveProbe = v1.Probe{
-				InitialDelaySeconds: 15,
-				PeriodSeconds:       20,
-				SuccessThreshold:    1,
-				FailureThreshold:    3,
-				TimeoutSeconds:      1,
-				Handler: v1.Handler{
-					Exec: &v1.ExecAction{
-						Command: runThis,
-					},
-				},
-			}
-		}
+
+		// Support ready and liveness probes
+		readinessProbe := getReadinessProbe(service)
+		livenessProbe := getLivenessProbe(service)
 
 		deployStrategy = getDeploymentStrategy(service)
 
@@ -752,18 +838,18 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		})
 
 		simplePod := SimplePodSpec{
-			Name:          deploymentName,
-			DeployPorts:   deployPorts,
-			ReadyProbe:    readyProbe,
-			LiveProbe:     liveProbe,
-			RestartPolicy: v1.RestartPolicyAlways,
-			NodeSelector:  nodeSelector,
-			Args:          commandArray,
-			Service:       service,
-			Image:         dockerImage.String(),
-			Env:           podEnvVars,
-			VolumeMounts:  volumeMounts,
-			Volumes:       deployVolumes,
+			Name:           deploymentName,
+			DeployPorts:    deployPorts,
+			ReadinessProbe: readinessProbe,
+			LivenessProbe:  livenessProbe,
+			RestartPolicy:  v1.RestartPolicyAlways,
+			NodeSelector:   nodeSelector,
+			Args:           commandArray,
+			Service:        service,
+			Image:          dockerImage.String(),
+			Env:            podEnvVars,
+			VolumeMounts:   volumeMounts,
+			Volumes:        deployVolumes,
 		}
 		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Deployment")
 

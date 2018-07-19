@@ -148,10 +148,10 @@ type ServiceInput struct {
 	EnvironmentID string `json:"environmentID"`
 	// DeploymentStrategy
 	DeploymentStrategy *DeploymentStrategyInput `json:"deploymentStrategy"`
-	// ReadinessProbes
-	ReadinessProbes *[]*ServiceHealthProbeInput `json:"readinessProbes"`
-	// LivenessProbes
-	LivenessProbes *[]*ServiceHealthProbeInput `json:"livenessProbes"`
+	// ReadinessProbe
+	ReadinessProbe *ServiceHealthProbeInput `json:"readinessProbe"`
+	// LivenessProbe
+	LivenessProbe *ServiceHealthProbeInput `json:"livenessProbe"`
 }
 
 type DeploymentStrategyInput struct {

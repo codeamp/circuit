@@ -344,8 +344,8 @@ func (helper *Helper) CreateService(t *testing.T,
 	serviceSpecResolver *graphql_resolver.ServiceSpecResolver,
 	projectResolver *graphql_resolver.ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
-	readinessProbes *[]*model.ServiceHealthProbeInput,
-	livenessProbes *[]*model.ServiceHealthProbeInput) *graphql_resolver.ServiceResolver {
+	readinessProbe *model.ServiceHealthProbeInput,
+	livenessProbe *model.ServiceHealthProbeInput) *graphql_resolver.ServiceResolver {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
@@ -368,8 +368,8 @@ func (helper *Helper) CreateService(t *testing.T,
 		Type:               "general",
 		EnvironmentID:      envID,
 		DeploymentStrategy: deploymentStrategy,
-		ReadinessProbes:    readinessProbes,
-		LivenessProbes:     livenessProbes,
+		ReadinessProbe:     readinessProbe,
+		LivenessProbe:      livenessProbe,
 	}
 
 	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
@@ -399,8 +399,8 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 	serviceSpecResolver *graphql_resolver.ServiceSpecResolver,
 	projectResolver *graphql_resolver.ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
-	readinessProbes *[]*model.ServiceHealthProbeInput,
-	livenessProbes *[]*model.ServiceHealthProbeInput) (*graphql_resolver.ServiceResolver, error) {
+	readinessProbe *model.ServiceHealthProbeInput,
+	livenessProbe *model.ServiceHealthProbeInput) (*graphql_resolver.ServiceResolver, error) {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
@@ -423,8 +423,8 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 		Type:               "general",
 		EnvironmentID:      envID,
 		DeploymentStrategy: deploymentStrategy,
-		ReadinessProbes:    readinessProbes,
-		LivenessProbes:     livenessProbes,
+		ReadinessProbe:     readinessProbe,
+		LivenessProbe:      livenessProbe,
 	}
 
 	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})

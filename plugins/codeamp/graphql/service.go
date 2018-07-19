@@ -61,13 +61,13 @@ func (r *ServiceResolver) DeploymentStrategy(ctx context.Context) (*model.JSON, 
 }
 
 // LivenessProbe
-func (r *ServiceResolver) LivenessProbes(ctx context.Context) (*[]*model.JSON, error) {
-	return r.DBServiceResolver.LivenessProbes()
+func (r *ServiceResolver) LivenessProbe(ctx context.Context) (*model.JSON, error) {
+	return r.DBServiceResolver.LivenessProbe()
 }
 
 // ReadinessProbe
-func (r *ServiceResolver) ReadinessProbes(ctx context.Context) (*[]*model.JSON, error) {
-	return r.DBServiceResolver.ReadinessProbes()
+func (r *ServiceResolver) ReadinessProbe(ctx context.Context) (*model.JSON, error) {
+	return r.DBServiceResolver.ReadinessProbe()
 }
 
 // Type

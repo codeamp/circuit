@@ -83,40 +83,32 @@ func (r *ServiceResolver) DeploymentStrategy() (*model.JSON, error) {
 	return &model.JSON{marshaled}, nil
 }
 
-// LivenessProbes
-func (r *ServiceResolver) LivenessProbes() (*[]*model.JSON, error) {
-	var rows []model.ServiceHealthProbe
-	var results []*model.JSON
+// LivenessProbe
+func (r *ServiceResolver) LivenessProbe() (*model.JSON, error) {
+	var livenessProbe model.ServiceHealthProbe
 
-	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("livenessProbe"))).Order("created_at desc").Find(&rows)
+	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("livenessProbe"))).First(&livenessProbe)
 
-	for _, row := range rows {
-		if probe, err := json.Marshal(&row); err != nil {
-			return &results, fmt.Errorf("JSON marshal failed")
-		} else {
-			results = append(results, &model.JSON{probe})
-		}
+	marshaled, err := json.Marshal(&livenessProbe)
+	if err != nil {
+		return &model.JSON{}, fmt.Errorf("LivenessProbe: JSON marshal failed")
 	}
 
-	return &results, nil
+	return &model.JSON{marshaled}, nil
 }
 
-// ReadinessProbes
-func (r *ServiceResolver) ReadinessProbes() (*[]*model.JSON, error) {
-	var rows []model.ServiceHealthProbe
-	var results []*model.JSON
+// ReadinessProbe
+func (r *ServiceResolver) ReadinessProbe() (*model.JSON, error) {
+	var livenessProbe model.ServiceHealthProbe
 
-	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).Order("created_at desc").Find(&rows)
+	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).First(&livenessProbe)
 
-	for _, row := range rows {
-		if probe, err := json.Marshal(&row); err != nil {
-			return &results, fmt.Errorf("JSON marshal failed")
-		} else {
-			results = append(results, &model.JSON{probe})
-		}
+	marshaled, err := json.Marshal(&livenessProbe)
+	if err != nil {
+		return &model.JSON{}, fmt.Errorf("ReadinessProbe: JSON marshal failed")
 	}
 
-	return &results, nil
+	return &model.JSON{marshaled}, nil
 }
 
 // Environment
