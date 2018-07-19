@@ -108,7 +108,8 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 
 	// Create git branch for env per env
 	environments := []model.Environment{}
-	if r.DB.Find(&environments).RecordNotFound() || len(environments) == 0 {
+	r.DB.Find(&environments)
+	if len(environments) == 0 {
 		log.InfoWithFields("No envs found.", log.Fields{
 			"args": args,
 		})
