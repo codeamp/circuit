@@ -64,8 +64,12 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 		Type: plugins.GetType("recreate"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
@@ -86,8 +90,12 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
 		Type: plugins.GetType("default"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
@@ -108,8 +116,12 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
 		Type: plugins.GetType("recreate"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
@@ -122,18 +134,22 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Service Spec ID
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type:           plugins.GetType("rollingUpdate"),
-		MaxUnavailable: "30",
-		MaxSurge:       "60",
+		MaxUnavailable: 30,
+		MaxSurge:       60,
 	}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFailure() {
@@ -154,8 +170,12 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFail
 		Type: plugins.GetType("rollingUpdate"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy of type rollingUpdate created with invalid inputs"))
 	}
@@ -179,10 +199,232 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyInvalid() {
 		Type: plugins.Type("invalidStrategy"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 	if err == nil {
-		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy created with invalid parameters"))
+		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy succesfully created with invalid parameters"))
+	}
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCP() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Deployment Strategy Input
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: 30,
+		MaxSurge:       60,
+	}
+
+	portOne := int32(9090)
+	portTwo := int32(8080)
+
+	healthProbeOne := model.ServiceHealthProbeInput{Method: "tcp", Port: &portOne}
+	healthProbeTwo := model.ServiceHealthProbeInput{Method: "tcp", Port: &portTwo}
+
+	readinessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+	livenessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne, &healthProbeTwo}
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCPInvalid() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Deployment Strategy Input
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: 30,
+		MaxSurge:       60,
+	}
+
+	portOne := int32(9090)
+
+	healthProbeOne := model.ServiceHealthProbeInput{Method: "tcp", Port: &portOne}
+	healthProbeTwo := model.ServiceHealthProbeInput{Method: "tcp"}
+
+	readinessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+	livenessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne, &healthProbeTwo}
+
+	// Services
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
+	if err == nil {
+		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
+	}
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTP() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Deployment Strategy Input
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: 30,
+		MaxSurge:       60,
+	}
+
+	portOne := int32(9090)
+	scheme := "http"
+	path := "/healthz"
+
+	healthProbeOne := model.ServiceHealthProbeInput{
+		Method: "http",
+		Port:   &portOne,
+		Scheme: &scheme,
+		Path:   &path,
+	}
+
+	readinessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+	livenessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPInvalid() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Deployment Strategy Input
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: 30,
+		MaxSurge:       60,
+	}
+
+	portOne := int32(9090)
+	scheme := "invalid"
+	path := "/healthz"
+
+	healthProbeOne := model.ServiceHealthProbeInput{
+		Method: "http",
+		Port:   &portOne,
+		Scheme: &scheme,
+		Path:   &path,
+	}
+
+	readinessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+	livenessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+
+	// Services
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
+	if err == nil {
+		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
+	}
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExec() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Deployment Strategy Input
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: 30,
+		MaxSurge:       60,
+	}
+
+	command := "./runcheck.sh"
+	healthProbeOne := model.ServiceHealthProbeInput{
+		Method:  "exec",
+		Command: &command,
+	}
+
+	readinessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+	livenessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
+}
+
+func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExecInvalid() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Deployment Strategy Input
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: 30,
+		MaxSurge:       60,
+	}
+
+	healthProbeOne := model.ServiceHealthProbeInput{Method: "exec"}
+
+	readinessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+	livenessProbes := []*model.ServiceHealthProbeInput{&healthProbeOne}
+
+	// Services
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
+	if err == nil {
+		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
 	}
 }
 
@@ -204,8 +446,12 @@ func (ts *ServiceTestSuite) TestUpdateService() {
 		Type: plugins.GetType("recreate"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 
 	// Update Service
 	serviceID := string(serviceResolver.ID())
@@ -218,8 +464,8 @@ func (ts *ServiceTestSuite) TestUpdateService() {
 		ServiceSpecID: serviceSpecID,
 		DeploymentStrategy: &model.DeploymentStrategyInput{
 			Type:           plugins.GetType("rollingUpdate"),
-			MaxUnavailable: "30",
-			MaxSurge:       "60",
+			MaxUnavailable: 30,
+			MaxSurge:       60,
 		},
 	}
 	_, err = ts.Resolver.UpdateService(&struct{ Service *model.ServiceInput }{serviceInput})
@@ -246,8 +492,12 @@ func (ts *ServiceTestSuite) TestDeleteService() {
 		Type: plugins.GetType("recreate"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 
 	// Update Service
 	serviceID := string(serviceResolver.ID())
@@ -283,8 +533,12 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 		Type: plugins.GetType("recreate"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 
 	// Test Service Interface
 	_ = serviceResolver.ID()
@@ -297,7 +551,7 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	serviceSpecResolver = serviceResolver.ServiceSpec()
 	assert.Equal(ts.T(), serviceSpecID, serviceSpecResolver.ID())
 
-	assert.Equal(ts.T(), "1", serviceResolver.Count())
+	assert.Equal(ts.T(), int32(1), serviceResolver.Count())
 
 	servicePorts, err := serviceResolver.Ports()
 	assert.Nil(ts.T(), err)
@@ -345,8 +599,12 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 		Type: plugins.GetType("recreate"),
 	}
 
+	livenessProbes := []*model.ServiceHealthProbeInput{}
+	readinessProbes := []*model.ServiceHealthProbeInput{}
+
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbes, &livenessProbes)
 
 	// Test Service Query
 	var ctx context.Context

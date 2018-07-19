@@ -343,14 +343,16 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *graphql_resolver.ServiceS
 func (helper *Helper) CreateService(t *testing.T,
 	serviceSpecResolver *graphql_resolver.ServiceSpecResolver,
 	projectResolver *graphql_resolver.ProjectResolver,
-	deploymentStrategy *model.DeploymentStrategyInput) *graphql_resolver.ServiceResolver {
+	deploymentStrategy *model.DeploymentStrategyInput,
+	readinessProbes *[]*model.ServiceHealthProbeInput,
+	livenessProbes *[]*model.ServiceHealthProbeInput) *graphql_resolver.ServiceResolver {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	servicePortInputs := []model.ServicePortInput{
 		model.ServicePortInput{
-			Port:     "80",
+			Port:     80,
 			Protocol: "HTTP",
 		},
 	}
@@ -361,11 +363,13 @@ func (helper *Helper) CreateService(t *testing.T,
 		Command:            "echo \"hello\" && exit 0",
 		Name:               helper.name,
 		ServiceSpecID:      string(serviceSpecResolver.ID()),
-		Count:              "1",
+		Count:              1,
 		Ports:              &servicePortInputs,
 		Type:               "general",
 		EnvironmentID:      envID,
 		DeploymentStrategy: deploymentStrategy,
+		ReadinessProbes:    readinessProbes,
+		LivenessProbes:     livenessProbes,
 	}
 
 	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
@@ -394,14 +398,16 @@ func (helper *Helper) CreateUser(t *testing.T) *graphql_resolver.UserResolver {
 func (helper *Helper) CreateServiceWithError(t *testing.T,
 	serviceSpecResolver *graphql_resolver.ServiceSpecResolver,
 	projectResolver *graphql_resolver.ProjectResolver,
-	deploymentStrategy *model.DeploymentStrategyInput) (*graphql_resolver.ServiceResolver, error) {
+	deploymentStrategy *model.DeploymentStrategyInput,
+	readinessProbes *[]*model.ServiceHealthProbeInput,
+	livenessProbes *[]*model.ServiceHealthProbeInput) (*graphql_resolver.ServiceResolver, error) {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	servicePortInputs := []model.ServicePortInput{
 		model.ServicePortInput{
-			Port:     "80",
+			Port:     80,
 			Protocol: "HTTP",
 		},
 	}
@@ -412,11 +418,13 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 		Command:            "echo \"hello\" && exit 0",
 		Name:               helper.name,
 		ServiceSpecID:      string(serviceSpecResolver.ID()),
-		Count:              "1",
+		Count:              1,
 		Ports:              &servicePortInputs,
 		Type:               "general",
 		EnvironmentID:      envID,
 		DeploymentStrategy: deploymentStrategy,
+		ReadinessProbes:    readinessProbes,
+		LivenessProbes:     livenessProbes,
 	}
 
 	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
