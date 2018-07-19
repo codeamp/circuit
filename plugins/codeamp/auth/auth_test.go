@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -18,6 +19,21 @@ type AuthTestSuite struct {
 var ValidUUID = [...]string{"123e4567-e89b-12d3-a456-426655440000", "11075553-5309-494B-9085-2D79A6ED1EB3"}
 
 func (ts *AuthTestSuite) SetupTest() {
+}
+
+func (ts *AuthTestSuite) TestAuthFailureBadID() {
+	ctx := test.BuildAuthContext("", "test@example.com", []string{})
+
+	userID, err := auth.CheckAuth(ctx, []string{})
+	assert.NotNil(ts.T(), err)
+	assert.Equal(ts.T(), "", userID)
+}
+
+func (ts *AuthTestSuite) TestAuthFailureNoJWT() {
+	var ctx context.Context
+	userID, err := auth.CheckAuth(ctx, []string{})
+	assert.NotNil(ts.T(), err)
+	assert.Equal(ts.T(), "", userID)
 }
 
 func (ts *AuthTestSuite) TestAuthEmptyPermissions() {
