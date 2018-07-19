@@ -158,9 +158,9 @@ type Service struct {
 }
 
 type DeploymentStrategy struct {
-	Type           Type   `json:"type"`
-	MaxUnavailable string `json:"maxUnavailable`
-	MaxSurge       string `json:"MaxSurge`
+	Type           Type  `json:"type"`
+	MaxUnavailable int32 `json:"maxUnavailable,string`
+	MaxSurge       int32 `json:"MaxSurge,string`
 }
 
 // ServiceSpec event data struct

@@ -14,17 +14,12 @@ import (
 )
 
 func AppendPluginService(pluginServices []plugins.Service, service model.Service, spec model.ServiceSpec) []plugins.Service {
-	count, _ := strconv.ParseInt(service.Count, 10, 64)
 	terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
 
 	listeners := []plugins.Listener{}
 	for _, l := range service.Ports {
-		p, err := strconv.ParseInt(l.Port, 10, 32)
-		if err != nil {
-			panic(err)
-		}
 		listener := plugins.Listener{
-			Port:     int32(p),
+			Port:     l.Port,
 			Protocol: l.Protocol,
 		}
 		listeners = append(listeners, listener)
@@ -37,7 +32,7 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 		Name:      service.Name,
 		Command:   service.Command,
 		Listeners: listeners,
-		Replicas:  count,
+		Replicas:  int64(service.Count),
 		Spec: plugins.ServiceSpec{
 			ID:                            spec.Model.ID.String(),
 			CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
