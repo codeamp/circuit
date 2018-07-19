@@ -14,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -36,12 +34,9 @@ func (x *Kubernetes) Start(e chan transistor.Event) error {
 	x.events = e
 	log.Info("Started Kubernetes (k8s)")
 
-	mock := viper.GetBool("plugins.kubernetes.mock")
-	log.Info("mock ", mock)
-
 	return nil
 }
-	
+
 func (x *Kubernetes) Stop() {
 	log.Info("Stopping Kubernetes (k8s)")
 }
