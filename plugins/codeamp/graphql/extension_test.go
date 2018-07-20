@@ -86,6 +86,16 @@ func (ts *ExtensionTestSuite) TestUpdateExtensionFailureNoEnv() {
 	assert.NotNil(ts.T(), err)
 }
 
+func (ts *ExtensionTestSuite) TestUpdateExtensionFailureMissingEnv() {
+	// Update Extension
+	extensionInput := model.ExtensionInput{
+		ID: nil,
+	}
+
+	_, err := ts.Resolver.UpdateExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ExtensionTestSuite) TestUpdateExtensionFailureNotFound() {
 	// Update Extension
 	uuid, _ := uuid.FromString("TestUpdateExtensionFailureNotFound")
@@ -123,6 +133,18 @@ func (ts *ExtensionTestSuite) TestDeleteExtensionFailureNoID() {
 	}
 }
 
+func (ts *ExtensionTestSuite) TestDeleteExtensionFailureInvalidID() {
+	extensionID := test.InvalidUUID
+	extensionInput := model.ExtensionInput{
+		ID: &extensionID,
+	}
+
+	_, err := ts.Resolver.DeleteExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
+	if err != nil {
+		assert.NotNil(ts.T(), err)
+	}
+}
+
 func (ts *ExtensionTestSuite) TestDeleteExtensionFailureNotFound() {
 	// Update Extension
 	uuid, _ := uuid.FromString("TestUpdateExtensionFailureNotFound")
@@ -147,7 +169,7 @@ func (ts *ExtensionTestSuite) TestExtensionInterface() {
 	assert.Equal(ts.T(), "TestExtension", extensionResolver.Name())
 	assert.Equal(ts.T(), "test-component", extensionResolver.Component())
 
-	assert.Equal(ts.T(), "once", extensionResolver.Type())
+	assert.Equal(ts.T(), "workflow", extensionResolver.Type())
 	assert.Equal(ts.T(), "test-project-interface", extensionResolver.Key())
 
 	environmentResolver, err := extensionResolver.Environment()
@@ -187,11 +209,9 @@ func (ts *ExtensionTestSuite) TestExtensionInterface() {
 
 func (ts *ExtensionTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
+	ts.Resolver.DB.Close()
 }
 
 func TestSuiteExtensionResolver(t *testing.T) {
-	ts := new(ExtensionTestSuite)
-	suite.Run(t, ts)
-
-	ts.TearDownTest()
+	suite.Run(t, new(ExtensionTestSuite))
 }
