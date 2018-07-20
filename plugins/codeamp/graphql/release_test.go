@@ -1013,6 +1013,7 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureNoReleaseExtensions() {
 }
 
 func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
+	var e transistor.Event
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -1047,18 +1048,22 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
-
-	e := <-ts.Resolver.Events
+	for len(ts.Resolver.Events) > 0 {
+		<-ts.Resolver.Events
+	}
 
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	e = <-ts.Resolver.Events
+	for len(ts.Resolver.Events) > 0 {
+		<-ts.Resolver.Events
+	}
 
 	releaseID := string(releaseResolver.ID())
 
+	// Rollback the deploy
 	ts.helper.CreateReleaseWithInput(ts.T(), projectResolver, &model.ReleaseInput{
 		ID:            &releaseID,
 		HeadFeatureID: string(featureResolver.ID()),
@@ -1067,11 +1072,8 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	})
 	e = <-ts.Resolver.Events
 
-	releaseExtensionEvent := e.Payload.(plugins.ReleaseExtension)
-	for _, svc := range releaseExtensionEvent.Release.Services {
-		assert.Equal(ts.T(), svc.DeploymentStrategy.MaxUnavailable, "70%")
-		assert.Equal(ts.T(), svc.DeploymentStrategy.MaxSurge, "100%")
-	}
+	releaseEvent := e.Payload.(plugins.Release)
+	assert.Equal(ts.T(), true, releaseEvent.IsRollback)
 
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
 	if err != nil {

@@ -265,6 +265,7 @@ type Release struct {
 	Services    []Service `json:"services"`
 	Secrets     []Secret  `json:"secrets" role:"secret"`
 	Environment string    `json:"environment"`
+	IsRollback  bool      `json:"isRollback"`
 }
 
 // Project event data struct

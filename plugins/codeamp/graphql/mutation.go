@@ -571,17 +571,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		return &ReleaseResolver{}, err
 	}
 
-	if isRollback {
-		for i, svc := range pluginServices {
-			svc.DeploymentStrategy = plugins.DeploymentStrategy{
-				MaxSurge:       "100%",
-				MaxUnavailable: "70%",
-				Type:           plugins.GetType(svc.Type),
-			}
-			pluginServices[i] = svc
-		}
-	}
-
 	var pluginSecrets []plugins.Secret
 	for _, secret := range secrets {
 		pluginSecrets = append(pluginSecrets, plugins.Secret{
@@ -636,6 +625,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseEvent := plugins.Release{
+		IsRollback:  isRollback,
 		ID:          release.Model.ID.String(),
 		Environment: environment.Key,
 		HeadFeature: plugins.Feature{
