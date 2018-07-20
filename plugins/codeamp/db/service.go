@@ -101,7 +101,7 @@ func (r *ServiceResolver) LivenessProbe() (*model.JSON, error) {
 func (r *ServiceResolver) ReadinessProbe() (*model.JSON, error) {
 	var readinessProbe model.ServiceHealthProbe
 
-	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).First(&livenessProbe)
+	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).First(&readinessProbe)
 
 	marshaled, err := json.Marshal(&readinessProbe)
 	if err != nil {
