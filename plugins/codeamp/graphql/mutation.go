@@ -576,6 +576,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			svc.DeploymentStrategy = plugins.DeploymentStrategy{
 				MaxSurge:       "100%",
 				MaxUnavailable: "70%",
+				Type:           plugins.GetType(svc.Type),
 			}
 			pluginServices[i] = svc
 		}

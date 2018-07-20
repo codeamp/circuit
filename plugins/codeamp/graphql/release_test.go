@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 
-	log "github.com/codeamp/logger"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -20,8 +21,7 @@ import (
 type ReleaseTestSuite struct {
 	suite.Suite
 	Resolver *graphql_resolver.Resolver
-
-	helper Helper
+	helper   Helper
 }
 
 func (suite *ReleaseTestSuite) SetupTest() {
@@ -1010,6 +1010,73 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureBadReleaseExtension() {
 func (ts *ReleaseTestSuite) TestStopReleaseFailureNoReleaseExtensions() {
 	_, err := ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{graphql.ID("b3d43558-0ec0-44a5-9755-0a3a0387d8eb")})
 	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// ServiceSpec
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Service
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+
+	// Release
+	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	<-ts.Resolver.Events
+
+	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	<-ts.Resolver.Events
+
+	releaseID := string(releaseResolver.ID())
+
+	ts.helper.CreateReleaseWithInput(ts.T(), projectResolver, &model.ReleaseInput{
+		ID:            &releaseID,
+		HeadFeatureID: string(featureResolver.ID()),
+		ProjectID:     string(projectResolver.ID()),
+		EnvironmentID: string(environmentResolver.ID()),
+	})
+	e := <-ts.Resolver.Events
+
+	releaseEvent := e.Payload.(plugins.Release)
+	for _, svc := range releaseEvent.Services {
+		assert.Equal(ts.T(), svc.DeploymentStrategy.MaxUnavailable, "70%")
+		assert.Equal(ts.T(), svc.DeploymentStrategy.MaxSurge, "100%")
+	}
+
+	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
 }
 
 func (ts *ReleaseTestSuite) TearDownTest() {
