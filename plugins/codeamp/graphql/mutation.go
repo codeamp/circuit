@@ -345,6 +345,14 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			deploymentStrategy := model.ServiceDeploymentStrategy{}
 			r.DB.Where("service_id = ?", service.Model.ID).Find(&deploymentStrategy)
 			services[i].DeploymentStrategy = deploymentStrategy
+
+			readinessProbes := model.ServiceHealthProbe{}
+			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbes)
+			services[i].ReadinessProbe = readinessProbes
+
+			livenessProbe := model.ServiceHealthProbe{}
+			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "livenessProbe").Find(&livenessProbe)
+			services[i].LivenessProbe = livenessProbe
 		}
 
 		servicesMarshaled, err := json.Marshal(services)
