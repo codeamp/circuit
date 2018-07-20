@@ -99,11 +99,11 @@ func (r *ServiceResolver) LivenessProbe() (*model.JSON, error) {
 
 // ReadinessProbe
 func (r *ServiceResolver) ReadinessProbe() (*model.JSON, error) {
-	var livenessProbe model.ServiceHealthProbe
+	var readinessProbe model.ServiceHealthProbe
 
 	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).First(&livenessProbe)
 
-	marshaled, err := json.Marshal(&livenessProbe)
+	marshaled, err := json.Marshal(&readinessProbe)
 	if err != nil {
 		return &model.JSON{}, fmt.Errorf("ReadinessProbe: JSON marshal failed")
 	}
