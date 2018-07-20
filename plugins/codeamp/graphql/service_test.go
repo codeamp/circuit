@@ -480,7 +480,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 
 	servicePorts := []model.ServicePortInput{
 		model.ServicePortInput{
-			Port:     "80",
+			Port:     80,
 			Protocol: "HTTP",
 		},
 	}
@@ -515,7 +515,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Update Service
 	serviceID := "null"
@@ -538,7 +538,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureBadRecordID() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Update Service
 	serviceID := test.ValidUUID
@@ -602,7 +602,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceFailure() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Update Service
 	serviceID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"

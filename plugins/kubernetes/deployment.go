@@ -282,7 +282,7 @@ func getLivenessProbe(service plugins.Service) v1.Probe {
 	} else {
 		probe = plugins.ServiceHealthProbe{
 			Method:  "exec",
-			Command: "bin/true",
+			Command: "/bin/true",
 		}
 	}
 
