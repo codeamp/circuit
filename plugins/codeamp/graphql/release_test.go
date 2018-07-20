@@ -1048,14 +1048,14 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
-	<-ts.Resolver.Events
+	e := <-ts.Resolver.Events
 
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	<-ts.Resolver.Events
+	e = <-ts.Resolver.Events
 
 	releaseID := string(releaseResolver.ID())
 
@@ -1065,10 +1065,10 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 		ProjectID:     string(projectResolver.ID()),
 		EnvironmentID: string(environmentResolver.ID()),
 	})
-	e := <-ts.Resolver.Events
+	e = <-ts.Resolver.Events
 
-	releaseEvent := e.Payload.(plugins.Release)
-	for _, svc := range releaseEvent.Services {
+	releaseExtensionEvent := e.Payload.(plugins.ReleaseExtension)
+	for _, svc := range releaseExtensionEvent.Release.Services {
 		assert.Equal(ts.T(), svc.DeploymentStrategy.MaxUnavailable, "70%")
 		assert.Equal(ts.T(), svc.DeploymentStrategy.MaxSurge, "100%")
 	}
