@@ -466,10 +466,10 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 		fullImagePath := fmt.Sprintf("%s:%s", imagePath, imageTag)
 
 		ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Completed")
-		ev.AddArtifact("user", user.String(), user.Secret)
-		ev.AddArtifact("password", password.String(), password.Secret)
-		ev.AddArtifact("email", email.String(), email.Secret)
-		ev.AddArtifact("host", registryHost.String(), registryHost.Secret)
+		ev.AddArtifact("user", user.String(), true)
+		ev.AddArtifact("password", password.String(), true)
+		ev.AddArtifact("email", email.String(), true)
+		ev.AddArtifact("host", registryHost.String(), true)
 		ev.AddArtifact("image", fullImagePath, false)
 		ev.AddArtifact("build_log", buildlogBuf.String(), false)
 		x.events <- ev
