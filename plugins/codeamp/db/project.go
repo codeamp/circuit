@@ -71,7 +71,12 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 func (r *ProjectResolver) Releases(args *struct {
 	Params *model.PaginatorInput
 }) *ReleaseListResolver {
-	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
+	var query *gorm.DB
+	if r.Environment != (model.Environment{}) {
+		query = r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
+	} else {
+		query = r.DB.Where("project_id = ?", r.Project.Model.ID).Order("created_at desc")
+	}
 
 	return &ReleaseListResolver{
 		PaginatorInput: args.Params,
