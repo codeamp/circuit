@@ -62,7 +62,7 @@ func (r *SecretResolver) Versions() ([]*SecretResolver, error) {
 	var secretValues []model.SecretValue
 	var secretResolvers []*SecretResolver
 
-	r.DB.Where("secret_id = ?", r.Secret.Model.ID).Order("created_at desc").Find(&secretValues)
+	r.DB.Debug().Where("secret_id = ?", r.Secret.Model.ID).Order("created_at desc").Find(&secretValues)
 
 	for _, secretValue := range secretValues {
 		secretResolvers = append(secretResolvers, &SecretResolver{DB: r.DB, Secret: r.Secret, SecretValue: secretValue})
