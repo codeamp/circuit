@@ -40,7 +40,6 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 }
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
-	log.Info("doLoadBalancer")
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
@@ -95,30 +94,14 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	lbType := plugins.GetType(_lbType.String())
 
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.buildClient(e)
 	if err != nil {
-		log.Error(err.Error())
-		return err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Error(failMessage)
-		return err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
-		log.Error(failMessage)
+		x.sendErrorResponse(e, err.Error())
 		return err
 	}
 
 	coreInterface := clientset.Core()
+
 	deploymentName := x.GenDeploymentName(projectSlug, svcName.String())
 
 	var serviceType v1.ServiceType
@@ -303,7 +286,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 }
 
 func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
-	log.Info("doDeleteLoadBalancer")
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
@@ -317,7 +299,6 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 }
 
 func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
-	log.Info("deleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 

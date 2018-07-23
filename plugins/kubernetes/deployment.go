@@ -18,10 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/google/shlex"
 	"github.com/spf13/viper"
@@ -307,35 +304,12 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.buildClient(e)
 	if err != nil {
-		log.Error(err.Error())
-		x.sendErrorResponse(e, "failed writing kubeconfig")
-		return err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-	if err != nil {
-		log.Error(fmt.Sprintf("ERROR '%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err))
-		config, err = clientcmd.BuildConfigFromFlags("", "")
-		if err != nil {
-			log.Error(fmt.Sprintf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err))
-			x.sendErrorResponse(e, "failed writing kubeconfig")
-			return err
-		}
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Error("Error getting cluster config.  Aborting!")
 		x.sendErrorResponse(e, err.Error())
 		return err
 	}
 
-	x.sendInProgress(e, "Deploy in-progress")
-	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 	coreInterface := clientset.Core()
 
 	successfulDeploys := 0
@@ -347,6 +321,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	//}
 	curTime := 0
 
+	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
 		x.sendErrorResponse(e, createNamespaceErr.Error())

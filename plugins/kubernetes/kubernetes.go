@@ -13,7 +13,9 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func init() {
@@ -141,6 +143,32 @@ func (x *Kubernetes) GetTempDir() (string, error) {
 			return filePath, nil
 		}
 	}
+}
+
+func (x *Kubernetes) buildClient(e transistor.Event) (*kubernetes.Clientset, error) {
+	kubeconfig, err := x.SetupKubeConfig(e)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
+	if err != nil {
+		log.Warn(fmt.Sprintf("'%s' while building kubernetes api client config.  Falling back to inClusterConfig.", err))
+
+		config, err = clientcmd.BuildConfigFromFlags("", "")
+		if err != nil {
+			return nil, fmt.Errorf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err)
+		}
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return clientset, nil
 }
 
 func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
