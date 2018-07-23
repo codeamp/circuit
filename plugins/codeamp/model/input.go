@@ -5,7 +5,7 @@ import "github.com/codeamp/circuit/plugins"
 // ServicePortInput
 type ServicePortInput struct {
 	// Port
-	Port string `json:"port"`
+	Port int32 `json:"port,string"`
 	// Protocol
 	Protocol string `json:"protocol"`
 }
@@ -139,24 +139,55 @@ type ServiceInput struct {
 	// ServiceSpecID
 	ServiceSpecID string `json:"serviceSpecID"`
 	// Count
-	Count string `json:"count"`
+	Count int32 `json:"count,string"`
 	// ContainerPorts
 	Ports *[]ServicePortInput `json:"ports"`
 	// Type
 	Type string `json:"type"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
-	//DeploymentStrategy
+	// DeploymentStrategy
 	DeploymentStrategy *DeploymentStrategyInput `json:"deploymentStrategy"`
+	// ReadinessProbe
+	ReadinessProbe *ServiceHealthProbeInput `json:"readinessProbe"`
+	// LivenessProbe
+	LivenessProbe *ServiceHealthProbeInput `json:"livenessProbe"`
 }
 
 type DeploymentStrategyInput struct {
 	// Type
 	Type plugins.Type `json:"type"`
 	// MaxUnavailable
-	MaxUnavailable string `json:"maxUnavailable"`
+	MaxUnavailable int32 `json:"maxUnavailable,string"`
 	// MaxSurge
-	MaxSurge string `json:"maxSurge"`
+	MaxSurge int32 `json:"maxSurge,string"`
+}
+
+// ServiceHealthProbe is used for readiness/liveness health checks for services
+// Further documentation can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
+type ServiceHealthProbeInput struct {
+	// Type currently supports ReadinessProbe and LivenessProbe
+	Type *plugins.Type `json:"type"`
+	//Method supports `exec`, `http`, and `tcp`
+	Method string `json:"method"`
+	// Command is only evaluated if Method is `exec`
+	Command *string `json:"command"`
+	// Port is only evaluated if Method is either `http` or `tcp`
+	Port *int32 `json:"port,string"`
+	// Scheme accepts `http` or `https` - it is only evaluated if Method is `http`
+	Scheme *string `json:"scheme"`
+	// Path is only evaluated if Method is `http`
+	Path *string `json:"path"`
+	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
+	InitialDelaySeconds *int32 `json:"initialDelaySeconds,string"`
+	// PeriodSeconds is how frequently the probe is executed
+	PeriodSeconds *int32 `json:"periodSeconds,string"`
+	// TimeoutSeconds is the number of seconds before the probe times out
+	TimeoutSeconds *int32 `json:"timeoutSeconds,string"`
+	// SuccessThreshold minimum consecutive success before the probe is considered successfull
+	SuccessThreshold *int32 `json:"successThreshold,string"`
+	// FailureThreshold is the number of attempts before a probe is considered failed
+	FailureThreshold *int32 `json:"failureThreshold,string"`
 }
 
 // ServiceSpecInput

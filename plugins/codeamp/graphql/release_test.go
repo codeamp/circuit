@@ -68,7 +68,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 
 	// Service
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -133,7 +133,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
 
 	// Service
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -204,7 +204,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
 
 	// Service
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())

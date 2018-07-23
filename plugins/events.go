@@ -7,6 +7,7 @@ import (
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	uuid "github.com/satori/go.uuid"
 )
 
 // GetEventName returns registered events.
@@ -68,6 +69,8 @@ func GetType(s string) Type {
 		"default",
 		"recreate",
 		"rollingUpdate",
+		"livenessProbe",
+		"readinessProbe",
 	}
 
 	for _, t := range types {
@@ -153,12 +156,41 @@ type Service struct {
 	StateMessage       string             `json:"stateMessage"`
 	Action             transistor.Action  `json:"action"`
 	DeploymentStrategy DeploymentStrategy `json:"deploymentStrategy"`
+	ReadinessProbe     ServiceHealthProbe `json:"readinessProbe"`
+	LivenessProbe      ServiceHealthProbe `json:"livenessProbe"`
 }
 
 type DeploymentStrategy struct {
-	Type           Type   `json:"type"`
-	MaxUnavailable string `json:"maxUnavailable`
-	MaxSurge       string `json:"MaxSurge`
+	Type           Type  `json:"type"`
+	MaxUnavailable int32 `json:"maxUnavailable,string`
+	MaxSurge       int32 `json:"MaxSurge,string`
+}
+
+type ServiceHealthProbe struct {
+	// ServiceID
+	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	// Type: required; accepts `readinessProbe` and `livenessProbe`
+	Type Type `json:"type"`
+	// Method: required; accepts `exec`, `http`, and `tcp`
+	Method string `json:"method"`
+	// Command: Required with Method `exec`
+	Command string `json:"command"`
+	// Port: Required with Method `http` or `tcp`
+	Port int32 `json:"port"`
+	// Scheme: required with method `http`; accepts `http` or `https`
+	Scheme string `json:"scheme"`
+	// Path: required with Method `http`
+	Path string `json:"path"`
+	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
+	InitialDelaySeconds int32 `json:"initialDelaySeconds"`
+	// PeriodSeconds is how frequently the probe is executed
+	PeriodSeconds int32 `json:"periodSeconds"`
+	// TimeoutSeconds is the number of seconds before the probe times out
+	TimeoutSeconds int32 `json:"timeoutSeconds"`
+	// SuccessThreshold minimum consecutive success before the probe is considered successfull
+	SuccessThreshold int32 `json:"successThreshold"`
+	// FailureThreshold is the number of attempts before a probe is considered failed
+	FailureThreshold int32 `json:"failureThreshold"`
 }
 
 // ServiceSpec event data struct

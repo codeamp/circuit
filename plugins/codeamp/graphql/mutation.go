@@ -345,6 +345,14 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			deploymentStrategy := model.ServiceDeploymentStrategy{}
 			r.DB.Where("service_id = ?", service.Model.ID).Find(&deploymentStrategy)
 			services[i].DeploymentStrategy = deploymentStrategy
+
+			readinessProbes := model.ServiceHealthProbe{}
+			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbes)
+			services[i].ReadinessProbe = readinessProbes
+
+			livenessProbe := model.ServiceHealthProbe{}
+			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "livenessProbe").Find(&livenessProbe)
+			services[i].LivenessProbe = livenessProbe
 		}
 
 		servicesMarshaled, err := json.Marshal(services)
@@ -704,6 +712,28 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var livenessProbe model.ServiceHealthProbe
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var readinessProbe model.ServiceHealthProbe
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	service := model.Service{
 		Name:               args.Service.Name,
 		Command:            args.Service.Command,
@@ -713,6 +743,8 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		ProjectID:          projectID,
 		EnvironmentID:      environmentID,
 		DeploymentStrategy: deploymentStrategy,
+		LivenessProbe:      livenessProbe,
+		ReadinessProbe:     readinessProbe,
 	}
 
 	r.DB.Create(&service)
@@ -729,31 +761,6 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
-}
-
-func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
-	switch strategy := input.Type; strategy {
-	case plugins.GetType("default"), plugins.GetType("recreate"):
-		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
-	case plugins.GetType("rollingUpdate"):
-		if input.MaxUnavailable == "" {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
-		}
-
-		if input.MaxSurge == "" {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
-		}
-	default:
-		return model.ServiceDeploymentStrategy{}, fmt.Errorf("Unsuported Deployment Strategy %s", input.Type)
-	}
-
-	deploymentStrategy := model.ServiceDeploymentStrategy{
-		Type:           plugins.Type(input.Type),
-		MaxUnavailable: input.MaxUnavailable,
-		MaxSurge:       input.MaxSurge,
-	}
-
-	return deploymentStrategy, nil
 }
 
 // UpdateService Update Service
@@ -784,7 +791,6 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	// delete all container ports
 	// replace with current
-
 	for _, cp := range servicePorts {
 		r.DB.Delete(&cp)
 	}
@@ -800,6 +806,35 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var livenessProbe = model.ServiceHealthProbe{}
+	var err error
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var readinessProbe = model.ServiceHealthProbe{}
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var oldHealthProbes []model.ServiceHealthProbe
+	r.DB.Where("service_id = ?", serviceID).Find(&oldHealthProbes)
+	for _, probe := range oldHealthProbes {
+		r.DB.Delete(&probe)
+	}
+
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
 	updatedDeploymentStrategy, err := validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
@@ -813,6 +848,8 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	r.DB.Save(&deploymentStrategy)
 	service.DeploymentStrategy = deploymentStrategy
+	service.ReadinessProbe = readinessProbe
+	service.LivenessProbe = livenessProbe
 	r.DB.Save(&service)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
@@ -836,9 +873,14 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Where("service_id = ?", serviceID).Find(&servicePorts)
 
 	// delete all container ports
-	// replace with current
 	for _, cp := range servicePorts {
 		r.DB.Delete(&cp)
+	}
+
+	var healthProbes []model.ServiceHealthProbe
+	r.DB.Where("service_id = ?", serviceID).Find(&healthProbes)
+	for _, probe := range healthProbes {
+		r.DB.Delete(&probe)
 	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
@@ -846,6 +888,95 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Delete(&deploymentStrategy)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+}
+
+func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
+	healthProbe := model.ServiceHealthProbe{}
+
+	switch probeType := *input.Type; probeType {
+	case plugins.GetType("livenessProbe"), plugins.GetType("readinessProbe"):
+		healthProbe.Type = probeType
+		if input.InitialDelaySeconds != nil {
+			healthProbe.InitialDelaySeconds = *input.InitialDelaySeconds
+		}
+		if input.PeriodSeconds != nil {
+			healthProbe.PeriodSeconds = *input.PeriodSeconds
+		}
+		if input.TimeoutSeconds != nil {
+			healthProbe.TimeoutSeconds = *input.TimeoutSeconds
+		}
+		if input.SuccessThreshold != nil {
+			healthProbe.SuccessThreshold = *input.SuccessThreshold
+		}
+		if input.FailureThreshold != nil {
+			healthProbe.FailureThreshold = *input.FailureThreshold
+		}
+	default:
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Type %s", string(*input.Type))
+	}
+
+	switch probeMethod := input.Method; probeMethod {
+	case "default", "":
+		return model.ServiceHealthProbe{}, nil
+	case "exec":
+		healthProbe.Method = input.Method
+		if input.Command == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("Command is required if Probe method is exec")
+		}
+		healthProbe.Command = *input.Command
+	case "http":
+		healthProbe.Method = input.Method
+		if input.Port == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe require a port to be set")
+		}
+		healthProbe.Port = *input.Port
+		if input.Path == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires a path to be set")
+		}
+		healthProbe.Path = *input.Path
+
+		// httpStr := "http"
+		// httpsStr := "https"
+		if input.Scheme == nil || (*input.Scheme != "http" && *input.Scheme != "https") {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires scheme to be set to either http or https")
+		}
+		healthProbe.Scheme = *input.Scheme
+	case "tcp":
+		healthProbe.Method = input.Method
+		if input.Port == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("tcp probe requires a port to be set")
+		}
+		healthProbe.Port = *input.Port
+	default:
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Method %s", string(input.Method))
+	}
+
+	return healthProbe, nil
+}
+
+func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
+	switch strategy := input.Type; strategy {
+	case plugins.GetType("default"), plugins.GetType("recreate"):
+		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
+	case plugins.GetType("rollingUpdate"):
+		if input.MaxUnavailable == 0 {
+			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
+		}
+
+		if input.MaxSurge == 0 {
+			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
+		}
+	default:
+		return model.ServiceDeploymentStrategy{}, fmt.Errorf("Unsuported Deployment Strategy %s", input.Type)
+	}
+
+	deploymentStrategy := model.ServiceDeploymentStrategy{
+		Type:           plugins.Type(input.Type),
+		MaxUnavailable: input.MaxUnavailable,
+		MaxSurge:       input.MaxSurge,
+	}
+
+	return deploymentStrategy, nil
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
