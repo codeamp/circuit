@@ -73,9 +73,9 @@ func (r *ProjectResolver) Releases(args *struct {
 }) *ReleaseListResolver {
 	var query *gorm.DB
 	if r.Environment != (model.Environment{}) {
-		query = r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
+		query = r.DB.Debug().Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
 	} else {
-		query = r.DB.Where("project_id = ?", r.Project.Model.ID).Order("created_at desc")
+		query = r.DB.Debug().Where("project_id = ?", r.Project.Model.ID).Order("created_at desc")
 	}
 
 	return &ReleaseListResolver{
@@ -89,7 +89,7 @@ func (r *ProjectResolver) Releases(args *struct {
 func (r *ProjectResolver) Services(args *struct {
 	Params *model.PaginatorInput
 }) *ServiceListResolver {
-	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
+	query := r.DB.Debug().Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 
 	return &ServiceListResolver{
 		DB:             r.DB,
@@ -106,7 +106,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	query := r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
+	query := r.DB.Debug().Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
 	return &SecretListResolver{
 		DB:             r.DB,
 		Query:          query,
