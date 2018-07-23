@@ -1,6 +1,7 @@
 package graphql_resolver
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -31,7 +32,9 @@ import (
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+	var userId string
+	var err error
+	if userId, err = auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -105,7 +108,8 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 
 	// Create git branch for env per env
 	environments := []model.Environment{}
-	if r.DB.Find(&environments).RecordNotFound() {
+	r.DB.Find(&environments)
+	if len(environments) == 0 {
 		log.InfoWithFields("No envs found.", log.Fields{
 			"args": args,
 		})
@@ -128,16 +132,12 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 		}
 	}
 
-	if userId, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	} else {
-		// Create user permission for project
-		userPermission := model.UserPermission{
-			UserID: uuid.FromStringOrNil(userId),
-			Value:  fmt.Sprintf("projects/%s", project.Repository),
-		}
-		r.DB.Create(&userPermission)
+	// Create user permission for project
+	userPermission := model.UserPermission{
+		UserID: uuid.FromStringOrNil(userId),
+		Value:  fmt.Sprintf("projects/%s", project.Repository),
 	}
+	r.DB.Create(&userPermission)
 
 	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
 }
@@ -224,7 +224,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 
 	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
 	if len(releaseExtensions) < 1 {
-		log.Warn("No release extensions found for release")
+		return nil, fmt.Errorf("No release extensions found for release: %s", args.ID)
 	}
 
 	if r.DB.Where("id = ?", args.ID).Find(&release).RecordNotFound() {
@@ -345,6 +345,14 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			deploymentStrategy := model.ServiceDeploymentStrategy{}
 			r.DB.Where("service_id = ?", service.Model.ID).Find(&deploymentStrategy)
 			services[i].DeploymentStrategy = deploymentStrategy
+
+			readinessProbes := model.ServiceHealthProbe{}
+			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbes)
+			services[i].ReadinessProbe = readinessProbes
+
+			livenessProbe := model.ServiceHealthProbe{}
+			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "livenessProbe").Find(&livenessProbe)
+			services[i].LivenessProbe = livenessProbe
 		}
 
 		servicesMarshaled, err := json.Marshal(services)
@@ -434,7 +442,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	r.DB.Where("id = ?", waitingRelease.HeadFeatureID).First(&waitingReleaseHeadFeature)
 
-	if fmt.Sprintf("%x", secretsSig) == fmt.Sprintf("%x", waitingReleaseSecretsSig) && fmt.Sprintf("%x", servicesSig) == fmt.Sprintf("%x", waitingReleaseServicesSig) && currentReleaseHeadFeature.Hash == waitingReleaseHeadFeature.Hash {
+	if bytes.Equal(secretsSig, waitingReleaseSecretsSig) &&
+		bytes.Equal(servicesSig, waitingReleaseServicesSig) &&
+		strings.Compare(currentReleaseHeadFeature.Hash, waitingReleaseHeadFeature.Hash) == 0 {
+
 		// same release so return
 		log.InfoWithFields("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting", log.Fields{
 			"services_sig":      servicesSig,
@@ -471,8 +482,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	// the tail feature id is the current release's head feature id
 	currentRelease := model.Release{}
 	tailFeatureID := headFeatureID
-	if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).RecordNotFound() {
-	} else {
+	if err = r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).Error; err == nil {
 		tailFeatureID = currentRelease.HeadFeatureID
 	}
 
@@ -702,6 +712,28 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var livenessProbe model.ServiceHealthProbe
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var readinessProbe model.ServiceHealthProbe
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	service := model.Service{
 		Name:               args.Service.Name,
 		Command:            args.Service.Command,
@@ -711,6 +743,8 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		ProjectID:          projectID,
 		EnvironmentID:      environmentID,
 		DeploymentStrategy: deploymentStrategy,
+		LivenessProbe:      livenessProbe,
+		ReadinessProbe:     readinessProbe,
 	}
 
 	r.DB.Create(&service)
@@ -727,31 +761,6 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
-}
-
-func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
-	switch strategy := input.Type; strategy {
-	case plugins.GetType("default"), plugins.GetType("recreate"):
-		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
-	case plugins.GetType("rollingUpdate"):
-		if input.MaxUnavailable == "" {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
-		}
-
-		if input.MaxSurge == "" {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
-		}
-	default:
-		return model.ServiceDeploymentStrategy{}, fmt.Errorf("Unsuported Deployment Strategy %s", input.Type)
-	}
-
-	deploymentStrategy := model.ServiceDeploymentStrategy{
-		Type:           plugins.Type(input.Type),
-		MaxUnavailable: input.MaxUnavailable,
-		MaxSurge:       input.MaxSurge,
-	}
-
-	return deploymentStrategy, nil
 }
 
 // UpdateService Update Service
@@ -782,7 +791,6 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	// delete all container ports
 	// replace with current
-
 	for _, cp := range servicePorts {
 		r.DB.Delete(&cp)
 	}
@@ -798,6 +806,35 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var livenessProbe = model.ServiceHealthProbe{}
+	var err error
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var readinessProbe = model.ServiceHealthProbe{}
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var oldHealthProbes []model.ServiceHealthProbe
+	r.DB.Where("service_id = ?", serviceID).Find(&oldHealthProbes)
+	for _, probe := range oldHealthProbes {
+		r.DB.Delete(&probe)
+	}
+
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
 	updatedDeploymentStrategy, err := validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
@@ -811,6 +848,8 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	r.DB.Save(&deploymentStrategy)
 	service.DeploymentStrategy = deploymentStrategy
+	service.ReadinessProbe = readinessProbe
+	service.LivenessProbe = livenessProbe
 	r.DB.Save(&service)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
@@ -834,9 +873,14 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Where("service_id = ?", serviceID).Find(&servicePorts)
 
 	// delete all container ports
-	// replace with current
 	for _, cp := range servicePorts {
 		r.DB.Delete(&cp)
+	}
+
+	var healthProbes []model.ServiceHealthProbe
+	r.DB.Where("service_id = ?", serviceID).Find(&healthProbes)
+	for _, probe := range healthProbes {
+		r.DB.Delete(&probe)
 	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
@@ -844,6 +888,95 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Delete(&deploymentStrategy)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+}
+
+func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
+	healthProbe := model.ServiceHealthProbe{}
+
+	switch probeType := *input.Type; probeType {
+	case plugins.GetType("livenessProbe"), plugins.GetType("readinessProbe"):
+		healthProbe.Type = probeType
+		if input.InitialDelaySeconds != nil {
+			healthProbe.InitialDelaySeconds = *input.InitialDelaySeconds
+		}
+		if input.PeriodSeconds != nil {
+			healthProbe.PeriodSeconds = *input.PeriodSeconds
+		}
+		if input.TimeoutSeconds != nil {
+			healthProbe.TimeoutSeconds = *input.TimeoutSeconds
+		}
+		if input.SuccessThreshold != nil {
+			healthProbe.SuccessThreshold = *input.SuccessThreshold
+		}
+		if input.FailureThreshold != nil {
+			healthProbe.FailureThreshold = *input.FailureThreshold
+		}
+	default:
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Type %s", string(*input.Type))
+	}
+
+	switch probeMethod := input.Method; probeMethod {
+	case "default", "":
+		return model.ServiceHealthProbe{}, nil
+	case "exec":
+		healthProbe.Method = input.Method
+		if input.Command == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("Command is required if Probe method is exec")
+		}
+		healthProbe.Command = *input.Command
+	case "http":
+		healthProbe.Method = input.Method
+		if input.Port == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe require a port to be set")
+		}
+		healthProbe.Port = *input.Port
+		if input.Path == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires a path to be set")
+		}
+		healthProbe.Path = *input.Path
+
+		// httpStr := "http"
+		// httpsStr := "https"
+		if input.Scheme == nil || (*input.Scheme != "http" && *input.Scheme != "https") {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires scheme to be set to either http or https")
+		}
+		healthProbe.Scheme = *input.Scheme
+	case "tcp":
+		healthProbe.Method = input.Method
+		if input.Port == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("tcp probe requires a port to be set")
+		}
+		healthProbe.Port = *input.Port
+	default:
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Method %s", string(input.Method))
+	}
+
+	return healthProbe, nil
+}
+
+func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
+	switch strategy := input.Type; strategy {
+	case plugins.GetType("default"), plugins.GetType("recreate"):
+		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
+	case plugins.GetType("rollingUpdate"):
+		if input.MaxUnavailable == 0 {
+			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
+		}
+
+		if input.MaxSurge == 0 {
+			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
+		}
+	default:
+		return model.ServiceDeploymentStrategy{}, fmt.Errorf("Unsuported Deployment Strategy %s", input.Type)
+	}
+
+	deploymentStrategy := model.ServiceDeploymentStrategy{
+		Type:           plugins.Type(input.Type),
+		MaxUnavailable: input.MaxUnavailable,
+		MaxSurge:       input.MaxSurge,
+	}
+
+	return deploymentStrategy, nil
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
@@ -1288,10 +1421,10 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 	var projectExtension model.ProjectExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
+		log.InfoWithFields("no project extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
-		return &ProjectExtensionResolver{}, nil
+		return nil, fmt.Errorf("No project extension found")
 	}
 
 	extension := model.Extension{}
@@ -1299,7 +1432,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no extension found", log.Fields{
 			"id": args.ProjectExtension.ExtensionID,
 		})
-		return nil, errors.New("No extension found.")
+		return nil, fmt.Errorf("No extension found.")
 	}
 
 	project := model.Project{}
@@ -1307,7 +1440,7 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no project found", log.Fields{
 			"id": args.ProjectExtension.ProjectID,
 		})
-		return nil, errors.New("No project found.")
+		return nil, fmt.Errorf("No project found.")
 	}
 
 	env := model.Environment{}
@@ -1315,13 +1448,13 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 		log.InfoWithFields("no env found", log.Fields{
 			"id": args.ProjectExtension.EnvironmentID,
 		})
-		return nil, errors.New("No environment found.")
+		return nil, fmt.Errorf("No environment found.")
 	}
 
 	if extension.Key == "route53" {
 		err := r.handleExtensionRoute53(args, &projectExtension)
 		if err != nil {
-			return &ProjectExtensionResolver{}, err
+			return nil, err
 		}
 	}
 
@@ -1358,13 +1491,13 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
-	var res []model.ReleaseExtension
+	var releaseExtensions []model.ReleaseExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
+		log.InfoWithFields("no project extension found", log.Fields{
 			"extension": args.ProjectExtension,
 		})
-		return &ProjectExtensionResolver{}, nil
+		return nil, fmt.Errorf("No Project Extension Found")
 	}
 
 	extension := model.Extension{}
@@ -1392,14 +1525,13 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 	}
 
 	// delete all release extension objects with extension id
-	if r.DB.Where("extension_id = ?", args.ProjectExtension.ID).Find(&res).RecordNotFound() {
-		log.InfoWithFields("no release extensions found", log.Fields{
-			"extension": extension,
-		})
-		return &ProjectExtensionResolver{}, nil
-	}
-
-	for _, re := range res {
+	// ADB
+	// This was adjusted because ReleaseExtensions do not have an 'extension_id'
+	// Also, with gorm, when asking for a slice the Find() function will NOT
+	// return a record not found error. This only occurs when you are finding a specific
+	// record using Find(struct) as opposed to Find(slice)
+	r.DB.Where("project_extension_id = ?", args.ProjectExtension.ID).Find(&releaseExtensions)
+	for _, re := range releaseExtensions {
 		r.DB.Delete(&re)
 	}
 
@@ -1540,7 +1672,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	if projectExtension.Config.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.Config.RawMessage, &projectConfig)
 		if err != nil {
-			log.Error(err.Error())
 			return nil, err
 		}
 	}
@@ -1549,7 +1680,6 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 	if projectExtension.Artifacts.RawMessage != nil {
 		err = json.Unmarshal(projectExtension.Artifacts.RawMessage, &existingArtifacts)
 		if err != nil {
-			log.Error(err.Error())
 			return nil, err
 		}
 	}

@@ -17,6 +17,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+const ValidUUID = "123e4567-e89b-12d3-a456-426655440000"
+const InvalidUUID = "123e4567-z89b-12d3-a456-426655440000"
+
 // Setup logic common to all Resolver tests
 // Load viper config, parse plugins, and setup log level/format
 // Configs in this case are loaded from a test yml file
@@ -46,7 +49,9 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 
 	events := []interface{}{
 		plugins.ProjectExtension{},
+		plugins.ReleaseExtension{},
 		plugins.Release{},
+		plugins.ReleaseExtension{},
 	}
 	for _, i := range events {
 		transistor.EventRegistry[reflect.TypeOf(i).String()] = i
