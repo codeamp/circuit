@@ -339,7 +339,7 @@ type ExtConfig struct {
 func (s *Secret) AfterFind(tx *gorm.DB) (err error) {
 	if s.Value == (SecretValue{}) {
 		var secretValue SecretValue
-		tx.Where("secret_id = ?", s.Model.ID).Order("created_at desc").FirstOrInit(&secretValue)
+		tx.Debug().Where("secret_id = ?", s.Model.ID).Order("created_at desc").FirstOrInit(&secretValue)
 		s.Value = secretValue
 	}
 	return
