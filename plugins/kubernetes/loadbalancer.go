@@ -14,6 +14,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -130,6 +131,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return createNamespaceErr
 	}
 
+	spew.Dump(lbType)
 	// Begin create
 	switch lbType {
 	case plugins.GetType("internal"):
@@ -232,6 +234,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		Spec: serviceSpec,
 	}
 
+	spew.Dump("CREATING SERVICES!", namespace)
 	// Implement service update-or-create semantics.
 	log.Debug("Implement service update-or-create semantics.")
 	service := coreInterface.Services(namespace)
