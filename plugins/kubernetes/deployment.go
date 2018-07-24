@@ -202,6 +202,7 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 	}
 
 	if rollback {
+		spew.Dump("WE GOT A ROLLBACK FELLAS!")
 		return v1beta1.DeploymentStrategy{
 			Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			RollingUpdate: &v1beta1.RollingUpdateDeployment{
