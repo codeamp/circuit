@@ -879,18 +879,14 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Save(&service)
 
 	// Create Health Probe Headers
-	if service.LivenessProbe.HttpHeaders != nil {
-		for _, h := range service.LivenessProbe.HttpHeaders {
-			h.HealthProbeID = service.LivenessProbe.ID
-			r.DB.Create(&h)
-		}
+	for _, h := range service.LivenessProbe.HttpHeaders {
+		h.HealthProbeID = service.LivenessProbe.ID
+		r.DB.Create(&h)
 	}
 
-	if service.ReadinessProbe.HttpHeaders != nil {
-		for _, h := range service.ReadinessProbe.HttpHeaders {
-			h.HealthProbeID = service.ReadinessProbe.ID
-			r.DB.Create(&h)
-		}
+	for _, h := range service.ReadinessProbe.HttpHeaders {
+		h.HealthProbeID = service.ReadinessProbe.ID
+		r.DB.Create(&h)
 	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil

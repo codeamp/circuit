@@ -20,7 +20,7 @@ plugins:
       password: ""
     service_address: ":3011"
   gitsync:
-    workers: 0
+    workers: 1
     workdir: "/tmp/gitsync" 
   heartbeat:
     workers: 0
