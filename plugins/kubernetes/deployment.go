@@ -201,21 +201,21 @@ func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
 		},
 	}
 
-	if rollback {
-		return v1beta1.DeploymentStrategy{
-			Type: v1beta1.RollingUpdateDeploymentStrategyType,
-			RollingUpdate: &v1beta1.RollingUpdateDeployment{
-				MaxUnavailable: &intstr.IntOrString{
-					Type:   intstr.String,
-					StrVal: "70%",
-				},
-				MaxSurge: &intstr.IntOrString{
-					Type:   intstr.String,
-					StrVal: "100%",
-				},
-			},
-		}
-	}
+	// if rollback {
+	// 	return v1beta1.DeploymentStrategy{
+	// 		Type: v1beta1.RollingUpdateDeploymentStrategyType,
+	// 		RollingUpdate: &v1beta1.RollingUpdateDeployment{
+	// 			MaxUnavailable: &intstr.IntOrString{
+	// 				Type:   intstr.String,
+	// 				StrVal: "70%",
+	// 			},
+	// 			MaxSurge: &intstr.IntOrString{
+	// 				Type:   intstr.String,
+	// 				StrVal: "100%",
+	// 			},
+	// 		},
+	// 	}
+	// }
 
 	if service.DeploymentStrategy == (plugins.DeploymentStrategy{}) {
 		return defaultDeploymentStrategy
