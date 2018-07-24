@@ -14,7 +14,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -131,7 +130,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return createNamespaceErr
 	}
 
-	spew.Dump(lbType)
 	// Begin create
 	switch lbType {
 	case plugins.GetType("internal"):
@@ -165,11 +163,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return err
 	}
 
-	spew.Dump("listenerPairs", listenerPairs)
-
 	var sslPorts []string
 	for _, p := range listenerPairs.Value.([]interface{}) {
-		spew.Dump("serviceProtocol", p, p.(map[string]interface{})["serviceProtocol"])
 		var realProto string
 		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
@@ -214,8 +209,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		servicePorts = append(servicePorts, newPort)
 	}
 
-	spew.Dump("SSL PORTS", sslPorts)
-
 	if len(sslPorts) > 0 {
 		sslPortsCombined := strings.Join(sslPorts, ",")
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-ports"] = sslPortsCombined
@@ -238,7 +231,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		Spec: serviceSpec,
 	}
 
-	spew.Dump("CREATING SERVICES!", namespace)
 	// Implement service update-or-create semantics.
 	log.Debug("Implement service update-or-create semantics.")
 	service := coreInterface.Services(namespace)
@@ -264,7 +256,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
-		spew.Dump("CREATING SERVICE", serviceParams)
 		_, err = service.Create(&serviceParams)
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
