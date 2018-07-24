@@ -164,7 +164,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	}
 
 	var sslPorts []string
-	for _, p := range listenerPairs.StringSlice() {
+	for _, p := range listenerPairs.Value.([]interface{}) {
 		var realProto string
 		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
@@ -187,10 +187,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 			return err
 		}
 
-		intContainerPort, err := strconv.Atoi(p.(map[string]interface{})["containerPort"].(string))
-		if err != nil {
-			return err
-		}
+		intContainerPort := int(p.(map[string]interface{})["containerPort"].(float64))
 		convPort := intstr.IntOrString{
 			IntVal: int32(intContainerPort),
 		}
@@ -198,8 +195,9 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		// randomLetters := "abcdev"
 		newPort := v1.ServicePort{
 			// TODO: remove this toLower when we fix the data in mongo, kube only allows lowercase port names
-			Name: strings.ToLower(fmt.Sprintf("%s-%s-%s", p.(map[string]interface{})["serviceProtocol"], p.(map[string]interface{})["port"],
-				p.(map[string]interface{})["containerPort"])),
+			Name: strings.ToLower(fmt.Sprintf("%s-%s-%.0f", p.(map[string]interface{})["serviceProtocol"],
+				p.(map[string]interface{})["port"],
+				p.(map[string]interface{})["containerPort"].(float64))),
 			Port:       int32(intPort),
 			TargetPort: convPort,
 			Protocol:   v1.Protocol(realProto),
@@ -210,6 +208,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		servicePorts = append(servicePorts, newPort)
 	}
+
 	if len(sslPorts) > 0 {
 		sslPortsCombined := strings.Join(sslPorts, ",")
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-ports"] = sslPortsCombined
