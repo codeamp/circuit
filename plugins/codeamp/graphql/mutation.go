@@ -853,7 +853,7 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	var oldHealthProbes []model.ServiceHealthProbe
 	r.DB.Where("service_id = ?", serviceID).Find(&oldHealthProbes)
 	for _, probe := range oldHealthProbes {
-		var headers []model.ServiceHealthProbeInput
+		var headers []model.ServiceHealthProbeHttpHeader
 		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
 		for _, header := range headers {
 			r.DB.Delete(&header)
@@ -921,6 +921,11 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	var healthProbes []model.ServiceHealthProbe
 	r.DB.Where("service_id = ?", serviceID).Find(&healthProbes)
 	for _, probe := range healthProbes {
+		var headers []model.ServiceHealthProbeHttpHeader
+		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
+		for _, header := range headers {
+			r.DB.Delete(&header)
+		}
 		r.DB.Delete(&probe)
 	}
 
