@@ -89,6 +89,11 @@ func (r *ServiceResolver) LivenessProbe() (*model.JSON, error) {
 
 	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("livenessProbe"))).First(&livenessProbe)
 
+	var headers []model.ServiceHealthProbeHttpHeader
+	r.DB.Where("health_probe_id = ?", livenessProbe.ID).Find(&headers)
+
+	livenessProbe.HttpHeaders = headers
+
 	marshaled, err := json.Marshal(&livenessProbe)
 	if err != nil {
 		return &model.JSON{}, fmt.Errorf("LivenessProbe: JSON marshal failed")
@@ -102,6 +107,11 @@ func (r *ServiceResolver) ReadinessProbe() (*model.JSON, error) {
 	var readinessProbe model.ServiceHealthProbe
 
 	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).First(&readinessProbe)
+
+	var headers []model.ServiceHealthProbeHttpHeader
+	r.DB.Where("health_probe_id = ?", readinessProbe.ID).Find(&headers)
+
+	readinessProbe.HttpHeaders = headers
 
 	marshaled, err := json.Marshal(&readinessProbe)
 	if err != nil {

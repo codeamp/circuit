@@ -346,12 +346,18 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			r.DB.Where("service_id = ?", service.Model.ID).Find(&deploymentStrategy)
 			services[i].DeploymentStrategy = deploymentStrategy
 
-			readinessProbes := model.ServiceHealthProbe{}
-			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbes)
-			services[i].ReadinessProbe = readinessProbes
+			readinessProbe := model.ServiceHealthProbe{}
+			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbe)
+			readinessHeaders := []model.ServiceHealthProbeHttpHeader{}
+			r.DB.Where("health_probe_id = ?", readinessProbe.ID).Find(&readinessHeaders)
+			readinessProbe.HttpHeaders = readinessHeaders
+			services[i].ReadinessProbe = readinessProbe
 
 			livenessProbe := model.ServiceHealthProbe{}
 			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "livenessProbe").Find(&livenessProbe)
+			livenessHeaders := []model.ServiceHealthProbeHttpHeader{}
+			r.DB.Where("health_probe_id = ?", livenessProbe.ID).Find(&livenessHeaders)
+			livenessProbe.HttpHeaders = livenessHeaders
 			services[i].LivenessProbe = livenessProbe
 		}
 
@@ -749,6 +755,21 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 
 	r.DB.Create(&service)
 
+	// Create Health Probe Headers
+	if service.LivenessProbe.HttpHeaders != nil {
+		for _, h := range service.LivenessProbe.HttpHeaders {
+			h.HealthProbeID = service.LivenessProbe.ID
+			r.DB.Create(&h)
+		}
+	}
+
+	if service.ReadinessProbe.HttpHeaders != nil {
+		for _, h := range service.ReadinessProbe.HttpHeaders {
+			h.HealthProbeID = service.ReadinessProbe.ID
+			r.DB.Create(&h)
+		}
+	}
+
 	if args.Service.Ports != nil {
 		for _, cp := range *args.Service.Ports {
 			servicePort := model.ServicePort{
@@ -832,6 +853,11 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	var oldHealthProbes []model.ServiceHealthProbe
 	r.DB.Where("service_id = ?", serviceID).Find(&oldHealthProbes)
 	for _, probe := range oldHealthProbes {
+		var headers []model.ServiceHealthProbeInput
+		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
+		for _, header := range headers {
+			r.DB.Delete(&header)
+		}
 		r.DB.Delete(&probe)
 	}
 
@@ -851,6 +877,21 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	service.ReadinessProbe = readinessProbe
 	service.LivenessProbe = livenessProbe
 	r.DB.Save(&service)
+
+	// Create Health Probe Headers
+	if service.LivenessProbe.HttpHeaders != nil {
+		for _, h := range service.LivenessProbe.HttpHeaders {
+			h.HealthProbeID = service.LivenessProbe.ID
+			r.DB.Create(&h)
+		}
+	}
+
+	if service.ReadinessProbe.HttpHeaders != nil {
+		for _, h := range service.ReadinessProbe.HttpHeaders {
+			h.HealthProbeID = service.ReadinessProbe.ID
+			r.DB.Create(&h)
+		}
+	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
@@ -949,6 +990,18 @@ func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHeal
 		healthProbe.Port = *input.Port
 	default:
 		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Method %s", string(input.Method))
+	}
+
+	if input.HttpHeaders != nil {
+		for _, headerInput := range *input.HttpHeaders {
+			header := model.ServiceHealthProbeHttpHeader{
+				Name:          headerInput.Name,
+				Value:         headerInput.Value,
+				HealthProbeID: healthProbe.ID,
+			}
+			healthProbe.HttpHeaders = append(healthProbe.HttpHeaders, header)
+		}
+
 	}
 
 	return healthProbe, nil
