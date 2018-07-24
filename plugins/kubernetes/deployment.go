@@ -240,7 +240,7 @@ func getReadinessProbe(service plugins.Service) v1.Probe {
 		TimeoutSeconds:      1,
 	}
 
-	if service.ReadinessProbe != (plugins.ServiceHealthProbe{}) {
+	if service.ReadinessProbe.Type != "" {
 		return getHealthProbe(service.ReadinessProbe, defaults)
 	}
 
@@ -269,7 +269,7 @@ func getLivenessProbe(service plugins.Service) v1.Probe {
 		TimeoutSeconds:      1,
 	}
 
-	if service.LivenessProbe != (plugins.ServiceHealthProbe{}) {
+	if service.LivenessProbe.Type != "" {
 		return getHealthProbe(service.LivenessProbe, defaults)
 	}
 
