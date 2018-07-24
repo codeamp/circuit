@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -214,7 +215,7 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 					Type:   intstr.String,
 					StrVal: "100%",
 				},
-			}
+			},
 		}
 	}
 
