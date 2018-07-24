@@ -365,22 +365,23 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
 	scheme := "http"
 	path := "/healthz"
 
-	headers := []model.ServiceHealthProbeHttpHeader{
-		model.ServiceHealthProbeHttpHeader{
+	headers := []model.HealthProbeHttpHeaderInput{
+		model.HealthProbeHttpHeaderInput{
 			Name:  "X-Forwarded-Proto",
 			Value: "https",
 		},
-		model.ServiceHealthProbeHttpHeader{
+		model.HealthProbeHttpHeaderInput{
 			Name:  "X-Forwarded-For",
 			Value: "www.example.com",
 		},
 	}
 
 	healthProbe := model.ServiceHealthProbeInput{
-		Method: "http",
-		Port:   &portOne,
-		Scheme: &scheme,
-		Path:   &path,
+		Method:      "http",
+		Port:        &portOne,
+		Scheme:      &scheme,
+		Path:        &path,
+		HttpHeaders: &headers,
 	}
 
 	readinessProbe := healthProbe
