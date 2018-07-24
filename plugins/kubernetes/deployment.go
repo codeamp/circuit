@@ -303,11 +303,20 @@ func getHealthProbe(probe plugins.ServiceHealthProbe, defaults ProbeDefaults) v1
 		} else {
 			scheme = v1.URISchemeHTTP
 		}
+		var headers []v1.HTTPHeader
+		for _, h := range probe.HttpHeaders {
+			header := v1.HTTPHeader{
+				Name:  h.Name,
+				Value: h.Value,
+			}
+			headers = append(headers, header)
+		}
 		handler = v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
-				Path:   probe.Path,
-				Port:   intstr.IntOrString{IntVal: probe.Port},
-				Scheme: scheme,
+				Path:        probe.Path,
+				Port:        intstr.IntOrString{IntVal: probe.Port},
+				Scheme:      scheme,
+				HTTPHeaders: headers,
 			},
 		}
 	case "exec":

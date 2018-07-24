@@ -191,6 +191,15 @@ type ServiceHealthProbe struct {
 	SuccessThreshold int32 `json:"successThreshold"`
 	// FailureThreshold is the number of attempts before a probe is considered failed
 	FailureThreshold int32 `json:"failureThreshold"`
+	// HttpHeaders
+	HttpHeaders []HealthProbeHttpHeader `json:"httpHeaders"`
+}
+
+type HealthProbeHttpHeader struct {
+	// Name
+	Name string `json:"name"`
+	// Value
+	Value string `json:"value"`
 }
 
 // ServiceSpec event data struct
