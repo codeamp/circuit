@@ -168,7 +168,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	spew.Dump("listenerPairs", listenerPairs)
 
 	var sslPorts []string
-	for _, p := range listenerPairs.StringSlice() {
+	for _, p := range listenerPairs.Value.([]interface{}) {
+		spew.Dump("serviceProtocol", p, p.(map[string]interface{})["serviceProtocol"])
 		var realProto string
 		switch strings.ToUpper(p.(map[string]interface{})["serviceProtocol"].(string)) {
 		case "HTTPS":
