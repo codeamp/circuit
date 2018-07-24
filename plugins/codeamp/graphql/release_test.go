@@ -382,9 +382,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureNoPermission() {
 	}
 
 	// Delete ProjectEnvironment
-	ts.Resolver.DB.LogMode(true)
 	err = ts.Resolver.DB.Where("project_id = ? and environment_id = ?", projectResolver.ID(), environmentResolver.ID()).Delete(&model.ProjectEnvironment{}).Error
-	ts.Resolver.DB.LogMode(false)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
