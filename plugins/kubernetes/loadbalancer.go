@@ -165,6 +165,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return err
 	}
 
+	spew.Dump("listenerPairs", listenerPairs)
+
 	var sslPorts []string
 	for _, p := range listenerPairs.StringSlice() {
 		var realProto string
@@ -212,6 +214,9 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		servicePorts = append(servicePorts, newPort)
 	}
+
+	spew.Dump("SSL PORTS", sslPorts)
+
 	if len(sslPorts) > 0 {
 		sslPortsCombined := strings.Join(sslPorts, ",")
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-ports"] = sslPortsCombined
@@ -260,6 +265,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
+		spew.Dump("CREATING SERVICE", serviceParams)
 		_, err = service.Create(&serviceParams)
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
