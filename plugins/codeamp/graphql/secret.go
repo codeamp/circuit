@@ -86,7 +86,10 @@ func (r *SecretResolver) Environment() *EnvironmentResolver {
 
 // Created
 func (r *SecretResolver) Created() graphql.Time {
-	return graphql.Time{Time: r.DBSecretResolver.Secret.Model.CreatedAt}
+	if r.DBSecretResolver.SecretValue == (model.SecretValue{}) {
+		return graphql.Time{Time: r.DBSecretResolver.Secret.Model.CreatedAt}
+	}
+	return graphql.Time{Time: r.DBSecretResolver.SecretValue.Model.CreatedAt}
 }
 
 // IsSecret
