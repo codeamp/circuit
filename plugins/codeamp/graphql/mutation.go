@@ -347,16 +347,28 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			services[i].DeploymentStrategy = deploymentStrategy
 
 			readinessProbe := model.ServiceHealthProbe{}
-			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbe)
+			err = r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbe).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
 			readinessHeaders := []model.ServiceHealthProbeHttpHeader{}
-			r.DB.Where("health_probe_id = ?", readinessProbe.ID).Find(&readinessHeaders)
+			err = r.DB.Where("health_probe_id = ?", readinessProbe.ID).Find(&readinessHeaders).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
 			readinessProbe.HttpHeaders = readinessHeaders
 			services[i].ReadinessProbe = readinessProbe
 
 			livenessProbe := model.ServiceHealthProbe{}
-			r.DB.Where("service_id = ? and type = ?", service.Model.ID, "livenessProbe").Find(&livenessProbe)
+			err = r.DB.Where("service_id = ? and type = ?", service.Model.ID, "livenessProbe").Find(&livenessProbe).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
 			livenessHeaders := []model.ServiceHealthProbeHttpHeader{}
-			r.DB.Where("health_probe_id = ?", livenessProbe.ID).Find(&livenessHeaders)
+			err = r.DB.Where("health_probe_id = ?", livenessProbe.ID).Find(&livenessHeaders).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
 			livenessProbe.HttpHeaders = livenessHeaders
 			services[i].LivenessProbe = livenessProbe
 		}
