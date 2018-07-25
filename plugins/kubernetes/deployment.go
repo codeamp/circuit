@@ -202,6 +202,7 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 		},
 	}
 
+	spew.Dump("ROLLBACK IS", rollback)
 	if rollback {
 		spew.Dump("WE GOT A ROLLBACK FELLAS!")
 		return v1beta1.DeploymentStrategy{
@@ -833,6 +834,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		readinessProbe := getReadinessProbe(service)
 		livenessProbe := getLivenessProbe(service)
 
+		spew.Dump("ROLLBACK FOR REAL IS ", reData.Release.IsRollback)
 		deployStrategy = getDeploymentStrategy(service, reData.Release.IsRollback)
 
 		// Deployment
