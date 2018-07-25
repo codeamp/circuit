@@ -207,7 +207,7 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 			RollingUpdate: &v1beta1.RollingUpdateDeployment{
 				MaxUnavailable: &intstr.IntOrString{
 					Type:   intstr.String,
-					StrVal: "90%",
+					StrVal: "70%",
 				},
 				MaxSurge: &intstr.IntOrString{
 					Type:   intstr.String,
