@@ -46,6 +46,7 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 
 	if e.Matches("release:") {
 		if e.Action == transistor.GetAction("create") {
+			spew.Dump("PAYLOD BEFORE DEPLOY", e.Payload)
 			err := x.doDeploy(e)
 			if err != nil {
 				log.Error(err)
