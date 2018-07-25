@@ -68,7 +68,34 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 
 	// Service
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
+
+	portOne := int32(9090)
+	scheme := "http"
+	path := "/healthz"
+
+	headers := []model.HealthProbeHttpHeaderInput{
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-Proto",
+			Value: "https",
+		},
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-For",
+			Value: "www.example.com",
+		},
+	}
+
+	healthProbe := model.ServiceHealthProbeInput{
+		Method:      "http",
+		Port:        &portOne,
+		Scheme:      &scheme,
+		Path:        &path,
+		HttpHeaders: &headers,
+	}
+
+	readinessProbe := healthProbe
+	livenessProbe := healthProbe
+
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, &readinessProbe, &livenessProbe)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
