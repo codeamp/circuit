@@ -523,6 +523,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
 		ForceRebuild:      args.Release.ForceRebuild,
+		IsRollback:        isRollback,
 	}
 
 	r.DB.Create(&release)
