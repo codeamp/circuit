@@ -146,8 +146,9 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
-		Secrets:  secrets,
-		Services: services,
+		Secrets:    secrets,
+		Services:   services,
+		IsRollback: release.IsRollback,
 	}
 }
 
