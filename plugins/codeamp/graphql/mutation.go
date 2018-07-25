@@ -20,6 +20,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -304,6 +305,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create release in given environment")
 	}
+
+	spew.Dump("RELEASE ARGS ID", args.Release.ID)
 
 	if args.Release.ID == nil {
 		projectSecrets := []model.Secret{}
@@ -624,6 +627,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	}
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
+	spew.Dump("isRollback", isRollback)
 	releaseEvent := plugins.Release{
 		IsRollback:  isRollback,
 		ID:          release.Model.ID.String(),
