@@ -10,7 +10,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -46,7 +45,6 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 
 	if e.Matches("release:") {
 		if e.Action == transistor.GetAction("create") {
-			spew.Dump("PAYLOD BEFORE DEPLOY", e.Payload)
 			err := x.doDeploy(e)
 			if err != nil {
 				log.Error(err)
@@ -203,15 +201,13 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 		},
 	}
 
-	spew.Dump("ROLLBACK IS", rollback)
 	if rollback {
-		spew.Dump("WE GOT A ROLLBACK FELLAS!")
 		return v1beta1.DeploymentStrategy{
 			Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			RollingUpdate: &v1beta1.RollingUpdateDeployment{
 				MaxUnavailable: &intstr.IntOrString{
 					Type:   intstr.String,
-					StrVal: "70%",
+					StrVal: "90%",
 				},
 				MaxSurge: &intstr.IntOrString{
 					Type:   intstr.String,
@@ -470,8 +466,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
-
-	spew.Dump("reData", reData)
 
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
@@ -837,7 +831,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		readinessProbe := getReadinessProbe(service)
 		livenessProbe := getLivenessProbe(service)
 
-		spew.Dump("ROLLBACK FOR REAL IS ", reData.Release.IsRollback)
 		deployStrategy = getDeploymentStrategy(service, reData.Release.IsRollback)
 
 		// Deployment

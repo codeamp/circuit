@@ -10,7 +10,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -78,7 +77,6 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 					}
 				}
 
-				spew.Dump("payload", payload)
 				payload := plugins.ReleaseExtension{
 					ID:      releaseExtension.Model.ID.String(),
 					Release: payload,
