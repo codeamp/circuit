@@ -470,6 +470,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
+	spew.Dump("reData", reData)
+
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
