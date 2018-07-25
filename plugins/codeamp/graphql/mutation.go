@@ -1491,7 +1491,6 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
-	var releaseExtensions []model.ReleaseExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
 		log.InfoWithFields("no project extension found", log.Fields{
@@ -1524,16 +1523,10 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 		return nil, errors.New("No environment found.")
 	}
 
-	// delete all release extension objects with extension id
 	// ADB
-	// This was adjusted because ReleaseExtensions do not have an 'extension_id'
-	// Also, with gorm, when asking for a slice the Find() function will NOT
-	// return a record not found error. This only occurs when you are finding a specific
-	// record using Find(struct) as opposed to Find(slice)
-	r.DB.Where("project_extension_id = ?", args.ProjectExtension.ID).Find(&releaseExtensions)
-	for _, re := range releaseExtensions {
-		r.DB.Delete(&re)
-	}
+	// Removed logic here that would delete all existing release extensions associated with this project extension
+	// However, that's not really what we want. Doing this means we lose a part of our release history
+	// What we really want is to just delete the project extension from future releases and leave the history unaffected
 
 	r.DB.Delete(&projectExtension)
 
