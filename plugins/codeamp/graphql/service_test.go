@@ -341,6 +341,57 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTP() {
 		&readinessProbe, &livenessProbe)
 }
 
+func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Deployment Strategy Input
+	deploymentStrategy := model.DeploymentStrategyInput{
+		Type:           plugins.GetType("rollingUpdate"),
+		MaxUnavailable: 30,
+		MaxSurge:       60,
+	}
+
+	portOne := int32(9090)
+	scheme := "http"
+	path := "/healthz"
+
+	headers := []model.HealthProbeHttpHeaderInput{
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-Proto",
+			Value: "https",
+		},
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-For",
+			Value: "www.example.com",
+		},
+	}
+
+	healthProbe := model.ServiceHealthProbeInput{
+		Method:      "http",
+		Port:        &portOne,
+		Scheme:      &scheme,
+		Path:        &path,
+		HttpHeaders: &headers,
+	}
+
+	readinessProbe := healthProbe
+	livenessProbe := healthProbe
+
+	// Services
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbe, &livenessProbe)
+}
+
 func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPInvalid() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
@@ -468,8 +519,31 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 		Type: plugins.GetType("recreate"),
 	}
 
-	livenessProbe := model.ServiceHealthProbeInput{}
-	readinessProbe := model.ServiceHealthProbeInput{}
+	portOne := int32(9090)
+	scheme := "http"
+	path := "/healthz"
+
+	headers := []model.HealthProbeHttpHeaderInput{
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-Proto",
+			Value: "https",
+		},
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-For",
+			Value: "www.example.com",
+		},
+	}
+
+	healthProbe := model.ServiceHealthProbeInput{
+		Method:      "http",
+		Port:        &portOne,
+		Scheme:      &scheme,
+		Path:        &path,
+		HttpHeaders: &headers,
+	}
+
+	readinessProbe := healthProbe
+	livenessProbe := healthProbe
 
 	// Services
 	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
@@ -565,8 +639,31 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 		Type: plugins.GetType("recreate"),
 	}
 
-	livenessProbe := model.ServiceHealthProbeInput{}
-	readinessProbe := model.ServiceHealthProbeInput{}
+	portOne := int32(9090)
+	scheme := "http"
+	path := "/healthz"
+
+	headers := []model.HealthProbeHttpHeaderInput{
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-Proto",
+			Value: "https",
+		},
+		model.HealthProbeHttpHeaderInput{
+			Name:  "X-Forwarded-For",
+			Value: "www.example.com",
+		},
+	}
+
+	healthProbe := model.ServiceHealthProbeInput{
+		Method:      "http",
+		Port:        &portOne,
+		Scheme:      &scheme,
+		Path:        &path,
+		HttpHeaders: &headers,
+	}
+
+	readinessProbe := healthProbe
+	livenessProbe := healthProbe
 
 	// Services
 	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,

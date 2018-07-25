@@ -366,6 +366,12 @@ input HealthProbeInput {
   timeoutSeconds: Int
   successThreshold: Int
   failureThreshold: Int
+  httpHeaders: [HealthProbeHttpHeaderInput!]
+}
+
+input HealthProbeHttpHeaderInput {
+  name: String!
+  value: String!
 }
 
 # Service spec input
