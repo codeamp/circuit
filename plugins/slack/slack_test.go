@@ -93,7 +93,6 @@ func (suite *TestSuite) TestSlack() {
 	var err error
 
 	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), getTestProjectExtensionPayload())
-	// ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/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", false)
 	ev.AddArtifact("webhook_url", "http://hooks.slack.com/services/token/token/valid_token", false)
 	ev.AddArtifact("channel", "devops-test", false)
 

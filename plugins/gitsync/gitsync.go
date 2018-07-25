@@ -60,7 +60,7 @@ func (x *GitSync) Start(e chan transistor.Event) error {
 }
 
 func (x *GitSync) Stop() {
-	log.Println("Stopping GitSync")
+	log.Info("Stopping GitSync")
 }
 
 func (x *GitSync) Subscribe() []string {
@@ -152,7 +152,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 			return nil, err
 		}
 
-		log.Info(string(output))
+		log.Debug(string(output))
 	}
 
 	output, err = x.git(env, "-C", repoPath, "reset", "--hard", fmt.Sprintf("origin/%s", git.Branch))
@@ -161,7 +161,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		return nil, err
 	}
 
-	log.Info(string(output))
+	log.Debug(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "clean", "-fd")
 	if err != nil {
@@ -169,7 +169,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		return nil, err
 	}
 
-	log.Info(string(output))
+	log.Debug(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
@@ -177,7 +177,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		return nil, err
 	}
 
-	log.Info(string(output))
+	log.Debug(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "checkout", git.Branch)
 	if err != nil {
@@ -185,7 +185,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		return nil, err
 	}
 
-	log.Info(string(output))
+	log.Debug(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "log", "--first-parent", "--date=iso-strict", "-n", "50", "--pretty=format:%H#@#%P#@#%s#@#%cN#@#%cd", git.Branch)
 
