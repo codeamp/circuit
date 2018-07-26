@@ -25,6 +25,24 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 		listeners = append(listeners, listener)
 	}
 
+	readinessHeaders := []plugins.HealthProbeHttpHeader{}
+	for _, h := range service.ReadinessProbe.HttpHeaders {
+		header := plugins.HealthProbeHttpHeader{
+			Name:  h.Name,
+			Value: h.Value,
+		}
+		readinessHeaders = append(readinessHeaders, header)
+	}
+
+	livenessHeaders := []plugins.HealthProbeHttpHeader{}
+	for _, h := range service.LivenessProbe.HttpHeaders {
+		header := plugins.HealthProbeHttpHeader{
+			Name:  h.Name,
+			Value: h.Value,
+		}
+		livenessHeaders = append(livenessHeaders, header)
+	}
+
 	return append(pluginServices, plugins.Service{
 		ID:        service.Model.ID.String(),
 		Action:    transistor.GetAction("create"),
@@ -60,6 +78,7 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 			TimeoutSeconds:      service.ReadinessProbe.TimeoutSeconds,
 			SuccessThreshold:    service.ReadinessProbe.SuccessThreshold,
 			FailureThreshold:    service.ReadinessProbe.FailureThreshold,
+			HttpHeaders:         readinessHeaders,
 		},
 		LivenessProbe: plugins.ServiceHealthProbe{
 			ServiceID:           service.LivenessProbe.ServiceID,
@@ -74,6 +93,7 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 			TimeoutSeconds:      service.LivenessProbe.TimeoutSeconds,
 			SuccessThreshold:    service.LivenessProbe.SuccessThreshold,
 			FailureThreshold:    service.LivenessProbe.FailureThreshold,
+			HttpHeaders:         livenessHeaders,
 		},
 	})
 }
@@ -126,8 +146,9 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
-		Secrets:  secrets,
-		Services: services,
+		Secrets:    secrets,
+		Services:   services,
+		IsRollback: release.IsRollback,
 	}
 }
 

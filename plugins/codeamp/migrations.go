@@ -41,6 +41,7 @@ func (x *CodeAmp) Migrate() {
 		&model.ServicePort{},
 		&model.ServiceDeploymentStrategy{},
 		&model.ServiceHealthProbe{},
+		&model.ServiceHealthProbeHttpHeader{},
 		&model.ServiceSpec{},
 		&model.Extension{},
 		&model.ProjectExtension{},

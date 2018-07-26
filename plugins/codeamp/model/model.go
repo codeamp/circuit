@@ -81,6 +81,7 @@ type Release struct {
 	FinishedAt time.Time
 	// ForceRebuild
 	ForceRebuild bool `json:"forceRebuild"`
+	IsRollback   bool `json:"isRollback"`
 }
 
 // ServiceSpec
@@ -170,6 +171,8 @@ type ServiceHealthProbe struct {
 	Scheme string `json:"scheme"`
 	// Path: required with Method `http`
 	Path string `json:"path"`
+	//HTTPHeaders is a slice of HTTP headers used by http probes
+	HttpHeaders []ServiceHealthProbeHttpHeader `json:"httpHeaders"`
 	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
 	InitialDelaySeconds int32 `json:"initialDelaySeconds"`
 	// PeriodSeconds is how frequently the probe is executed
@@ -180,6 +183,13 @@ type ServiceHealthProbe struct {
 	SuccessThreshold int32 `json:"successThreshold"`
 	// FailureThreshold is the number of attempts before a probe is considered failed
 	FailureThreshold int32 `json:"failureThreshold"`
+}
+
+type ServiceHealthProbeHttpHeader struct {
+	Model         `json:",inline"`
+	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"-" gorm:"type:uuid"`
+	Name          string    `json:"name"`
+	Value         string    `json:"value"`
 }
 
 // Secret

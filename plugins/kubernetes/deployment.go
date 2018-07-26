@@ -186,7 +186,7 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 	return "", false
 }
 
-func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
+func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.DeploymentStrategy {
 	var defaultDeploymentStrategy = v1beta1.DeploymentStrategy{
 		Type: v1beta1.RollingUpdateDeploymentStrategyType,
 		RollingUpdate: &v1beta1.RollingUpdateDeployment{
@@ -199,6 +199,22 @@ func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
 				StrVal: "60%",
 			},
 		},
+	}
+
+	if rollback {
+		return v1beta1.DeploymentStrategy{
+			Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			RollingUpdate: &v1beta1.RollingUpdateDeployment{
+				MaxUnavailable: &intstr.IntOrString{
+					Type:   intstr.String,
+					StrVal: "70%",
+				},
+				MaxSurge: &intstr.IntOrString{
+					Type:   intstr.String,
+					StrVal: "100%",
+				},
+			},
+		}
 	}
 
 	if service.DeploymentStrategy == (plugins.DeploymentStrategy{}) {
@@ -240,7 +256,7 @@ func getReadinessProbe(service plugins.Service) v1.Probe {
 		TimeoutSeconds:      1,
 	}
 
-	if service.ReadinessProbe != (plugins.ServiceHealthProbe{}) {
+	if service.ReadinessProbe.Type != "" {
 		return getHealthProbe(service.ReadinessProbe, defaults)
 	}
 
@@ -269,7 +285,7 @@ func getLivenessProbe(service plugins.Service) v1.Probe {
 		TimeoutSeconds:      1,
 	}
 
-	if service.LivenessProbe != (plugins.ServiceHealthProbe{}) {
+	if service.LivenessProbe.Type != "" {
 		return getHealthProbe(service.LivenessProbe, defaults)
 	}
 
@@ -303,11 +319,20 @@ func getHealthProbe(probe plugins.ServiceHealthProbe, defaults ProbeDefaults) v1
 		} else {
 			scheme = v1.URISchemeHTTP
 		}
+		var headers []v1.HTTPHeader
+		for _, h := range probe.HttpHeaders {
+			header := v1.HTTPHeader{
+				Name:  h.Name,
+				Value: h.Value,
+			}
+			headers = append(headers, header)
+		}
 		handler = v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
-				Path:   probe.Path,
-				Port:   intstr.IntOrString{IntVal: probe.Port},
-				Scheme: scheme,
+				Path:        probe.Path,
+				Port:        intstr.IntOrString{IntVal: probe.Port},
+				Scheme:      scheme,
+				HTTPHeaders: headers,
 			},
 		}
 	case "exec":
@@ -615,12 +640,13 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	var oneShotServices []plugins.Service
 
 	for _, service := range reData.Release.Services {
-		if service.Type == "one-shot" {
+		if service.Type == "one-shot" && !reData.Release.IsRollback {
 			oneShotServices = append(oneShotServices, service)
 		} else {
 			deploymentServices = append(deploymentServices, service)
 		}
 	}
+
 	for index, service := range oneShotServices {
 		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
 
@@ -806,7 +832,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		readinessProbe := getReadinessProbe(service)
 		livenessProbe := getLivenessProbe(service)
 
-		deployStrategy = getDeploymentStrategy(service)
+		deployStrategy = getDeploymentStrategy(service, reData.Release.IsRollback)
 
 		// Deployment
 		replicas := int32(service.Replicas)

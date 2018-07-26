@@ -255,8 +255,9 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 						Branch:        branch,
 						RsaPrivateKey: project.RsaPrivateKey,
 					},
-					Secrets:  pluginSecrets,
-					Services: pluginServices,
+					Secrets:    pluginSecrets,
+					Services:   pluginServices,
+					IsRollback: release.IsRollback,
 				},
 			}
 

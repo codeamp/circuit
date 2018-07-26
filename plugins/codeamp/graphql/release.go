@@ -49,6 +49,11 @@ func (r *ReleaseResolver) State() string {
 	return string(r.DBReleaseResolver.Release.State)
 }
 
+// IsRollback
+func (r *ReleaseResolver) IsRollback() bool {
+	return r.DBReleaseResolver.Release.IsRollback
+}
+
 // ReleaseExtensions
 func (r *ReleaseResolver) ReleaseExtensions() []*ReleaseExtensionResolver {
 	db_resolvers := r.DBReleaseResolver.ReleaseExtensions()
