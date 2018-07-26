@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -59,16 +60,20 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				eventStateMessage := ""
 
 				// check if can cache workflows
-				if !release.ForceRebuild && !x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
+				if !release.ForceRebuild &&
+					!x.DB.Debug().Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)", projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature, releaseExtension.FeatureHash, []string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() {
 					eventAction = transistor.GetAction("status")
 					eventState = lastReleaseExtension.State
 					eventStateMessage = lastReleaseExtension.StateMessage
+
+					spew.Dump("cache", eventAction, eventState, eventStateMessage)
 
 					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
 					if err != nil {
 						log.Error(err.Error())
 						return nil
 					}
+					spew.Dump("cached artifacts", artifacts)
 				} else {
 					artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
 					if err != nil {
