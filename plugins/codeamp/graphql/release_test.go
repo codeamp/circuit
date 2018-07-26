@@ -1044,7 +1044,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Service
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
