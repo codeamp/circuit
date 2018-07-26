@@ -193,7 +193,7 @@ func (x *CodeAmp) Subscribe() []string {
 }
 
 func (x *CodeAmp) Process(e transistor.Event) error {
-	log.DebugWithFields("Processing CodeAmp event", log.Fields{"event": e})
+	log.DebugWithFields("Processing CodeAmp event", log.Fields{"event": e.Event()})
 
 	methodName := fmt.Sprintf("%sEventHandler", strings.Split(e.PayloadModel, ".")[1])
 

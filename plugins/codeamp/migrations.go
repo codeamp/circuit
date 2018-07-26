@@ -292,7 +292,7 @@ func (x *CodeAmp) Migrate() {
 
 					extension = model.Extension{
 						Type:          plugins.GetType("once"),
-						Key:           "kubernetesloadbalancers",
+						Key:           "kubernetes:loadbalancer",
 						Name:          "Load Balancer",
 						Component:     "LoadBalancer",
 						EnvironmentID: environment.Model.ID,
@@ -325,7 +325,7 @@ func (x *CodeAmp) Migrate() {
 
 					extension = model.Extension{
 						Type:          plugins.GetType("deployment"),
-						Key:           "kubernetesdeployments",
+						Key:           "kubernetes:deployment",
 						Name:          "Kubernetes",
 						Component:     "",
 						EnvironmentID: environment.Model.ID,
