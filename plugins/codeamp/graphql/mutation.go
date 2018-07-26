@@ -293,6 +293,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	var servicesJsonb postgres.Jsonb
 	var projectExtensionsJsonb postgres.Jsonb
 
+	isRollback := false
+
 	userID, err := auth.CheckAuth(ctx, []string{})
 	if err != nil {
 		return nil, err
@@ -399,6 +401,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	} else {
 		log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
 		// Rollback
+		isRollback = true
 		release := model.Release{}
 
 		if r.DB.Where("id = ?", string(*args.Release.ID)).Find(&release).RecordNotFound() {
@@ -517,6 +520,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
 		ForceRebuild:      args.Release.ForceRebuild,
+		IsRollback:        isRollback,
 	}
 
 	r.DB.Create(&release)
@@ -622,6 +626,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseEvent := plugins.Release{
+		IsRollback:  isRollback,
 		ID:          release.Model.ID.String(),
 		Environment: environment.Key,
 		HeadFeature: plugins.Feature{

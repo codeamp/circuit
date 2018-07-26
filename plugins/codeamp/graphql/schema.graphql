@@ -227,6 +227,7 @@ type Release {
   stateMessage: String!
   environment: Environment!
   created: Time!
+  isRollback: Boolean!
 }
 
 # Project

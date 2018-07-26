@@ -81,6 +81,7 @@ type Release struct {
 	FinishedAt time.Time
 	// ForceRebuild
 	ForceRebuild bool `json:"forceRebuild"`
+	IsRollback   bool `json:"isRollback"`
 }
 
 // ServiceSpec

@@ -186,7 +186,7 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 	return "", false
 }
 
-func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
+func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.DeploymentStrategy {
 	var defaultDeploymentStrategy = v1beta1.DeploymentStrategy{
 		Type: v1beta1.RollingUpdateDeploymentStrategyType,
 		RollingUpdate: &v1beta1.RollingUpdateDeployment{
@@ -199,6 +199,22 @@ func getDeploymentStrategy(service plugins.Service) v1beta1.DeploymentStrategy {
 				StrVal: "60%",
 			},
 		},
+	}
+
+	if rollback {
+		return v1beta1.DeploymentStrategy{
+			Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			RollingUpdate: &v1beta1.RollingUpdateDeployment{
+				MaxUnavailable: &intstr.IntOrString{
+					Type:   intstr.String,
+					StrVal: "70%",
+				},
+				MaxSurge: &intstr.IntOrString{
+					Type:   intstr.String,
+					StrVal: "100%",
+				},
+			},
+		}
 	}
 
 	if service.DeploymentStrategy == (plugins.DeploymentStrategy{}) {
@@ -624,12 +640,13 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	var oneShotServices []plugins.Service
 
 	for _, service := range reData.Release.Services {
-		if service.Type == "one-shot" {
+		if service.Type == "one-shot" && !reData.Release.IsRollback {
 			oneShotServices = append(oneShotServices, service)
 		} else {
 			deploymentServices = append(deploymentServices, service)
 		}
 	}
+
 	for index, service := range oneShotServices {
 		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
 
@@ -815,7 +832,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		readinessProbe := getReadinessProbe(service)
 		livenessProbe := getLivenessProbe(service)
 
-		deployStrategy = getDeploymentStrategy(service)
+		deployStrategy = getDeploymentStrategy(service, reData.Release.IsRollback)
 
 		// Deployment
 		replicas := int32(service.Replicas)

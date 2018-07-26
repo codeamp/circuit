@@ -6,7 +6,6 @@ import (
 	"time"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -74,7 +73,6 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 
 	// Remove Autocreated ReleaseExtension from Release
 	for re := range releaseResolver.ReleaseExtensions() {
-		spew.Dump(re)
 		ts.Resolver.DB.Unscoped().Delete(&re)
 	}
 
