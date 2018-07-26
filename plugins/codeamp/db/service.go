@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
@@ -45,7 +46,7 @@ func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 }
 
 // Count
-func (r *ServiceResolver) Count() string {
+func (r *ServiceResolver) Count() int32 {
 	return r.Service.Count
 }
 
@@ -77,6 +78,44 @@ func (r *ServiceResolver) DeploymentStrategy() (*model.JSON, error) {
 	marshaled, err := json.Marshal(&deploymentStrategy)
 	if err != nil {
 		return &results, fmt.Errorf("DeploymentStrategy: JSON marshal failed")
+	}
+
+	return &model.JSON{marshaled}, nil
+}
+
+// LivenessProbe
+func (r *ServiceResolver) LivenessProbe() (*model.JSON, error) {
+	var livenessProbe model.ServiceHealthProbe
+
+	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("livenessProbe"))).First(&livenessProbe)
+
+	var headers []model.ServiceHealthProbeHttpHeader
+	r.DB.Where("health_probe_id = ?", livenessProbe.ID).Find(&headers)
+
+	livenessProbe.HttpHeaders = headers
+
+	marshaled, err := json.Marshal(&livenessProbe)
+	if err != nil {
+		return &model.JSON{}, fmt.Errorf("LivenessProbe: JSON marshal failed")
+	}
+
+	return &model.JSON{marshaled}, nil
+}
+
+// ReadinessProbe
+func (r *ServiceResolver) ReadinessProbe() (*model.JSON, error) {
+	var readinessProbe model.ServiceHealthProbe
+
+	r.DB.Where("service_id = ? and type = ?", r.Service.ID, string(plugins.GetType("readinessProbe"))).First(&readinessProbe)
+
+	var headers []model.ServiceHealthProbeHttpHeader
+	r.DB.Where("health_probe_id = ?", readinessProbe.ID).Find(&headers)
+
+	readinessProbe.HttpHeaders = headers
+
+	marshaled, err := json.Marshal(&readinessProbe)
+	if err != nil {
+		return &model.JSON{}, fmt.Errorf("ReadinessProbe: JSON marshal failed")
 	}
 
 	return &model.JSON{marshaled}, nil

@@ -235,8 +235,8 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		return nil, errors.New("Release Not Found")
 	}
 
-	release.State = transistor.GetState("failed")
-	release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
+	release.State = transistor.GetState("canceled")
+	release.StateMessage = fmt.Sprintf("Release canceled by %s", user.Email)
 	r.DB.Save(&release)
 
 	for _, releaseExtension := range releaseExtensions {
@@ -273,8 +273,10 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 				},
 				Environment: "",
 			}
+
+			// Update the release extension
 			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
-			event.State = transistor.GetState("failed")
+			event.State = transistor.GetState("canceled")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
 			r.Events <- event
 		}
@@ -292,6 +294,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	var secretsJsonb postgres.Jsonb
 	var servicesJsonb postgres.Jsonb
 	var projectExtensionsJsonb postgres.Jsonb
+
+	isRollback := false
 
 	userID, err := auth.CheckAuth(ctx, []string{})
 	if err != nil {
@@ -345,6 +349,32 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			deploymentStrategy := model.ServiceDeploymentStrategy{}
 			r.DB.Where("service_id = ?", service.Model.ID).Find(&deploymentStrategy)
 			services[i].DeploymentStrategy = deploymentStrategy
+
+			readinessProbe := model.ServiceHealthProbe{}
+			err = r.DB.Where("service_id = ? and type = ?", service.Model.ID, "readinessProbe").Find(&readinessProbe).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
+			readinessHeaders := []model.ServiceHealthProbeHttpHeader{}
+			err = r.DB.Where("health_probe_id = ?", readinessProbe.ID).Find(&readinessHeaders).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
+			readinessProbe.HttpHeaders = readinessHeaders
+			services[i].ReadinessProbe = readinessProbe
+
+			livenessProbe := model.ServiceHealthProbe{}
+			err = r.DB.Where("service_id = ? and type = ?", service.Model.ID, "livenessProbe").Find(&livenessProbe).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
+			livenessHeaders := []model.ServiceHealthProbeHttpHeader{}
+			err = r.DB.Where("health_probe_id = ?", livenessProbe.ID).Find(&livenessHeaders).Error
+			if err != nil && !gorm.IsRecordNotFoundError(err) {
+				return nil, err
+			}
+			livenessProbe.HttpHeaders = livenessHeaders
+			services[i].LivenessProbe = livenessProbe
 		}
 
 		servicesMarshaled, err := json.Marshal(services)
@@ -373,6 +403,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	} else {
 		log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
 		// Rollback
+		isRollback = true
 		release := model.Release{}
 
 		if r.DB.Where("id = ?", string(*args.Release.ID)).Find(&release).RecordNotFound() {
@@ -491,6 +522,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		Services:          servicesJsonb,
 		ProjectExtensions: projectExtensionsJsonb,
 		ForceRebuild:      args.Release.ForceRebuild,
+		IsRollback:        isRollback,
 	}
 
 	r.DB.Create(&release)
@@ -596,6 +628,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseEvent := plugins.Release{
+		IsRollback:  isRollback,
 		ID:          release.Model.ID.String(),
 		Environment: environment.Key,
 		HeadFeature: plugins.Feature{
@@ -704,6 +737,28 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var livenessProbe model.ServiceHealthProbe
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var readinessProbe model.ServiceHealthProbe
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	service := model.Service{
 		Name:               args.Service.Name,
 		Command:            args.Service.Command,
@@ -713,9 +768,26 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		ProjectID:          projectID,
 		EnvironmentID:      environmentID,
 		DeploymentStrategy: deploymentStrategy,
+		LivenessProbe:      livenessProbe,
+		ReadinessProbe:     readinessProbe,
 	}
 
 	r.DB.Create(&service)
+
+	// Create Health Probe Headers
+	if service.LivenessProbe.HttpHeaders != nil {
+		for _, h := range service.LivenessProbe.HttpHeaders {
+			h.HealthProbeID = service.LivenessProbe.ID
+			r.DB.Create(&h)
+		}
+	}
+
+	if service.ReadinessProbe.HttpHeaders != nil {
+		for _, h := range service.ReadinessProbe.HttpHeaders {
+			h.HealthProbeID = service.ReadinessProbe.ID
+			r.DB.Create(&h)
+		}
+	}
 
 	if args.Service.Ports != nil {
 		for _, cp := range *args.Service.Ports {
@@ -729,31 +801,6 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
-}
-
-func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
-	switch strategy := input.Type; strategy {
-	case plugins.GetType("default"), plugins.GetType("recreate"):
-		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
-	case plugins.GetType("rollingUpdate"):
-		if input.MaxUnavailable == "" {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
-		}
-
-		if input.MaxSurge == "" {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
-		}
-	default:
-		return model.ServiceDeploymentStrategy{}, fmt.Errorf("Unsuported Deployment Strategy %s", input.Type)
-	}
-
-	deploymentStrategy := model.ServiceDeploymentStrategy{
-		Type:           plugins.Type(input.Type),
-		MaxUnavailable: input.MaxUnavailable,
-		MaxSurge:       input.MaxSurge,
-	}
-
-	return deploymentStrategy, nil
 }
 
 // UpdateService Update Service
@@ -784,7 +831,6 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	// delete all container ports
 	// replace with current
-
 	for _, cp := range servicePorts {
 		r.DB.Delete(&cp)
 	}
@@ -800,6 +846,40 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var livenessProbe = model.ServiceHealthProbe{}
+	var err error
+	if args.Service.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := args.Service.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var readinessProbe = model.ServiceHealthProbe{}
+	if args.Service.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := args.Service.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var oldHealthProbes []model.ServiceHealthProbe
+	r.DB.Where("service_id = ?", serviceID).Find(&oldHealthProbes)
+	for _, probe := range oldHealthProbes {
+		var headers []model.ServiceHealthProbeHttpHeader
+		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
+		for _, header := range headers {
+			r.DB.Delete(&header)
+		}
+		r.DB.Delete(&probe)
+	}
+
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
 	updatedDeploymentStrategy, err := validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
@@ -813,7 +893,20 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 
 	r.DB.Save(&deploymentStrategy)
 	service.DeploymentStrategy = deploymentStrategy
+	service.ReadinessProbe = readinessProbe
+	service.LivenessProbe = livenessProbe
 	r.DB.Save(&service)
+
+	// Create Health Probe Headers
+	for _, h := range service.LivenessProbe.HttpHeaders {
+		h.HealthProbeID = service.LivenessProbe.ID
+		r.DB.Create(&h)
+	}
+
+	for _, h := range service.ReadinessProbe.HttpHeaders {
+		h.HealthProbeID = service.ReadinessProbe.ID
+		r.DB.Create(&h)
+	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
@@ -836,9 +929,19 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Where("service_id = ?", serviceID).Find(&servicePorts)
 
 	// delete all container ports
-	// replace with current
 	for _, cp := range servicePorts {
 		r.DB.Delete(&cp)
+	}
+
+	var healthProbes []model.ServiceHealthProbe
+	r.DB.Where("service_id = ?", serviceID).Find(&healthProbes)
+	for _, probe := range healthProbes {
+		var headers []model.ServiceHealthProbeHttpHeader
+		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
+		for _, header := range headers {
+			r.DB.Delete(&header)
+		}
+		r.DB.Delete(&probe)
 	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
@@ -846,6 +949,107 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	r.DB.Delete(&deploymentStrategy)
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+}
+
+func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
+	healthProbe := model.ServiceHealthProbe{}
+
+	switch probeType := *input.Type; probeType {
+	case plugins.GetType("livenessProbe"), plugins.GetType("readinessProbe"):
+		healthProbe.Type = probeType
+		if input.InitialDelaySeconds != nil {
+			healthProbe.InitialDelaySeconds = *input.InitialDelaySeconds
+		}
+		if input.PeriodSeconds != nil {
+			healthProbe.PeriodSeconds = *input.PeriodSeconds
+		}
+		if input.TimeoutSeconds != nil {
+			healthProbe.TimeoutSeconds = *input.TimeoutSeconds
+		}
+		if input.SuccessThreshold != nil {
+			healthProbe.SuccessThreshold = *input.SuccessThreshold
+		}
+		if input.FailureThreshold != nil {
+			healthProbe.FailureThreshold = *input.FailureThreshold
+		}
+	default:
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Type %s", string(*input.Type))
+	}
+
+	switch probeMethod := input.Method; probeMethod {
+	case "default", "":
+		return model.ServiceHealthProbe{}, nil
+	case "exec":
+		healthProbe.Method = input.Method
+		if input.Command == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("Command is required if Probe method is exec")
+		}
+		healthProbe.Command = *input.Command
+	case "http":
+		healthProbe.Method = input.Method
+		if input.Port == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe require a port to be set")
+		}
+		healthProbe.Port = *input.Port
+		if input.Path == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires a path to be set")
+		}
+		healthProbe.Path = *input.Path
+
+		// httpStr := "http"
+		// httpsStr := "https"
+		if input.Scheme == nil || (*input.Scheme != "http" && *input.Scheme != "https") {
+			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires scheme to be set to either http or https")
+		}
+		healthProbe.Scheme = *input.Scheme
+	case "tcp":
+		healthProbe.Method = input.Method
+		if input.Port == nil {
+			return model.ServiceHealthProbe{}, fmt.Errorf("tcp probe requires a port to be set")
+		}
+		healthProbe.Port = *input.Port
+	default:
+		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Method %s", string(input.Method))
+	}
+
+	if input.HttpHeaders != nil {
+		for _, headerInput := range *input.HttpHeaders {
+			header := model.ServiceHealthProbeHttpHeader{
+				Name:          headerInput.Name,
+				Value:         headerInput.Value,
+				HealthProbeID: healthProbe.ID,
+			}
+			healthProbe.HttpHeaders = append(healthProbe.HttpHeaders, header)
+		}
+
+	}
+
+	return healthProbe, nil
+}
+
+func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
+	switch strategy := input.Type; strategy {
+	case plugins.GetType("default"), plugins.GetType("recreate"):
+		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
+	case plugins.GetType("rollingUpdate"):
+		if input.MaxUnavailable == 0 {
+			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
+		}
+
+		if input.MaxSurge == 0 {
+			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
+		}
+	default:
+		return model.ServiceDeploymentStrategy{}, fmt.Errorf("Unsuported Deployment Strategy %s", input.Type)
+	}
+
+	deploymentStrategy := model.ServiceDeploymentStrategy{
+		Type:           plugins.Type(input.Type),
+		MaxUnavailable: input.MaxUnavailable,
+		MaxSurge:       input.MaxSurge,
+	}
+
+	return deploymentStrategy, nil
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
@@ -1360,7 +1564,6 @@ func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
 	var projectExtension model.ProjectExtension
-	var releaseExtensions []model.ReleaseExtension
 
 	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
 		log.InfoWithFields("no project extension found", log.Fields{
@@ -1393,16 +1596,10 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 		return nil, errors.New("No environment found.")
 	}
 
-	// delete all release extension objects with extension id
 	// ADB
-	// This was adjusted because ReleaseExtensions do not have an 'extension_id'
-	// Also, with gorm, when asking for a slice the Find() function will NOT
-	// return a record not found error. This only occurs when you are finding a specific
-	// record using Find(struct) as opposed to Find(slice)
-	r.DB.Where("project_extension_id = ?", args.ProjectExtension.ID).Find(&releaseExtensions)
-	for _, re := range releaseExtensions {
-		r.DB.Delete(&re)
-	}
+	// Removed logic here that would delete all existing release extensions associated with this project extension
+	// However, that's not really what we want. Doing this means we lose a part of our release history
+	// What we really want is to just delete the project extension from future releases and leave the history unaffected
 
 	r.DB.Delete(&projectExtension)
 

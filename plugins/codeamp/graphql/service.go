@@ -40,7 +40,7 @@ func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 }
 
 // Count
-func (r *ServiceResolver) Count() string {
+func (r *ServiceResolver) Count() int32 {
 	return r.DBServiceResolver.Service.Count
 }
 
@@ -55,8 +55,19 @@ func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver
 	return &EnvironmentResolver{DBEnvironmentResolver: resolver}, err
 }
 
+// DBServiceResolver
 func (r *ServiceResolver) DeploymentStrategy(ctx context.Context) (*model.JSON, error) {
 	return r.DBServiceResolver.DeploymentStrategy()
+}
+
+// LivenessProbe
+func (r *ServiceResolver) LivenessProbe(ctx context.Context) (*model.JSON, error) {
+	return r.DBServiceResolver.LivenessProbe()
+}
+
+// ReadinessProbe
+func (r *ServiceResolver) ReadinessProbe(ctx context.Context) (*model.JSON, error) {
+	return r.DBServiceResolver.ReadinessProbe()
 }
 
 // Type

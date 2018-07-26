@@ -166,12 +166,14 @@ type Service {
   command: String!
   name: String!
   serviceSpec: ServiceSpec!
-  count: String!
+  count: Int!
   ports: [JSON]!
   environment: Environment!
   type: String!
   created: Time!
   deploymentStrategy: JSON
+  livenessProbe: JSON
+  readinessProbe: JSON
 }
 
 # Environment
@@ -225,6 +227,7 @@ type Release {
   stateMessage: String!
   environment: Environment!
   created: Time!
+  isRollback: Boolean!
 }
 
 # Project
@@ -331,23 +334,45 @@ input ServiceInput {
   command: String!
   name: String!
   serviceSpecID: String!
-  count: String!
+  count: Int!
   ports: [ServicePortInput!]
   type: String!
   environmentID: String!
   deploymentStrategy: DeploymentStrategyInput!
+  livenessProbe: HealthProbeInput
+  readinessProbe: HealthProbeInput
 }
 
 # Container port input
 input ServicePortInput {
-  port: String!
-  protocol: String!
+  port: Int!
+  protocol: Int!
 }
 
 input DeploymentStrategyInput {
   type: String!
-  maxSurge: String!
-  maxUnavailable: String!
+  maxSurge: Int!
+  maxUnavailable: Int!
+}
+
+input HealthProbeInput {
+  type: String
+  method: String!
+  command: String
+  port: Int
+  scheme: String
+  path: String
+  initialDelaySeconds: Int
+  periodSeconds: Int
+  timeoutSeconds: Int
+  successThreshold: Int
+  failureThreshold: Int
+  httpHeaders: [HealthProbeHttpHeaderInput!]
+}
+
+input HealthProbeHttpHeaderInput {
+  name: String!
+  value: String!
 }
 
 # Service spec input

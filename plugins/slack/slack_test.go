@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
+	_ "github.com/codeamp/circuit/plugins/slack"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
@@ -85,7 +86,7 @@ func getTestNotificationExtensionPayload() plugins.NotificationExtension {
 	return payload
 }
 
-func (suite *TestSuite) TestSlack() {
+func (suite *TestSuite) TestSlackNotifySuccessfulRelease() {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
@@ -93,7 +94,6 @@ func (suite *TestSuite) TestSlack() {
 	var err error
 
 	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), getTestProjectExtensionPayload())
-	// ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/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", false)
 	ev.AddArtifact("webhook_url", "http://hooks.slack.com/services/token/token/valid_token", false)
 	ev.AddArtifact("channel", "devops-test", false)
 
@@ -104,8 +104,7 @@ func (suite *TestSuite) TestSlack() {
 
 	re, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack"), transistor.GetAction("status"), 100)
 	if err != nil {
-		assert.Nil(suite.T(), err, err.Error)
-		return
+		assert.FailNow(suite.T(), err.Error())
 	}
 	assert.Equal(suite.T(), transistor.GetState("complete"), re.State)
 
@@ -120,8 +119,7 @@ func (suite *TestSuite) TestSlack() {
 
 	re, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack"), transistor.GetAction("status"), 100)
 	if err != nil {
-		assert.Nil(suite.T(), err, err.Error)
-		return
+		assert.FailNow(suite.T(), err.Error())
 	}
 	assert.Equal(suite.T(), transistor.GetState("failed"), re.State)
 
@@ -135,8 +133,7 @@ func (suite *TestSuite) TestSlack() {
 	suite.transistor.Events <- ev
 	_, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack:notify"), transistor.GetAction("status"), 100)
 	if err != nil {
-		assert.Nil(suite.T(), err, err.Error)
-		return
+		assert.FailNow(suite.T(), err.Error())
 	}
 
 	ev.State = transistor.GetState("failed")
@@ -144,8 +141,125 @@ func (suite *TestSuite) TestSlack() {
 	suite.transistor.Events <- ev
 	_, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack:notify"), transistor.GetAction("status"), 100)
 	if err != nil {
-		assert.NotNil(suite.T(), err, err.Error)
-		return
+		assert.FailNow(suite.T(), err.Error())
+	}
+}
+
+func (suite *TestSuite) TestSlackNotifyFailedRelease() {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	var ev, re transistor.Event
+	var err error
+
+	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), getTestProjectExtensionPayload())
+	ev.AddArtifact("webhook_url", "http://hooks.slack.com/services/token/token/valid_token", false)
+	ev.AddArtifact("channel", "devops-test", false)
+
+	httpmock.RegisterResponder("POST", "http://hooks.slack.com/services/token/token/valid_token",
+		httpmock.NewStringResponder(200, "{}"))
+
+	suite.transistor.Events <- ev
+
+	re, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	assert.Equal(suite.T(), transistor.GetState("complete"), re.State)
+
+	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), getTestProjectExtensionPayload())
+	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/invalid_token", false)
+	ev.AddArtifact("channel", "devops-test", false)
+
+	httpmock.RegisterResponder("POST", "https://hooks.slack.com/services/token/token/invalid_token",
+		httpmock.NewStringResponder(403, ""))
+
+	suite.transistor.Events <- ev
+
+	re, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	assert.Equal(suite.T(), transistor.GetState("failed"), re.State)
+
+	ev = transistor.NewEvent(transistor.EventName("slack:notify"), transistor.GetAction("status"), getTestNotificationExtensionPayload())
+	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/valid_token", false)
+	ev.AddArtifact("channel", "devops-test", false)
+	ev.AddArtifact("message", "failed", false)
+	ev.AddArtifact("dashboard_url", "URL", false)
+
+	ev.State = transistor.GetState("complete")
+	suite.transistor.Events <- ev
+	_, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack:notify"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	ev.State = transistor.GetState("failed")
+	ev.AddArtifact("message", "failed", false)
+	suite.transistor.Events <- ev
+	_, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack:notify"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+}
+
+func (suite *TestSuite) TestSlackNotifyCanceledRelease() {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	var ev, re transistor.Event
+	var err error
+
+	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), getTestProjectExtensionPayload())
+	ev.AddArtifact("webhook_url", "http://hooks.slack.com/services/token/token/valid_token", false)
+	ev.AddArtifact("channel", "devops-test", false)
+
+	httpmock.RegisterResponder("POST", "http://hooks.slack.com/services/token/token/valid_token",
+		httpmock.NewStringResponder(200, "{}"))
+
+	suite.transistor.Events <- ev
+
+	re, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	assert.Equal(suite.T(), transistor.GetState("complete"), re.State)
+
+	ev = transistor.NewEvent(plugins.GetEventName("slack"), transistor.GetAction("create"), getTestProjectExtensionPayload())
+	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/invalid_token", false)
+	ev.AddArtifact("channel", "devops-test", false)
+
+	httpmock.RegisterResponder("POST", "https://hooks.slack.com/services/token/token/invalid_token",
+		httpmock.NewStringResponder(403, ""))
+
+	suite.transistor.Events <- ev
+
+	re, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	assert.Equal(suite.T(), transistor.GetState("failed"), re.State)
+
+	ev = transistor.NewEvent(transistor.EventName("slack:notify"), transistor.GetAction("status"), getTestNotificationExtensionPayload())
+	ev.AddArtifact("webhook_url", "https://hooks.slack.com/services/token/token/valid_token", false)
+	ev.AddArtifact("channel", "devops-test", false)
+	ev.AddArtifact("message", "canceled", false)
+	ev.AddArtifact("dashboard_url", "URL", false)
+
+	ev.State = transistor.GetState("complete")
+	suite.transistor.Events <- ev
+	_, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack:notify"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	ev.State = transistor.GetState("failed")
+	ev.AddArtifact("message", "failed", false)
+	suite.transistor.Events <- ev
+	_, err = suite.transistor.GetTestEvent(plugins.GetEventName("slack:notify"), transistor.GetAction("status"), 100)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
 	}
 }
 

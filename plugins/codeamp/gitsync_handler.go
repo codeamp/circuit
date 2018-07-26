@@ -136,13 +136,19 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 									"id": setting.EnvironmentID,
 								})
 							}
-
-							payload := plugins.WebsocketMsg{
-								Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
+							websocketMsgs := []plugins.WebsocketMsg{
+								plugins.WebsocketMsg{
+									Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
+								},
+								plugins.WebsocketMsg{
+									Event: fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
+								},
 							}
-							event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
-							event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key), false)
-							x.Events <- event
+							for _, msg := range websocketMsgs {
+								event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+								event.AddArtifact("event", msg.Event, false)
+								x.Events <- event
+							}
 						}
 					}
 				}

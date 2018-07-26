@@ -168,6 +168,10 @@ func (x *CodeAmp) Start(events chan transistor.Event) error {
 	x.Resolver = &graphql_resolver.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
 	x.Schema, err = x.InitGraphQL(x.Resolver)
 
+	if err != nil {
+		return err
+	}
+
 	go x.GraphQLListen()
 
 	log.Info("Starting CodeAmp service")
@@ -189,7 +193,7 @@ func (x *CodeAmp) Subscribe() []string {
 }
 
 func (x *CodeAmp) Process(e transistor.Event) error {
-	log.DebugWithFields("Processing CodeAmp event", log.Fields{"event": e})
+	log.DebugWithFields("Processing CodeAmp event", log.Fields{"event": e.Event()})
 
 	methodName := fmt.Sprintf("%sEventHandler", strings.Split(e.PayloadModel, ".")[1])
 

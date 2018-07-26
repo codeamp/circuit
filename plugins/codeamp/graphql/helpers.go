@@ -14,20 +14,33 @@ import (
 )
 
 func AppendPluginService(pluginServices []plugins.Service, service model.Service, spec model.ServiceSpec) []plugins.Service {
-	count, _ := strconv.ParseInt(service.Count, 10, 64)
 	terminationGracePeriod, _ := strconv.ParseInt(spec.TerminationGracePeriod, 10, 64)
 
 	listeners := []plugins.Listener{}
 	for _, l := range service.Ports {
-		p, err := strconv.ParseInt(l.Port, 10, 32)
-		if err != nil {
-			panic(err)
-		}
 		listener := plugins.Listener{
-			Port:     int32(p),
+			Port:     l.Port,
 			Protocol: l.Protocol,
 		}
 		listeners = append(listeners, listener)
+	}
+
+	readinessHeaders := []plugins.HealthProbeHttpHeader{}
+	for _, h := range service.ReadinessProbe.HttpHeaders {
+		header := plugins.HealthProbeHttpHeader{
+			Name:  h.Name,
+			Value: h.Value,
+		}
+		readinessHeaders = append(readinessHeaders, header)
+	}
+
+	livenessHeaders := []plugins.HealthProbeHttpHeader{}
+	for _, h := range service.LivenessProbe.HttpHeaders {
+		header := plugins.HealthProbeHttpHeader{
+			Name:  h.Name,
+			Value: h.Value,
+		}
+		livenessHeaders = append(livenessHeaders, header)
 	}
 
 	return append(pluginServices, plugins.Service{
@@ -37,7 +50,7 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 		Name:      service.Name,
 		Command:   service.Command,
 		Listeners: listeners,
-		Replicas:  count,
+		Replicas:  int64(service.Count),
 		Spec: plugins.ServiceSpec{
 			ID:                            spec.Model.ID.String(),
 			CpuRequest:                    fmt.Sprintf("%sm", spec.CpuRequest),
@@ -51,6 +64,36 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 			Type:           service.DeploymentStrategy.Type,
 			MaxUnavailable: service.DeploymentStrategy.MaxUnavailable,
 			MaxSurge:       service.DeploymentStrategy.MaxSurge,
+		},
+		ReadinessProbe: plugins.ServiceHealthProbe{
+			ServiceID:           service.ReadinessProbe.ServiceID,
+			Type:                service.ReadinessProbe.Type,
+			Method:              service.ReadinessProbe.Method,
+			Command:             service.ReadinessProbe.Command,
+			Port:                service.ReadinessProbe.Port,
+			Scheme:              service.ReadinessProbe.Scheme,
+			Path:                service.ReadinessProbe.Path,
+			InitialDelaySeconds: service.ReadinessProbe.InitialDelaySeconds,
+			PeriodSeconds:       service.ReadinessProbe.PeriodSeconds,
+			TimeoutSeconds:      service.ReadinessProbe.TimeoutSeconds,
+			SuccessThreshold:    service.ReadinessProbe.SuccessThreshold,
+			FailureThreshold:    service.ReadinessProbe.FailureThreshold,
+			HttpHeaders:         readinessHeaders,
+		},
+		LivenessProbe: plugins.ServiceHealthProbe{
+			ServiceID:           service.LivenessProbe.ServiceID,
+			Type:                service.LivenessProbe.Type,
+			Method:              service.LivenessProbe.Method,
+			Command:             service.LivenessProbe.Command,
+			Port:                service.LivenessProbe.Port,
+			Scheme:              service.LivenessProbe.Scheme,
+			Path:                service.LivenessProbe.Path,
+			InitialDelaySeconds: service.LivenessProbe.InitialDelaySeconds,
+			PeriodSeconds:       service.LivenessProbe.PeriodSeconds,
+			TimeoutSeconds:      service.LivenessProbe.TimeoutSeconds,
+			SuccessThreshold:    service.LivenessProbe.SuccessThreshold,
+			FailureThreshold:    service.LivenessProbe.FailureThreshold,
+			HttpHeaders:         livenessHeaders,
 		},
 	})
 }
@@ -103,8 +146,9 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
-		Secrets:  secrets,
-		Services: services,
+		Secrets:    secrets,
+		Services:   services,
+		IsRollback: release.IsRollback,
 	}
 }
 

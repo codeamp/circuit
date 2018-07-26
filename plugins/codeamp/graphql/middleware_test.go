@@ -77,6 +77,25 @@ func (ts *MiddlewareTestSuite) GetTestHandler() http.HandlerFunc {
 // 	assert.Equal(ts.T(), http.StatusForbidden, rr.Code)
 // }
 
+func (ts *MiddlewareTestSuite) TestAuthFailureInvalidAccessToken() {
+	testserver := httptest.NewServer(ts.Middleware.Auth(ts.GetTestHandler()))
+	defer testserver.Close()
+
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	req = req.WithContext(test.ResolverAuthContext())
+	req.Header.Set("Authorization", "Bearer abcd12")
+
+	rr := httptest.NewRecorder()
+	handler := ts.Middleware.Auth(ts.GetTestHandler())
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(ts.T(), http.StatusOK, rr.Code)
+}
+
 func (ts *MiddlewareTestSuite) TestAuthSuccess() {
 	testserver := httptest.NewServer(ts.Middleware.Auth(ts.GetTestHandler()))
 	defer testserver.Close()

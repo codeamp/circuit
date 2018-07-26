@@ -94,7 +94,7 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
 
 	// Delete Service Spec
 	serviceSpecID := test.ValidUUID

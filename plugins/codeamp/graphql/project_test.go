@@ -144,8 +144,12 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		Type: plugins.GetType("recreate"),
 	}
 
+	livenessProbe := model.ServiceHealthProbeInput{}
+	readinessProbe := model.ServiceHealthProbeInput{}
+
 	// Services
-	_ = suite.helper.CreateService(suite.T(), serviceSpecResolver, projectResolver, &deploymentStrategy)
+	suite.helper.CreateService(suite.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+		&readinessProbe, &livenessProbe)
 
 	// Test
 	_ = projectResolver.ID()
