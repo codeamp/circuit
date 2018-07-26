@@ -1064,7 +1064,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	releaseID := string(releaseResolver.ID())
 
 	// Rollback the deploy
-	ts.helper.CreateReleaseWithInput(ts.T(), projectResolver, &model.ReleaseInput{
+	releaseResolver = ts.helper.CreateReleaseWithInput(ts.T(), projectResolver, &model.ReleaseInput{
 		ID:            &releaseID,
 		HeadFeatureID: string(featureResolver.ID()),
 		ProjectID:     string(projectResolver.ID()),
@@ -1074,6 +1074,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 
 	releaseEvent := e.Payload.(plugins.Release)
 	assert.Equal(ts.T(), true, releaseEvent.IsRollback)
+	assert.Equal(ts.T(), true, releaseResolver.IsRollback())
 
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
 	if err != nil {
