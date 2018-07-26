@@ -640,187 +640,185 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	var oneShotServices []plugins.Service
 
 	for _, service := range reData.Release.Services {
-		if service.Type == "one-shot" {
+		if service.Type == "one-shot" && !reData.Release.IsRollback {
 			oneShotServices = append(oneShotServices, service)
 		} else {
 			deploymentServices = append(deploymentServices, service)
 		}
 	}
 
-	if !reData.Release.IsRollback {
-		for index, service := range oneShotServices {
-			oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
+	for index, service := range oneShotServices {
+		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
 
-			// Check and delete any completed or failed jobs, and delete respective pods
-			existingJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
+		// Check and delete any completed or failed jobs, and delete respective pods
+		existingJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
+		if err != nil {
+			errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
+			x.sendErrorResponse(e, errMsg)
+			return nil
+		}
+
+		for _, job := range existingJobs.Items {
+			if *job.Spec.Completions > 0 {
+				if (job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0) || job.Status.Active > 0 {
+					errMsg := fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
+					x.sendErrorResponse(e, errMsg)
+					return fmt.Errorf(errMsg)
+				}
+			}
+
+			// delete old job
+			gracePeriod := int64(0)
+			deleteOptions := meta_v1.DeleteOptions{
+				GracePeriodSeconds: &gracePeriod,
+			}
+
+			err = batchv1DepInterface.Jobs(namespace).Delete(job.Name, &deleteOptions)
 			if err != nil {
-				errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
+				log.Error(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
+			}
+
+			correspondingPods, err := coreInterface.Pods(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
+			if err != nil {
+				log.Error(fmt.Sprintf("Failed to find corresponding pods with job-name %s with err %s", job.Name, err))
+			}
+
+			// delete associated pods
+			for _, cp := range correspondingPods.Items {
+				err := coreInterface.Pods(namespace).Delete(cp.Name, &meta_v1.DeleteOptions{})
+				if err != nil {
+					log.Error(fmt.Sprintf("Failed to delete pod %s with err %s", cp.Name, err))
+				}
+			}
+
+			if err != nil {
+				log.Error(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
+			}
+		}
+
+		// Command parsing into entrypoint vs. args
+		commandArray, _ := shlex.Split(service.Command)
+
+		// Node selector
+		var nodeSelector map[string]string
+		if viper.IsSet("plugins.deployments.node_selector") {
+			arrayKeyValue := strings.SplitN(viper.GetString("plugins.deployments.node_selector"), "=", 2)
+			nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
+		}
+
+		dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
+		if err != nil {
+			return err
+		}
+
+		// expose codeamp service name via env variable
+		podEnvVars := append(myEnvVars, v1.EnvVar{
+			Name:  "CODEAMP_SERVICE_NAME",
+			Value: service.Name,
+		})
+
+		simplePod := SimplePodSpec{
+			Name:          oneShotServiceName,
+			RestartPolicy: v1.RestartPolicyNever,
+			NodeSelector:  nodeSelector,
+			Args:          commandArray,
+			Service:       service,
+			Image:         dockerImage.String(),
+			Env:           podEnvVars,
+			VolumeMounts:  volumeMounts,
+			Volumes:       deployVolumes,
+		}
+
+		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Job")
+
+		numParallelPods := int32(1)
+		numCompletionsToTerminate := int32(service.Replicas)
+
+		var jobParams *apis_batch_v1.Job
+		jobParams = &apis_batch_v1.Job{
+			TypeMeta: meta_v1.TypeMeta{
+				Kind:       "Job",
+				APIVersion: "batch/v1",
+			},
+			ObjectMeta: meta_v1.ObjectMeta{
+				GenerateName: fmt.Sprintf("%v-", oneShotServiceName),
+				Labels:       map[string]string{"app": oneShotServiceName},
+			},
+			Spec: apis_batch_v1.JobSpec{
+				Parallelism: &numParallelPods,
+				Completions: &numCompletionsToTerminate,
+				Template:    podTemplateSpec,
+			},
+		}
+
+		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
+		if err != nil {
+			log.Error(fmt.Sprintf("Failed to create service job %s, with error: %s", createdJob.Name, err))
+			errMsg := fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
+			x.sendErrorResponse(e, errMsg)
+			return nil
+		}
+
+		// Loop and block any other jobs/ deployments from running until
+		// the current job is terminated
+		for {
+			job, err := batchv1DepInterface.Jobs(namespace).Get(createdJob.Name, meta_v1.GetOptions{})
+			if err != nil {
+				log.Error(fmt.Sprintf("Error '%s' fetching job status for %s", err, createdJob.Name))
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			log.Info(fmt.Sprintf("Job Status: Active: %v ; Succeeded: %v, Failed: %v \n", job.Status.Active, job.Status.Succeeded, job.Status.Failed))
+
+			// Container is still creating
+			if int32(service.Replicas) != 0 && job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0 {
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			if job.Status.Failed > 0 {
+				// Job has failed. Delete job and report
+				activeDeadlineSeconds := int64(1)
+
+				job.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
+				job, err = batchv1DepInterface.Jobs(namespace).Update(job)
+				if err != nil {
+					log.Error(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
+				}
+
+				errMsg := fmt.Sprintf("Error job has failed %s", oneShotServiceName)
 				x.sendErrorResponse(e, errMsg)
-				return nil
+				return fmt.Errorf(errMsg)
 			}
 
-			for _, job := range existingJobs.Items {
-				if *job.Spec.Completions > 0 {
-					if (job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0) || job.Status.Active > 0 {
-						errMsg := fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
-						x.sendErrorResponse(e, errMsg)
-						return fmt.Errorf(errMsg)
-					}
-				}
-
-				// delete old job
-				gracePeriod := int64(0)
-				deleteOptions := meta_v1.DeleteOptions{
-					GracePeriodSeconds: &gracePeriod,
-				}
-
-				err = batchv1DepInterface.Jobs(namespace).Delete(job.Name, &deleteOptions)
-				if err != nil {
-					log.Error(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
-				}
-
-				correspondingPods, err := coreInterface.Pods(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
-				if err != nil {
-					log.Error(fmt.Sprintf("Failed to find corresponding pods with job-name %s with err %s", job.Name, err))
-				}
-
-				// delete associated pods
-				for _, cp := range correspondingPods.Items {
-					err := coreInterface.Pods(namespace).Delete(cp.Name, &meta_v1.DeleteOptions{})
-					if err != nil {
-						log.Error(fmt.Sprintf("Failed to delete pod %s with err %s", cp.Name, err))
-					}
-				}
-
-				if err != nil {
-					log.Error(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
-				}
-			}
-
-			// Command parsing into entrypoint vs. args
-			commandArray, _ := shlex.Split(service.Command)
-
-			// Node selector
-			var nodeSelector map[string]string
-			if viper.IsSet("plugins.deployments.node_selector") {
-				arrayKeyValue := strings.SplitN(viper.GetString("plugins.deployments.node_selector"), "=", 2)
-				nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
-			}
-
-			dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
-			if err != nil {
-				return err
-			}
-
-			// expose codeamp service name via env variable
-			podEnvVars := append(myEnvVars, v1.EnvVar{
-				Name:  "CODEAMP_SERVICE_NAME",
-				Value: service.Name,
-			})
-
-			simplePod := SimplePodSpec{
-				Name:          oneShotServiceName,
-				RestartPolicy: v1.RestartPolicyNever,
-				NodeSelector:  nodeSelector,
-				Args:          commandArray,
-				Service:       service,
-				Image:         dockerImage.String(),
-				Env:           podEnvVars,
-				VolumeMounts:  volumeMounts,
-				Volumes:       deployVolumes,
-			}
-
-			podTemplateSpec := genPodTemplateSpec(e, simplePod, "Job")
-
-			numParallelPods := int32(1)
-			numCompletionsToTerminate := int32(service.Replicas)
-
-			var jobParams *apis_batch_v1.Job
-			jobParams = &apis_batch_v1.Job{
-				TypeMeta: meta_v1.TypeMeta{
-					Kind:       "Job",
-					APIVersion: "batch/v1",
-				},
-				ObjectMeta: meta_v1.ObjectMeta{
-					GenerateName: fmt.Sprintf("%v-", oneShotServiceName),
-					Labels:       map[string]string{"app": oneShotServiceName},
-				},
-				Spec: apis_batch_v1.JobSpec{
-					Parallelism: &numParallelPods,
-					Completions: &numCompletionsToTerminate,
-					Template:    podTemplateSpec,
-				},
-			}
-
-			createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
-			if err != nil {
-				log.Error(fmt.Sprintf("Failed to create service job %s, with error: %s", createdJob.Name, err))
-				errMsg := fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
-				x.sendErrorResponse(e, errMsg)
-				return nil
-			}
-
-			// Loop and block any other jobs/ deployments from running until
-			// the current job is terminated
-			for {
-				job, err := batchv1DepInterface.Jobs(namespace).Get(createdJob.Name, meta_v1.GetOptions{})
-				if err != nil {
-					log.Error(fmt.Sprintf("Error '%s' fetching job status for %s", err, createdJob.Name))
-					time.Sleep(5 * time.Second)
-					continue
-				}
-
-				log.Info(fmt.Sprintf("Job Status: Active: %v ; Succeeded: %v, Failed: %v \n", job.Status.Active, job.Status.Succeeded, job.Status.Failed))
-
-				// Container is still creating
-				if int32(service.Replicas) != 0 && job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0 {
-					time.Sleep(5 * time.Second)
-					continue
-				}
-
-				if job.Status.Failed > 0 {
-					// Job has failed. Delete job and report
-					activeDeadlineSeconds := int64(1)
-
-					job.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
-					job, err = batchv1DepInterface.Jobs(namespace).Update(job)
-					if err != nil {
-						log.Error(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
-					}
-
+			if job.Status.Active == int32(0) {
+				// Check for success
+				if job.Status.Succeeded == int32(service.Replicas) {
+					oneShotServices[index].State = transistor.GetState("complete")
+					break
+				} else {
+					// Job has failed!
 					errMsg := fmt.Sprintf("Error job has failed %s", oneShotServiceName)
 					x.sendErrorResponse(e, errMsg)
 					return fmt.Errorf(errMsg)
 				}
-
-				if job.Status.Active == int32(0) {
-					// Check for success
-					if job.Status.Succeeded == int32(service.Replicas) {
-						oneShotServices[index].State = transistor.GetState("complete")
-						break
-					} else {
-						// Job has failed!
-						errMsg := fmt.Sprintf("Error job has failed %s", oneShotServiceName)
-						x.sendErrorResponse(e, errMsg)
-						return fmt.Errorf(errMsg)
-					}
-				}
-
-				// Check Job's Pod status
-				if pods, err := clientset.Core().Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
-					errMsg := fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
-					x.sendErrorResponse(e, errMsg)
-				} else {
-					for _, item := range pods.Items {
-						if message, result := detectPodFailure(item); result {
-							// Job has failed
-							x.sendErrorResponse(e, message)
-							return fmt.Errorf(message)
-						}
-					}
-				}
-				time.Sleep(5 * time.Second)
 			}
+
+			// Check Job's Pod status
+			if pods, err := clientset.Core().Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
+				errMsg := fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
+				x.sendErrorResponse(e, errMsg)
+			} else {
+				for _, item := range pods.Items {
+					if message, result := detectPodFailure(item); result {
+						// Job has failed
+						x.sendErrorResponse(e, message)
+						return fmt.Errorf(message)
+					}
+				}
+			}
+			time.Sleep(5 * time.Second)
 		}
 	}
 
