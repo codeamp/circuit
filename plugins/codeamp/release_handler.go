@@ -150,14 +150,19 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 		})
 	}
 
-	// mark release as complete
-	release.State = transistor.GetState("complete")
-	release.StateMessage = "Completed"
+	// mark release as complete, unless it was canceled
+	if release.State != transistor.GetState("canceled") {
+		release.State = transistor.GetState("complete")
+		release.StateMessage = "Completed"
 
-	x.DB.Save(release)
+		x.DB.Save(release)
 
-	x.SendNotifications("SUCCESS", release, &project)
+		x.SendNotifications("SUCCESS", release, &project)
+	} else {
+		x.SendNotifications("CANCELED", release, &project)
+	}
 
+	// Notify the front end
 	payload := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 		Payload: release,

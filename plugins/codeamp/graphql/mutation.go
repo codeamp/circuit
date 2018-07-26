@@ -235,8 +235,8 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		return nil, errors.New("Release Not Found")
 	}
 
-	release.State = transistor.GetState("failed")
-	release.StateMessage = fmt.Sprintf("Release stopped by %s", user.Email)
+	release.State = transistor.GetState("canceled")
+	release.StateMessage = fmt.Sprintf("Release canceled by %s", user.Email)
 	r.DB.Save(&release)
 
 	for _, releaseExtension := range releaseExtensions {
@@ -273,8 +273,10 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 				},
 				Environment: "",
 			}
+
+			// Update the release extension
 			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
-			event.State = transistor.GetState("failed")
+			event.State = transistor.GetState("canceled")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
 			r.Events <- event
 		}
