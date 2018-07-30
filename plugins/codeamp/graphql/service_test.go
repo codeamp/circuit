@@ -736,9 +736,11 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	livenessProbe := model.ServiceHealthProbeInput{}
 	readinessProbe := model.ServiceHealthProbeInput{}
 
+	preHookCommand := "sleep 15"
+
 	// Services
 	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe, nil)
+		&readinessProbe, &livenessProbe, &preHookCommand)
 
 	// Test Service Interface
 	_ = serviceResolver.ID()
@@ -762,6 +764,8 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	if created_at_diff.Minutes() > 1 {
 		assert.FailNow(ts.T(), "Created at time is too old")
 	}
+
+	assert.Equal(ts.T(), preHookCommand, *serviceResolver.PreStopHook())
 
 	var ctx context.Context
 	_, err = serviceResolver.Environment(ctx)

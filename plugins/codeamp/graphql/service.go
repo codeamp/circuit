@@ -70,7 +70,7 @@ func (r *ServiceResolver) ReadinessProbe(ctx context.Context) (*model.JSON, erro
 	return r.DBServiceResolver.ReadinessProbe()
 }
 
-func (r *ServiceResolver) PreStopHook(ctx context.Context) *string {
+func (r *ServiceResolver) PreStopHook() *string {
 	return r.DBServiceResolver.PreStopHook()
 }
 
