@@ -432,8 +432,10 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 	if kind == "Deployment" {
 		container.ReadinessProbe = &podConfig.ReadinessProbe
 		container.LivenessProbe = &podConfig.LivenessProbe
-		container.Lifecycle = &v1.Lifecycle{
-			PreStop: &podConfig.PreStopHook,
+		if podConfig.PreStopHook != (v1.Handler{}) {
+			container.Lifecycle = &v1.Lifecycle{
+				PreStop: &podConfig.PreStopHook,
+			}
 		}
 	}
 	podTemplateSpec := v1.PodTemplateSpec{
