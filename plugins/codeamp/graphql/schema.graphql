@@ -90,6 +90,8 @@ type Mutation {
   updateProjectEnvironments(projectEnvironments: ProjectEnvironmentsInput): [Environment!]!
   # Bookmark project
   bookmarkProject(id: ID!): Boolean!
+  # Get Git Commits
+  getGitCommits(projectID: ID!, environmentID: ID!, new: Boolean): Boolean!
 }
 
 # Paginator
