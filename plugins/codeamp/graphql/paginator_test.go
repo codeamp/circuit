@@ -241,7 +241,7 @@ func (ts *PaginatorTestSuite) TestServiceListPaginator() {
 	}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil, nil)
 
 	// Pagination
 	query := ts.Resolver.DB.Order("created_at desc")
@@ -298,7 +298,7 @@ func (ts *PaginatorTestSuite) TestServiceListPaginatorNoInput() {
 	}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil, nil)
 
 	// Pagination
 	query := ts.Resolver.DB.Order("created_at desc")

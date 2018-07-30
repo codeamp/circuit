@@ -432,6 +432,11 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 	if kind == "Deployment" {
 		container.ReadinessProbe = &podConfig.ReadinessProbe
 		container.LivenessProbe = &podConfig.LivenessProbe
+		if podConfig.PreStopHook != (v1.Handler{}) {
+			container.Lifecycle = &v1.Lifecycle{
+				PreStop: &podConfig.PreStopHook,
+			}
+		}
 	}
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: meta_v1.ObjectMeta{
@@ -863,11 +868,21 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			Value: service.Name,
 		})
 
+		var preStopHook v1.Handler
+		if service.PreStopHook != "" {
+			preStopHook = v1.Handler{
+				Exec: &v1.ExecAction{
+					Command: strings.Split(service.PreStopHook, " "),
+				},
+			}
+		}
+
 		simplePod := SimplePodSpec{
 			Name:           deploymentName,
 			DeployPorts:    deployPorts,
 			ReadinessProbe: readinessProbe,
 			LivenessProbe:  livenessProbe,
+			PreStopHook:    preStopHook,
 			RestartPolicy:  v1.RestartPolicyAlways,
 			NodeSelector:   nodeSelector,
 			Args:           commandArray,

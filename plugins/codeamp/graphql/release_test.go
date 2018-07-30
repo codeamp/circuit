@@ -94,8 +94,9 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 
 	readinessProbe := healthProbe
 	livenessProbe := healthProbe
+	preStopHook := "sleep 15"
 
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, &readinessProbe, &livenessProbe)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, &readinessProbe, &livenessProbe, &preStopHook)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -160,7 +161,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
 
 	// Service
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -231,7 +232,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
 
 	// Service
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -1044,7 +1045,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Service
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
 
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)

@@ -158,6 +158,7 @@ type Service struct {
 	DeploymentStrategy DeploymentStrategy `json:"deploymentStrategy"`
 	ReadinessProbe     ServiceHealthProbe `json:"readinessProbe"`
 	LivenessProbe      ServiceHealthProbe `json:"livenessProbe"`
+	PreStopHook        string             `json:"preStopHook"`
 }
 
 type DeploymentStrategy struct {

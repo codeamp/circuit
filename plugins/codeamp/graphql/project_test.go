@@ -149,7 +149,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 
 	// Services
 	suite.helper.CreateService(suite.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 
 	// Test
 	_ = projectResolver.ID()
