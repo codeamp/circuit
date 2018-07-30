@@ -759,6 +759,11 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		}
 	}
 
+	var preStopHook string
+	if args.Service.PreStopHook != nil {
+		preStopHook = *args.Service.PreStopHook
+	}
+
 	service := model.Service{
 		Name:               args.Service.Name,
 		Command:            args.Service.Command,
@@ -770,6 +775,7 @@ func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*
 		DeploymentStrategy: deploymentStrategy,
 		LivenessProbe:      livenessProbe,
 		ReadinessProbe:     readinessProbe,
+		PreStopHook:        preStopHook,
 	}
 
 	r.DB.Create(&service)
@@ -895,6 +901,12 @@ func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*
 	service.DeploymentStrategy = deploymentStrategy
 	service.ReadinessProbe = readinessProbe
 	service.LivenessProbe = livenessProbe
+
+	var preStopHook string
+	if args.Service.PreStopHook != nil {
+		preStopHook = *args.Service.PreStopHook
+	}
+	service.PreStopHook = preStopHook
 	r.DB.Save(&service)
 
 	// Create Health Probe Headers

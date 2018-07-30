@@ -95,6 +95,7 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 			FailureThreshold:    service.LivenessProbe.FailureThreshold,
 			HttpHeaders:         livenessHeaders,
 		},
+		PreStopHook: service.PreStopHook,
 	})
 }
 
