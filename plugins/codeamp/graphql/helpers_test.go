@@ -395,7 +395,8 @@ func (helper *Helper) CreateService(t *testing.T,
 	projectResolver *graphql_resolver.ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
 	readinessProbe *model.ServiceHealthProbeInput,
-	livenessProbe *model.ServiceHealthProbeInput) *graphql_resolver.ServiceResolver {
+	livenessProbe *model.ServiceHealthProbeInput,
+	preStopHook *string) *graphql_resolver.ServiceResolver {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
@@ -420,6 +421,7 @@ func (helper *Helper) CreateService(t *testing.T,
 		DeploymentStrategy: deploymentStrategy,
 		ReadinessProbe:     readinessProbe,
 		LivenessProbe:      livenessProbe,
+		PreStopHook:        preStopHook,
 	}
 
 	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})
@@ -450,7 +452,8 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 	projectResolver *graphql_resolver.ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
 	readinessProbe *model.ServiceHealthProbeInput,
-	livenessProbe *model.ServiceHealthProbeInput) (*graphql_resolver.ServiceResolver, error) {
+	livenessProbe *model.ServiceHealthProbeInput,
+	preStopHook *string) (*graphql_resolver.ServiceResolver, error) {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
@@ -475,6 +478,7 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 		DeploymentStrategy: deploymentStrategy,
 		ReadinessProbe:     readinessProbe,
 		LivenessProbe:      livenessProbe,
+		PreStopHook:        preStopHook,
 	}
 
 	serviceResolver, err := helper.Resolver.CreateService(&struct{ Service *model.ServiceInput }{Service: &serviceInput})

@@ -66,10 +66,11 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 
 	livenessProbe := model.ServiceHealthProbeInput{}
 	readinessProbe := model.ServiceHealthProbeInput{}
+	preStopHookCommand := "sleep 15"
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, &preStopHookCommand)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
@@ -95,7 +96,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
@@ -121,7 +122,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
@@ -149,7 +150,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFailure() {
@@ -175,7 +176,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFail
 
 	// Services
 	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy of type rollingUpdate created with invalid inputs"))
 	}
@@ -204,7 +205,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyInvalid() {
 
 	// Services
 	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy succesfully created with invalid parameters"))
 	}
@@ -235,7 +236,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesDefault() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCP() {
@@ -266,7 +267,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCP() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCPInvalid() {
@@ -296,7 +297,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCPInvalid() {
 
 	// Services
 	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
 	}
@@ -338,7 +339,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTP() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
@@ -389,7 +390,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPInvalid() {
@@ -428,7 +429,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPInvalid() {
 
 	// Services
 	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
 	}
@@ -465,7 +466,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExec() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExecInvalid() {
@@ -495,7 +496,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExecInvalid() {
 
 	// Services
 	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
 	}
@@ -544,10 +545,11 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 
 	readinessProbe := healthProbe
 	livenessProbe := healthProbe
+	preStopHookCommand := "/bin/true"
 
 	// Services
 	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, &preStopHookCommand)
 
 	// Update Service
 	serviceID := string(serviceResolver.ID())
@@ -589,7 +591,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
 
 	// Update Service
 	serviceID := "null"
@@ -612,7 +614,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureBadRecordID() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
 
 	// Update Service
 	serviceID := test.ValidUUID
@@ -667,7 +669,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 
 	// Services
 	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 
 	// Update Service
 	serviceID := string(serviceResolver.ID())
@@ -699,7 +701,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceFailure() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
 
 	// Update Service
 	serviceID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
@@ -733,7 +735,7 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 
 	// Services
 	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 
 	// Test Service Interface
 	_ = serviceResolver.ID()
@@ -799,7 +801,7 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 
 	// Services
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe)
+		&readinessProbe, &livenessProbe, nil)
 
 	// Test Service Query
 	var ctx context.Context
