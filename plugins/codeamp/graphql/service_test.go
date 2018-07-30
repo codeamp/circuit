@@ -551,6 +551,8 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, &preStopHookCommand)
 
+	preStopHookCommand = "/bin/change"
+
 	// Update Service
 	serviceID := string(serviceResolver.ID())
 
@@ -569,7 +571,8 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 			MaxUnavailable: 30,
 			MaxSurge:       60,
 		},
-		Ports: &servicePorts,
+		Ports:       &servicePorts,
+		PreStopHook: &preStopHookCommand,
 	}
 	_, err = ts.Resolver.UpdateService(&struct{ Service *model.ServiceInput }{serviceInput})
 	if err != nil {
