@@ -230,6 +230,7 @@ type Release {
   stateMessage: String!
   environment: Environment!
   created: Time!
+  finished: Time!
   isRollback: Boolean!
 }
 
