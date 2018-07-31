@@ -77,8 +77,8 @@ type Release struct {
 	ProjectExtensions postgres.Jsonb `json:"extensions" gorm:"type:jsonb;"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
-	// FinishedAt
-	FinishedAt time.Time
+	// Finished
+	Finished time.Time
 	// ForceRebuild
 	ForceRebuild bool `json:"forceRebuild"`
 	IsRollback   bool `json:"isRollback"`

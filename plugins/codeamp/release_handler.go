@@ -97,7 +97,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
-	release.FinishedAt = time.Now()
+	release.Finished = time.Now()
 
 	project := model.Project{}
 	environment := model.Environment{}
@@ -157,7 +157,7 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	if release.State != transistor.GetState("canceled") {
 		release.State = transistor.GetState("complete")
 		release.StateMessage = "Completed"
-		release.FinishedAt = time.Now()
+		release.Finished = time.Now()
 
 		x.DB.Save(release)
 
