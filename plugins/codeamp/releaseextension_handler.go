@@ -45,10 +45,16 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		x.DB.Save(&releaseExtension)
 
 		if e.State == transistor.GetState("complete") {
+			releaseExtension.Finished = time.Now()
+			x.DB.Save(&releaseExtension)
+
 			x.ReleaseExtensionCompleted(&releaseExtension)
 		}
 
 		if e.State == transistor.GetState("failed") {
+			releaseExtension.Finished = time.Now()
+			x.DB.Save(&releaseExtension)
+
 			x.ReleaseFailed(&release, e.StateMessage)
 		}
 	}
@@ -61,9 +67,6 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
 	release := model.Release{}
 	environment := model.Environment{}
 	releaseExtensions := []model.ReleaseExtension{}
-
-	re.Finished = time.Now()
-	x.DB.Save(&re)
 
 	if x.DB.Where("id = ?", re.ReleaseID).First(&release).RecordNotFound() {
 		log.ErrorWithFields("release not found", log.Fields{
