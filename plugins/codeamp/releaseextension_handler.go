@@ -3,6 +3,7 @@ package codeamp
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -60,6 +61,9 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
 	release := model.Release{}
 	environment := model.Environment{}
 	releaseExtensions := []model.ReleaseExtension{}
+
+	re.Finished = time.Now()
+	x.DB.Save(&re)
 
 	if x.DB.Where("id = ?", re.ReleaseID).First(&release).RecordNotFound() {
 		log.ErrorWithFields("release not found", log.Fields{
