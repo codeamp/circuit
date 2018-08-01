@@ -35,6 +35,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		}
 
 		spew.Dump("e.State", e.State)
+		spew.Dump("e.StateMessage", e.StateMessage)
 
 		releaseExtension.State = e.State
 		releaseExtension.StateMessage = e.StateMessage
