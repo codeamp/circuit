@@ -1690,6 +1690,7 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct {
 	return results, nil
 }
 
+// GetGitCommits
 func (r *Resolver) GetGitCommits(ctx context.Context, args *struct {
 	ProjectID     graphql.ID
 	EnvironmentID graphql.ID
