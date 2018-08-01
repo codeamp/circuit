@@ -34,7 +34,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			return fmt.Errorf("Release extension %s not found", payload.ID)
 		}
 
-		spew.Dump(e.State)
+		spew.Dump("e.State", e.State)
 
 		releaseExtension.State = e.State
 		releaseExtension.StateMessage = e.StateMessage
@@ -111,11 +111,14 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
 	// loop through and check if all same-type elease extensions are completed
 	done := true
 	for _, releaseExtension := range releaseExtensions {
-		spew.Dump(releaseExtension.State, releaseExtension.Type)
+		spew.Dump("re", re.Type)
+		spew.Dump("releaseExtension", releaseExtension.State, releaseExtension.Type)
 		if releaseExtension.Type == re.Type && releaseExtension.State != transistor.GetState("complete") {
 			done = false
 		}
 	}
+
+	spew.Dump("done", done)
 
 	if done {
 		switch re.Type {
