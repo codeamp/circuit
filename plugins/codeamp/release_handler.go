@@ -142,7 +142,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
-	spew.Dump("ReleaseCompleted", release)
+	spew.Dump("ReleaseCompleted", release.State)
 	project := model.Project{}
 	environment := model.Environment{}
 
