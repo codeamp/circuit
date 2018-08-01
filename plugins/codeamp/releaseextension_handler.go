@@ -9,6 +9,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm/dialects/postgres"
 )
 
@@ -19,6 +20,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	var release model.Release
 
 	if e.Matches("release:.*:status") {
+		spew.Dump(e.State, e.Payload)
 		if x.DB.Where("id = ?", payload.Release.ID).Find(&release).RecordNotFound() {
 			log.InfoWithFields("release", log.Fields{
 				"id": payload.Release.ID,
@@ -108,6 +110,7 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
 	// loop through and check if all same-type elease extensions are completed
 	done := true
 	for _, releaseExtension := range releaseExtensions {
+		spew.Dump(releaseExtension, re)
 		if releaseExtension.Type == re.Type && releaseExtension.State != transistor.GetState("complete") {
 			done = false
 		}

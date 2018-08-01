@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -141,6 +142,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
+	spew.Dump("ReleaseCompleted", release)
 	project := model.Project{}
 	environment := model.Environment{}
 
