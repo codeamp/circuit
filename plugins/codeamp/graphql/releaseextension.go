@@ -60,6 +60,11 @@ func (r *ReleaseExtensionResolver) Artifacts() model.JSON {
 	return model.JSON{r.DBReleaseExtensionResolver.ReleaseExtension.Artifacts.RawMessage}
 }
 
+// Started
+func (r *ReleaseExtensionResolver) Started() graphql.Time {
+	return graphql.Time{Time: r.DBReleaseExtensionResolver.ReleaseExtension.Started}
+}
+
 // Finished
 func (r *ReleaseExtensionResolver) Finished() graphql.Time {
 	return graphql.Time{Time: r.DBReleaseExtensionResolver.ReleaseExtension.Finished}

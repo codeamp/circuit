@@ -87,6 +87,9 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				ev.StateMessage = eventStateMessage
 				ev.Artifacts = artifacts
 
+				releaseExtension.Started = time.Now()
+				x.DB.Save(&releaseExtension)
+
 				x.Events <- ev
 			}
 		}
