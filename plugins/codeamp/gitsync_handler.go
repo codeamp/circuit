@@ -158,12 +158,13 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 						}
 					}
 				}
-			} else {
-				log.DebugWithFields("feature already exists", log.Fields{
-					"repository": commit.Repository,
-					"hash":       commit.Hash,
-				})
 			}
+			//} else {
+			//  log.DebugWithFields("feature already exists", log.Fields{
+			// 		"repository": commit.Repository,
+			// 		"hash":       commit.Hash,
+			// 	})
+			// }
 		}
 	}
 
