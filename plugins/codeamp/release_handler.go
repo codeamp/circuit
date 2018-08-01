@@ -348,6 +348,9 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 
 	releasePayload := graphql_resolver.BuildReleasePayload(nextQueuedRelease, project, environment, branch, headFeature, tailFeature, pluginServices, pluginSecrets)
 
+	release.Started = time.Now()
+	x.DB.Save(&release)
+
 	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), transistor.GetAction("create"), releasePayload)
 	return nil
 }
