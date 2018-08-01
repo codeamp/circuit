@@ -296,6 +296,7 @@ type ReleaseExtension {
   type: String!
   stateMessage: String!
   artifacts: JSON!
+  started: Time!  
   finished: Time!
   created: Time!
 }
