@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
@@ -187,6 +188,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 
 	for _, releaseExtension := range releaseExtensions {
 		releaseExtensionAction := transistor.GetAction("create")
+		spew.Dump("releaseExtension.Type", releaseExtension.Type)
 		if releaseExtension.Type == plugins.GetType("deployment") {
 			_artifacts := artifacts
 
@@ -272,6 +274,8 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			releaseExtensionDeploymentsCount++
 		}
 	}
+
+	spew.Dump("releaseExtensionDeploymentsCount", releaseExtensionDeploymentsCount)
 
 	if releaseExtensionDeploymentsCount == 0 {
 		x.ReleaseCompleted(release)
