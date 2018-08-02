@@ -15,11 +15,13 @@ import (
 
 func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.ReleaseExtension)
+	spew.Dump("ReleaseExtensionEventHandler")
 
 	var releaseExtension model.ReleaseExtension
 	var release model.Release
 
 	if e.Matches("release:.*:status") {
+		spew.Dump(e.ID)
 		if x.DB.Where("id = ?", payload.Release.ID).Find(&release).RecordNotFound() {
 			log.InfoWithFields("release", log.Fields{
 				"id": payload.Release.ID,
