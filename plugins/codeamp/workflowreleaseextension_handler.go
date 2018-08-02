@@ -266,8 +266,8 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), releaseExtensionAction, releaseExtensionEvent)
 			ev.Artifacts = _artifacts
 
-			releaseExtension.Started = time.Now()
-			x.DB.Save(&releaseExtension)
+			// releaseExtension.Started = time.Now()
+			// x.DB.Save(&releaseExtension)
 
 			x.Events <- ev
 

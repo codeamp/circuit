@@ -88,8 +88,8 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				ev.StateMessage = eventStateMessage
 				ev.Artifacts = artifacts
 
-				releaseExtension.Started = time.Now()
-				x.DB.Save(&releaseExtension)
+				// releaseExtension.Started = time.Now()
+				// x.DB.Save(&releaseExtension)
 
 				x.Events <- ev
 			}
@@ -101,7 +101,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
-	release.Finished = time.Now()
+	// release.Finished = time.Now()
 
 	project := model.Project{}
 	environment := model.Environment{}
@@ -162,7 +162,7 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	if release.State != transistor.GetState("canceled") {
 		release.State = transistor.GetState("complete")
 		release.StateMessage = "Completed"
-		release.Finished = time.Now()
+		// release.Finished = time.Now()
 
 		x.DB.Save(release)
 
@@ -352,8 +352,8 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 
 	releasePayload := graphql_resolver.BuildReleasePayload(nextQueuedRelease, project, environment, branch, headFeature, tailFeature, pluginServices, pluginSecrets)
 
-	nextQueuedRelease.Started = time.Now()
-	x.DB.Save(&nextQueuedRelease)
+	// nextQueuedRelease.Started = time.Now()
+	// x.DB.Save(&nextQueuedRelease)
 
 	spew.Dump(nextQueuedRelease.Model.ID)
 
