@@ -404,18 +404,18 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
 		// Rollback
 		isRollback = true
-		release := model.Release{}
+		existingRelease := model.Release{}
 
-		if r.DB.Where("id = ?", string(*args.Release.ID)).Find(&release).RecordNotFound() {
-			log.ErrorWithFields("Could not find release", log.Fields{
+		if r.DB.Where("id = ?", string(*args.Release.ID)).First(&existingRelease).RecordNotFound() {
+			log.ErrorWithFields("Could not find existing release", log.Fields{
 				"id": *args.Release.ID,
 			})
 			return &ReleaseResolver{}, errors.New("Release not found")
 		}
 
-		secretsJsonb = release.Secrets
-		servicesJsonb = release.Services
-		projectExtensionsJsonb = release.ProjectExtensions
+		secretsJsonb = existingRelease.Secrets
+		servicesJsonb = existingRelease.Services
+		projectExtensionsJsonb = existingRelease.ProjectExtensions
 
 		// unmarshal projectExtensionsJsonb and servicesJsonb into project extensions
 		err := json.Unmarshal(projectExtensionsJsonb.RawMessage, &projectExtensions)
