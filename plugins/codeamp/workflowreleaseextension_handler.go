@@ -278,6 +278,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 	spew.Dump("releaseExtensionDeploymentsCount", releaseExtensionDeploymentsCount)
 
 	if releaseExtensionDeploymentsCount == 0 {
+		spew.Dump("release completed with just workflows", releaseExtensionDeploymentsCount)
 		x.ReleaseCompleted(release)
 	}
 }

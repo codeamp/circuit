@@ -109,7 +109,7 @@ func (x *CodeAmp) ReleaseExtensionCompleted(re *model.ReleaseExtension) {
 
 	x.Events <- event
 
-	// loop through and check if all same-type elease extensions are completed
+	// loop through and check if all same-type release extensions are completed
 	done := true
 	for _, releaseExtension := range releaseExtensions {
 		spew.Dump("re", re.Type)
