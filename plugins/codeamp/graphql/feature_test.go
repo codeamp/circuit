@@ -10,6 +10,7 @@ import (
 	graphql "github.com/graph-gophers/graphql-go"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	_ "github.com/codeamp/circuit/plugins/gitsync"
 	"github.com/codeamp/circuit/test"
 
 	log "github.com/codeamp/logger"
