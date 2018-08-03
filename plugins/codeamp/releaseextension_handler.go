@@ -3,6 +3,7 @@ package codeamp
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -50,15 +51,15 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		x.DB.Save(&releaseExtension)
 
 		if e.State == transistor.GetState("complete") {
-			// releaseExtension.Finished = time.Now()
-			// x.DB.Save(&releaseExtension)
+			releaseExtension.Finished = time.Now()
+			x.DB.Save(&releaseExtension)
 
 			x.ReleaseExtensionCompleted(&releaseExtension)
 		}
 
 		if e.State == transistor.GetState("failed") {
-			// releaseExtension.Finished = time.Now()
-			// x.DB.Save(&releaseExtension)
+			releaseExtension.Finished = time.Now()
+			x.DB.Save(&releaseExtension)
 
 			x.ReleaseFailed(&release, e.StateMessage)
 		}

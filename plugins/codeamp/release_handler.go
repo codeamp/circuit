@@ -88,8 +88,8 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				ev.StateMessage = eventStateMessage
 				ev.Artifacts = artifacts
 
-				// releaseExtension.Started = time.Now()
-				// x.DB.Save(&releaseExtension)
+				releaseExtension.Started = time.Now()
+				x.DB.Save(&releaseExtension)
 
 				x.Events <- ev
 			}
@@ -352,8 +352,8 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 
 	releasePayload := graphql_resolver.BuildReleasePayload(nextQueuedRelease, project, environment, branch, headFeature, tailFeature, pluginServices, pluginSecrets)
 
-	// nextQueuedRelease.Started = time.Now()
-	// x.DB.Save(&nextQueuedRelease)
+	nextQueuedRelease.Started = time.Now()
+	x.DB.Save(&nextQueuedRelease)
 
 	spew.Dump(nextQueuedRelease.Model.ID)
 
