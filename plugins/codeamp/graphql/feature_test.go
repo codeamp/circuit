@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -159,6 +160,13 @@ func (suite *FeatureTestSuite) TestGetGitCommits() {
 		EnvironmentID: environmentResolver.ID(),
 		New:           &isNew,
 	})
+	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), 30)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+
+	assert.Equal(suite.T(), e.Action, transistor.GetAction("create"))
 	assert.NotNil(suite.T(), err)
 	assert.True(suite.T(), eventSent)
 }
