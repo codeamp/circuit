@@ -82,6 +82,16 @@ func (r *ReleaseResolver) Created() graphql.Time {
 	return graphql.Time{Time: r.DBReleaseResolver.Release.Model.CreatedAt}
 }
 
+// Started
+func (r *ReleaseResolver) Started() graphql.Time {
+	return graphql.Time{Time: r.DBReleaseResolver.Release.Started}
+}
+
+// Finished
+func (r *ReleaseResolver) Finished() graphql.Time {
+	return graphql.Time{Time: r.DBReleaseResolver.Release.Finished}
+}
+
 func (r *ReleaseResolver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&r.DBReleaseResolver.Release)
 }
