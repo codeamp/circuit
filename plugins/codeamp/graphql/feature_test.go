@@ -6,6 +6,7 @@ import (
 	"time"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -19,10 +20,18 @@ import (
 
 type FeatureTestSuite struct {
 	suite.Suite
-	Resolver *graphql_resolver.Resolver
+	Resolver   *graphql_resolver.Resolver
+	transistor *transistor.Transistor
 
 	helper Helper
 }
+
+var viperConfig = []byte(`
+plugins:
+  gitsync:
+    workers: 1
+    workdir: /tmp/gitsync
+`)
 
 func (suite *FeatureTestSuite) SetupTest() {
 	migrators := []interface{}{
@@ -33,6 +42,9 @@ func (suite *FeatureTestSuite) SetupTest() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	suite.transistor, _ = test.SetupPluginTest(viperConfig)
+	go suite.transistor.Run()
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestFeature")
