@@ -136,6 +136,7 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 
 	_ = releaseExtensionResolver.Artifacts()
 	_ = releaseExtensionResolver.Finished()
+	_ = releaseExtensionResolver.Started()
 
 	created_at_diff = time.Now().Sub(releaseExtensionResolver.Created().Time)
 	if created_at_diff.Minutes() > 1 {
