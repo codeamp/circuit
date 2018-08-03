@@ -162,7 +162,7 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	if release.State != transistor.GetState("canceled") {
 		release.State = transistor.GetState("complete")
 		release.StateMessage = "Completed"
-		// release.Finished = time.Now()
+		release.Finished = time.Now()
 
 		x.DB.Save(release)
 
