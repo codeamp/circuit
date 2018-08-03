@@ -6,8 +6,11 @@ import (
 	"time"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/transistor"
+	graphql "github.com/graph-gophers/graphql-go"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	_ "github.com/codeamp/circuit/plugins/gitsync"
 	"github.com/codeamp/circuit/test"
 
 	log "github.com/codeamp/logger"
@@ -18,7 +21,8 @@ import (
 
 type FeatureTestSuite struct {
 	suite.Suite
-	Resolver *graphql_resolver.Resolver
+	Resolver   *graphql_resolver.Resolver
+	transistor *transistor.Transistor
 
 	helper Helper
 }
@@ -26,6 +30,12 @@ type FeatureTestSuite struct {
 func (suite *FeatureTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Feature{},
+		&model.Project{},
+		&model.ProjectSettings{},
+		&model.Environment{},
+		&model.UserPermission{},
+		&model.ProjectBookmark{},
+		&model.ProjectEnvironment{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
@@ -33,7 +43,7 @@ func (suite *FeatureTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	suite.Resolver = &graphql_resolver.Resolver{DB: db}
+	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestFeature")
 	suite.helper.SetContext(test.ResolverAuthContext())
 }
@@ -120,6 +130,38 @@ func (suite *FeatureTestSuite) TestFeatureQueryInterface() {
 
 	featureResolver := featureResolvers[0]
 	assert.NotNil(suite.T(), featureResolver)
+}
+
+func (suite *FeatureTestSuite) TestGetGitCommits() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+
+	// Feature
+	suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)
+
+	isNew := true
+
+	// Test Features Query Interface
+	var ctx context.Context
+	eventSent, err := suite.Resolver.GetGitCommits(ctx, &struct {
+		ProjectID     graphql.ID
+		EnvironmentID graphql.ID
+		New           *bool
+	}{
+		ProjectID:     projectResolver.ID(),
+		EnvironmentID: environmentResolver.ID(),
+		New:           &isNew,
+	})
+
+	for len(suite.Resolver.Events) > 0 {
+		<-suite.Resolver.Events
+	}
+
+	assert.Nil(suite.T(), err)
+	assert.True(suite.T(), eventSent)
 }
 
 func (suite *FeatureTestSuite) TearDownTest() {

@@ -1702,6 +1702,57 @@ func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct {
 	return results, nil
 }
 
+// GetGitCommits
+func (r *Resolver) GetGitCommits(ctx context.Context, args *struct {
+	ProjectID     graphql.ID
+	EnvironmentID graphql.ID
+	New           *bool
+}) (bool, error) {
+	if args.New != nil && *args.New {
+		var err error
+		project := model.Project{}
+		env := model.Environment{}
+		projectSettings := model.ProjectSettings{}
+		latestFeature := model.Feature{}
+		hash := ""
+
+		if err = r.DB.Where("id = ?", args.ProjectID).First(&project).Error; err != nil {
+			return false, err
+		}
+
+		if err = r.DB.Where("id = ?", args.EnvironmentID).First(&env).Error; err != nil {
+			return false, err
+		}
+
+		if err = r.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID, env.Model.ID).First(&projectSettings).Error; err != nil {
+			return false, err
+		}
+
+		if err = r.DB.Where("project_id = ?", project.Model.ID).Order("created_at DESC").First(&latestFeature).Error; err == nil {
+			hash = latestFeature.Hash
+		}
+
+		payload := plugins.GitSync{
+			Project: plugins.Project{
+				ID:         project.Model.ID.String(),
+				Repository: project.Repository,
+			},
+			Git: plugins.Git{
+				Url:           project.GitUrl,
+				Protocol:      project.GitProtocol,
+				Branch:        projectSettings.GitBranch,
+				RsaPrivateKey: project.RsaPrivateKey,
+				RsaPublicKey:  project.RsaPublicKey,
+			},
+			From: hash,
+		}
+
+		r.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
+		return true, nil
+	}
+	return true, nil
+}
+
 func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql.ID }) (bool, error) {
 	var projectBookmark model.ProjectBookmark
 

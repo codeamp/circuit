@@ -104,6 +104,10 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 				x.DB.Save(&feature)
 
+				event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+				event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key), false)
+				x.Events <- event
+
 				if commit.Head {
 					if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
 						log.ErrorWithFields("No continuous deploys found", log.Fields{
@@ -136,6 +140,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 									"id": setting.EnvironmentID,
 								})
 							}
+
 							websocketMsgs := []plugins.WebsocketMsg{
 								plugins.WebsocketMsg{
 									Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
@@ -144,6 +149,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 									Event: fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 								},
 							}
+
 							for _, msg := range websocketMsgs {
 								event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
 								event.AddArtifact("event", msg.Event, false)
