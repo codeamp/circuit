@@ -10,7 +10,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -142,7 +141,6 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
-	spew.Dump("ReleaseCompleted", release.State)
 	project := model.Project{}
 	environment := model.Environment{}
 
@@ -185,8 +183,6 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	var nextQueuedRelease model.Release
-	spew.Dump("RunQueuedReleases")
-	spew.Dump("previous release", release.Model.ID)
 
 	if x.DB.Where("id != ? and state = ? and project_id = ? and environment_id = ? and created_at > ?", release.Model.ID, "waiting", release.ProjectID, release.EnvironmentID, release.CreatedAt).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
 		log.WarnWithFields("No queued releases found.", log.Fields{
@@ -354,8 +350,6 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 
 	nextQueuedRelease.Started = time.Now()
 	x.DB.Save(&nextQueuedRelease)
-
-	spew.Dump(nextQueuedRelease.Model.ID)
 
 	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), transistor.GetAction("create"), releasePayload)
 	return nil
