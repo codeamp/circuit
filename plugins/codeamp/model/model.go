@@ -126,6 +126,8 @@ type Service struct {
 	ReadinessProbe ServiceHealthProbe `json:"readinessProbe"`
 	// LivenessProbe
 	LivenessProbe ServiceHealthProbe `json:"livenessProbe"`
+	// PreStopHook
+	PreStopHook string `json:"preStopHook"`
 }
 
 // ServicePort

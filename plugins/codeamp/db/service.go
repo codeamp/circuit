@@ -121,6 +121,11 @@ func (r *ServiceResolver) ReadinessProbe() (*model.JSON, error) {
 	return &model.JSON{marshaled}, nil
 }
 
+// PreStopHook
+func (r *ServiceResolver) PreStopHook() *string {
+	return &r.Service.PreStopHook
+}
+
 // Environment
 func (r *ServiceResolver) Environment(ctx context.Context) (*EnvironmentResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {

@@ -70,6 +70,10 @@ func (r *ServiceResolver) ReadinessProbe(ctx context.Context) (*model.JSON, erro
 	return r.DBServiceResolver.ReadinessProbe()
 }
 
+func (r *ServiceResolver) PreStopHook() *string {
+	return r.DBServiceResolver.PreStopHook()
+}
+
 // Type
 func (r *ServiceResolver) Type() string {
 	return string(r.DBServiceResolver.Service.Type)

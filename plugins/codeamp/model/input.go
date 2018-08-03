@@ -152,6 +152,8 @@ type ServiceInput struct {
 	ReadinessProbe *ServiceHealthProbeInput `json:"readinessProbe"`
 	// LivenessProbe
 	LivenessProbe *ServiceHealthProbeInput `json:"livenessProbe"`
+	// PreStopHook
+	PreStopHook *string `json"preStopHook"`
 }
 
 type DeploymentStrategyInput struct {

@@ -20,6 +20,7 @@ type SimplePodSpec struct {
 	DeployPorts    []v1.ContainerPort
 	ReadinessProbe v1.Probe
 	LivenessProbe  v1.Probe
+	PreStopHook    v1.Handler
 	RestartPolicy  v1.RestartPolicy
 	NodeSelector   map[string]string
 	Args           []string

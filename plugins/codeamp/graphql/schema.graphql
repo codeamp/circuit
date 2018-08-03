@@ -176,6 +176,7 @@ type Service {
   deploymentStrategy: JSON
   livenessProbe: JSON
   readinessProbe: JSON
+  preStopHook: String
 }
 
 # Environment
@@ -343,6 +344,7 @@ input ServiceInput {
   deploymentStrategy: DeploymentStrategyInput!
   livenessProbe: HealthProbeInput
   readinessProbe: HealthProbeInput
+  preStopHook: String
 }
 
 # Container port input
