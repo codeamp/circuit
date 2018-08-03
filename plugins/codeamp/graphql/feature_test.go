@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -28,16 +27,15 @@ type FeatureTestSuite struct {
 	helper Helper
 }
 
-var viperConfig = []byte(`
-plugins:
-  gitsync:
-    workers: 1
-    workdir: /tmp/gitsync
-`)
-
 func (suite *FeatureTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Feature{},
+		&model.Project{},
+		&model.ProjectSettings{},
+		&model.Environment{},
+		&model.UserPermission{},
+		&model.ProjectBookmark{},
+		&model.ProjectEnvironment{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
@@ -45,10 +43,7 @@ func (suite *FeatureTestSuite) SetupTest() {
 		log.Fatal(err.Error())
 	}
 
-	suite.transistor, _ = test.SetupPluginTest(viperConfig)
-	go suite.transistor.Run()
-
-	suite.Resolver = &graphql_resolver.Resolver{DB: db}
+	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestFeature")
 	suite.helper.SetContext(test.ResolverAuthContext())
 }
@@ -160,19 +155,16 @@ func (suite *FeatureTestSuite) TestGetGitCommits() {
 		EnvironmentID: environmentResolver.ID(),
 		New:           &isNew,
 	})
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), 30)
-	if err != nil {
-		assert.Nil(suite.T(), err, err.Error())
-		return
+
+	for len(suite.Resolver.Events) > 0 {
+		<-suite.Resolver.Events
 	}
 
-	assert.Equal(suite.T(), e.Action, transistor.GetAction("create"))
-	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), err)
 	assert.True(suite.T(), eventSent)
 }
 
 func (suite *FeatureTestSuite) TearDownTest() {
-	suite.transistor.Stop()
 	suite.helper.TearDownTest(suite.T())
 	suite.Resolver.DB.Close()
 }
