@@ -163,6 +163,7 @@ func (suite *FeatureTestSuite) TestGetGitCommits() {
 }
 
 func (suite *FeatureTestSuite) TearDownTest() {
+	suite.transistor.Stop()
 	suite.helper.TearDownTest(suite.T())
 	suite.Resolver.DB.Close()
 }
