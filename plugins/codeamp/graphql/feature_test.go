@@ -6,6 +6,7 @@ import (
 	"time"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	graphql "github.com/graph-gophers/graphql-go"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -120,6 +121,33 @@ func (suite *FeatureTestSuite) TestFeatureQueryInterface() {
 
 	featureResolver := featureResolvers[0]
 	assert.NotNil(suite.T(), featureResolver)
+}
+
+func (suite *FeatureTestSuite) TestGetGitCommits() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+
+	// Feature
+	suite.helper.CreateFeatureWithParent(suite.T(), projectResolver)
+
+	isNew := true
+
+	// Test Features Query Interface
+	var ctx context.Context
+	eventSent, err := suite.Resolver.GetGitCommits(ctx, &struct {
+		ProjectID     graphql.ID
+		EnvironmentID graphql.ID
+		New           *bool
+	}{
+		ProjectID:     projectResolver.ID(),
+		EnvironmentID: environmentResolver.ID(),
+		New:           &isNew,
+	})
+	assert.NotNil(suite.T(), err)
+	assert.True(suite.T(), eventSent)
 }
 
 func (suite *FeatureTestSuite) TearDownTest() {
