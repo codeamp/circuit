@@ -7,17 +7,18 @@ import (
 	_ "os"
 	_ "path"
 	_ "strings"
-	_ "testing"
+	"testing"
 
 	_ "github.com/codeamp/circuit/plugins"
 	_ "github.com/codeamp/circuit/plugins/kubernetes"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
-	_ "github.com/stretchr/testify/assert"
+	_ "github.com/codeamp/logger"
+	_"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-type TestSuite struct {
+type KubernetesTestSuite struct {
 	suite.Suite
 	transistor *transistor.Transistor
 }
@@ -25,12 +26,31 @@ type TestSuite struct {
 var viperConfig = []byte(`
 plugins:
   kubernetes:
+    mock: true
     workers: 1
 `)
 
-func (suite *TestSuite) SetupSuite() {
+func (suite *KubernetesTestSuite) SetupTest() {
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
+}
+
+func (suite *KubernetesTestSuite) TearDownTest() {
+	// TODO:
+	// teardown docker-io secret?
+	// teardown the deployment / namespaces
+	suite.transistor.Stop()
+}
+
+func TestProjectTestSuite(t *testing.T) {
+	suite.Run(t, new(KubernetesTestSuite)) 
+}
+
+
+func (suite *KubernetesTestSuite) TestKubernetesPlugin() {
+	// This looks like it is doing nothing, but really it is forcing
+	// the plugin to at least be started and stopped
+	// SetupTest and TearDownTest aren't executed if there are no tests to perform
 }
 
 // // Load Balancers Tests
@@ -156,13 +176,6 @@ func (suite *TestSuite) SetupSuite() {
 // 		suite.Run(t, new(TestSuite))
 // 	}
 // }
-
-func (suite *TestSuite) TearDownSuite() {
-	// TODO:
-	// teardown docker-io secret?
-	// teardown the deployment / namespaces
-	suite.transistor.Stop()
-}
 
 // func verifyDeploymentArtifacts() error {
 // 	e := BasicReleaseEvent()

@@ -4,6 +4,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
 	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Load Balancer
@@ -34,6 +35,7 @@ type SimplePodSpec struct {
 // Kubernetes
 type Kubernetes struct {
 	events chan transistor.Event
+	client kubernetes.Interface
 }
 
 // ProbeDefaults
