@@ -106,11 +106,10 @@ func (r *ReleaseListResolver) NextCursor() (string, error) {
 
 // Count
 func (r *ReleaseListResolver) Count() (int32, error) {
-	var rows []model.Release
+	var count int
+	r.Query.Model(&model.Release{}).Count(&count)
 
-	r.Query.Find(&rows)
-
-	return int32(len(rows)), nil
+	return int32(count), nil
 }
 
 // SECRETS
@@ -200,11 +199,10 @@ func (r *SecretListResolver) NextCursor() (string, error) {
 
 // Count
 func (r *SecretListResolver) Count() (int32, error) {
-	var rows []model.Secret
+	var count int
+	r.Query.Model(&model.Secret{}).Count(&count)
 
-	r.Query.Find(&rows)
-
-	return int32(len(rows)), nil
+	return int32(count), nil
 }
 
 // SERVICES
@@ -294,11 +292,10 @@ func (r *ServiceListResolver) NextCursor() (string, error) {
 
 // Count
 func (r *ServiceListResolver) Count() (int32, error) {
-	var rows []model.Service
+	var count int
+	r.Query.Model(&model.Service{}).Count(&count)
 
-	r.Query.Find(&rows)
-
-	return int32(len(rows)), nil
+	return int32(count), nil
 }
 
 // FEATURES
@@ -388,11 +385,10 @@ func (r *FeatureListResolver) NextCursor() (string, error) {
 
 // Count
 func (r *FeatureListResolver) Count() (int32, error) {
-	var rows []model.Feature
+	var count int
+	r.Query.Model(&model.Feature{}).Count(&count)
 
-	r.Query.Find(&rows)
-
-	return int32(len(rows)), nil
+	return int32(count), nil
 }
 
 // PROJECTS
@@ -482,9 +478,8 @@ func (r *ProjectListResolver) NextCursor() (string, error) {
 
 // Count
 func (r *ProjectListResolver) Count() (int32, error) {
-	var rows []model.Project
+	var count int
+	r.Query.Model(&model.Project{}).Count(&count)
 
-	r.Query.Find(&rows)
-
-	return int32(len(rows)), nil
+	return int32(count), nil
 }
