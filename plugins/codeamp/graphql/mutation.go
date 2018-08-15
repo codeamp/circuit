@@ -236,6 +236,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 	}
 
 	release.State = transistor.GetState("canceled")
+	release.Finished = time.Now()
 	release.StateMessage = fmt.Sprintf("Release canceled by %s", user.Email)
 	r.DB.Save(&release)
 
@@ -265,6 +266,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		}
 
 		if releaseExtension.State == transistor.GetState("waiting") {
+			releaseExtension.Finished = time.Now()
 			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:      releaseExtension.ID.String(),
 				Project: plugins.Project{},
