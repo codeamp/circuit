@@ -66,9 +66,10 @@ func (x *Kubernetes) Process(e transistor.Event, workerChan chan transistor.Even
 	x.events <- workerIDEvent
 
 	go func(chan transistor.Event) {
+		spew.Dump("initializing worker channel routine")
 		for {
 			msg := <-workerChan
-			spew.Dump(msg)
+			spew.Dump("msg", msg)
 		}
 	}(workerChan)
 
