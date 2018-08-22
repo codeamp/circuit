@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
@@ -53,8 +54,23 @@ func (x *Kubernetes) Subscribe() []string {
 	}
 }
 
-func (x *Kubernetes) Process(e transistor.Event) error {
+func (x *Kubernetes) Process(e transistor.Event, workerChan chan transistor.Event, workerID string) error {
 	log.Debug("Processing kubernetes event")
+
+	spew.Dump("worker related info", workerChan, workerID)
+
+	// send event with workerID
+	workerIDEvent := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), fmt.Sprintf("%s has completed successfully", e.Event()))
+	workerIDEvent.AddArtifact("workerID", workerID, true)
+
+	x.events <- workerIDEvent
+
+	go func(chan transistor.Event) {
+		for {
+			msg := <-workerChan
+			spew.Dump(msg)
+		}
+	}(workerChan)
 
 	if e.Matches(".*:kubernetes:deployment") == true {
 		x.ProcessDeployment(e)

@@ -124,8 +124,12 @@ func (t *Transistor) addPlugin(name string) error {
 		}
 
 		//event.Dump()
+		workerID := uuid.NewV4()
+		workerChan := make(chan Event)
 
-		plugin.Process(event)
+		WorkerRegistry[workerID.String()] = workerChan
+
+		plugin.Process(event, workerChan, workerID.String())
 	}
 
 	wc := t.Config.Plugins[name].(map[string]interface{})
@@ -198,7 +202,11 @@ func (t *Transistor) flusher() {
 							workers.EnqueueWithOptions(plugin.Name, "Event", e, options)
 						} else {
 							go func() {
-								plugin.Plugin.Process(e)
+								workerID := uuid.NewV4()
+								workerChan := make(chan Event)
+
+								WorkerRegistry[workerID.String()] = workerChan
+								plugin.Plugin.Process(e, workerChan, workerID.String())
 							}()
 						}
 					}
@@ -215,6 +223,10 @@ func (t *Transistor) flusher() {
 			}
 		}
 	}
+}
+
+func SendEventToWorker(event Event, workerID string) {
+	WorkerRegistry[workerID] <- event
 }
 
 // Run runs the transistor daemon

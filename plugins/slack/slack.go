@@ -56,7 +56,7 @@ func (x *Slack) Subscribe() []string {
 }
 
 // Process slack webhook events
-func (x *Slack) Process(e transistor.Event) error {
+func (x *Slack) Process(e transistor.Event, workerChan chan transistor.Event, workerID string) error {
 	log.DebugWithFields("Processing Slack event", log.Fields{
 		"event": e.Event(),
 	})
