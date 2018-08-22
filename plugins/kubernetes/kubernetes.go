@@ -63,6 +63,7 @@ func (x *Kubernetes) Process(e transistor.Event, workerChan chan transistor.Even
 	workerIDEvent := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	workerIDEvent.AddArtifact("workerID", workerID, true)
 
+	spew.Dump("artifacts", workerIDEvent.Artifacts)
 	x.events <- workerIDEvent
 
 	go func(chan transistor.Event) {

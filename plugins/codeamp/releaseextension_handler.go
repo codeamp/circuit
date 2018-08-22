@@ -41,6 +41,8 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			return err
 		}
 
+		spew.Dump("updating")
+
 		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		x.DB.Save(&releaseExtension)
 
