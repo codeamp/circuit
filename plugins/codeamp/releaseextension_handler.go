@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
@@ -41,7 +43,7 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			return err
 		}
 
-		spew.Dump("updating")
+		spew.Dump("updating", marshalledReArtifacts)
 
 		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
 		x.DB.Save(&releaseExtension)
