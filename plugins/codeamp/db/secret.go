@@ -45,7 +45,8 @@ func (r *SecretResolver) Project() *ProjectResolver {
 
 // User
 func (r *SecretResolver) User() (*UserResolver, error) {
-	// Find the least most recent secret
+
+	// Find the least most recent secret (this person created the secret)
 	if r.SecretValue == (model.SecretValue{}) {
 		if err := r.DB.Where("secret_id = ?", r.Secret.Model.ID).Order("created_at asc").Find(&r.SecretValue).Error; err != nil {
 			return nil, err

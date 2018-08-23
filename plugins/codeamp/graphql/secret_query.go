@@ -21,9 +21,10 @@ func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
+	db := r.DB.Where("scope != ?", "project").Order("environment_id desc, key asc, scope asc")
 	return &SecretListResolver{
 		DBSecretListResolver: &db_resolver.SecretListResolver{
-			DB:             r.DB.Order("key asc, scope asc"),
+			DB:             db,
 			PaginatorInput: args.Params,
 		},
 	}, nil
