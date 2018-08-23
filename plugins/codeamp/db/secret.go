@@ -19,7 +19,7 @@ func (r *SecretResolver) IsSecret() bool {
 // Value
 func (r *SecretResolver) Value() string {
 	if r.IsSecret() {
-		return ""
+		return "******"
 	}
 
 	if r.SecretValue != (model.SecretValue{}) {
@@ -44,12 +44,20 @@ func (r *SecretResolver) Project() *ProjectResolver {
 }
 
 // User
-func (r *SecretResolver) User() *UserResolver {
+func (r *SecretResolver) User() (*UserResolver, error) {
+	// Find the least most recent secret
+	if r.SecretValue == (model.SecretValue{}) {
+		if err := r.DB.Where("secret_id = ?", r.Secret.Model.ID).Order("created_at asc").Find(&r.SecretValue).Error; err != nil {
+			return nil, err
+		}
+	}
+
 	var user model.User
+	if err := r.DB.Where("id = ?", r.SecretValue.UserID).Find(&user).Error; err != nil {
+		return nil, err
+	}
 
-	r.DB.Model(r.SecretValue).Related(&user)
-
-	return &UserResolver{DB: r.DB, User: user}
+	return &UserResolver{DB: r.DB, User: user}, nil
 }
 
 // Type

@@ -3,7 +3,6 @@ package db_resolver
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -24,30 +23,22 @@ func (r *ProjectResolver) Features(args *struct {
 	Params       *model.PaginatorInput
 }) *FeatureListResolver {
 
-	created := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
-	showDeployed := false
-	if args.ShowDeployed != nil {
-		showDeployed = *args.ShowDeployed
-	}
+	db := r.DB.Where("project_id = ? AND ref = ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()))
 
-	if !showDeployed {
+	if args.ShowDeployed != nil && *args.ShowDeployed == false {
 		var currentRelease model.Release
-
-		if r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).RecordNotFound() {
-
-		} else {
+		if err := r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).Error; err == nil {
 			feature := model.Feature{}
-			r.DB.Where("id = ?", currentRelease.HeadFeatureID).First(&feature)
-			created = feature.Created
+
+			if err := r.DB.Where("id = ?", currentRelease.HeadFeatureID).First(&feature).Error; err == nil {
+				db = r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), feature.Created)
+			}
 		}
 	}
 
-	query := r.DB.Where("project_id = ? AND ref = ? AND created > ?", r.Project.ID, fmt.Sprintf("refs/heads/%s", r.GitBranch()), created).Order("created desc")
-
 	return &FeatureListResolver{
 		PaginatorInput: args.Params,
-		Query:          query,
-		DB:             r.DB,
+		DB:             db,
 	}
 }
 
@@ -71,17 +62,16 @@ func (r *ProjectResolver) CurrentRelease() (*ReleaseResolver, error) {
 func (r *ProjectResolver) Releases(args *struct {
 	Params *model.PaginatorInput
 }) *ReleaseListResolver {
-	var query *gorm.DB
+	var db *gorm.DB
 	if r.Environment != (model.Environment{}) {
-		query = r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
+		db = r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 	} else {
-		query = r.DB.Where("project_id = ?", r.Project.Model.ID).Order("created_at desc")
+		db = r.DB.Where("project_id = ?", r.Project.Model.ID)
 	}
 
 	return &ReleaseListResolver{
 		PaginatorInput: args.Params,
-		Query:          query,
-		DB:             r.DB,
+		DB:             db,
 	}
 }
 
@@ -89,11 +79,10 @@ func (r *ProjectResolver) Releases(args *struct {
 func (r *ProjectResolver) Services(args *struct {
 	Params *model.PaginatorInput
 }) *ServiceListResolver {
-	query := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 
+	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 	return &ServiceListResolver{
-		DB:             r.DB,
-		Query:          query,
+		DB:             db,
 		PaginatorInput: args.Params,
 	}
 }
@@ -106,10 +95,9 @@ func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	query := r.DB.Select("key, id, created_at, type, project_id, environment_id, deleted_at, is_secret").Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc")
+	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
 	return &SecretListResolver{
-		DB:             r.DB,
-		Query:          query,
+		DB:             db,
 		PaginatorInput: args.Params,
 	}, nil
 }
@@ -120,11 +108,7 @@ func (r *ProjectResolver) Extensions() ([]*ProjectExtensionResolver, error) {
 	var results []*ProjectExtensionResolver
 
 	r.DB.Where("project_extensions.project_id = ? and project_extensions.environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Joins(`INNER JOIN extensions ON project_extensions.extension_id = extensions.id`).Order(`
-		CASE extensions.type
-			WHEN 'workflow' THEN 1
-			WHEN 'deployment' THEN 2
-			ELSE 3
-		END, extensions.key ASC`).Find(&rows)
+		extensions.type ASC, extensions.key ASC`).Find(&rows)
 
 	for _, extension := range rows {
 		results = append(results, &ProjectExtensionResolver{DB: r.DB, ProjectExtension: extension})
@@ -160,13 +144,24 @@ func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	var permissions []model.ProjectEnvironment
 	var results []*EnvironmentResolver
 
-	r.DB.Where("project_id = ?", r.Project.ID).Find(&permissions)
+	// var environments []model.Environment
+
+	log.Error("PROJECT ENVIRONMENTS")
+
+	r.DB.LogMode(true)
+
+	// ADB : Change this to use a JOIN query instead of JOINING manually here
+	r.DB.Where("project_id = ?", r.Project.ID).Order("environment_id asc").Find(&permissions)
+	// r.DB.Model(&r.Project).Related(&permissions, "ProjectID")
 
 	for _, permission := range permissions {
+		log.Error("PROJECT ENVIRONMENTS PERMISSIONS")
 		var environment model.Environment
 		r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
 		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment, Project: r.Project})
 	}
+
+	r.DB.LogMode(false)
 
 	return results
 }

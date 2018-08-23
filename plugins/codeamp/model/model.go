@@ -5,7 +5,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
-	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 )
@@ -292,9 +291,9 @@ type ProjectSettings struct {
 type ProjectEnvironment struct {
 	Model `json:"inline"`
 	// EnvironmentID
-	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
+	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid" gorm:"foreignkey:EnvironmentID"`
 	// ProjectID
-	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
+	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid" gorm:"foreignkey:ProjectID"`
 }
 
 // ProjectEnvironment
@@ -386,11 +385,11 @@ type ExtConfig struct {
 
 /////////////////////////////
 /////////////////////////////
-func (s *Secret) AfterFind(tx *gorm.DB) (err error) {
-	if s.Value == (SecretValue{}) {
-		var secretValue SecretValue
-		tx.Where("secret_id = ?", s.Model.ID).Order("created_at desc").FirstOrInit(&secretValue)
-		s.Value = secretValue
-	}
-	return
-}
+// func (s *Secret) AfterFind(tx *gorm.DB) (err error) {
+// 	if s.Value == (SecretValue{}) {
+// 		var secretValue SecretValue
+// 		tx.Where("secret_id = ?", s.Model.ID).Order("created_at desc").FirstOrInit(&secretValue)
+// 		s.Value = secretValue
+// 	}
+// 	return
+// }

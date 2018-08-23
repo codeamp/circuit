@@ -17,18 +17,13 @@ type SecretResolverQuery struct {
 func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
 }) (*SecretListResolver, error) {
-	var query *gorm.DB
-
 	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
 		return nil, err
 	}
 
-	query = r.DB.Where("scope != ?", "project").Order("created_at desc")
-
 	return &SecretListResolver{
 		DBSecretListResolver: &db_resolver.SecretListResolver{
-			DB:             r.DB,
-			Query:          query,
+			DB:             r.DB.Order("key asc, scope asc"),
 			PaginatorInput: args.Params,
 		},
 	}, nil
