@@ -68,7 +68,9 @@ func (x *Kubernetes) Process(e transistor.Event, workerChan chan transistor.Even
 		spew.Dump("initializing worker channel routine")
 		for {
 			msg := <-workerChan
-			spew.Dump("msg", msg)
+			spew.Dump("stopping msg", msg.ID)
+			x.sendErrorResponse(msg, "Release stopped")
+			// os.Exit(3)
 		}
 	}(workerChan)
 
@@ -94,6 +96,7 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), msg)
+	event.Artifacts = e.Artifacts
 	x.events <- event
 }
 
