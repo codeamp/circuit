@@ -86,8 +86,6 @@ func (r *SecretListResolver) Entries() ([]*SecretResolver, error) {
 	var rows []model.Secret
 	var results []*SecretResolver
 
-	r.DB.LogMode(true)
-	defer r.DB.LogMode(false)
 	limit, offset := GetPaginatorLimitAndOffset(r.PaginatorInput)
 	err := r.DB.Limit(limit).Offset(offset).Find(&rows).Error
 	if err != nil {
