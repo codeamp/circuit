@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -44,6 +45,7 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 	}
 
 	if e.Matches("release:") {
+		spew.Dump(e.Artifacts)
 		if e.Action == transistor.GetAction("create") {
 			err := x.doDeploy(e)
 			if err != nil {
@@ -499,6 +501,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		return err
 	}
 
+	spew.Dump(e.Artifacts)
 	x.sendInProgress(e, "Deploy in-progress")
 	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 	coreInterface := clientset.Core()
@@ -553,6 +556,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		return fmt.Errorf(failMessage)
 	}
 	secretName := secretResult.Name
+
+	spew.Dump(e.Artifacts)
 	x.sendInProgress(e, "Secrets created")
 
 	// This is for building the configuration to use the secrets from inside the deployment
@@ -923,6 +928,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				Selector:                &deploySelector,
 			},
 		}
+
+		spew.Dump(e.Artifacts)
 
 		x.sendInProgress(e, "Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
 

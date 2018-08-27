@@ -15,12 +15,12 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 )
 
 type GitSync struct {
-	events chan transistor.Event
+	events     chan transistor.Event
+	workerChan chan transistor.Event
 }
 
 func init() {
@@ -219,7 +219,11 @@ func (x *GitSync) Process(e transistor.Event, workerChan chan transistor.Event, 
 		"event": e.Event(),
 	})
 
-	spew.Dump("worker related info", workerChan, workerID)
+	if x.workerChan != nil {
+		close(x.workerChan)
+	}
+
+	x.workerChan = workerChan
 
 	if e.Event() == "gitsync:create" {
 		payload := e.Payload.(plugins.GitSync)

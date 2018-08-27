@@ -60,12 +60,9 @@ func (x *Kubernetes) Process(e transistor.Event, workerChan chan transistor.Even
 	spew.Dump("worker related info", workerChan, workerID)
 
 	// send event with workerID
-	workerIDEvent := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), fmt.Sprintf("%s has completed successfully", e.Event()))
-	workerIDEvent.AddArtifact("workerID", workerID, true)
 	e.AddArtifact("workerID", workerID, true)
 
-	spew.Dump("artifacts", workerIDEvent.Artifacts)
-	x.events <- workerIDEvent
+	x.sendInProgress(e, "persist workerID")
 
 	go func(chan transistor.Event) {
 		spew.Dump("initializing worker channel routine")
@@ -102,6 +99,7 @@ func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
 
 func (x *Kubernetes) sendInProgress(e transistor.Event, msg string) {
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), msg)
+	event.Artifacts = e.Artifacts
 	x.events <- event
 }
 
