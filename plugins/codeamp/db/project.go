@@ -145,23 +145,15 @@ func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	var results []*EnvironmentResolver
 
 	// var environments []model.Environment
-
-	log.Error("PROJECT ENVIRONMENTS")
-
-	r.DB.LogMode(true)
-
 	// ADB : Change this to use a JOIN query instead of JOINING manually here
 	r.DB.Where("project_id = ?", r.Project.ID).Order("environment_id asc").Find(&permissions)
 	// r.DB.Model(&r.Project).Related(&permissions, "ProjectID")
 
 	for _, permission := range permissions {
-		log.Error("PROJECT ENVIRONMENTS PERMISSIONS")
 		var environment model.Environment
 		r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
 		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment, Project: r.Project})
 	}
-
-	r.DB.LogMode(false)
 
 	return results
 }
