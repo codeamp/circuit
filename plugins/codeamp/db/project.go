@@ -95,7 +95,7 @@ func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
+	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key asc")
 	return &SecretListResolver{
 		DB:             db,
 		PaginatorInput: args.Params,

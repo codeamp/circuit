@@ -125,7 +125,7 @@ func (r *ServiceListResolver) Entries() ([]*ServiceResolver, error) {
 	var results []*ServiceResolver
 
 	limit, offset := GetPaginatorLimitAndOffset(r.PaginatorInput)
-	err := r.DB.Order("created_at desc").Limit(limit).Offset(offset).Find(&rows).Error
+	err := r.DB.Limit(limit).Offset(offset).Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}
