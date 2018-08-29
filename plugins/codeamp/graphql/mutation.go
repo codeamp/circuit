@@ -665,6 +665,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		Services: pluginServices, // ADB Added this
 	}
 
+	spew.Dump(projectExtensions)
+
 	// Create/Emit Release ProjectExtensions
 	for _, projectExtension := range projectExtensions {
 		extension := model.Extension{}
