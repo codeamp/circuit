@@ -22,9 +22,10 @@ func (r *ServiceResolverQuery) Services(ctx context.Context, args *struct {
 		return nil, err
 	}
 
+	db := r.DB.Order("name asc")
 	return &ServiceListResolver{
 		DBServiceListResolver: &db_resolver.ServiceListResolver{
-			DB:             r.DB,
+			DB:             db,
 			PaginatorInput: args.Params,
 		},
 	}, nil

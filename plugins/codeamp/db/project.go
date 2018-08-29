@@ -80,7 +80,7 @@ func (r *ProjectResolver) Services(args *struct {
 	Params *model.PaginatorInput
 }) *ServiceListResolver {
 
-	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID)
+	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("name asc")
 	return &ServiceListResolver{
 		DB:             db,
 		PaginatorInput: args.Params,
