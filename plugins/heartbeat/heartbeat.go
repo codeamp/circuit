@@ -44,6 +44,6 @@ func (x *Heartbeat) Subscribe() []string {
 	return []string{}
 }
 
-func (x *Heartbeat) Process(e transistor.Event, workerChan chan transistor.Event, workerID string) error {
+func (x *Heartbeat) Process(e transistor.Event, workerID string) error {
 	return nil
 }

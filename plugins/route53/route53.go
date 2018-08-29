@@ -53,7 +53,7 @@ func (x *Route53) Subscribe() []string {
 	}
 }
 
-func (x *Route53) Process(e transistor.Event, workerChan chan transistor.Event, workerID string) error {
+func (x *Route53) Process(e transistor.Event, workerID string) error {
 	var err error
 	log.Debug("Processing route53 event")
 

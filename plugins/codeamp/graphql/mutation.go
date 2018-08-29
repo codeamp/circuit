@@ -298,7 +298,15 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			}
 
 			spew.Dump("sendeventtoworker", event, workerID)
-			transistor.SendEventToWorker(event, workerID)
+			marshaledEvent, err := json.Marshal(event)
+			if err != nil {
+				log.Info(err.Error())
+			}
+
+			err = r.Redis.RPush(workerID, marshaledEvent, 0).Err()
+			if err != nil {
+				log.Info(err.Error())
+			}
 		}
 	}
 

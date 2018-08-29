@@ -9,6 +9,8 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/go-redis/redis"
+	"github.com/spf13/viper"
 
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
@@ -34,7 +36,11 @@ func (x *Kubernetes) SampleConfig() string {
 func (x *Kubernetes) Start(e chan transistor.Event) error {
 	x.events = e
 	log.Info("Started Kubernetes (k8s)")
-
+	x.Redis = redis.NewClient(&redis.Options{
+		Addr:     viper.GetString("redis.server"),
+		Password: viper.GetString("redis.password"), // no password set
+		DB:       viper.GetInt("redis.database"),    // use default DB
+	})
 	return nil
 }
 
@@ -54,28 +60,37 @@ func (x *Kubernetes) Subscribe() []string {
 	}
 }
 
-func (x *Kubernetes) Process(e transistor.Event, workerChan chan transistor.Event, workerID string) error {
+func (x *Kubernetes) Process(e transistor.Event) error {
 	log.Debug("Processing kubernetes event")
 
-	spew.Dump("worker related info", workerChan, workerID)
-
-	// send event with workerID
-	e.AddArtifact("workerID", workerID, true)
-
+	spew.Dump("worker related info", workerID)
 	x.sendInProgress(e, "persist workerID")
 
-	go func(chan transistor.Event) {
-		spew.Dump("initializing worker channel routine")
-		for {
-			msg := <-workerChan
-			spew.Dump("stopping msg", msg.ID)
-			x.sendErrorResponse(msg, "Release stopped")
-			// os.Exit(3)
+	stopChannel := make(chan struct{})
+
+	go func(transistor.Event, string, chan struct{}) {
+		spew.Dump("initializing worker channel routine", workerID)
+		val, err := x.Redis.BLPop(0, workerID).Result()
+		if err != nil {
+			log.Info(err.Error())
 		}
-	}(workerChan)
+
+		spew.Dump(val)
+		x.sendCanceledResponse(e, "Release stopped")
+		close(stopChannel)
+		spew.Dump("we are stopped and done!")
+		return
+	}(e, workerID, stopChannel)
 
 	if e.Matches(".*:kubernetes:deployment") == true {
-		x.ProcessDeployment(e)
+		go x.ProcessDeployment(e)
+
+		<-stopChannel
+
+		spew.Dump("stopped prematurely!")
+
+		spew.Dump("FINISHED!")
+
 		return nil
 	}
 
@@ -91,6 +106,12 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	event.Artifacts = artifacts
 
+	x.events <- event
+}
+
+func (x *Kubernetes) sendCanceledResponse(e transistor.Event, msg string) {
+	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("canceled"), msg)
+	event.Artifacts = e.Artifacts
 	x.events <- event
 }
 

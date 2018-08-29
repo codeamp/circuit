@@ -384,7 +384,7 @@ func (x *DockerBuilder) getImageID(name string) (string, error) {
 	return truncatedID, nil
 }
 
-func (x *DockerBuilder) Process(e transistor.Event, workerChan chan transistor.Event, workerID string) error {
+func (x *DockerBuilder) Process(e transistor.Event, workerID string) error {
 	if e.Matches("project:dockerbuilder") {
 		if e.Action == transistor.GetAction("create") {
 			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Installation complete.")
