@@ -765,6 +765,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 	}
+
+	return &ReleaseResolver{}, nil
 }
 
 // CreateService Create service
