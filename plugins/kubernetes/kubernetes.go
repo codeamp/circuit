@@ -60,10 +60,14 @@ func (x *Kubernetes) Subscribe() []string {
 	}
 }
 
-func (x *Kubernetes) Process(e transistor.Event) error {
+func (x *Kubernetes) Process(e transistor.Event, workerID string) error {
 	log.Debug("Processing kubernetes event")
 
 	spew.Dump("worker related info", workerID)
+
+	// send event with workerID
+	e.AddArtifact("workerID", workerID, true)
+
 	x.sendInProgress(e, "persist workerID")
 
 	stopChannel := make(chan struct{})
