@@ -741,9 +741,10 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				for _, artifact := range artifacts {
 					if artifact.Key == "workerID" {
 						workerID = artifact.Value.(string)
-						break
 					}
 				}
+
+				spew.Dump("WORKER ID", workerID)
 
 				if workerID != "" {
 					spew.Dump("WORKER ID!", workerID)
@@ -754,9 +755,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				}
 			}
 
+			spew.Dump("Got through releaseExtensions")
+
+			spew.Dump("RELEASE starting", release)
 			release.Started = time.Now()
 			r.DB.Save(&release)
 
+			spew.Dump("sending event")
 			r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 		} else {
 			log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
