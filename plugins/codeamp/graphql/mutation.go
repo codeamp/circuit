@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
@@ -266,7 +264,8 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			return nil, errors.New("Extension Not Found")
 		}
 
-		if releaseExtension.State == transistor.GetState("waiting") || releaseExtension.State == transistor.GetState("running") {
+		if extension.Type == plugins.GetType("workflow") &&
+			(releaseExtension.State == transistor.GetState("waiting") || releaseExtension.State == transistor.GetState("running")) {
 			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:      releaseExtension.ID.String(),
 				Project: plugins.Project{},
@@ -281,32 +280,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			event.State = transistor.GetState("canceled")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
 
-			workerID := ""
-			artifacts := []transistor.Artifact{}
-			err := json.Unmarshal(releaseExtension.Artifacts.RawMessage, &artifacts)
-			if err != nil {
-				log.Info(err.Error())
-			}
-
-			spew.Dump(artifacts)
-
-			for _, artifact := range artifacts {
-				if artifact.Key == "workerID" {
-					workerID = artifact.Value.(string)
-					break
-				}
-			}
-
-			spew.Dump("sendeventtoworker", event, workerID)
-			marshaledEvent, err := json.Marshal(event)
-			if err != nil {
-				log.Info(err.Error())
-			}
-
-			err = r.Redis.RPush(workerID, marshaledEvent, 0).Err()
-			if err != nil {
-				log.Info(err.Error())
-			}
+			r.Events <- event
 		}
 	}
 
