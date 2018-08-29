@@ -108,7 +108,9 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 
 			// If the above repository search was included in the paginator input
 			// then this should be an "AND" for the where operation
-			db = db.Where("id in (?)", projectIds)
+			if len(projectIds) > 0 {
+				db = db.Where("id in (?)", projectIds)
+			}
 		}
 	}
 
