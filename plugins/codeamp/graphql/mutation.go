@@ -707,7 +707,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			// cancel all releases that are queued
 			spew.Dump("Getting waitingReleses")
 			waitingReleases := []model.Release{}
-			r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID).Find(&waitingReleases)
+			r.DB.Where("state = ? and project_id = ? and environment_id = ? and id != ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID, release.Model.ID).Find(&waitingReleases)
 			for _, wr := range waitingReleases {
 				wr.State = transistor.GetState("canceled")
 				wr.StateMessage = "Canceled"
