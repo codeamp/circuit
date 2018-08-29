@@ -70,33 +70,8 @@ func (x *Kubernetes) Process(e transistor.Event, workerID string) error {
 
 	x.sendInProgress(e, "persist workerID")
 
-	stopChannel := make(chan struct{})
-
-	go func(transistor.Event, string, chan struct{}) {
-		spew.Dump("initializing worker channel routine", workerID)
-		val, err := x.Redis.BLPop(0, workerID).Result()
-		if err != nil {
-			log.Info(err.Error())
-		}
-
-		spew.Dump(val)
-		x.sendCanceledResponse(e, "Release stopped")
-		close(stopChannel)
-		spew.Dump("we are stopped and done!")
-		return
-	}(e, workerID, stopChannel)
-
 	if e.Matches(".*:kubernetes:deployment") == true {
-
-		go func(transistor.Event) {
-			x.ProcessDeployment(e)
-			return
-		}(e)
-
-		<-stopChannel
-		spew.Dump("FINISHED!")
-		os.Exit(1)
-
+		x.ProcessDeployment(e, workerID)
 		return nil
 	}
 
