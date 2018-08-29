@@ -753,6 +753,11 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 					}
 				}
 			}
+
+			release.Started = time.Now()
+			r.DB.Save(&release)
+
+			r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 		} else {
 			log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
 			return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
