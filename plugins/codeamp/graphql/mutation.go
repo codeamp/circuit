@@ -701,6 +701,21 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	if waitingRelease.State != "" {
 		if isRollback {
+			// cancel all releases that are queued
+			waitingReleases := []model.Release{}
+			r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID).Find(&waitingRelease)
+			for _, wr := range waitingReleases {
+				wr.State = transistor.GetState("canceled")
+				r.DB.Save(&wr)
+
+				var waitingReleaseExtensions []model.ReleaseExtension
+				r.DB.Where("release_id = ?", wr.Model.ID).Find(&waitingReleaseExtensions)
+				for _, wre := range waitingReleaseExtensions {
+					wre.State = transistor.GetState("canceled")
+					r.DB.Save(&wre)
+				}
+			}
+
 			releaseExtensions := []model.ReleaseExtension{}
 			r.DB.Where("release_id = ?", waitingRelease.Model.ID).Find(&releaseExtensions)
 
