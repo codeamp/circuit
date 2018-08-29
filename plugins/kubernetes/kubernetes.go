@@ -87,13 +87,15 @@ func (x *Kubernetes) Process(e transistor.Event, workerID string) error {
 	}(e, workerID, stopChannel)
 
 	if e.Matches(".*:kubernetes:deployment") == true {
-		go x.ProcessDeployment(e)
+
+		go func(transistor.Event) {
+			x.ProcessDeployment(e)
+			return
+		}(e)
 
 		<-stopChannel
-
-		spew.Dump("stopped prematurely!")
-
 		spew.Dump("FINISHED!")
+		os.Exit(1)
 
 		return nil
 	}
