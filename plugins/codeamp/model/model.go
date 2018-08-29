@@ -292,9 +292,9 @@ type ProjectSettings struct {
 type ProjectEnvironment struct {
 	Model `json:"inline"`
 	// EnvironmentID
-	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid" gorm:"foreignkey:EnvironmentID"`
+	EnvironmentID uuid.UUID `json:"environmentID" gorm:"type:uuid"`
 	// ProjectID
-	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid" gorm:"foreignkey:ProjectID"`
+	ProjectID uuid.UUID `json:"projectID" gorm:"type:uuid"`
 }
 
 // ProjectEnvironment

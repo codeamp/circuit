@@ -112,6 +112,8 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 				db = db.Where("id in (?)", projectIds)
 			}
 		}
+
+		db.Order("name asc")
 	}
 
 	return &ProjectListResolver{
