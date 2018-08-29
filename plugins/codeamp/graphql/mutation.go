@@ -20,6 +20,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -703,7 +704,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		if isRollback {
 			// cancel all releases that are queued
 			waitingReleases := []model.Release{}
-			r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID).Find(&waitingRelease)
+			r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID).Find(&waitingReleases)
 			for _, wr := range waitingReleases {
 				wr.State = transistor.GetState("canceled")
 				r.DB.Save(&wr)
@@ -736,6 +737,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				}
 
 				if workerID != "" {
+					spew.Dump("WORKER ID!", workerID)
 					err = r.Redis.RPush(workerID, "cancel", 0).Err()
 					if err != nil {
 						log.Info(err.Error())
