@@ -17,17 +17,12 @@ type ReleaseResolverQuery struct {
 func (r *ReleaseResolverQuery) Releases(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
 }) (*ReleaseListResolver, error) {
-	var query *gorm.DB
-
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
-	query = r.DB.Order("created_at desc")
-
 	return &ReleaseListResolver{
 		DBReleaseListResolver: &db_resolver.ReleaseListResolver{
-			Query:          query,
 			PaginatorInput: args.Params,
 			DB:             r.DB,
 		},

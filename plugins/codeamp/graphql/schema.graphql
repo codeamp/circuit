@@ -96,49 +96,37 @@ type Mutation {
 
 # Paginator
 interface Paginator {
-  page: Int!
   count: Int!
-  nextCursor: String!
 }
 
 # ReleaseList
 type ReleaseList implements Paginator {
-  page: Int!
   count: Int!
   entries: [Release]!
-  nextCursor: String!
 }
 
 # SecretList
 type SecretList implements Paginator {
-  page: Int!
   count: Int!
   entries: [Secret]!
-  nextCursor: String!
 }
 
 # ServiceList
 type ServiceList implements Paginator {
-  page: Int!
   count: Int!
   entries: [Service]!
-  nextCursor: String!
 }
 
 # FeatureList
 type FeatureList implements Paginator {
-  page: Int!
   count: Int!
   entries: [Feature]!
-  nextCursor: String!
 }
 
 # ProjectList
 type ProjectList implements Paginator {
-  page: Int!
   count: Int!
   entries: [Project]!
-  nextCursor: String!
 }
 
 # User
@@ -320,7 +308,7 @@ input ProjectSearchInput {
 
 # Pagination input
 input PaginatorInput {
-  cursor: String
+  page: Int
   limit: Int
 }
 

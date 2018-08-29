@@ -1,7 +1,6 @@
 package graphql_resolver_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
@@ -67,8 +66,6 @@ func (ts *PaginatorTestSuite) TestReleaseListPaginator() {
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	limit := int32(100)
 	paginatorInput := model.PaginatorInput{
 		Limit: &limit,
@@ -76,9 +73,8 @@ func (ts *PaginatorTestSuite) TestReleaseListPaginator() {
 
 	paginator := &graphql_resolver.ReleaseListResolver{
 		DBReleaseListResolver: &db_resolver.ReleaseListResolver{
-			Query:          query,
 			PaginatorInput: &paginatorInput,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -86,16 +82,6 @@ func (ts *PaginatorTestSuite) TestReleaseListPaginator() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	_, err = paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	// assert.NotEqual(ts.T(), 0, strings.Compare(cursor, ""))
 
 	count, err := paginator.Count()
 	assert.Nil(ts.T(), err)
@@ -133,13 +119,10 @@ func (ts *PaginatorTestSuite) TestReleaseListPaginatorNoInput() {
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	paginator := &graphql_resolver.ReleaseListResolver{
 		DBReleaseListResolver: &db_resolver.ReleaseListResolver{
-			Query:          query,
 			PaginatorInput: nil,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -147,21 +130,9 @@ func (ts *PaginatorTestSuite) TestReleaseListPaginatorNoInput() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	cursor, err := paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), 0, strings.Compare(cursor, ""))
 }
 
 func (ts *PaginatorTestSuite) TestSecretListPaginator() {
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	limit := int32(100)
 	paginatorInput := model.PaginatorInput{
 		Limit: &limit,
@@ -169,9 +140,8 @@ func (ts *PaginatorTestSuite) TestSecretListPaginator() {
 
 	paginator := &graphql_resolver.SecretListResolver{
 		DBSecretListResolver: &db_resolver.SecretListResolver{
-			Query:          query,
 			PaginatorInput: &paginatorInput,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -179,16 +149,6 @@ func (ts *PaginatorTestSuite) TestSecretListPaginator() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	_, err = paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	// assert.NotEqual(ts.T(), 0, strings.Compare(cursor, ""))
 
 	count, err := paginator.Count()
 	assert.Nil(ts.T(), err)
@@ -196,13 +156,10 @@ func (ts *PaginatorTestSuite) TestSecretListPaginator() {
 }
 
 func (ts *PaginatorTestSuite) TestSecretListPaginatorNoInput() {
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	paginator := &graphql_resolver.SecretListResolver{
 		DBSecretListResolver: &db_resolver.SecretListResolver{
-			Query:          query,
 			PaginatorInput: nil,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -210,16 +167,6 @@ func (ts *PaginatorTestSuite) TestSecretListPaginatorNoInput() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	cursor, err := paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), 0, strings.Compare(cursor, ""))
 }
 
 func (ts *PaginatorTestSuite) TestServiceListPaginator() {
@@ -244,8 +191,6 @@ func (ts *PaginatorTestSuite) TestServiceListPaginator() {
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil, nil)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	limit := int32(100)
 	paginatorInput := model.PaginatorInput{
 		Limit: &limit,
@@ -253,9 +198,8 @@ func (ts *PaginatorTestSuite) TestServiceListPaginator() {
 
 	paginator := &graphql_resolver.ServiceListResolver{
 		DBServiceListResolver: &db_resolver.ServiceListResolver{
-			Query:          query,
 			PaginatorInput: &paginatorInput,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -263,16 +207,6 @@ func (ts *PaginatorTestSuite) TestServiceListPaginator() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	_, err = paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	// assert.NotEqual(ts.T(), 0, strings.Compare(cursor, ""))
 
 	count, err := paginator.Count()
 	assert.Nil(ts.T(), err)
@@ -301,13 +235,10 @@ func (ts *PaginatorTestSuite) TestServiceListPaginatorNoInput() {
 	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil, nil)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	paginator := &graphql_resolver.ServiceListResolver{
 		DBServiceListResolver: &db_resolver.ServiceListResolver{
-			Query:          query,
 			PaginatorInput: nil,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -315,16 +246,6 @@ func (ts *PaginatorTestSuite) TestServiceListPaginatorNoInput() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	cursor, err := paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), 0, strings.Compare(cursor, ""))
 }
 
 func (ts *PaginatorTestSuite) TestFeatureListPaginator() {
@@ -338,8 +259,6 @@ func (ts *PaginatorTestSuite) TestFeatureListPaginator() {
 	ts.helper.CreateFeatureWithParent(ts.T(), projectResolver)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	limit := int32(100)
 	paginatorInput := model.PaginatorInput{
 		Limit: &limit,
@@ -347,9 +266,8 @@ func (ts *PaginatorTestSuite) TestFeatureListPaginator() {
 
 	paginator := &graphql_resolver.FeatureListResolver{
 		DBFeatureListResolver: &db_resolver.FeatureListResolver{
-			Query:          query,
 			PaginatorInput: &paginatorInput,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -357,16 +275,6 @@ func (ts *PaginatorTestSuite) TestFeatureListPaginator() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	_, err = paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	// assert.NotEqual(ts.T(), 0, strings.Compare(cursor, ""))
 
 	count, err := paginator.Count()
 	assert.Nil(ts.T(), err)
@@ -384,13 +292,10 @@ func (ts *PaginatorTestSuite) TestFeatureListPaginatorNoInput() {
 	ts.helper.CreateFeatureWithParent(ts.T(), projectResolver)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	paginator := &graphql_resolver.FeatureListResolver{
 		DBFeatureListResolver: &db_resolver.FeatureListResolver{
-			Query:          query,
 			PaginatorInput: nil,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -398,16 +303,6 @@ func (ts *PaginatorTestSuite) TestFeatureListPaginatorNoInput() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	cursor, err := paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), 0, strings.Compare(cursor, ""))
 }
 
 func (ts *PaginatorTestSuite) TestProjectListPaginator() {
@@ -418,8 +313,6 @@ func (ts *PaginatorTestSuite) TestProjectListPaginator() {
 	ts.helper.CreateProject(ts.T(), environmentResolver)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	limit := int32(100)
 	paginatorInput := model.PaginatorInput{
 		Limit: &limit,
@@ -427,9 +320,8 @@ func (ts *PaginatorTestSuite) TestProjectListPaginator() {
 
 	paginator := &graphql_resolver.ProjectListResolver{
 		DBProjectListResolver: &db_resolver.ProjectListResolver{
-			Query:          query,
 			PaginatorInput: &paginatorInput,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -437,16 +329,6 @@ func (ts *PaginatorTestSuite) TestProjectListPaginator() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	_, err = paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	// assert.NotEqual(ts.T(), 0, strings.Compare(cursor, ""))
 
 	count, err := paginator.Count()
 	assert.Nil(ts.T(), err)
@@ -461,13 +343,10 @@ func (ts *PaginatorTestSuite) TestProjectListPaginatorNoInput() {
 	ts.helper.CreateProject(ts.T(), environmentResolver)
 
 	// Pagination
-	query := ts.Resolver.DB.Order("created_at desc")
-
 	paginator := &graphql_resolver.ProjectListResolver{
 		DBProjectListResolver: &db_resolver.ProjectListResolver{
-			Query:          query,
 			PaginatorInput: nil,
-			DB:             ts.Resolver.DB,
+			DB:             ts.Resolver.DB.Order("created_at desc"),
 		},
 	}
 
@@ -475,16 +354,6 @@ func (ts *PaginatorTestSuite) TestProjectListPaginatorNoInput() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), entries)
 	assert.NotEmpty(ts.T(), entries)
-
-	page, err := paginator.Page()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	assert.Equal(ts.T(), int32(1), page)
-
-	_, err = paginator.NextCursor()
-	assert.Nil(ts.T(), err)
-	assert.NotNil(ts.T(), page)
-	// assert.NotEqual(ts.T(), 0, strings.Compare(cursor, ""))
 }
 
 func (ts *PaginatorTestSuite) TearDownTest() {
