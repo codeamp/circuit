@@ -114,10 +114,9 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 		}
 	}
 
-	db.Order("name asc")
 	return &ProjectListResolver{
 		DBProjectListResolver: &db_resolver.ProjectListResolver{
-			DB:             db,
+			DB:             db.Order("name asc"),
 			PaginatorInput: args.Params,
 		},
 	}, nil
