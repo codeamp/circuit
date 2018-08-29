@@ -782,11 +782,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 			}
 
 			if val != nil {
+				spew.Dump("HELLO THIS IS NOT NULL")
+				spew.Dump(val)
+				x.sendCanceledResponse(e, "Release stopped")
 				return nil
 			}
-
-			spew.Dump(val)
-			x.sendCanceledResponse(e, "Release stopped")
 
 			job, err := batchv1DepInterface.Jobs(namespace).Get(createdJob.Name, meta_v1.GetOptions{})
 			if err != nil {
@@ -1005,6 +1005,9 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 			}
 
 			if val != nil {
+				spew.Dump("HELLO THIS IS NOT NULL")
+				spew.Dump(val)
+				x.sendCanceledResponse(e, "Release stopped")
 				return nil
 			}
 
