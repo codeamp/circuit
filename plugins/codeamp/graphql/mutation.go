@@ -726,8 +726,37 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	}
 
 	if waitingRelease.State != "" {
-		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
-		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
+		if isRollback {
+			releaseExtensions := []model.ReleaseExtension{}
+			r.DB.Where("release_id = ?", waitingRelease.Model.ID).Find(&releaseExtensions)
+
+			for _, re := range releaseExtensions {
+				workerID := ""
+				artifacts := []transistor.Artifact{}
+
+				err := json.Unmarshal(re.Artifacts.RawMessage, &artifacts)
+				if err != nil {
+					log.Info(err.Error())
+				}
+
+				for _, artifact := range artifacts {
+					if artifact.Key == "workerID" {
+						workerID = artifact.Value.(string)
+						break
+					}
+				}
+
+				if workerID != "" {
+					err = r.Redis.RPush(workerID, "cancel", 0).Err()
+					if err != nil {
+						log.Info(err.Error())
+					}
+				}
+			}
+		} else {
+			log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
+			return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
+		}
 	} else {
 		release.Started = time.Now()
 		r.DB.Save(&release)
