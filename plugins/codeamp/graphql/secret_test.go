@@ -150,7 +150,7 @@ func (ts *SecretTestSuite) TestSecretInterface() {
 	_ = secretResolver.Value()
 	_ = secretResolver.Scope()
 	_ = secretResolver.Project()
-	_ = secretResolver.User()
+	_, err = secretResolver.User()
 	_ = secretResolver.Type()
 	_, _ = secretResolver.Versions()
 	_ = secretResolver.Environment()

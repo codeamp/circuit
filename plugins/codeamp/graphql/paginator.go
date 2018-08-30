@@ -25,14 +25,6 @@ func (r FeatureListResolver) Entries() ([]*FeatureResolver, error) {
 	return results, nil
 }
 
-func (r FeatureListResolver) Page() (int32, error) {
-	return r.DBFeatureListResolver.Page()
-}
-
-func (r FeatureListResolver) NextCursor() (string, error) {
-	return r.DBFeatureListResolver.NextCursor()
-}
-
 func (r FeatureListResolver) Count() (int32, error) {
 	return r.DBFeatureListResolver.Count()
 }
@@ -56,14 +48,6 @@ func (r ReleaseListResolver) Entries() ([]*ReleaseResolver, error) {
 	}
 
 	return results, nil
-}
-
-func (r ReleaseListResolver) Page() (int32, error) {
-	return r.DBReleaseListResolver.Page()
-}
-
-func (r ReleaseListResolver) NextCursor() (string, error) {
-	return r.DBReleaseListResolver.NextCursor()
 }
 
 func (r ReleaseListResolver) Count() (int32, error) {
@@ -91,14 +75,6 @@ func (r ServiceListResolver) Entries() ([]*ServiceResolver, error) {
 	return results, nil
 }
 
-func (r ServiceListResolver) Page() (int32, error) {
-	return r.DBServiceListResolver.Page()
-}
-
-func (r ServiceListResolver) NextCursor() (string, error) {
-	return r.DBServiceListResolver.NextCursor()
-}
-
 func (r ServiceListResolver) Count() (int32, error) {
 	return r.DBServiceListResolver.Count()
 }
@@ -124,14 +100,6 @@ func (r SecretListResolver) Entries() ([]*SecretResolver, error) {
 	return results, nil
 }
 
-func (r SecretListResolver) Page() (int32, error) {
-	return r.DBSecretListResolver.Page()
-}
-
-func (r SecretListResolver) NextCursor() (string, error) {
-	return r.DBSecretListResolver.NextCursor()
-}
-
 func (r SecretListResolver) Count() (int32, error) {
 	return r.DBSecretListResolver.Count()
 }
@@ -155,14 +123,6 @@ func (r ProjectListResolver) Entries() ([]*ProjectResolver, error) {
 	}
 
 	return results, nil
-}
-
-func (r ProjectListResolver) Page() (int32, error) {
-	return r.DBProjectListResolver.Page()
-}
-
-func (r ProjectListResolver) NextCursor() (string, error) {
-	return r.DBProjectListResolver.NextCursor()
 }
 
 func (r ProjectListResolver) Count() (int32, error) {

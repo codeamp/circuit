@@ -58,8 +58,9 @@ func (r *SecretResolver) Project() *ProjectResolver {
 }
 
 // User
-func (r *SecretResolver) User() *UserResolver {
-	return &UserResolver{DBUserResolver: r.DBSecretResolver.User()}
+func (r *SecretResolver) User() (*UserResolver, error) {
+	resolver, err := r.DBSecretResolver.User()
+	return &UserResolver{DBUserResolver: resolver}, err
 }
 
 // Type

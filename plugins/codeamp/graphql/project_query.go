@@ -6,6 +6,7 @@ import (
 
 	auth "github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -88,26 +89,34 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	var query *gorm.DB
-
-	if args.ProjectSearch != nil && args.ProjectSearch.Repository != nil {
-		query = u.DB.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository))
-	} else {
-		var projectBookmarks []model.ProjectBookmark
-
-		u.DB.Where("user_id = ?", ctx.Value("jwt").(model.Claims).UserID).Find(&projectBookmarks)
-
-		var projectIds []uuid.UUID
-		for _, bookmark := range projectBookmarks {
-			projectIds = append(projectIds, bookmark.ProjectID)
+	db := u.DB
+	if args.ProjectSearch != nil {
+		if args.ProjectSearch.Repository != nil && *args.ProjectSearch.Repository != "" {
+			db = db.Where("repository like ?", fmt.Sprintf("%%%s%%", *args.ProjectSearch.Repository))
 		}
-		query = u.DB.Where("id in (?)", projectIds)
+
+		if args.ProjectSearch.Bookmarked == true {
+			var projectBookmarks []model.ProjectBookmark
+
+			// Make a query quickly for bookmarks owned by user
+			u.DB.Where("user_id = ?", ctx.Value("jwt").(model.Claims).UserID).Find(&projectBookmarks)
+
+			var projectIds []uuid.UUID
+			for _, bookmark := range projectBookmarks {
+				projectIds = append(projectIds, bookmark.ProjectID)
+			}
+
+			// If the above repository search was included in the paginator input
+			// then this should be an "AND" for the where operation
+			if len(projectIds) > 0 {
+				db = db.Where("id in (?)", projectIds)
+			}
+		}
 	}
 
 	return &ProjectListResolver{
 		DBProjectListResolver: &db_resolver.ProjectListResolver{
-			DB:             u.DB,
-			Query:          query,
+			DB:             db.Order("name asc"),
 			PaginatorInput: args.Params,
 		},
 	}, nil

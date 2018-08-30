@@ -103,7 +103,7 @@ func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface 
 	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
 		if errors.IsNotFound(nameGetErr) {
-			log.Warn("Namespace %s does not yet exist, creating.", namespace)
+			log.Warn(fmt.Sprintf("Namespace %s does not yet exist, creating.", namespace))
 			namespaceParams := &v1.Namespace{
 				TypeMeta: meta_v1.TypeMeta{
 					Kind:       "Namespace",
@@ -115,12 +115,12 @@ func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface 
 			}
 			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
 			if createNamespaceErr != nil {
-				log.Error("Error '%s' creating namespace %s", createNamespaceErr, namespace)
+				log.Error(fmt.Sprintf("Error '%s' creating namespace %s", createNamespaceErr, namespace))
 				return createNamespaceErr
 			}
-			log.Debug("Namespace created: %s", namespace)
+			log.Debug(fmt.Sprintf("Namespace created: %s", namespace))
 		} else {
-			log.Error("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr)
+			log.Error(fmt.Sprintf("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr))
 			return nameGetErr
 		}
 	}
@@ -183,21 +183,21 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin.pem", randomDirectory),
 		[]byte(clientCert.String()), 0644)
 	if err != nil {
-		log.Error("ERROR: %s", err.Error())
+		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
 		[]byte(clientKey.String()), 0644)
 	if err != nil {
-		log.Error("ERROR: %s", err.Error())
+		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
 		[]byte(certificateAuthority.String()), 0644)
 	if err != nil {
-		log.Error("ERROR: %s", err.Error())
+		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
 		return "", err
 	}
 
