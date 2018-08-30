@@ -772,6 +772,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 		// Loop and block any other jobs/ deployments from running until
 		// the current job is terminated
 		for {
+			spew.Dump("looking in worker", workerID)
 			val, err := x.Redis.BLPop(3*time.Second, workerID).Result()
 			if err != nil {
 				log.Info(err.Error())
@@ -992,6 +993,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 		// Check status of all deployments till the succeed or timeout.
 		replicaFailures := 0
 		for {
+			spew.Dump("workerID", workerID)
 			val, err := x.Redis.BLPop(3*time.Second, workerID).Result()
 			if err != nil {
 				log.Info(err.Error())
