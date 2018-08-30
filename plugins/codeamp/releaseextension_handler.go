@@ -51,11 +51,11 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			x.ReleaseExtensionCompleted(&releaseExtension)
 		}
 
-		if e.State == transistor.GetState("failed") {
+		if e.State == transistor.GetState("canceled") || e.State == transistor.GetState("failed") {
 			releaseExtension.Finished = time.Now()
 			x.DB.Save(&releaseExtension)
 
-			x.ReleaseFailed(&release, e.StateMessage)
+			x.ReleaseTerminated(&release, e.StateMessage, e.State)
 		}
 	}
 

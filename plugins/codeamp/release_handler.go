@@ -10,7 +10,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -100,7 +99,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	return nil
 }
 
-func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
+func (x *CodeAmp) ReleaseTerminated(release *model.Release, stateMessage string, state transistor.State) {
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
 	release.Finished = time.Now()
@@ -141,10 +140,6 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	x.Events <- event
 
 	x.RunQueuedReleases(release)
-}
-
-func (x *CodeAmp) ReleaseCanceled(e transistor.Event) {
-	spew.Dump("Release Canceled!", e)
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
