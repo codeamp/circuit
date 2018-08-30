@@ -27,6 +27,8 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 
 	if e.Matches("release:create") {
 		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+		release.State = transistor.GetState("running")
+		x.DB.Save(&release)
 
 		for _, releaseExtension := range releaseExtensions {
 			projectExtension := model.ProjectExtension{}
@@ -97,8 +99,8 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	return nil
 }
 
-func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
-	release.State = transistor.GetState("failed")
+func (x *CodeAmp) ReleaseTerminated(release *model.Release, stateMessage string, state transistor.State) {
+	release.State = state
 	release.StateMessage = stateMessage
 	release.Finished = time.Now()
 
@@ -126,7 +128,13 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 		})
 	}
 
-	x.SendNotifications("FAILED", release, &project)
+	if state == transistor.GetState("canceled") {
+		x.SendNotifications("CANCELED", release, &project)
+	}
+
+	if state == transistor.GetState("failed") {
+		x.SendNotifications("FAILED", release, &project)
+	}
 
 	payload := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),

@@ -13,7 +13,7 @@ type Plugin interface {
 	Subscribe() []string
 
 	// Process takes in an event message and tries to process it
-	Process(Event) error
+	Process(Event, string) error
 }
 
 type RunningPlugin struct {
