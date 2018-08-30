@@ -8,7 +8,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
 
@@ -62,8 +61,6 @@ func (x *Kubernetes) Subscribe() []string {
 
 func (x *Kubernetes) Process(e transistor.Event, workerID string) error {
 	log.Debug("Processing kubernetes event")
-
-	spew.Dump("worker related info", workerID)
 
 	// send event with workerID
 	e.AddArtifact("workerID", workerID, true)

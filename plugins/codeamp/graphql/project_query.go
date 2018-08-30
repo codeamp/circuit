@@ -9,7 +9,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
@@ -78,8 +77,6 @@ func (u *ProjectResolverQuery) Project(ctx context.Context, args *struct {
 		})
 		return nil, fmt.Errorf("Environment not found")
 	}
-
-	spew.Dump("is environment empty?", resolver.DBProjectResolver.Environment == (model.Environment{}))
 
 	return &resolver, nil
 }
