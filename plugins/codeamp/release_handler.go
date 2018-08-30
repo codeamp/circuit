@@ -100,7 +100,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) ReleaseTerminated(release *model.Release, stateMessage string, state transistor.State) {
-	release.State = transistor.GetState("failed")
+	release.State = state
 	release.StateMessage = stateMessage
 	release.Finished = time.Now()
 
