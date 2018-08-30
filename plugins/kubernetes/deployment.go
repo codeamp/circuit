@@ -779,7 +779,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 
 			if val != nil {
 				spew.Dump("HELLO THIS IS NOT NULL")
-				x.sendCanceledResponse(e, "Release stopped")
+				x.sendErrorResponse(e, "Release stopped")
 				return fmt.Errorf("Canceled release")
 			}
 
@@ -999,7 +999,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 
 			if val != nil {
 				spew.Dump("HELLO THIS IS NOT NULL")
-				x.sendCanceledResponse(e, "Release stopped")
+				x.sendErrorResponse(e, "Release stopped")
 				return fmt.Errorf("Canceled release")
 			}
 
