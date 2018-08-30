@@ -128,7 +128,13 @@ func (x *CodeAmp) ReleaseTerminated(release *model.Release, stateMessage string,
 		})
 	}
 
-	x.SendNotifications("FAILED", release, &project)
+	if state == transistor.GetState("canceled") {
+		x.SendNotifications("CANCELED", release, &project)
+	}
+
+	if state == transistor.GetState("failed") {
+		x.SendNotifications("FAILED", release, &project)
+	}
 
 	payload := plugins.WebsocketMsg{
 		Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
