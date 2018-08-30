@@ -45,7 +45,6 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event, workerID string) {
 	}
 
 	if e.Matches("release:") {
-		spew.Dump(e.Artifacts)
 		if e.Action == transistor.GetAction("create") {
 			err := x.doDeploy(e, workerID)
 			if err != nil {
@@ -501,7 +500,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 		return err
 	}
 
-	spew.Dump(e.Artifacts)
 	x.sendInProgress(e, "Deploy in-progress")
 	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 	coreInterface := clientset.Core()
@@ -556,8 +554,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 		return fmt.Errorf(failMessage)
 	}
 	secretName := secretResult.Name
-
-	spew.Dump(e.Artifacts)
 	x.sendInProgress(e, "Secrets created")
 
 	// This is for building the configuration to use the secrets from inside the deployment
@@ -783,7 +779,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 
 			if val != nil {
 				spew.Dump("HELLO THIS IS NOT NULL")
-				spew.Dump(val)
 				x.sendCanceledResponse(e, "Release stopped")
 				return nil
 			}
@@ -941,8 +936,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 			},
 		}
 
-		spew.Dump(e.Artifacts)
-
 		x.sendInProgress(e, "Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
 
 		log.Info("Deploy setup is complete. Created Replica-Set. Now Creating Deployment.")
@@ -1006,7 +999,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 
 			if val != nil {
 				spew.Dump("HELLO THIS IS NOT NULL")
-				spew.Dump(val)
 				x.sendCanceledResponse(e, "Release stopped")
 				return nil
 			}

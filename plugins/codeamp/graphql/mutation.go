@@ -453,8 +453,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	waitingRelease := model.Release{}
 
-	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("waiting")),
-		string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
+	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
 
 	wrSecretsSha1 := sha1.New()
 	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
@@ -665,8 +664,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		Services: pluginServices, // ADB Added this
 	}
 
-	spew.Dump(projectExtensions)
-
 	// Create/Emit Release ProjectExtensions
 	for _, projectExtension := range projectExtensions {
 		extension := model.Extension{}
@@ -702,6 +699,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		}
 	}
 
+	spew.Dump("runningRelease state", waitingRelease.State)
 	if waitingRelease.State != "" {
 		if isRollback {
 			// cancel all releases that are queued
@@ -724,7 +722,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				}
 			}
 
-			spew.Dump("Getting releaseExtensions")
+			spew.Dump("Getting releaseExtensions for runningRelease")
 			releaseExtensions := []model.ReleaseExtension{}
 			r.DB.Where("release_id = ?", waitingRelease.Model.ID).Find(&releaseExtensions)
 
@@ -737,6 +735,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				if err != nil {
 					log.Info(err.Error())
 				}
+
+				spew.Dump(artifacts)
 
 				for _, artifact := range artifacts {
 					if artifact.Key == "workerID" {
@@ -757,15 +757,15 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 			spew.Dump("Got through releaseExtensions")
 
-			spew.Dump("RELEASE starting", release)
+			spew.Dump("RELEASE starting")
 			release.Started = time.Now()
 			r.DB.Save(&release)
 
-			spew.Dump("sending event", releaseEvent)
+			spew.Dump("sending event")
 			r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 		} else {
 			log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
-			return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
+			return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
 		}
 	} else {
 		release.Started = time.Now()
@@ -776,7 +776,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 	}
 
-	return &ReleaseResolver{}, nil
+	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 }
 
 // CreateService Create service

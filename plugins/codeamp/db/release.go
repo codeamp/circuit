@@ -113,6 +113,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (model.JSON, error) {
 // HeadFeature
 func (r *ReleaseResolver) HeadFeature() *FeatureResolver {
 	var feature model.Feature
+	log.Info("is r nil?", r == nil)
 	r.DB.Where("id = ?", r.Release.HeadFeatureID).First(&feature)
 	return &FeatureResolver{DB: r.DB, Feature: feature}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -27,6 +28,8 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 
 	if e.Matches("release:create") {
 		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+		release.State = transistor.GetState("running")
+		x.DB.Save(&release)
 
 		for _, releaseExtension := range releaseExtensions {
 			projectExtension := model.ProjectExtension{}
@@ -138,6 +141,10 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	x.Events <- event
 
 	x.RunQueuedReleases(release)
+}
+
+func (x *CodeAmp) ReleaseCanceled(e transistor.Event) {
+	spew.Dump("Release Canceled!", e)
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
