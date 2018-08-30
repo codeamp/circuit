@@ -20,7 +20,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -699,11 +698,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		}
 	}
 
-	spew.Dump("runningRelease state", waitingRelease.State)
 	if waitingRelease.State != "" {
 		if isRollback {
 			// cancel all releases that are queued
-			spew.Dump("Getting waitingReleses")
 			waitingReleases := []model.Release{}
 			r.DB.Where("state = ? and project_id = ? and environment_id = ? and id != ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID, release.Model.ID).Find(&waitingReleases)
 			for _, wr := range waitingReleases {
@@ -712,9 +709,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				r.DB.Save(&wr)
 
 				var waitingReleaseExtensions []model.ReleaseExtension
-				spew.Dump("Getting waitingRleeaseExtensions")
 				r.DB.Where("release_id = ?", wr.Model.ID).Find(&waitingReleaseExtensions)
-				spew.Dump("Got waitingReleaseExtensions", len(waitingReleaseExtensions))
 				for _, wre := range waitingReleaseExtensions {
 					wre.State = transistor.GetState("canceled")
 					wre.StateMessage = "Canceled"
@@ -722,11 +717,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				}
 			}
 
-			spew.Dump("Getting releaseExtensions for runningRelease")
 			releaseExtensions := []model.ReleaseExtension{}
 			r.DB.Where("release_id = ?", waitingRelease.Model.ID).Find(&releaseExtensions)
 
-			spew.Dump("Going through release extensions", len(releaseExtensions))
 			for _, re := range releaseExtensions {
 				workerID := ""
 				artifacts := []transistor.Artifact{}
@@ -736,18 +729,13 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 					log.Info(err.Error())
 				}
 
-				spew.Dump(artifacts)
-
 				for _, artifact := range artifacts {
 					if artifact.Key == "workerID" {
 						workerID = artifact.Value.(string)
 					}
 				}
 
-				spew.Dump("WORKER ID", workerID)
-
 				if workerID != "" {
-					spew.Dump("WORKER ID!", workerID)
 					err = r.Redis.RPush(workerID, "cancel", 0).Err()
 					if err != nil {
 						log.Info(err.Error())
@@ -755,13 +743,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				}
 			}
 
-			spew.Dump("Got through releaseExtensions")
-
-			spew.Dump("RELEASE starting")
 			release.Started = time.Now()
 			r.DB.Save(&release)
 
-			spew.Dump("sending event")
 			r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
 		} else {
 			log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
