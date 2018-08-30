@@ -647,7 +647,9 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	for _, service := range reData.Release.Services {
 		if service.Type == "one-shot" && !reData.Release.IsRollback {
 			oneShotServices = append(oneShotServices, service)
-		} else {
+		}
+
+		if service.Type == "general" {
 			deploymentServices = append(deploymentServices, service)
 		}
 	}
