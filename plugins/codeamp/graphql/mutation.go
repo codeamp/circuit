@@ -264,7 +264,8 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			return nil, errors.New("Extension Not Found")
 		}
 
-		if releaseExtension.State == transistor.GetState("waiting") {
+		if extension.Type == plugins.GetType("workflow") &&
+			(releaseExtension.State == transistor.GetState("waiting") || releaseExtension.State == transistor.GetState("running")) {
 			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:      releaseExtension.ID.String(),
 				Project: plugins.Project{},
@@ -278,6 +279,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 			event := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), releaseExtensionEvent)
 			event.State = transistor.GetState("canceled")
 			event.StateMessage = fmt.Sprintf("Deployment Stopped By User %s", user.Email)
+
 			r.Events <- event
 		}
 	}
@@ -450,8 +452,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	waitingRelease := model.Release{}
 
-	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("waiting")),
-		string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
+	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
 
 	wrSecretsSha1 := sha1.New()
 	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
@@ -698,8 +699,58 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	}
 
 	if waitingRelease.State != "" {
-		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
-		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
+		if isRollback {
+			// cancel all releases that are queued
+			waitingReleases := []model.Release{}
+			r.DB.Where("state = ? and project_id = ? and environment_id = ? and id != ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID, release.Model.ID).Find(&waitingReleases)
+			for _, wr := range waitingReleases {
+				wr.State = transistor.GetState("canceled")
+				wr.StateMessage = "Canceled"
+				r.DB.Save(&wr)
+
+				var waitingReleaseExtensions []model.ReleaseExtension
+				r.DB.Where("release_id = ?", wr.Model.ID).Find(&waitingReleaseExtensions)
+				for _, wre := range waitingReleaseExtensions {
+					wre.State = transistor.GetState("canceled")
+					wre.StateMessage = "Canceled"
+					r.DB.Save(&wre)
+				}
+			}
+
+			releaseExtensions := []model.ReleaseExtension{}
+			r.DB.Where("release_id = ?", waitingRelease.Model.ID).Find(&releaseExtensions)
+
+			for _, re := range releaseExtensions {
+				workerID := ""
+				artifacts := []transistor.Artifact{}
+
+				err := json.Unmarshal(re.Artifacts.RawMessage, &artifacts)
+				if err != nil {
+					log.Info(err.Error())
+				}
+
+				for _, artifact := range artifacts {
+					if artifact.Key == "workerID" {
+						workerID = artifact.Value.(string)
+					}
+				}
+
+				if workerID != "" {
+					err = r.Redis.RPush(workerID, "cancel", 0).Err()
+					if err != nil {
+						log.Info(err.Error())
+					}
+				}
+			}
+
+			release.Started = time.Now()
+			r.DB.Save(&release)
+
+			r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
+		} else {
+			log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
+			return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
+		}
 	} else {
 		release.Started = time.Now()
 		r.DB.Save(&release)
@@ -708,6 +759,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 	}
+
+	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 }
 
 // CreateService Create service

@@ -8,6 +8,8 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/go-redis/redis"
+	"github.com/spf13/viper"
 
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
@@ -33,7 +35,11 @@ func (x *Kubernetes) SampleConfig() string {
 func (x *Kubernetes) Start(e chan transistor.Event) error {
 	x.events = e
 	log.Info("Started Kubernetes (k8s)")
-
+	x.Redis = redis.NewClient(&redis.Options{
+		Addr:     viper.GetString("redis.server"),
+		Password: viper.GetString("redis.password"), // no password set
+		DB:       viper.GetInt("redis.database"),    // use default DB
+	})
 	return nil
 }
 
@@ -53,11 +59,16 @@ func (x *Kubernetes) Subscribe() []string {
 	}
 }
 
-func (x *Kubernetes) Process(e transistor.Event) error {
+func (x *Kubernetes) Process(e transistor.Event, workerID string) error {
 	log.Debug("Processing kubernetes event")
 
+	// send event with workerID
+	e.AddArtifact("workerID", workerID, true)
+
+	x.sendInProgress(e, "persist workerID")
+
 	if e.Matches(".*:kubernetes:deployment") == true {
-		x.ProcessDeployment(e)
+		x.ProcessDeployment(e, workerID)
 		return nil
 	}
 
@@ -76,13 +87,21 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 	x.events <- event
 }
 
+func (x *Kubernetes) sendCanceledResponse(e transistor.Event, msg string) {
+	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("canceled"), msg)
+	event.Artifacts = e.Artifacts
+	x.events <- event
+}
+
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), msg)
+	event.Artifacts = e.Artifacts
 	x.events <- event
 }
 
 func (x *Kubernetes) sendInProgress(e transistor.Event, msg string) {
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), msg)
+	event.Artifacts = e.Artifacts
 	x.events <- event
 }
 

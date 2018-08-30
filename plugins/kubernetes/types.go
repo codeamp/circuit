@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/go-redis/redis"
 	"k8s.io/api/core/v1"
 )
 
@@ -34,6 +35,7 @@ type SimplePodSpec struct {
 // Kubernetes
 type Kubernetes struct {
 	events chan transistor.Event
+	Redis  *redis.Client
 }
 
 // ProbeDefaults
