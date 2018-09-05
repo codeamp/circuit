@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
@@ -28,6 +26,10 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			return fmt.Errorf("Release %s not found", payload.Release.ID)
 		}
 
+		if release.State == transistor.GetState("canceled") {
+			return fmt.Errorf("Release already canceled, so ignoring given event for release %s.", release.Model.ID.String())
+		}
+
 		if x.DB.Where("id = ?", payload.ID).Find(&releaseExtension).RecordNotFound() {
 			log.InfoWithFields("release extension not found", log.Fields{
 				"id": payload.ID,
@@ -35,7 +37,6 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 			return fmt.Errorf("Release extension %s not found", payload.ID)
 		}
 
-		spew.Dump("release extension state", e.State)
 		releaseExtension.State = e.State
 		releaseExtension.StateMessage = e.StateMessage
 		marshalledReArtifacts, err := json.Marshal(e.Artifacts)

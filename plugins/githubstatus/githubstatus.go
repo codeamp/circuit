@@ -126,7 +126,7 @@ func getStatus(e transistor.Event) (StatusResponse, error) {
 	}
 }
 
-func (x *GithubStatus) Process(e transistor.Event, workerID string) error {
+func (x *GithubStatus) Process(e transistor.Event) error {
 	log.Debug("Processing GithubStatus event")
 
 	timeoutInterval := 5

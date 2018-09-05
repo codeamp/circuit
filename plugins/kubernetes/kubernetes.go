@@ -59,16 +59,11 @@ func (x *Kubernetes) Subscribe() []string {
 	}
 }
 
-func (x *Kubernetes) Process(e transistor.Event, workerID string) error {
+func (x *Kubernetes) Process(e transistor.Event) error {
 	log.Debug("Processing kubernetes event")
 
-	// send event with workerID
-	e.AddArtifact("workerID", workerID, true)
-
-	x.sendInProgress(e, "persist workerID")
-
 	if e.Matches(".*:kubernetes:deployment") == true {
-		x.ProcessDeployment(e, workerID)
+		x.ProcessDeployment(e)
 		return nil
 	}
 

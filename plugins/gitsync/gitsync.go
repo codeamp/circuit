@@ -213,7 +213,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	return commits, nil
 }
 
-func (x *GitSync) Process(e transistor.Event, workerID string) error {
+func (x *GitSync) Process(e transistor.Event) error {
 	log.DebugWithFields("Process GitSync event", log.Fields{
 		"event": e.Event(),
 	})

@@ -702,44 +702,18 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		if isRollback {
 			// cancel all releases that are queued
 			waitingReleases := []model.Release{}
-			r.DB.Where("state = ? and project_id = ? and environment_id = ? and id != ?", transistor.GetState("waiting"), project.Model.ID, environment.Model.ID, release.Model.ID).Find(&waitingReleases)
+			r.DB.Where("state in (?) and project_id = ? and environment_id = ? and id != ?", []string{string(transistor.GetState("running")), string(transistor.GetState("waiting"))}, project.Model.ID, environment.Model.ID, release.Model.ID).Find(&waitingReleases)
 			for _, wr := range waitingReleases {
 				wr.State = transistor.GetState("canceled")
-				wr.StateMessage = "Canceled"
+				wr.StateMessage = "Canceled due to a rollback"
 				r.DB.Save(&wr)
 
 				var waitingReleaseExtensions []model.ReleaseExtension
 				r.DB.Where("release_id = ?", wr.Model.ID).Find(&waitingReleaseExtensions)
 				for _, wre := range waitingReleaseExtensions {
 					wre.State = transistor.GetState("canceled")
-					wre.StateMessage = "Canceled"
+					wre.StateMessage = "Canceled due to a rollback"
 					r.DB.Save(&wre)
-				}
-			}
-
-			releaseExtensions := []model.ReleaseExtension{}
-			r.DB.Where("release_id = ?", waitingRelease.Model.ID).Find(&releaseExtensions)
-
-			for _, re := range releaseExtensions {
-				workerID := ""
-				artifacts := []transistor.Artifact{}
-
-				err := json.Unmarshal(re.Artifacts.RawMessage, &artifacts)
-				if err != nil {
-					log.Info(err.Error())
-				}
-
-				for _, artifact := range artifacts {
-					if artifact.Key == "workerID" {
-						workerID = artifact.Value.(string)
-					}
-				}
-
-				if workerID != "" {
-					err = r.Redis.RPush(workerID, "cancel", 0).Err()
-					if err != nil {
-						log.Info(err.Error())
-					}
 				}
 			}
 

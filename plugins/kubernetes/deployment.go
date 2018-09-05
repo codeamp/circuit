@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func (x *Kubernetes) ProcessDeployment(e transistor.Event, workerID string) {
+func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
 	if e.Matches("project:") {
 		if e.Action == transistor.GetAction("create") {
 			event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
@@ -45,7 +45,7 @@ func (x *Kubernetes) ProcessDeployment(e transistor.Event, workerID string) {
 
 	if e.Matches("release:") {
 		if e.Action == transistor.GetAction("create") {
-			err := x.doDeploy(e, workerID)
+			err := x.doDeploy(e)
 			if err != nil {
 				log.Error(err)
 			}
@@ -467,7 +467,7 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 	return podTemplateSpec
 }
 
-func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
+func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
@@ -771,16 +771,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 		// Loop and block any other jobs/ deployments from running until
 		// the current job is terminated
 		for {
-			val, err := x.Redis.BLPop(3*time.Second, workerID).Result()
-			if err != nil {
-				log.Info(err.Error())
-			}
-
-			if val != nil {
-				x.sendCanceledResponse(e, "Release stopped")
-				return nil
-			}
-
 			job, err := batchv1DepInterface.Jobs(namespace).Get(createdJob.Name, meta_v1.GetOptions{})
 			if err != nil {
 				log.Error(fmt.Sprintf("Error '%s' fetching job status for %s", err, createdJob.Name))
@@ -990,16 +980,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event, workerID string) error {
 		// Check status of all deployments till the succeed or timeout.
 		replicaFailures := 0
 		for {
-			val, err := x.Redis.BLPop(3*time.Second, workerID).Result()
-			if err != nil {
-				log.Info(err.Error())
-			}
-
-			if val != nil {
-				x.sendCanceledResponse(e, "Release stopped")
-				return nil
-			}
-
 			for index, service := range deploymentServices {
 				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
 				deployment, err := depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
