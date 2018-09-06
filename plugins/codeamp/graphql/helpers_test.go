@@ -80,7 +80,9 @@ func (helper *Helper) CreateEnvironmentWithError(name string) (*graphql_resolver
 
 func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) (*graphql_resolver.ProjectResolver, error) {
 	projectResolver, err := helper.CreateProjectWithRepo(t, envResolver, "https://github.com/foo/goo.git")
-	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+	if (err == nil){
+		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+	}
 	return projectResolver, err
 }
 
