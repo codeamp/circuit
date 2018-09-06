@@ -203,7 +203,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 }
 
-func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
+func (ts *ReleaseTestSuite) TestCreateReleaseSuccessDuplicateRelease() {
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -275,7 +275,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
 		ForceRebuild:  false,
 	}
 	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
-	assert.NotNil(ts.T(), err)
+	assert.Nil(ts.T(), err)
 }
 
 func (ts *ReleaseTestSuite) TestCreateReleaseFailureNoAuth() {
