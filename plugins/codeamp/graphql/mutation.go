@@ -20,7 +20,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -451,9 +450,12 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&currentReleaseHeadFeature)
 
+	runningRelease := model.Release{}
 	waitingRelease := model.Release{}
 
-	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
+	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("running"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&runningRelease)
+
+	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("waiting"))}, args.Release.ProjectID, args.Release.EnvironmentID).Order("created_at desc").First(&waitingRelease)
 
 	wrSecretsSha1 := sha1.New()
 	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
@@ -699,9 +701,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		}
 	}
 
-	spew.Dump(waitingRelease.State, isRollback)
-
-	if waitingRelease.State != "" {
+	if runningRelease.State != "" {
 		if isRollback {
 			// cancel all releases that are queued
 			waitingReleases := []model.Release{}
