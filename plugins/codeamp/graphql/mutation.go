@@ -709,7 +709,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 				r.DB.Save(&wr)
 
 				var waitingReleaseExtensions []model.ReleaseExtension
-				r.DB.Where("release_id = ?", wr.Model.ID).Find(&waitingReleaseExtensions)
+				r.DB.Where("release_id = ? and state <> ?", wr.Model.ID, string(transistor.GetState("complete"))).Find(&waitingReleaseExtensions)
 				for _, wre := range waitingReleaseExtensions {
 					wre.State = transistor.GetState("canceled")
 					wre.StateMessage = "Canceled due to a rollback"
