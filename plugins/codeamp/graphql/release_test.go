@@ -619,7 +619,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseRollbackSuccess() {
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
 	// Reset state back to blank
-	releaseResolver.DBReleaseResolver.Release.State = ""
+	releaseResolver.DBReleaseResolver.Release.State = transistor.GetState("running")
 	releaseResolver.DBReleaseResolver.Release.StateMessage = "Forced Empty via Test"
 	ts.Resolver.DB.Save(&releaseResolver.DBReleaseResolver.Release)
 

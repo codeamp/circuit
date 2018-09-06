@@ -724,6 +724,7 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			r.DB.Save(&release)
 
 			r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
+			return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 		} else {
 			log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
 			return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
@@ -736,8 +737,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 	}
-
-	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 }
 
 // CreateService Create service
