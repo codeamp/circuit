@@ -60,11 +60,11 @@ func (u *ProjectResolverQuery) Project(ctx context.Context, args *struct {
 		// check if project has permissions to requested environment
 		var permission model.ProjectEnvironment
 		if u.DB.Where("project_id = ? AND environment_id = ?", resolver.DBProjectResolver.Project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
-			log.InfoWithFields("Environment not found", log.Fields{
+			log.InfoWithFields("ProjectEnvironment not found", log.Fields{
 				"environment": environmentID,
 				"identifier":  identifier,
 			})
-			return nil, fmt.Errorf("Environment not found")
+			return nil, fmt.Errorf("ProjectEnvironment not found")
 		}
 
 		// get environment
