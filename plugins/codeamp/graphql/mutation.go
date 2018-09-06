@@ -20,6 +20,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/extemporalgenome/slug"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
@@ -465,6 +466,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	waitingReleaseHeadFeature := model.Feature{}
 
 	r.DB.Where("id = ?", waitingRelease.HeadFeatureID).First(&waitingReleaseHeadFeature)
+
+	spew.Dump(waitingRelease)
 
 	if bytes.Equal(secretsSig, waitingReleaseSecretsSig) &&
 		bytes.Equal(servicesSig, waitingReleaseServicesSig) &&
