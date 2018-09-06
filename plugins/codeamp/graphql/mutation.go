@@ -467,8 +467,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 	r.DB.Where("id = ?", waitingRelease.HeadFeatureID).First(&waitingReleaseHeadFeature)
 
-	spew.Dump(waitingRelease)
-
 	if bytes.Equal(secretsSig, waitingReleaseSecretsSig) &&
 		bytes.Equal(servicesSig, waitingReleaseServicesSig) &&
 		strings.Compare(currentReleaseHeadFeature.Hash, waitingReleaseHeadFeature.Hash) == 0 {
@@ -700,6 +698,8 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			r.DB.Create(&releaseExtension)
 		}
 	}
+
+	spew.Dump(waitingRelease.State, isRollback)
 
 	if waitingRelease.State != "" {
 		if isRollback {
