@@ -8,8 +8,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/go-redis/redis"
-	"github.com/spf13/viper"
 
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
@@ -35,11 +33,6 @@ func (x *Kubernetes) SampleConfig() string {
 func (x *Kubernetes) Start(e chan transistor.Event) error {
 	x.events = e
 	log.Info("Started Kubernetes (k8s)")
-	x.Redis = redis.NewClient(&redis.Options{
-		Addr:     viper.GetString("redis.server"),
-		Password: viper.GetString("redis.password"), // no password set
-		DB:       viper.GetInt("redis.database"),    // use default DB
-	})
 	return nil
 }
 
