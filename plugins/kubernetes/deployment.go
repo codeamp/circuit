@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -412,11 +413,34 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 
 	// check if node affinity paramater is required
 	var nodeSelector transistor.Artifact
+	var nodeAffinity *v1.Affinity
+
 	nodeSelector, err := e.GetArtifact("NODE_SELECTOR")
 	if err != nil {
 		log.InfoWithFields("Node selector not found in artifacts", log.Fields{
 			"release_extension_id": releaseExtension.ID,
 		})
+	}
+
+	if nodeSelector.String() != "" {
+		spew.Dump("got affinity!", nodeSelector.String())
+		nodeAffinity = &v1.Affinity{
+			NodeAffinity: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						v1.NodeSelectorTerm{
+							[]v1.NodeSelectorRequirement{
+								v1.NodeSelectorRequirement{
+									Key:      "environment",
+									Operator: "In",
+									Values:   []string{nodeSelector.String()},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
 	}
 
 	container := v1.Container{
@@ -458,22 +482,7 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 			},
 		},
 		Spec: v1.PodSpec{
-			Affinity: &v1.Affinity{
-				NodeAffinity: &v1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-						NodeSelectorTerms: []v1.NodeSelectorTerm{
-							v1.NodeSelectorTerm{
-								[]v1.NodeSelectorRequirement{
-									v1.NodeSelectorRequirement{
-										Key:    "environment",
-										Values: []string{nodeSelector.String()},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			Affinity:                      nodeAffinity,
 			TerminationGracePeriodSeconds: &podConfig.Service.Spec.TerminationGracePeriodSeconds,
 			ImagePullSecrets: []v1.LocalObjectReference{
 				{
