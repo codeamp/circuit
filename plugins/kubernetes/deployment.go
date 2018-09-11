@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/google/shlex"
-	"github.com/spf13/viper"
 )
 
 func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
@@ -410,6 +409,16 @@ func getContainerPorts(service plugins.Service) []v1.ContainerPort {
 
 func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string) v1.PodTemplateSpec {
 	releaseExtension := e.Payload.(plugins.ReleaseExtension)
+
+	// check if node affinity paramater is required
+	var nodeSelector transistor.Artifact
+	nodeSelector, err := e.GetArtifact("NODE_SELECTOR")
+	if err != nil {
+		log.InfoWithFields("Node selector not found in artifacts", log.Fields{
+			"release_extension_id": releaseExtension.ID,
+		})
+	}
+
 	container := v1.Container{
 		Name:  strings.ToLower(podConfig.Service.Name),
 		Image: podConfig.Image,
@@ -449,7 +458,22 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 			},
 		},
 		Spec: v1.PodSpec{
-			NodeSelector:                  podConfig.NodeSelector,
+			Affinity: &v1.Affinity{
+				NodeAffinity: &v1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+						NodeSelectorTerms: []v1.NodeSelectorTerm{
+							v1.NodeSelectorTerm{
+								[]v1.NodeSelectorRequirement{
+									v1.NodeSelectorRequirement{
+										Key:    "environment",
+										Values: []string{nodeSelector.String()},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			TerminationGracePeriodSeconds: &podConfig.Service.Spec.TerminationGracePeriodSeconds,
 			ImagePullSecrets: []v1.LocalObjectReference{
 				{
@@ -708,12 +732,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		// Command parsing into entrypoint vs. args
 		commandArray, _ := shlex.Split(service.Command)
 
-		// Node selector
-		var nodeSelector map[string]string
-		if viper.IsSet("plugins.deployments.node_selector") {
-			arrayKeyValue := strings.SplitN(viper.GetString("plugins.deployments.node_selector"), "=", 2)
-			nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
-		}
+		// Node selecto
 
 		dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
 		if err != nil {
@@ -729,7 +748,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		simplePod := SimplePodSpec{
 			Name:          oneShotServiceName,
 			RestartPolicy: v1.RestartPolicyNever,
-			NodeSelector:  nodeSelector,
 			Args:          commandArray,
 			Service:       service,
 			Image:         dockerImage.String(),
@@ -852,13 +870,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		// Command parsing into entrypoint vs. args
 		commandArray, _ := shlex.Split(service.Command)
 
-		// Node selector
-		var nodeSelector map[string]string
-		if viper.IsSet("plugins.deployments.node_selector") {
-			arrayKeyValue := strings.SplitN(viper.GetString("plugins.deployments.node_selector"), "=", 2)
-			nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
-		}
-
 		var revisionHistoryLimit int32 = 10
 
 		dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
@@ -888,7 +899,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			LivenessProbe:  livenessProbe,
 			PreStopHook:    preStopHook,
 			RestartPolicy:  v1.RestartPolicyAlways,
-			NodeSelector:   nodeSelector,
 			Args:           commandArray,
 			Service:        service,
 			Image:          dockerImage.String(),
