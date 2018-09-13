@@ -44,3 +44,19 @@ type ProbeDefaults struct {
 	FailureThreshold    int32
 	TimeoutSeconds      int32
 }
+
+type IngressInput struct {
+	FQDN                 string
+	KubeConfig           string
+	ClientCertificate    string
+	ClientKey            string
+	CertificateAuthority string
+	Port                 ListenerPair
+	Controller           IngressController
+}
+
+type IngressController struct {
+	Subdomain      string
+	ControllerName string
+	ControllerID   string
+}

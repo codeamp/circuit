@@ -46,6 +46,9 @@ func (x *Kubernetes) Subscribe() []string {
 		"project:kubernetes:deployment:create",
 		"project:kubernetes:deployment:update",
 		"project:kubernetes:deployment:delete",
+		"project:kubernetes:ingress:create",
+		"project:kubernetes:ingress:update",
+		"project:kubernetes:ingress:delete",
 		"project:kubernetes:loadbalancer:create",
 		"project:kubernetes:loadbalancer:update",
 		"project:kubernetes:loadbalancer:delete",
@@ -63,6 +66,11 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 
 	if e.Matches(".*:kubernetes:loadbalancer") == true {
 		x.ProcessLoadBalancer(e)
+		return nil
+	}
+
+	if e.Matches(".*kubernetes:ingress") == true {
+		x.ProcessIngress(e)
 		return nil
 	}
 

@@ -28,6 +28,8 @@ type Query {
   environments(projectSlug: String): [Environment]!
   # Environment variables
   secrets(params: PaginatorInput): SecretList!
+  # Single Secret
+  secret(id: String): Secret
   # ProjectExtension spec
   extensions(environmentID: String): [Extension]!
   # ProjectExtensions
