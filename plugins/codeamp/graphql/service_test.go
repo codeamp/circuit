@@ -86,19 +86,9 @@ func (ts *ServiceTestSuite) TestCreateServiceNameTooLong() {
 	// Service Spec ID
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
-	// Deployment Strategy Input
-	deploymentStrategy := model.DeploymentStrategyInput{
-		Type: plugins.GetType("recreate"),
-	}
-
-	livenessProbe := model.ServiceHealthProbeInput{}
-	readinessProbe := model.ServiceHealthProbeInput{}
-	preStopHookCommand := "sleep 15"
-
 	// Services
 	ts.helper.name = "this-service-name-is-too-long-to-be-accepeted-fooooooooooooooooo"
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
-		&readinessProbe, &livenessProbe, &preStopHookCommand)
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
 
 	assert.NotNil(ts.T(), err)
 }

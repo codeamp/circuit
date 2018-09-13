@@ -714,12 +714,12 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
 	// Check service name length
 	if len(args.Service.Name) > 63 {
-		return nil, errors.New("Service name cannot be longer than 63 characters.")
+		return nil, fmt.Errorf("Service name cannot be longer than 63 characters.")
 	}
 
 	// Check if project can create service in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
-		return nil, errors.New("Project not allowed to create service in given environment")
+		return nil, fmt.Errorf("Project not allowed to create service in given environment")
 	}
 
 	projectID, err := uuid.FromString(args.Service.ProjectID)
