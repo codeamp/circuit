@@ -27,7 +27,7 @@ func (r *ProjectResolver) Features(args *struct {
 
 	if args.ShowDeployed != nil && *args.ShowDeployed == false {
 		var currentRelease model.Release
-		if err := r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at desc").First(&currentRelease).Error; err == nil {
+		if err := r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), r.Project.Model.ID, r.Environment.Model.ID).Order("created_at asc").First(&currentRelease).Error; err == nil {
 			feature := model.Feature{}
 
 			if err := r.DB.Where("id = ?", currentRelease.HeadFeatureID).First(&feature).Error; err == nil {
