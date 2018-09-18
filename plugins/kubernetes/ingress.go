@@ -61,7 +61,12 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: %s; setting NewForConfig in deleteIngress", err.Error()))
+		return fmt.Errorf("ERROR: %s; setting NewForConfig in deleteIngress", err.Error())
+	}
+
+	ingType, err := e.GetArtifact("type")
+	if err != nil {
+		return err
 	}
 
 	svcName, err := e.GetArtifact("service")
@@ -84,41 +89,32 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 		// Service was found, ready to delete
 		svcDeleteErr := coreInterface.Services(namespace).Delete(name, &metav1.DeleteOptions{})
 		if svcDeleteErr != nil {
-			return errors.New(fmt.Sprintf("Error managing loadbalancer '%s' deleting service %s.", name, svcDeleteErr))
+			return fmt.Errorf("Error managing loadbalancer '%s' deleting service %s.", name, svcDeleteErr)
 		}
 	} else {
 		// Send failure message that we couldn't find the service to delete
-		return errors.New(fmt.Sprintf("Error managing loadbalancer finding %s service: '%s'", name, svcGetErr))
+		return fmt.Errorf("Error managing loadbalancer finding %s service: '%s'", name, svcGetErr)
 	}
 
-	//Delete Ingress
-
-	networkInterface := clientset.ExtensionsV1beta1()
-	ingresses := networkInterface.Ingresses(namespace)
-	_, err = ingresses.Get(name, metav1.GetOptions{})
-	if err == nil {
-		// ingress found, ready to delete
-		ingressDeleteErr := ingresses.Delete(name, &metav1.DeleteOptions{})
-		if ingressDeleteErr != nil {
-			return errors.New(fmt.Sprintf("Error managing ingress '%s' deleting service %s.", name, ingressDeleteErr))
+	if ingType.String() == "loadbalancer" {
+		//Delete Ingress
+		networkInterface := clientset.ExtensionsV1beta1()
+		ingresses := networkInterface.Ingresses(namespace)
+		_, err = ingresses.Get(name, metav1.GetOptions{})
+		if err == nil {
+			// ingress found, ready to delete
+			ingressDeleteErr := ingresses.Delete(name, &metav1.DeleteOptions{})
+			if ingressDeleteErr != nil {
+				return fmt.Errorf("Error managing ingress '%s' deleting service %s.", name, ingressDeleteErr)
+			}
+		} else {
+			// Send failure message that we couldn't find the service to delete
+			return fmt.Errorf("Error managing ingress finding %s service: '%s'", name, svcGetErr)
 		}
-	} else {
-		// Send failure message that we couldn't find the service to delete
-		return errors.New(fmt.Sprintf("Error managing ingress finding %s service: '%s'", name, svcGetErr))
 	}
 
 	return nil
 
-}
-
-func getServiceName(name string) (string, error) {
-	serviceParts := strings.Split(name, ":")
-
-	if len(serviceParts) != 2 {
-		return "", fmt.Errorf("%s: Malformed service definition", name)
-	}
-
-	return fmt.Sprintf("%s-%s", serviceParts[0], serviceParts[1]), nil
 }
 
 func (x *Kubernetes) createIngress(e transistor.Event) error {
@@ -350,7 +346,12 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 		return nil, fmt.Errorf("%s: Malformed service definition", service.String())
 	}
 
-	input.Service = fmt.Sprintf("%s-%s", serviceParts[0], serviceParts[1])
+	serviceName, err := getServiceName(service.String())
+	if err != nil {
+		return nil, err
+	}
+
+	input.Service = serviceName
 	portInt, err := strconv.Atoi(serviceParts[1])
 
 	port := ListenerPair{
@@ -405,6 +406,16 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 
 	return &input, nil
 
+}
+
+func getServiceName(name string) (string, error) {
+	serviceParts := strings.Split(name, ":")
+
+	if len(serviceParts) != 2 {
+		return "", fmt.Errorf("%s: Malformed service definition", name)
+	}
+
+	return fmt.Sprintf("%s-%s", serviceParts[0], serviceParts[1]), nil
 }
 
 /*
