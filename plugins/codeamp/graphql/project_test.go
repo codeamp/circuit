@@ -420,6 +420,7 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), projectResolver)
 
+	// Updated: Its perfectly fine to return project data without an environment
 	// Environment Errors
 	// No ID
 	projectResolver, err = suite.Resolver.Project(test.ResolverAuthContext(), &struct {
@@ -431,8 +432,8 @@ func (suite *ProjectTestSuite) TestQueryProject() {
 		ID:            &projectID,
 		EnvironmentID: nil,
 	})
-	assert.NotNil(suite.T(), err)
-	assert.Nil(suite.T(), projectResolver)
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), projectResolver)
 
 	// Should Fail
 	// Not a UUID

@@ -153,7 +153,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 
 	route53Name := fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String())
 
-	log.Info("Route53 plugin received LoadBalancer success message for %s, %s, %s.  Processing.\n", payload.Project.Repository, elbFQDN.String(), e.Action)
+	log.Info(fmt.Sprintf("Route53 plugin received LoadBalancer success message for %s, %s, %s.  Processing.\n", payload.Project.Repository, elbFQDN.String(), e.Action))
 
 	// Wait for DNS from the ELB to settle, abort if it does not resolve in initial_wait
 	// Trying to be conservative with these since we don't want to update Route53 before the new ELB dns record is available
@@ -186,7 +186,7 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), failMessage, payload)
 		return nil
 	}
-	log.Info("DNS for %s resolved to: %s\n", elbFQDN.String(), strings.Join(dnsLookup, ","))
+	log.Info(fmt.Sprintf("DNS for %s resolved to: %s\n", elbFQDN.String(), strings.Join(dnsLookup, ",")))
 	// Create the client
 	sess := awssession.Must(awssession.NewSessionWithOptions(
 		awssession.Options{

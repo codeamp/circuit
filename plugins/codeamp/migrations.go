@@ -450,7 +450,7 @@ func (x *CodeAmp) Migrate() {
 	})
 
 	if err = m.Migrate(); err != nil {
-		log.Fatal("Could not migrate: %v", err)
+		log.Fatal(fmt.Sprintf("Could not migrate: %v", err))
 	}
 
 	log.Info("Migration did run successfully")
