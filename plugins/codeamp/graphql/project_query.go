@@ -50,32 +50,32 @@ func (u *ProjectResolverQuery) Project(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	if args.EnvironmentID == nil {
-		return nil, fmt.Errorf("Missing environment id")
-	}
+	if args.EnvironmentID != nil {	
 
-	environmentID, err := uuid.FromString(*args.EnvironmentID)
-	if err != nil {
-		return nil, fmt.Errorf("Environment ID should be of type uuid")
-	}
+		environmentID, err := uuid.FromString(*args.EnvironmentID)
+		if err != nil {
+			return nil, fmt.Errorf("Environment ID should be of type uuid")
+		}
 
-	// check if project has permissions to requested environment
-	var permission model.ProjectEnvironment
-	if u.DB.Where("project_id = ? AND environment_id = ?", resolver.DBProjectResolver.Project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
-		log.InfoWithFields("Environment not found", log.Fields{
-			"environment": environmentID,
-			"identifier":  identifier,
-		})
-		return nil, fmt.Errorf("Environment not found")
-	}
+		// check if project has permissions to requested environment
+		var permission model.ProjectEnvironment
+		if u.DB.Where("project_id = ? AND environment_id = ?", resolver.DBProjectResolver.Project.Model.ID, environmentID).Find(&permission).RecordNotFound() {
+			log.InfoWithFields("ProjectEnvironment not found", log.Fields{
+				"environment": environmentID,
+				"identifier":  identifier,
+			})
+			return nil, fmt.Errorf("ProjectEnvironment not found")
+		}
 
-	// get environment
-	if u.DB.Where("id = ?", environmentID).Find(&resolver.DBProjectResolver.Environment).RecordNotFound() {
-		log.InfoWithFields("Environment not found", log.Fields{
-			"environment": environmentID,
-			"identifier":  identifier,
-		})
-		return nil, fmt.Errorf("Environment not found")
+		// get environment
+		if u.DB.Where("id = ?", environmentID).Find(&resolver.DBProjectResolver.Environment).RecordNotFound() {
+			log.InfoWithFields("Environment not found", log.Fields{
+				"environment": environmentID,
+				"identifier":  identifier,
+			})
+			return nil, fmt.Errorf("Environment not found")
+		}
+
 	}
 
 	return &resolver, nil

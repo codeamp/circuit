@@ -73,6 +73,26 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 		&readinessProbe, &livenessProbe, &preStopHookCommand)
 }
 
+func (ts *ServiceTestSuite) TestCreateServiceNameTooLong() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	// Services
+	ts.helper.name = "this-service-name-is-too-long-to-be-accepeted-fooooooooooooooooo"
+	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
 	// Environment
 	envResolver := ts.helper.CreateEnvironment(ts.T())
