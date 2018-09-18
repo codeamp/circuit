@@ -47,6 +47,7 @@ type ProbeDefaults struct {
 
 type IngressInput struct {
 	FQDN                 string
+	Type                 string
 	KubeConfig           string
 	ClientCertificate    string
 	ClientKey            string

@@ -9,7 +9,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +35,6 @@ func (x *Kubernetes) ProcessIngress(e transistor.Event) {
 
 		if err != nil {
 			log.Error(err)
-			spew.Dump(err)
 			x.sendErrorResponse(e, err.Error())
 		}
 	}
@@ -45,16 +43,91 @@ func (x *Kubernetes) ProcessIngress(e transistor.Event) {
 }
 
 func (x *Kubernetes) deleteIngress(e transistor.Event) error {
-	return nil
-}
+	log.Info("deleteIngress")
+	var err error
+	payload := e.Payload.(plugins.ProjectExtension)
 
-func (x *Kubernetes) createIngress(e transistor.Event) error {
-	inputs, err := getInputs(e)
+	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
 		return err
 	}
 
-	spew.Dump(inputs)
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
+	if err != nil {
+		return err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return errors.New(fmt.Sprintf("ERROR: %s; setting NewForConfig in deleteIngress", err.Error()))
+	}
+
+	svcName, err := e.GetArtifact("service")
+	if err != nil {
+		return err
+	}
+	name, err := getServiceName(svcName.String())
+	if err != nil {
+		return err
+	}
+
+	projectSlug := plugins.GetSlug(payload.Project.Repository)
+
+	coreInterface := clientset.Core()
+	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
+
+	// Delete Service
+	_, svcGetErr := coreInterface.Services(namespace).Get(name, metav1.GetOptions{})
+	if svcGetErr == nil {
+		// Service was found, ready to delete
+		svcDeleteErr := coreInterface.Services(namespace).Delete(name, &metav1.DeleteOptions{})
+		if svcDeleteErr != nil {
+			return errors.New(fmt.Sprintf("Error managing loadbalancer '%s' deleting service %s.", name, svcDeleteErr))
+		}
+	} else {
+		// Send failure message that we couldn't find the service to delete
+		return errors.New(fmt.Sprintf("Error managing loadbalancer finding %s service: '%s'", name, svcGetErr))
+	}
+
+	//Delete Ingress
+
+	networkInterface := clientset.ExtensionsV1beta1()
+	ingresses := networkInterface.Ingresses(namespace)
+	_, err = ingresses.Get(name, metav1.GetOptions{})
+	if err == nil {
+		// ingress found, ready to delete
+		ingressDeleteErr := ingresses.Delete(name, &metav1.DeleteOptions{})
+		if ingressDeleteErr != nil {
+			return errors.New(fmt.Sprintf("Error managing ingress '%s' deleting service %s.", name, ingressDeleteErr))
+		}
+	} else {
+		// Send failure message that we couldn't find the service to delete
+		return errors.New(fmt.Sprintf("Error managing ingress finding %s service: '%s'", name, svcGetErr))
+	}
+
+	return nil
+
+}
+
+func getServiceName(name string) (string, error) {
+	serviceParts := strings.Split(name, ":")
+
+	if len(serviceParts) != 2 {
+		return "", fmt.Errorf("%s: Malformed service definition", name)
+	}
+
+	return fmt.Sprintf("%s-%s", serviceParts[0], serviceParts[1]), nil
+}
+
+func (x *Kubernetes) createIngress(e transistor.Event) error {
+	var artifacts []transistor.Artifact
+
+	inputs, err := getInputs(e)
+	if err != nil {
+		return err
+	}
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
@@ -92,13 +165,6 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	if createNamespaceErr != nil {
 		return createNamespaceErr
 	}
-
-	// service, err := createService(*inputs, coreInterface)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// spew.Dump(service)
 
 	servicePort := v1.ServicePort{
 		Name: inputs.Port.Name,
@@ -158,68 +224,79 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
 	}
 
-	//TODO: hook up ingress
-	networkInterface := clientset.ExtensionsV1beta1()
-	ingresses := networkInterface.Ingresses(namespace)
+	if inputs.Type == "loadbalancer" {
 
-	ingressSpec := v1beta1.IngressSpec{
-		Backend: &v1beta1.IngressBackend{
-			ServiceName: inputs.Service,
-			ServicePort: intstr.IntOrString{
-				IntVal: inputs.Port.SourcePort,
+		networkInterface := clientset.ExtensionsV1beta1()
+		ingresses := networkInterface.Ingresses(namespace)
+
+		ingressSpec := v1beta1.IngressSpec{
+			Rules: []v1beta1.IngressRule{
+				v1beta1.IngressRule{
+					Host: fmt.Sprintf("%s.%s", inputs.Subdomain, inputs.FQDN),
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: []v1beta1.HTTPIngressPath{
+								v1beta1.HTTPIngressPath{
+									Backend: v1beta1.IngressBackend{
+										ServiceName: inputs.Service,
+										ServicePort: intstr.IntOrString{
+											IntVal: inputs.Port.SourcePort,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
-		},
-		Rules: []v1beta1.IngressRule{
-			v1beta1.IngressRule{
-				Host: fmt.Sprintf("%s.%s", inputs.Subdomain, inputs.FQDN),
-				// IngressRuleValue: v1beta1.HTTPIngressRuleValue,
+		}
+
+		ingressConfig := v1beta1.Ingress{
+			TypeMeta: metav1.TypeMeta{
+
+				Kind:       "Ingress",
+				APIVersion: "extensions/v1beta1",
 			},
-		},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: inputs.Service,
+				Annotations: map[string]string{
+					"kubernetes.io/ingress.class": inputs.Controller.ControllerID,
+				},
+			},
+			Spec: ingressSpec,
+		}
+
+		_, err = ingresses.Get(inputs.Service, metav1.GetOptions{})
+		var nIng *v1beta1.Ingress
+		switch {
+		case err == nil:
+			nIng, err = ingresses.Update(&ingressConfig)
+			if err != nil {
+				return fmt.Errorf("Error: failed to update ingress: %s", err.Error())
+			}
+		case k8s_errors.IsNotFound(err):
+			nIng, err = ingresses.Create(&ingressConfig)
+			if err != nil {
+				return fmt.Errorf("Error: failed to create ingress: %s", err.Error())
+			}
+
+		default:
+			return fmt.Errorf("Unexpected error: %s", err.Error())
+		}
+
+		artifacts = append(artifacts, transistor.Artifact{Key: "ingress_id", Value: nIng.CreationTimestamp, Secret: false})
+
 	}
 
-	ingressConfig := v1beta1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-
-			Kind:       "Ingress",
-			APIVersion: "extensions/v1beta1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: inputs.Service,
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class": inputs.Controller.ControllerID,
-			},
-		},
-		Spec: ingressSpec,
-	}
-
-	ing, err := ingresses.Create(&ingressConfig)
-	if err != nil {
-		return err
-	}
-	spew.Dump(ing.Namespace)
-
-	artifacts := make([]transistor.Artifact, 6, 6)
-	artifacts[0] = transistor.Artifact{Key: "elb", Value: inputs.Controller.ELB, Secret: false}
-	artifacts[1] = transistor.Artifact{Key: "name", Value: inputs.Service, Secret: false}
-	artifacts[2] = transistor.Artifact{Key: "fqdn", Value: fmt.Sprintf("%s.%s", inputs.Subdomain, inputs.FQDN), Secret: false}
-	artifacts[3] = transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false}
-	artifacts[4] = transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Port.Name, namespace), Secret: false}
-	artifacts[5] = transistor.Artifact{Key: "ingress_id", Value: ing.CreationTimestamp, Secret: false}
+	artifacts = append(artifacts, transistor.Artifact{Key: "elb", Value: inputs.Controller.ELB, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "name", Value: inputs.Service, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "fqdn", Value: fmt.Sprintf("%s.%s", inputs.Subdomain, inputs.FQDN), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Port.Name, namespace), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "dns", Value: inputs.Controller.ELB, Secret: false})
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 
-	// log.Println(clientset.Ingresses(x.GenNamespaceName(payload.Environment, projectSlug)))
-
-	return nil
-}
-
-// func createService(input IngressInput, coreInterface corev1.CoreV1Interface) (*v1.ServicePort, error) {
-
-// 	return nil, nil
-
-// }
-
-func (x *Kubernetes) updateIngress(e transistor.Event) error {
 	return nil
 }
 
@@ -257,22 +334,24 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 	}
 	input.CertificateAuthority = certificateAuthority.String()
 
-	subdomain, err := e.GetArtifact("subdomain")
+	serviceType, err := e.GetArtifact("type")
 	if err != nil {
 		return nil, err
 	}
-	input.Subdomain = subdomain.String()
+	input.Type = serviceType.String()
 
 	service, err := e.GetArtifact("service")
 	if err != nil {
 		return nil, err
 	}
 	serviceParts := strings.Split(service.String(), ":")
-	input.Service = serviceParts[0]
-	portInt, err := strconv.Atoi(serviceParts[1])
-	if err != nil {
-		return nil, fmt.Errorf(fmt.Sprintf("%s: Invalid Port type", serviceParts[1]))
+
+	if len(serviceParts) != 2 {
+		return nil, fmt.Errorf("%s: Malformed service definition", service.String())
 	}
+
+	input.Service = fmt.Sprintf("%s-%s", serviceParts[0], serviceParts[1])
+	portInt, err := strconv.Atoi(serviceParts[1])
 
 	port := ListenerPair{
 		Name:       fmt.Sprintf("http-%s-%.0f", input.Service, float64(portInt)),
@@ -282,33 +361,47 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 	}
 	input.Port = port
 
-	selectedIngress, err := e.GetArtifact("ingress")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: Invalid Port type", serviceParts[1])
 	}
 
-	ingressControllers, err := e.GetArtifact("ingress_controllers")
-	if err != nil {
-		return nil, err
-	}
-
-	// Guarantee persisted ingress controller is configured on the extension side.
-	found := false
-	for _, controller := range strings.Split(ingressControllers.String(), ",") {
-		if controller == selectedIngress.String() {
-			found = true
+	if serviceType.String() == "loadbalancer" {
+		subdomain, err := e.GetArtifact("subdomain")
+		if err != nil {
+			return nil, err
 		}
-		continue
-	}
-	if found == false {
-		return nil, fmt.Errorf("Selected Ingress Controller is Not Configured")
-	}
+		input.Subdomain = subdomain.String()
 
-	parsedController, err := parseController(selectedIngress.String())
-	if err != nil {
-		return nil, err
+		selectedIngress, err := e.GetArtifact("ingress")
+		if err != nil {
+			return nil, err
+		}
+
+		ingressControllers, err := e.GetArtifact("ingress_controllers")
+		if err != nil {
+			return nil, err
+		}
+
+		// Guarantee persisted ingress controller is configured on the extension side.
+		found := false
+		for _, controller := range strings.Split(ingressControllers.String(), ",") {
+			if controller == selectedIngress.String() {
+				found = true
+			}
+			continue
+		}
+		if found == false {
+			return nil, fmt.Errorf("Selected Ingress Controller is Not Configured")
+
+		}
+
+		parsedController, err := parseController(selectedIngress.String())
+		if err != nil {
+			return nil, err
+		}
+		input.Controller = *parsedController
+
 	}
-	input.Controller = *parsedController
 
 	return &input, nil
 
