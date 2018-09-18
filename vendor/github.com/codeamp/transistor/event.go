@@ -50,7 +50,6 @@ func GetState(s string) State {
 		"running",
 		"complete",
 		"failed",
-		"canceled",
 	}
 
 	for _, state := range states {
@@ -177,7 +176,7 @@ func (e *Event) SetPayload(payload interface{}) {
 		e.PayloadModel = reflect.TypeOf(payload).String()
 
 		if _, ok := EventRegistry[e.PayloadModel]; ok == false {
-			_, file, line, ok := runtime.Caller(2)
+			_, file, line, ok := runtime.Caller(1)
 			if ok {
 				log.Error(fmt.Sprintf("%s : ln %d", file, line))
 			}

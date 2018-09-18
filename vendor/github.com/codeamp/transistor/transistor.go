@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"runtime/debug"
+
 	log "github.com/codeamp/logger"
 	workers "github.com/jrallison/go-workers"
 	"github.com/mitchellh/mapstructure"
@@ -124,6 +126,12 @@ func (t *Transistor) addPlugin(name string) error {
 		}
 
 		//event.Dump()
+
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error(fmt.Sprintf("%s: %s", r, debug.Stack()))
+			}
+		}()
 
 		plugin.Process(event)
 	}

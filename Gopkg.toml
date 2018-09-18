@@ -107,3 +107,7 @@
 [[constraint]]
   branch = "v1"
   name = "gopkg.in/jarcoal/httpmock.v1"
+
+[[constraint]]
+  name = "k8s.io/kubernetes"
+  version = "1.11.3"

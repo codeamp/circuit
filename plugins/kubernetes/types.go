@@ -53,10 +53,13 @@ type IngressInput struct {
 	CertificateAuthority string
 	Port                 ListenerPair
 	Controller           IngressController
+	Service              string
+	Subdomain            string
 }
 
 type IngressController struct {
-	Subdomain      string
+	// Subdomain      string
 	ControllerName string
 	ControllerID   string
+	ELB            string
 }
