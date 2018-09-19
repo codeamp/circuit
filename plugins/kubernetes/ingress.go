@@ -223,7 +223,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		ingressSpec := v1beta1.IngressSpec{
 			Rules: []v1beta1.IngressRule{
 				v1beta1.IngressRule{
-					Host: fmt.Sprintf("%s.%s", inputs.Subdomain, inputs.FQDN),
+					Host: inputs.FQDN,
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
@@ -282,8 +282,9 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	artifacts = append(artifacts, transistor.Artifact{Key: "ingress_controller", Value: inputs.Controller.ControllerName, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "elb", Value: inputs.Controller.ELB, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "name", Value: inputs.Service.Name, Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "subdomain", Value: fmt.Sprintf("%s", inputs.Subdomain), Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "fqdn", Value: fmt.Sprintf("%s.%s", inputs.Subdomain, inputs.FQDN), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "subdomain", Value: inputs.Subdomain, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "apex_domain", Value: inputs.ApexDomain, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "fqdn", Value: inputs.FQDN, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Service.ID, namespace), Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "dns", Value: inputs.Controller.ELB, Secret: false})
@@ -296,12 +297,6 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 func getInputs(e transistor.Event) (*IngressInput, error) {
 	input := IngressInput{}
 	var err error
-
-	fqdn, err := e.GetArtifact("fqdn")
-	if err != nil {
-		return nil, err
-	}
-	input.FQDN = fqdn.String()
 
 	kubeconfig, err := e.GetArtifact("kubeconfig")
 	if err != nil {
@@ -341,11 +336,19 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 	input.Service = service
 
 	if serviceType.String() == "loadbalancer" {
+		apex, err := e.GetArtifact("apex_domain")
+		if err != nil {
+			return nil, err
+		}
+		input.ApexDomain = apex.String()
+
 		subdomain, err := e.GetArtifact("subdomain")
 		if err != nil {
 			return nil, err
 		}
 		input.Subdomain = subdomain.String()
+
+		input.FQDN = fmt.Sprintf("%s.%s", input.Subdomain, input.ApexDomain)
 
 		selectedIngress, err := e.GetArtifact("ingress")
 		if err != nil {
@@ -386,6 +389,11 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 func parseService(e transistor.Event) (Service, error) {
 	payload := e.Payload.(plugins.ProjectExtension)
 
+	protocol, err := e.GetArtifact("protocol")
+	if err != nil {
+		return Service{}, err
+	}
+
 	serviceRaw, err := e.GetArtifact("service")
 	if err != nil {
 		return Service{}, err
@@ -406,7 +414,7 @@ func parseService(e transistor.Event) (Service, error) {
 
 	port := ListenerPair{
 		Name:       fmt.Sprintf("http-%s-%.0f", serviceName, float64(portInt)),
-		Protocol:   "TCP",
+		Protocol:   protocol.String(),
 		SourcePort: int32(portInt),
 		TargetPort: int32(portInt),
 	}

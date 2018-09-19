@@ -58,7 +58,6 @@ type IngressController struct {
 }
 
 type IngressInput struct {
-	FQDN                 string
 	Type                 string
 	KubeConfig           string
 	ClientCertificate    string
@@ -67,4 +66,6 @@ type IngressInput struct {
 	Controller           IngressController
 	Service              Service
 	Subdomain            string
+	ApexDomain           string
+	FQDN                 string
 }
