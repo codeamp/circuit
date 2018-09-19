@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"runtime/debug"
 	"sync"
 	"time"
-
-	"runtime/debug"
 
 	log "github.com/codeamp/logger"
 	workers "github.com/jrallison/go-workers"
@@ -124,8 +123,6 @@ func (t *Transistor) addPlugin(name string) error {
 		if err := MapPayload(event.PayloadModel, &event); err != nil {
 			log.Fatal(fmt.Errorf("PayloadModel not found: %s. Did you add it to ApiRegistry?", event.PayloadModel))
 		}
-
-		//event.Dump()
 
 		defer func() {
 			if r := recover(); r != nil {

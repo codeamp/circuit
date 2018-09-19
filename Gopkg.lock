@@ -125,11 +125,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7e8e70520faeb1164377ae5d04c4490dcb26920b4bc64cd447780adb6ef6b9df"
+  digest = "1:72ca808237720bb83083967495673c8555b9044cca6e3a26d90fa4db0ab83a81"
   name = "github.com/codeamp/transistor"
   packages = ["."]
   pruneopts = ""
-  revision = "b4a20746b836b0cccf461f69021009c5ef4360e8"
+  revision = "7edff629d9797780e9361149ed280d5a2c366b91"
 
 [[projects]]
   branch = "master"
@@ -907,7 +907,6 @@
     "pkg/api/errors",
     "pkg/api/meta",
     "pkg/api/resource",
-    "pkg/apis/meta/internalversion",
     "pkg/apis/meta/v1",
     "pkg/apis/meta/v1/unstructured",
     "pkg/apis/meta/v1beta1",
@@ -999,20 +998,6 @@
   revision = "78700dec6369ba22221b72770783300f143df150"
   version = "v6.0.0"
 
-[[projects]]
-  digest = "1:3d1deed8c48ccedf522fafc1b12b53f51ab9d343d989aacd8007fa9e4ae29cae"
-  name = "k8s.io/kubernetes"
-  packages = [
-    "pkg/apis/autoscaling",
-    "pkg/apis/core",
-    "pkg/apis/extensions",
-    "pkg/apis/networking",
-    "pkg/apis/policy",
-  ]
-  pruneopts = ""
-  revision = "a4529464e4629c21224b3d52edfe0ea91b072862"
-  version = "v1.11.3"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -1057,7 +1042,6 @@
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/typed/core/v1",
     "k8s.io/client-go/tools/clientcmd",
-    "k8s.io/kubernetes/pkg/apis/extensions",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
