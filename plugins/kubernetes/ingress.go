@@ -173,7 +173,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 
 	serviceSpec := v1.ServiceSpec{
 		Selector: map[string]string{"app": deploymentName},
-		Type:     v1.ServiceTypeLoadBalancer,
+		Type:     v1.ServiceTypeClusterIP,
 		Ports:    []v1.ServicePort{servicePort},
 	}
 
