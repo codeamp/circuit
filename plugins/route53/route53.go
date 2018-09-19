@@ -98,12 +98,6 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 		return nil
 	}
 
-	elbType, err := e.GetArtifact("loadbalancer_type")
-	if err != nil {
-		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
-		return nil
-	}
-
 	subdomain, err := e.GetArtifact("subdomain")
 	if err != nil {
 		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
@@ -144,11 +138,6 @@ func (x *Route53) updateRoute53(e transistor.Event) error {
 	if subdomain.String() == "" {
 		failMessage := fmt.Sprintf("Subdomain was blank for %s, skipping Route53.", payload.Project.Repository)
 		x.sendRoute53Response(e, transistor.GetAction("status"), transistor.GetState("failed"), failMessage, payload)
-	}
-
-	if plugins.GetType(elbType.String()) == plugins.GetType("internal") {
-		fmt.Printf("Internal service type ignored for %s", elbFQDN.String())
-		return nil
 	}
 
 	route53Name := fmt.Sprintf("%s.%s", subdomain.String(), hostedZoneName.String())
