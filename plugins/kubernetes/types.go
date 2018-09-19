@@ -56,6 +56,7 @@ type IngressInput struct {
 	Controller           IngressController
 	Service              string
 	Subdomain            string
+	AppSelector          string
 }
 
 type IngressController struct {

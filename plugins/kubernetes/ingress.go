@@ -153,7 +153,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 
 	coreInterface := clientset.Core()
-	deploymentName := x.GenDeploymentName(projectSlug, inputs.Service)
+	deploymentName := x.GenDeploymentName(projectSlug, inputs.AppSelector)
 
 	// var servicePorts []v1.ServicePort
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
@@ -352,6 +352,7 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 	}
 
 	input.Service = serviceName
+	input.AppSelector = serviceParts[0]
 	portInt, err := strconv.Atoi(serviceParts[1])
 
 	port := ListenerPair{
