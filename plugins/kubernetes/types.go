@@ -45,6 +45,18 @@ type ProbeDefaults struct {
 	TimeoutSeconds      int32
 }
 
+type Service struct {
+	ID   string
+	Name string
+	Port ListenerPair
+}
+
+type IngressController struct {
+	ControllerName string
+	ControllerID   string
+	ELB            string
+}
+
 type IngressInput struct {
 	FQDN                 string
 	Type                 string
@@ -52,16 +64,7 @@ type IngressInput struct {
 	ClientCertificate    string
 	ClientKey            string
 	CertificateAuthority string
-	Port                 ListenerPair
 	Controller           IngressController
-	Service              string
+	Service              Service
 	Subdomain            string
-	AppSelector          string
-}
-
-type IngressController struct {
-	// Subdomain      string
-	ControllerName string
-	ControllerID   string
-	ELB            string
 }

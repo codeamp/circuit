@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -69,11 +68,7 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 		return err
 	}
 
-	svcName, err := e.GetArtifact("service")
-	if err != nil {
-		return err
-	}
-	name, err := getServiceName(svcName.String())
+	service, err := parseService(e)
 	if err != nil {
 		return err
 	}
@@ -84,32 +79,32 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
 
 	// Delete Service
-	_, svcGetErr := coreInterface.Services(namespace).Get(name, metav1.GetOptions{})
+	_, svcGetErr := coreInterface.Services(namespace).Get(service.ID, metav1.GetOptions{})
 	if svcGetErr == nil {
 		// Service was found, ready to delete
-		svcDeleteErr := coreInterface.Services(namespace).Delete(name, &metav1.DeleteOptions{})
+		svcDeleteErr := coreInterface.Services(namespace).Delete(service.ID, &metav1.DeleteOptions{})
 		if svcDeleteErr != nil {
-			return fmt.Errorf("Error managing loadbalancer '%s' deleting service %s.", name, svcDeleteErr)
+			return fmt.Errorf("Error managing loadbalancer '%s' deleting service %s", service.ID, svcDeleteErr)
 		}
 	} else {
 		// Send failure message that we couldn't find the service to delete
-		return fmt.Errorf("Error managing loadbalancer finding %s service: '%s'", name, svcGetErr)
+		return fmt.Errorf("Error managing loadbalancer finding %s service: '%s'", service.ID, svcGetErr)
 	}
 
 	if ingType.String() == "loadbalancer" {
 		//Delete Ingress
 		networkInterface := clientset.ExtensionsV1beta1()
 		ingresses := networkInterface.Ingresses(namespace)
-		_, err = ingresses.Get(name, metav1.GetOptions{})
+		_, err = ingresses.Get(service.ID, metav1.GetOptions{})
 		if err == nil {
 			// ingress found, ready to delete
-			ingressDeleteErr := ingresses.Delete(name, &metav1.DeleteOptions{})
+			ingressDeleteErr := ingresses.Delete(service.ID, &metav1.DeleteOptions{})
 			if ingressDeleteErr != nil {
-				return fmt.Errorf("Error managing ingress '%s' deleting service %s.", name, ingressDeleteErr)
+				return fmt.Errorf("Error managing ingress '%s' deleting service %s", service.ID, ingressDeleteErr)
 			}
 		} else {
 			// Send failure message that we couldn't find the service to delete
-			return fmt.Errorf("Error managing ingress finding %s service: '%s'", name, svcGetErr)
+			return fmt.Errorf("Error managing ingress finding %s service: '%s'", service.ID, svcGetErr)
 		}
 	}
 
@@ -138,7 +133,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
 
 	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
+		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable KUBECONFIG=/path/to/kubeconfig", err.Error())
 		log.Error(failMessage)
 		return err
 	}
@@ -153,7 +148,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 
 	coreInterface := clientset.Core()
-	deploymentName := x.GenDeploymentName(projectSlug, inputs.AppSelector)
+	deploymentName := x.GenDeploymentName(projectSlug, inputs.Service.Name)
 
 	// var servicePorts []v1.ServicePort
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
@@ -163,12 +158,12 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	}
 
 	servicePort := v1.ServicePort{
-		Name: inputs.Port.Name,
-		Port: inputs.Port.SourcePort,
+		Name: inputs.Service.Port.Name,
+		Port: inputs.Service.Port.SourcePort,
 		TargetPort: intstr.IntOrString{
-			IntVal: inputs.Port.TargetPort,
+			IntVal: inputs.Service.Port.TargetPort,
 		},
-		Protocol: v1.Protocol(inputs.Port.Protocol),
+		Protocol: v1.Protocol(inputs.Service.Port.Protocol),
 	}
 
 	serviceSpec := v1.ServiceSpec{
@@ -183,13 +178,13 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: inputs.Service,
+			Name: inputs.Service.ID,
 		},
 		Spec: serviceSpec,
 	}
 
 	service := coreInterface.Services(namespace)
-	svc, err := service.Get(inputs.Service, metav1.GetOptions{})
+	svc, err := service.Get(inputs.Service.ID, metav1.GetOptions{})
 	var serviceObj *v1.Service
 	switch {
 	case err == nil:
@@ -207,17 +202,17 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		serviceParams.Spec.ClusterIP = svc.Spec.ClusterIP
 		serviceObj, err = service.Update(&serviceParams)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error: failed to update service: %s", err.Error()))
+			return fmt.Errorf("Error: failed to update service: %s", err.Error())
 		}
-		log.Debug(fmt.Sprintf("Service updated: %s", inputs.Service))
+		log.Debug(fmt.Sprintf("Service updated: %s", inputs.Service.ID))
 	case k8s_errors.IsNotFound(err):
 		serviceObj, err = service.Create(&serviceParams)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
+			return fmt.Errorf("Error: failed to create service: %s", err.Error())
 		}
-		log.Debug(fmt.Sprintf("Service created: %s", inputs.Service))
+		log.Debug(fmt.Errorf("Service created: %s", inputs.Service.ID))
 	default:
-		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
+		return fmt.Errorf("Unexpected error: %s", err.Error())
 	}
 
 	if inputs.Type == "loadbalancer" {
@@ -234,9 +229,9 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 							Paths: []v1beta1.HTTPIngressPath{
 								v1beta1.HTTPIngressPath{
 									Backend: v1beta1.IngressBackend{
-										ServiceName: inputs.Service,
+										ServiceName: inputs.Service.ID,
 										ServicePort: intstr.IntOrString{
-											IntVal: inputs.Port.SourcePort,
+											IntVal: inputs.Service.Port.SourcePort,
 										},
 									},
 								},
@@ -254,7 +249,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 				APIVersion: "extensions/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: inputs.Service,
+				Name: inputs.Service.ID,
 				Annotations: map[string]string{
 					"kubernetes.io/ingress.class": inputs.Controller.ControllerID,
 				},
@@ -262,7 +257,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 			Spec: ingressSpec,
 		}
 
-		_, err = ingresses.Get(inputs.Service, metav1.GetOptions{})
+		_, err = ingresses.Get(inputs.Service.ID, metav1.GetOptions{})
 		var nIng *v1beta1.Ingress
 		switch {
 		case err == nil:
@@ -284,11 +279,13 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 
 	}
 
+	artifacts = append(artifacts, transistor.Artifact{Key: "ingress_controller", Value: inputs.Controller.ControllerName, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "elb", Value: inputs.Controller.ELB, Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "name", Value: inputs.Service, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "name", Value: inputs.Service.Name, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "subdomain", Value: fmt.Sprintf("%s", inputs.Subdomain), Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "fqdn", Value: fmt.Sprintf("%s.%s", inputs.Subdomain, inputs.FQDN), Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Port.Name, namespace), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Service.ID, namespace), Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "dns", Value: inputs.Controller.ELB, Secret: false})
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
@@ -336,36 +333,12 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 	}
 	input.Type = serviceType.String()
 
-	service, err := e.GetArtifact("service")
-	if err != nil {
-		return nil, err
-	}
-	serviceParts := strings.Split(service.String(), ":")
-
-	if len(serviceParts) != 2 {
-		return nil, fmt.Errorf("%s: Malformed service definition", service.String())
-	}
-
-	serviceName, err := getServiceName(service.String())
+	service, err := parseService(e)
 	if err != nil {
 		return nil, err
 	}
 
-	input.Service = serviceName
-	input.AppSelector = serviceParts[0]
-	portInt, err := strconv.Atoi(serviceParts[1])
-
-	port := ListenerPair{
-		Name:       fmt.Sprintf("http-%s-%.0f", input.Service, float64(portInt)),
-		Protocol:   "TCP",
-		SourcePort: int32(portInt),
-		TargetPort: int32(portInt),
-	}
-	input.Port = port
-
-	if err != nil {
-		return nil, fmt.Errorf("%s: Invalid Port type", serviceParts[1])
-	}
+	input.Service = service
 
 	if serviceType.String() == "loadbalancer" {
 		subdomain, err := e.GetArtifact("subdomain")
@@ -409,14 +382,43 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 
 }
 
-func getServiceName(name string) (string, error) {
-	serviceParts := strings.Split(name, ":")
+// Service should be in the format servicename:port
+func parseService(e transistor.Event) (Service, error) {
+	payload := e.Payload.(plugins.ProjectExtension)
 
-	if len(serviceParts) != 2 {
-		return "", fmt.Errorf("%s: Malformed service definition", name)
+	serviceRaw, err := e.GetArtifact("service")
+	if err != nil {
+		return Service{}, err
 	}
 
-	return fmt.Sprintf("%s-%s", serviceParts[0], serviceParts[1]), nil
+	serviceParts := strings.Split(serviceRaw.String(), ":")
+	if len(serviceParts) != 2 {
+		return Service{}, fmt.Errorf("Malformed service reference: %s", serviceRaw.String())
+	}
+
+	serviceName := serviceParts[0]
+	servicePort := serviceParts[1]
+
+	portInt, err := strconv.Atoi(servicePort)
+	if err != nil {
+		return Service{}, fmt.Errorf("%s: Invalid Port type", serviceParts[1])
+	}
+
+	port := ListenerPair{
+		Name:       fmt.Sprintf("http-%s-%.0f", serviceName, float64(portInt)),
+		Protocol:   "TCP",
+		SourcePort: int32(portInt),
+		TargetPort: int32(portInt),
+	}
+
+	service := Service{
+		ID:   fmt.Sprintf("%s-%s", serviceParts[0], payload.ID[0:5]),
+		Name: serviceName,
+		Port: port,
+	}
+
+	return service, nil
+
 }
 
 /*
