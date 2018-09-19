@@ -256,7 +256,8 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: inputs.Service,
 				Annotations: map[string]string{
-					"kubernetes.io/ingress.class": inputs.Controller.ControllerID,
+					"kubernetes.io/ingress.class":              inputs.Controller.ControllerID,
+					"ingress.kubernetes.io/force-ssl-redirect": "true",
 				},
 			},
 			Spec: ingressSpec,
