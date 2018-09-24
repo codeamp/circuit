@@ -83,6 +83,13 @@ func (r *Resolver) Secrets(ctx context.Context, args *struct {
 	return initializer.Secrets(ctx, args)
 }
 
+func (r *Resolver) Secret(ctx context.Context, args *struct {
+	ID *string
+}) (*SecretResolver, error) {
+	initializer := SecretResolverQuery{DB: r.DB}
+	return initializer.Secret(ctx, args)
+}
+
 func (r *Resolver) Extensions(ctx context.Context, args *struct{ EnvironmentID *string }) ([]*ExtensionResolver, error) {
 	initializer := ExtensionResolverQuery{DB: r.DB}
 	return initializer.Extensions(ctx, args)

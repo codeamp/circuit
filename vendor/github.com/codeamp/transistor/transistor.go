@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -123,7 +124,11 @@ func (t *Transistor) addPlugin(name string) error {
 			log.Fatal(fmt.Errorf("PayloadModel not found: %s. Did you add it to ApiRegistry?", event.PayloadModel))
 		}
 
-		//event.Dump()
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error(fmt.Sprintf("%s: %s", r, debug.Stack()))
+			}
+		}()
 
 		plugin.Process(event)
 	}

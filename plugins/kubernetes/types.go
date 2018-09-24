@@ -44,3 +44,28 @@ type ProbeDefaults struct {
 	FailureThreshold    int32
 	TimeoutSeconds      int32
 }
+
+type Service struct {
+	ID   string
+	Name string
+	Port ListenerPair
+}
+
+type IngressController struct {
+	ControllerName string
+	ControllerID   string
+	ELB            string
+}
+
+type IngressInput struct {
+	Type                 string
+	KubeConfig           string
+	ClientCertificate    string
+	ClientKey            string
+	CertificateAuthority string
+	Controller           IngressController
+	Service              Service
+	Subdomain            string
+	ApexDomain           string
+	FQDN                 string
+}

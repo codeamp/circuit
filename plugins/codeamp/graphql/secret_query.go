@@ -29,3 +29,16 @@ func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
 		},
 	}, nil
 }
+
+func (r *SecretResolverQuery) Secret(ctx context.Context, args *struct {
+	ID *string
+}) (*SecretResolver, error) {
+	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
+		return nil, err
+	}
+
+	resolver := SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB}}
+
+	r.DB.Where("id = ?", args.ID).First(&resolver.DBSecretResolver.Secret)
+	return &resolver, nil
+}

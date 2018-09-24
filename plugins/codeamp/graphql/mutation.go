@@ -1474,6 +1474,13 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 			}
 		}
 
+		if extension.Key == "kubernetes:ingress" {
+			err := r.handleExtensionIngress(args, &projectExtension)
+			if err != nil {
+				return &ProjectExtensionResolver{}, err
+			}
+		}
+
 		projectExtension = model.ProjectExtension{
 			State:         transistor.GetState("waiting"),
 			ExtensionID:   extension.Model.ID,
