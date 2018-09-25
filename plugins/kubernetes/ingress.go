@@ -217,6 +217,12 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 
 	if inputs.Type == "loadbalancer" {
 
+		// check duplicates
+		isDuplicate, err := x.isDuplicateIngressHost(e)
+		if err != nil || isDuplicate {
+			return err
+		}
+
 		networkInterface := clientset.ExtensionsV1beta1()
 		ingresses := networkInterface.Ingresses(namespace)
 
@@ -292,6 +298,52 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 
 	return nil
+}
+
+func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
+	inputs, err := getInputs(e)
+	if err != nil {
+		return false, err
+	}
+
+	kubeconfig, err := x.SetupKubeConfig(e)
+	if err != nil {
+		log.Error(err.Error())
+		return false, err
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
+
+	if err != nil {
+		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable KUBECONFIG=/path/to/kubeconfig", err.Error())
+		log.Error(failMessage)
+		return false, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in createIngress", err.Error())
+		log.Error(failMessage)
+		return false, err
+	}
+
+	networkInterface := clientset.ExtensionsV1beta1()
+	ingresses := networkInterface.Ingresses("")
+
+	existingIngresses, err := ingresses.List(metav1.ListOptions{})
+
+	for _, ingress := range existingIngresses.Items {
+		for _, rule := range ingress.Spec.Rules {
+			if rule.Host == inputs.FQDN && ingress.GetName() != inputs.Service.ID {
+				return true, fmt.Errorf("Error: An ingress for host %s already configured. Namespace: %s", inputs.FQDN, ingress.GetNamespace())
+			}
+		}
+	}
+
+	return false, nil
+
 }
 
 func getInputs(e transistor.Event) (*IngressInput, error) {
