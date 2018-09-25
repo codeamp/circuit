@@ -67,5 +67,6 @@ type IngressInput struct {
 	Service              Service
 	Subdomain            string
 	ApexDomain           string
+	UpstreamFQDNs        []string
 	FQDN                 string
 }
