@@ -243,12 +243,6 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 
 		var rules []v1beta1.IngressRule
 
-		primaryRule := v1beta1.IngressRule{
-			Host:             inputs.FQDN,
-			IngressRuleValue: ingressRuleValue,
-		}
-		rules = append(rules, primaryRule)
-
 		// Build for Upstream Domains
 		for _, domain := range inputs.UpstreamFQDNs {
 			rule := v1beta1.IngressRule{
@@ -301,14 +295,12 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	}
 
 	artifacts = append(artifacts, transistor.Artifact{Key: "ingress_controller", Value: inputs.Controller.ControllerName, Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "elb", Value: inputs.Controller.ELB, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "elb_dns", Value: inputs.Controller.ELB, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "name", Value: inputs.Service.Name, Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "subdomain", Value: inputs.Subdomain, Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "apex_domain", Value: inputs.ApexDomain, Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "fqdn", Value: inputs.FQDN, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "controlled_apex_domain", Value: inputs.ControlledApexDomain, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Service.ID, namespace), Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "dns", Value: inputs.Controller.ELB, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: strings.Join(inputs.UpstreamFQDNs[:], ", "), Secret: false})
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 
@@ -349,14 +341,7 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 
 	existingIngresses, err := ingresses.List(metav1.ListOptions{})
 
-	//TODO: Rewrite next two loops using hashtable for lookups
-	for _, ingress := range existingIngresses.Items {
-		for _, rule := range ingress.Spec.Rules {
-			if rule.Host == inputs.FQDN && ingress.GetName() != inputs.Service.ID {
-				return true, fmt.Errorf("Error: An ingress for host %s already configured. Namespace: %s", inputs.FQDN, ingress.GetNamespace())
-			}
-		}
-	}
+	//TODO Rewrite lookups using hashtable
 
 	// check for duplicate secondary upstream fqdns
 	for _, ingress := range existingIngresses.Items {
@@ -415,19 +400,12 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 	input.Service = service
 
 	if serviceType.String() == "loadbalancer" {
-		apex, err := e.GetArtifact("apex_domain")
+
+		apexDomain, err := e.GetArtifact("controlled_apex_domain")
 		if err != nil {
 			return nil, err
 		}
-		input.ApexDomain = apex.String()
-
-		subdomain, err := e.GetArtifact("subdomain")
-		if err != nil {
-			return nil, err
-		}
-		input.Subdomain = subdomain.String()
-
-		input.FQDN = fmt.Sprintf("%s.%s", input.Subdomain, input.ApexDomain)
+		input.ControlledApexDomain = apexDomain.String()
 
 		upstreamDomains, err := e.GetArtifact("upstream_domains")
 		if err != nil {
