@@ -49,6 +49,9 @@ func (x *Kubernetes) Subscribe() []string {
 		"project:kubernetes:ingress:create",
 		"project:kubernetes:ingress:update",
 		"project:kubernetes:ingress:delete",
+		"project:kubernetes:ingressroute:create",
+		"project:kubernetes:ingressroute:update",
+		"project:kubernetes:ingressroute:delete",
 		"project:kubernetes:loadbalancer:create",
 		"project:kubernetes:loadbalancer:update",
 		"project:kubernetes:loadbalancer:delete",
@@ -70,7 +73,12 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 	}
 
 	if e.Matches(".*kubernetes:ingress") == true {
-		x.ProcessIngress(e)
+		x.ProcessIngressRoute(e)
+		return nil
+	}
+
+	if e.Matches(".*kubernetes:ingressroute") == true {
+		x.ProcessIngressRoute(e)
 		return nil
 	}
 

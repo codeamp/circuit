@@ -2,14 +2,14 @@ package kubernetes
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	contour_v1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
+	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -17,7 +17,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type IngressInput struct {
+type Domain struct {
+	Apex      string
+	Subdomain string
+	FQDN      string
+}
+
+type IngressRouteInput struct {
 	Type                 string
 	KubeConfig           string
 	ClientCertificate    string
@@ -26,22 +32,22 @@ type IngressInput struct {
 	Controller           IngressController
 	Service              Service
 	ControlledApexDomain string
-	UpstreamFQDNs        []string
+	UpstreamDomains      []Domain
 }
 
 //ProcessIngress Processes Kubernetes Ingress Events
-func (x *Kubernetes) ProcessIngress(e transistor.Event) {
-	log.Println("processing ingress")
+func (x *Kubernetes) ProcessIngressRoute(e transistor.Event) {
+	log.Println("processing IngressRoute")
 
-	if e.Matches("project:kubernetes:ingress") {
+	if e.Matches("project:kubernetes:ingressroute") {
 		var err error
 		switch e.Action {
 		case transistor.GetAction("delete"):
-			err = x.deleteIngress(e)
+			err = x.deleteIngressRoute(e)
 		case transistor.GetAction("create"):
-			err = x.createIngress(e)
+			err = x.createIngressRoute(e)
 		case transistor.GetAction("update"):
-			err = x.createIngress(e)
+			err = x.createIngressRoute(e)
 		}
 
 		if err != nil {
@@ -53,7 +59,7 @@ func (x *Kubernetes) ProcessIngress(e transistor.Event) {
 	return
 }
 
-func (x *Kubernetes) deleteIngress(e transistor.Event) error {
+func (x *Kubernetes) deleteIngressRoute(e transistor.Event) error {
 	log.Info("deleteIngress")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
@@ -104,19 +110,28 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 	}
 
 	if ingType.String() == "loadbalancer" {
-		//Delete Ingress
-		networkInterface := clientset.ExtensionsV1beta1()
-		ingresses := networkInterface.Ingresses(namespace)
-		_, err = ingresses.Get(service.ID, metav1.GetOptions{})
-		if err == nil {
-			// ingress found, ready to delete
-			ingressDeleteErr := ingresses.Delete(service.ID, &metav1.DeleteOptions{})
-			if ingressDeleteErr != nil {
-				return fmt.Errorf("Error managing ingress '%s' deleting service %s", service.ID, ingressDeleteErr)
+		inputs, err := getIngressRouteInputs(e)
+		if err != nil {
+			return err
+		}
+
+		contourClient, err := contour_client.NewForConfig(config)
+		if err != nil {
+			return err
+		}
+		ingressClient := contourClient.ContourV1beta1().IngressRoutes(namespace)
+
+		for _, domain := range inputs.UpstreamDomains {
+			ingID := getIngressRouteID(domain, *inputs)
+			_, err = ingressClient.Get(ingID, metav1.GetOptions{})
+			if err == nil {
+				ingressDeleteErr := ingressClient.Delete(ingID, &metav1.DeleteOptions{})
+				if ingressDeleteErr != nil {
+					return fmt.Errorf("Error managing ingressroute '%s' deleting ingressroute %s", ingID, ingressDeleteErr)
+				}
+			} else {
+				return fmt.Errorf("Error managing ingressroute finding %s ingressroute: '%s'", ingID, err)
 			}
-		} else {
-			// Send failure message that we couldn't find the service to delete
-			return fmt.Errorf("Error managing ingress finding %s service: '%s'", service.ID, svcGetErr)
 		}
 	}
 
@@ -124,10 +139,10 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 
 }
 
-func (x *Kubernetes) createIngress(e transistor.Event) error {
+func (x *Kubernetes) createIngressRoute(e transistor.Event) error {
 	var artifacts []transistor.Artifact
 
-	inputs, err := getInputs(e)
+	inputs, err := getIngressRouteInputs(e)
 	if err != nil {
 		return err
 	}
@@ -230,80 +245,111 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	if inputs.Type == "loadbalancer" {
 
 		// check duplicates
-		isDuplicate, err := x.isDuplicateIngressHost(e)
+		isDuplicate, err := x.isDuplicateIngressRoute(e)
 		if err != nil || isDuplicate {
 			return err
 		}
 
-		networkInterface := clientset.ExtensionsV1beta1()
-		ingresses := networkInterface.Ingresses(namespace)
+		contourClient, err := contour_client.NewForConfig(config)
+		if err != nil {
+			return err
+		}
 
-		ingressRuleValue := v1beta1.IngressRuleValue{
-			HTTP: &v1beta1.HTTPIngressRuleValue{
-				Paths: []v1beta1.HTTPIngressPath{
-					v1beta1.HTTPIngressPath{
-						Backend: v1beta1.IngressBackend{
-							ServiceName: inputs.Service.ID,
-							ServicePort: intstr.IntOrString{
-								IntVal: inputs.Service.Port.SourcePort,
+		ingressClient := contourClient.ContourV1beta1().IngressRoutes(namespace)
+
+		// cleanup removed ingresses
+		currentIngresses, err := ingressClient.List(metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		var cleanupList []string
+		for _, ingress := range currentIngresses.Items {
+			found := false
+			needle := ingress.GetName()
+			if !strings.HasPrefix(needle, inputs.Service.ID) {
+				continue
+			}
+			for _, domain := range inputs.UpstreamDomains {
+				if getIngressRouteID(domain, *inputs) == needle {
+					found = true
+
+				}
+			}
+			if !found {
+				cleanupList = append(cleanupList, needle)
+			}
+		}
+
+		for _, ingress := range cleanupList {
+			err := ingressClient.Delete(ingress, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, domain := range inputs.UpstreamDomains {
+			spec := contour_v1beta1.IngressRouteSpec{
+				VirtualHost: &contour_v1beta1.VirtualHost{
+					Fqdn: domain.FQDN,
+				},
+				Routes: []contour_v1beta1.Route{
+					contour_v1beta1.Route{
+						Match: "/",
+						Services: []contour_v1beta1.Service{
+							contour_v1beta1.Service{
+								Name: inputs.Service.ID,
+								Port: int(inputs.Service.Port.SourcePort),
 							},
 						},
 					},
 				},
-			},
-		}
-
-		var rules []v1beta1.IngressRule
-
-		// Build for Upstream Domains
-		for _, domain := range inputs.UpstreamFQDNs {
-			rule := v1beta1.IngressRule{
-				Host:             domain,
-				IngressRuleValue: ingressRuleValue,
 			}
 
-			rules = append(rules, rule)
-		}
+			route := contour_v1beta1.IngressRoute{
+				TypeMeta: metav1.TypeMeta{
 
-		ingressSpec := v1beta1.IngressSpec{
-			Rules: rules,
-		}
-
-		ingressConfig := v1beta1.Ingress{
-			TypeMeta: metav1.TypeMeta{
-
-				Kind:       "Ingress",
-				APIVersion: "extensions/v1beta1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: inputs.Service.ID,
-				Annotations: map[string]string{
-					"kubernetes.io/ingress.class": inputs.Controller.ControllerID,
+					Kind:       "IngressRoute",
+					APIVersion: "contour.heptio.com/v1beta1",
 				},
-			},
-			Spec: ingressSpec,
-		}
-
-		_, err = ingresses.Get(inputs.Service.ID, metav1.GetOptions{})
-		var nIng *v1beta1.Ingress
-		switch {
-		case err == nil:
-			nIng, err = ingresses.Update(&ingressConfig)
-			if err != nil {
-				return fmt.Errorf("Error: failed to update ingress: %s", err.Error())
-			}
-		case k8s_errors.IsNotFound(err):
-			nIng, err = ingresses.Create(&ingressConfig)
-			if err != nil {
-				return fmt.Errorf("Error: failed to create ingress: %s", err.Error())
+				ObjectMeta: metav1.ObjectMeta{
+					Name: getIngressRouteID(domain, *inputs),
+					Annotations: map[string]string{
+						"kubernetes.io/ingress.class": inputs.Controller.ControllerID,
+					},
+				},
+				Spec: spec,
 			}
 
-		default:
-			return fmt.Errorf("Unexpected error: %s", err.Error())
+			existingIngressRoute, err := ingressClient.Get(getIngressRouteID(domain, *inputs), metav1.GetOptions{})
+			// var nIng *contour_v1beta1.IngressRoute
+			switch {
+			case err == nil:
+				route.SetResourceVersion(existingIngressRoute.ObjectMeta.ResourceVersion)
+				_, err = ingressClient.Update(&route)
+				if err != nil {
+					return fmt.Errorf("Error: failed to update ingress: %s", err.Error())
+				}
+			case k8s_errors.IsNotFound(err):
+				_, err = ingressClient.Create(&route)
+				if err != nil {
+					return fmt.Errorf("Error: failed to create ingress: %s", err.Error())
+				}
+
+			default:
+				return fmt.Errorf("Unexpected error: %s", err.Error())
+			}
+
 		}
 
-		artifacts = append(artifacts, transistor.Artifact{Key: "ingress_id", Value: nIng.CreationTimestamp, Secret: false})
+		// artifacts = append(artifacts, transistor.Artifact{Key: "ingress_id", Value: nIng.CreationTimestamp, Secret: false})
 
+	}
+
+	var upstreamFQDNs []string
+
+	for _, domain := range inputs.UpstreamDomains {
+		upstreamFQDNs = append(upstreamFQDNs, domain.FQDN)
 	}
 
 	artifacts = append(artifacts, transistor.Artifact{Key: "ingress_controller", Value: inputs.Controller.ControllerName, Secret: false})
@@ -312,15 +358,19 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	artifacts = append(artifacts, transistor.Artifact{Key: "controlled_apex_domain", Value: inputs.ControlledApexDomain, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Service.ID, namespace), Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: strings.Join(inputs.UpstreamFQDNs[:], ", "), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: strings.Join(upstreamFQDNs[:], ", "), Secret: false})
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 
 	return nil
 }
 
-func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
-	inputs, err := getInputs(e)
+func getIngressRouteID(domain Domain, extensionInput IngressRouteInput) string {
+	return fmt.Sprintf("%s-%s-%s", extensionInput.Service.ID, domain.Subdomain, domain.Apex)
+}
+
+func (x *Kubernetes) isDuplicateIngressRoute(e transistor.Event) (bool, error) {
+	inputs, err := getIngressRouteInputs(e)
 	if err != nil {
 		return false, err
 	}
@@ -341,27 +391,22 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 		return false, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	contourClient, err := contour_client.NewForConfig(config)
 	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in createIngress", err.Error())
-		log.Error(failMessage)
 		return false, err
 	}
 
-	networkInterface := clientset.ExtensionsV1beta1()
-	ingresses := networkInterface.Ingresses("")
+	existingRoutes, err := contourClient.ContourV1beta1().IngressRoutes("").List(metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
 
-	existingIngresses, err := ingresses.List(metav1.ListOptions{})
-
-	//TODO Rewrite lookups using hashtable
-
+	// TODO Rewrite lookups using hashtable
 	// check for duplicate secondary upstream fqdns
-	for _, ingress := range existingIngresses.Items {
-		for _, rule := range ingress.Spec.Rules {
-			for _, domain := range inputs.UpstreamFQDNs {
-				if rule.Host == domain && ingress.GetName() != inputs.Service.ID {
-					return true, fmt.Errorf("Error: An ingress for Upstream Domain %s already configured. Namespace: %s", domain, ingress.GetNamespace())
-				}
+	for _, route := range existingRoutes.Items {
+		for _, domain := range inputs.UpstreamDomains {
+			if route.Spec.VirtualHost.Fqdn == domain.FQDN && route.GetName() != getIngressRouteID(domain, *inputs) {
+				return true, fmt.Errorf("Error: An ingressroute for Upstream Domain %s already configured. Namespace: %s", domain.FQDN, route.GetNamespace())
 			}
 		}
 	}
@@ -370,8 +415,8 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 
 }
 
-func getInputs(e transistor.Event) (*IngressInput, error) {
-	input := IngressInput{}
+func getIngressRouteInputs(e transistor.Event) (*IngressRouteInput, error) {
+	input := IngressRouteInput{}
 	var err error
 
 	kubeconfig, err := e.GetArtifact("kubeconfig")
@@ -424,7 +469,7 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 			return nil, err
 		}
 
-		input.UpstreamFQDNs = parseUpstreamDomains(upstreamDomains)
+		input.UpstreamDomains = parseIngressrouteUpstreamDomains(upstreamDomains)
 
 		selectedIngress, err := e.GetArtifact("ingress")
 		if err != nil {
@@ -461,82 +506,21 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 
 }
 
-// Service should be in the format servicename:port
-func parseService(e transistor.Event) (Service, error) {
-	payload := e.Payload.(plugins.ProjectExtension)
+func parseIngressrouteUpstreamDomains(a transistor.Artifact) []Domain {
 
-	protocol, err := e.GetArtifact("protocol")
-	if err != nil {
-		return Service{}, err
-	}
-
-	serviceRaw, err := e.GetArtifact("service")
-	if err != nil {
-		return Service{}, err
-	}
-
-	serviceParts := strings.Split(serviceRaw.String(), ":")
-	if len(serviceParts) != 2 {
-		return Service{}, fmt.Errorf("Malformed service reference: %s", serviceRaw.String())
-	}
-
-	serviceName := serviceParts[0]
-	servicePort := serviceParts[1]
-
-	portInt, err := strconv.Atoi(servicePort)
-	if err != nil {
-		return Service{}, fmt.Errorf("%s: Invalid Port type", serviceParts[1])
-	}
-
-	port := ListenerPair{
-		Name:       fmt.Sprintf("http-%s-%.0f", serviceName, float64(portInt)),
-		Protocol:   protocol.String(),
-		SourcePort: int32(portInt),
-		TargetPort: int32(portInt),
-	}
-
-	service := Service{
-		ID:   fmt.Sprintf("%s-%s", serviceParts[0], payload.ID[0:5]),
-		Name: serviceName,
-		Port: port,
-	}
-
-	return service, nil
-
-}
-
-func parseUpstreamDomains(a transistor.Artifact) []string {
-
-	var upstreamFQDNs []string
+	var upstreamFQDNs []Domain
 	for _, domain := range a.Value.([]interface{}) {
 		apex := strings.ToLower(domain.(map[string]interface{})["apex"].(string))
 		subdomain := strings.ToLower(domain.(map[string]interface{})["subdomain"].(string))
 
 		fqdn := fmt.Sprintf("%s.%s", subdomain, apex)
 
-		upstreamFQDNs = append(upstreamFQDNs, fqdn)
+		upstreamFQDNs = append(upstreamFQDNs, Domain{
+			Apex:      apex,
+			Subdomain: subdomain,
+			FQDN:      fqdn,
+		})
 	}
 
 	return upstreamFQDNs
-}
-
-/*
-parseController accepts a string delimited by the `:` character.
-Each controller string must be in this format:
-	<subdomain:ingress_controler_id:elb_dns>
-*/
-func parseController(ingressController string) (*IngressController, error) {
-
-	parts := strings.Split(ingressController, ":")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("%s is an invalid IngressController string. Must be in format: <ingress_name:ingress_controller_id:elb_dns>", ingressController)
-	}
-
-	controller := IngressController{
-		ControllerName: parts[0],
-		ControllerID:   parts[1],
-		ELB:            parts[2],
-	}
-
-	return &controller, nil
 }

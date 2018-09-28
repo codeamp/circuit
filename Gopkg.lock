@@ -394,7 +394,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a729b21f93cea904676a5b1da6f3ed0c529e158396da266ad6a02cbf55d8a0d6"
+  digest = "1:41271c193a09c01359f76e8bde2b25afad9fc48658466b1f0c49bf86c0f01a68"
   name = "github.com/heptio/contour"
   packages = [
     "apis/contour/v1beta1",
@@ -403,7 +403,7 @@
     "apis/generated/clientset/versioned/typed/contour/v1beta1",
   ]
   pruneopts = ""
-  revision = "7028ca9c86e204263f63219d5a3efc035493e520"
+  revision = "bfcf7b48e2ed4cef72f4e2526cdf1558fa083ecc"
 
 [[projects]]
   branch = "master"

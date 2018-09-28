@@ -56,15 +56,3 @@ type IngressController struct {
 	ControllerID   string
 	ELB            string
 }
-
-type IngressInput struct {
-	Type                 string
-	KubeConfig           string
-	ClientCertificate    string
-	ClientKey            string
-	CertificateAuthority string
-	Controller           IngressController
-	Service              Service
-	ControlledApexDomain string
-	UpstreamFQDNs        []string
-}
