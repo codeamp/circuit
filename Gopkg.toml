@@ -94,7 +94,7 @@
 
 [[constraint]]
   name = "k8s.io/client-go"
-  version = "v6.0.0"
+  version = "v7.0.0"
 
 [[constraint]]
   name = "github.com/go-redis/redis"
@@ -111,3 +111,21 @@
 [[constraint]]
   name = "k8s.io/kubernetes"
   version = "1.11.3"
+
+[[constraint]]
+  name = "github.com/heptio/contour"
+  branch = "master"
+
+#############
+# OVERRIDES #
+#############
+#
+#
+#
+[[override]]
+  branch = "master"
+  name = "k8s.io/apimachinery"
+
+[[override]]
+  name = "k8s.io/client-go"
+  version = "v7.0.0"

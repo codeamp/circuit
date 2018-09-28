@@ -243,7 +243,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		var projectExtension model.ProjectExtension
 		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.WarnWithFields("Associated project extension not found", log.Fields{
-				"id": args.ID,
+				"id":                   args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 			})
@@ -255,7 +255,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		var extension model.Extension
 		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.WarnWithFields("Associated extension not found", log.Fields{
-				"id": args.ID,
+				"id":                   args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 				"extension_id":         projectExtension.ExtensionID,
@@ -1469,13 +1469,6 @@ func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ Pro
 	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
 		if extension.Key == "route53" {
 			err := r.handleExtensionRoute53(args, &projectExtension)
-			if err != nil {
-				return &ProjectExtensionResolver{}, err
-			}
-		}
-
-		if extension.Key == "kubernetes:ingress" {
-			err := r.handleExtensionIngress(args, &projectExtension)
 			if err != nil {
 				return &ProjectExtensionResolver{}, err
 			}

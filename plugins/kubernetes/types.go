@@ -65,7 +65,6 @@ type IngressInput struct {
 	CertificateAuthority string
 	Controller           IngressController
 	Service              Service
-	Subdomain            string
-	ApexDomain           string
-	FQDN                 string
+	ControlledApexDomain string
+	UpstreamFQDNs        []string
 }
