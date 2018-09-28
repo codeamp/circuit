@@ -341,15 +341,10 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 
 	existingIngresses, err := ingresses.List(metav1.ListOptions{})
 
-	//TODO Rewrite lookups using hashtable
-
-	// check for duplicate secondary upstream fqdns
 	for _, ingress := range existingIngresses.Items {
 		for _, rule := range ingress.Spec.Rules {
-			for _, domain := range inputs.UpstreamFQDNs {
-				if rule.Host == domain && ingress.GetName() != inputs.Service.ID {
-					return true, fmt.Errorf("Error: An ingress for Upstream Domain %s already configured. Namespace: %s", domain, ingress.GetNamespace())
-				}
+			if rule.Host == inputs.FQDN && ingress.GetName() != inputs.Service.ID {
+				return true, fmt.Errorf("Error: An ingress for host %s already configured. Namespace: %s", inputs.FQDN, ingress.GetNamespace())
 			}
 		}
 	}
