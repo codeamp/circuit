@@ -1000,6 +1000,7 @@
     "github.com/gorilla/handlers",
     "github.com/graph-gophers/graphql-go",
     "github.com/graph-gophers/graphql-go/relay",
+    "github.com/heptio/contour/apis/contour/v1beta1",
     "github.com/heptio/contour/apis/generated/clientset/versioned",
     "github.com/jinzhu/gorm",
     "github.com/jinzhu/gorm/dialects/postgres",
