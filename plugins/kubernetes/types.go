@@ -3,7 +3,9 @@ package kubernetes
 import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Load Balancer
@@ -33,7 +35,9 @@ type SimplePodSpec struct {
 
 // Kubernetes
 type Kubernetes struct {
-	events chan transistor.Event
+	events           chan transistor.Event
+	ContourClient    *contour_client.Clientset
+	KubernetesClient *kubernetes.Clientset
 }
 
 // ProbeDefaults
@@ -55,4 +59,34 @@ type IngressController struct {
 	ControllerName string
 	ControllerID   string
 	ELB            string
+}
+
+type IngressInput struct {
+	Type                 string
+	KubeConfig           string
+	ClientCertificate    string
+	ClientKey            string
+	CertificateAuthority string
+	Controller           IngressController
+	Service              Service
+	ControlledApexDomain string
+	UpstreamFQDNs        []Domain
+}
+
+type IngressRouteInput struct {
+	Type                 string
+	KubeConfig           string
+	ClientCertificate    string
+	ClientKey            string
+	CertificateAuthority string
+	Controller           IngressController
+	Service              Service
+	ControlledApexDomain string
+	UpstreamDomains      []Domain
+}
+
+type Domain struct {
+	Apex      string
+	Subdomain string
+	FQDN      string
 }

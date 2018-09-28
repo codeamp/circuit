@@ -17,18 +17,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type IngressInput struct {
-	Type                 string
-	KubeConfig           string
-	ClientCertificate    string
-	ClientKey            string
-	CertificateAuthority string
-	Controller           IngressController
-	Service              Service
-	ControlledApexDomain string
-	UpstreamFQDNs        []string
-}
-
 //ProcessIngress Processes Kubernetes Ingress Events
 func (x *Kubernetes) ProcessIngress(e transistor.Event) {
 	log.Println("processing ingress")
@@ -258,7 +246,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		// Build for Upstream Domains
 		for _, domain := range inputs.UpstreamFQDNs {
 			rule := v1beta1.IngressRule{
-				Host:             domain,
+				Host:             domain.FQDN,
 				IngressRuleValue: ingressRuleValue,
 			}
 
@@ -312,7 +300,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	artifacts = append(artifacts, transistor.Artifact{Key: "controlled_apex_domain", Value: inputs.ControlledApexDomain, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Service.ID, namespace), Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: strings.Join(inputs.UpstreamFQDNs[:], ", "), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: getTableViewFromDomains(inputs.UpstreamFQDNs), Secret: false})
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 
@@ -359,7 +347,7 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 	for _, ingress := range existingIngresses.Items {
 		for _, rule := range ingress.Spec.Rules {
 			for _, domain := range inputs.UpstreamFQDNs {
-				if rule.Host == domain && ingress.GetName() != inputs.Service.ID {
+				if rule.Host == domain.FQDN && ingress.GetName() != inputs.Service.ID {
 					return true, fmt.Errorf("Error: An ingress for Upstream Domain %s already configured. Namespace: %s", domain, ingress.GetNamespace())
 				}
 			}
@@ -505,38 +493,17 @@ func parseService(e transistor.Event) (Service, error) {
 
 }
 
-func parseUpstreamDomains(a transistor.Artifact) []string {
+// func parseUpstreamDomains(a transistor.Artifact) []string {
 
-	var upstreamFQDNs []string
-	for _, domain := range a.Value.([]interface{}) {
-		apex := strings.ToLower(domain.(map[string]interface{})["apex"].(string))
-		subdomain := strings.ToLower(domain.(map[string]interface{})["subdomain"].(string))
+// 	var upstreamFQDNs []string
+// 	for _, domain := range a.Value.([]interface{}) {
+// 		apex := strings.ToLower(domain.(map[string]interface{})["apex"].(string))
+// 		subdomain := strings.ToLower(domain.(map[string]interface{})["subdomain"].(string))
 
-		fqdn := fmt.Sprintf("%s.%s", subdomain, apex)
+// 		fqdn := fmt.Sprintf("%s.%s", subdomain, apex)
 
-		upstreamFQDNs = append(upstreamFQDNs, fqdn)
-	}
+// 		upstreamFQDNs = append(upstreamFQDNs, fqdn)
+// 	}
 
-	return upstreamFQDNs
-}
-
-/*
-parseController accepts a string delimited by the `:` character.
-Each controller string must be in this format:
-	<subdomain:ingress_controler_id:elb_dns>
-*/
-func parseController(ingressController string) (*IngressController, error) {
-
-	parts := strings.Split(ingressController, ":")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("%s is an invalid IngressController string. Must be in format: <ingress_name:ingress_controller_id:elb_dns>", ingressController)
-	}
-
-	controller := IngressController{
-		ControllerName: parts[0],
-		ControllerID:   parts[1],
-		ELB:            parts[2],
-	}
-
-	return &controller, nil
-}
+// 	return upstreamFQDNs
+// }
