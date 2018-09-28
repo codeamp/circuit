@@ -2,25 +2,12 @@ package kubernetes
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
 )
-
-// func parseUpstreamDomains(a transistor.Artifact) []string {
-
-// 	var upstreamFQDNs []string
-// 	for _, domain := range a.Value.([]interface{}) {
-// 		apex := strings.ToLower(domain.(map[string]interface{})["apex"].(string))
-// 		subdomain := strings.ToLower(domain.(map[string]interface{})["subdomain"].(string))
-
-// 		fqdn := fmt.Sprintf("%s.%s", subdomain, apex)
-
-// 		upstreamFQDNs = append(upstreamFQDNs, fqdn)
-// 	}
-
-// 	return upstreamFQDNs
-// }
 
 /*
 parseController accepts a string delimited by the `:` character.
@@ -70,4 +57,48 @@ func getTableViewFromDomains(domains []Domain) string {
 	}
 
 	return strings.Join(upstreamFQDNs[:], ", ")
+}
+
+// Service should be in the format servicename:port
+func parseService(e transistor.Event) (Service, error) {
+	payload := e.Payload.(plugins.ProjectExtension)
+
+	protocol, err := e.GetArtifact("protocol")
+	if err != nil {
+		return Service{}, err
+	}
+
+	serviceRaw, err := e.GetArtifact("service")
+	if err != nil {
+		return Service{}, err
+	}
+
+	serviceParts := strings.Split(serviceRaw.String(), ":")
+	if len(serviceParts) != 2 {
+		return Service{}, fmt.Errorf("Malformed service reference: %s", serviceRaw.String())
+	}
+
+	serviceName := serviceParts[0]
+	servicePort := serviceParts[1]
+
+	portInt, err := strconv.Atoi(servicePort)
+	if err != nil {
+		return Service{}, fmt.Errorf("%s: Invalid Port type", serviceParts[1])
+	}
+
+	port := ListenerPair{
+		Name:       fmt.Sprintf("http-%s-%.0f", serviceName, float64(portInt)),
+		Protocol:   protocol.String(),
+		SourcePort: int32(portInt),
+		TargetPort: int32(portInt),
+	}
+
+	service := Service{
+		ID:   fmt.Sprintf("%s-%s", serviceParts[0], payload.ID[0:5]),
+		Name: serviceName,
+		Port: port,
+	}
+
+	return service, nil
+
 }

@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
@@ -13,8 +12,6 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 //ProcessIngress Processes Kubernetes Ingress Events
@@ -46,21 +43,9 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.getKubernetesClient(e)
 	if err != nil {
 		return err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-	if err != nil {
-		return err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("ERROR: %s; setting NewForConfig in deleteIngress", err.Error())
 	}
 
 	ingType, err := e.GetArtifact("type")
@@ -122,26 +107,8 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.getKubernetesClient(e)
 	if err != nil {
-		log.Error(err.Error())
-		return err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Error(failMessage)
-		return err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in createIngress", err.Error())
-		log.Error(failMessage)
 		return err
 	}
 
@@ -313,26 +280,8 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 		return false, err
 	}
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.getKubernetesClient(e)
 	if err != nil {
-		log.Error(err.Error())
-		return false, err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Error(failMessage)
-		return false, err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in createIngress", err.Error())
-		log.Error(failMessage)
 		return false, err
 	}
 
@@ -448,62 +397,3 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 	return &input, nil
 
 }
-
-// Service should be in the format servicename:port
-func parseService(e transistor.Event) (Service, error) {
-	payload := e.Payload.(plugins.ProjectExtension)
-
-	protocol, err := e.GetArtifact("protocol")
-	if err != nil {
-		return Service{}, err
-	}
-
-	serviceRaw, err := e.GetArtifact("service")
-	if err != nil {
-		return Service{}, err
-	}
-
-	serviceParts := strings.Split(serviceRaw.String(), ":")
-	if len(serviceParts) != 2 {
-		return Service{}, fmt.Errorf("Malformed service reference: %s", serviceRaw.String())
-	}
-
-	serviceName := serviceParts[0]
-	servicePort := serviceParts[1]
-
-	portInt, err := strconv.Atoi(servicePort)
-	if err != nil {
-		return Service{}, fmt.Errorf("%s: Invalid Port type", serviceParts[1])
-	}
-
-	port := ListenerPair{
-		Name:       fmt.Sprintf("http-%s-%.0f", serviceName, float64(portInt)),
-		Protocol:   protocol.String(),
-		SourcePort: int32(portInt),
-		TargetPort: int32(portInt),
-	}
-
-	service := Service{
-		ID:   fmt.Sprintf("%s-%s", serviceParts[0], payload.ID[0:5]),
-		Name: serviceName,
-		Port: port,
-	}
-
-	return service, nil
-
-}
-
-// func parseUpstreamDomains(a transistor.Artifact) []string {
-
-// 	var upstreamFQDNs []string
-// 	for _, domain := range a.Value.([]interface{}) {
-// 		apex := strings.ToLower(domain.(map[string]interface{})["apex"].(string))
-// 		subdomain := strings.ToLower(domain.(map[string]interface{})["subdomain"].(string))
-
-// 		fqdn := fmt.Sprintf("%s.%s", subdomain, apex)
-
-// 		upstreamFQDNs = append(upstreamFQDNs, fqdn)
-// 	}
-
-// 	return upstreamFQDNs
-// }
