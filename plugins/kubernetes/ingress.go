@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
@@ -13,8 +12,6 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 //ProcessIngress Processes Kubernetes Ingress Events
@@ -46,21 +43,9 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.getKubernetesClient(e)
 	if err != nil {
 		return err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-	if err != nil {
-		return err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("ERROR: %s; setting NewForConfig in deleteIngress", err.Error())
 	}
 
 	ingType, err := e.GetArtifact("type")
@@ -122,26 +107,8 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.getKubernetesClient(e)
 	if err != nil {
-		log.Error(err.Error())
-		return err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Error(failMessage)
-		return err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in createIngress", err.Error())
-		log.Error(failMessage)
 		return err
 	}
 
@@ -246,7 +213,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		// Build for Upstream Domains
 		for _, domain := range inputs.UpstreamFQDNs {
 			rule := v1beta1.IngressRule{
-				Host:             domain,
+				Host:             domain.FQDN,
 				IngressRuleValue: ingressRuleValue,
 			}
 
@@ -300,7 +267,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 	artifacts = append(artifacts, transistor.Artifact{Key: "controlled_apex_domain", Value: inputs.ControlledApexDomain, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: serviceObj.Spec.ClusterIP, Secret: false})
 	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Service.ID, namespace), Secret: false})
-	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: strings.Join(inputs.UpstreamFQDNs[:], ", "), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: getTableViewFromDomains(inputs.UpstreamFQDNs), Secret: false})
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 
@@ -313,26 +280,8 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 		return false, err
 	}
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	clientset, err := x.getKubernetesClient(e)
 	if err != nil {
-		log.Error(err.Error())
-		return false, err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Error(failMessage)
-		return false, err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in createIngress", err.Error())
-		log.Error(failMessage)
 		return false, err
 	}
 
@@ -347,7 +296,7 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 	for _, ingress := range existingIngresses.Items {
 		for _, rule := range ingress.Spec.Rules {
 			for _, domain := range inputs.UpstreamFQDNs {
-				if rule.Host == domain && ingress.GetName() != inputs.Service.ID {
+				if rule.Host == domain.FQDN && ingress.GetName() != inputs.Service.ID {
 					return true, fmt.Errorf("Error: An ingress for Upstream Domain %s already configured. Namespace: %s", domain, ingress.GetNamespace())
 				}
 			}
@@ -447,84 +396,4 @@ func getInputs(e transistor.Event) (*IngressInput, error) {
 
 	return &input, nil
 
-}
-
-// Service should be in the format servicename:port
-func parseService(e transistor.Event) (Service, error) {
-	payload := e.Payload.(plugins.ProjectExtension)
-
-	protocol, err := e.GetArtifact("protocol")
-	if err != nil {
-		return Service{}, err
-	}
-
-	serviceRaw, err := e.GetArtifact("service")
-	if err != nil {
-		return Service{}, err
-	}
-
-	serviceParts := strings.Split(serviceRaw.String(), ":")
-	if len(serviceParts) != 2 {
-		return Service{}, fmt.Errorf("Malformed service reference: %s", serviceRaw.String())
-	}
-
-	serviceName := serviceParts[0]
-	servicePort := serviceParts[1]
-
-	portInt, err := strconv.Atoi(servicePort)
-	if err != nil {
-		return Service{}, fmt.Errorf("%s: Invalid Port type", serviceParts[1])
-	}
-
-	port := ListenerPair{
-		Name:       fmt.Sprintf("http-%s-%.0f", serviceName, float64(portInt)),
-		Protocol:   protocol.String(),
-		SourcePort: int32(portInt),
-		TargetPort: int32(portInt),
-	}
-
-	service := Service{
-		ID:   fmt.Sprintf("%s-%s", serviceParts[0], payload.ID[0:5]),
-		Name: serviceName,
-		Port: port,
-	}
-
-	return service, nil
-
-}
-
-func parseUpstreamDomains(a transistor.Artifact) []string {
-
-	var upstreamFQDNs []string
-	for _, domain := range a.Value.([]interface{}) {
-		apex := strings.ToLower(domain.(map[string]interface{})["apex"].(string))
-		subdomain := strings.ToLower(domain.(map[string]interface{})["subdomain"].(string))
-
-		fqdn := fmt.Sprintf("%s.%s", subdomain, apex)
-
-		upstreamFQDNs = append(upstreamFQDNs, fqdn)
-	}
-
-	return upstreamFQDNs
-}
-
-/*
-parseController accepts a string delimited by the `:` character.
-Each controller string must be in this format:
-	<subdomain:ingress_controler_id:elb_dns>
-*/
-func parseController(ingressController string) (*IngressController, error) {
-
-	parts := strings.Split(ingressController, ":")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("%s is an invalid IngressController string. Must be in format: <ingress_name:ingress_controller_id:elb_dns>", ingressController)
-	}
-
-	controller := IngressController{
-		ControllerName: parts[0],
-		ControllerID:   parts[1],
-		ELB:            parts[2],
-	}
-
-	return &controller, nil
 }

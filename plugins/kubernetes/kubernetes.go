@@ -8,12 +8,16 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func init() {
@@ -49,6 +53,9 @@ func (x *Kubernetes) Subscribe() []string {
 		"project:kubernetes:ingress:create",
 		"project:kubernetes:ingress:update",
 		"project:kubernetes:ingress:delete",
+		"project:kubernetes:ingressroute:create",
+		"project:kubernetes:ingressroute:update",
+		"project:kubernetes:ingressroute:delete",
 		"project:kubernetes:loadbalancer:create",
 		"project:kubernetes:loadbalancer:update",
 		"project:kubernetes:loadbalancer:delete",
@@ -70,7 +77,12 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 	}
 
 	if e.Matches(".*kubernetes:ingress") == true {
-		x.ProcessIngress(e)
+		x.ProcessIngressRoute(e)
+		return nil
+	}
+
+	if e.Matches(".*kubernetes:ingressroute") == true {
+		x.ProcessIngressRoute(e)
 		return nil
 	}
 
@@ -210,4 +222,66 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 	}
 
 	return fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
+}
+
+func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
+	kubeconfig, err := x.SetupKubeConfig(e)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, err
+	}
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
+
+	if err != nil {
+		failMessage := fmt.Sprintf("ERROR getClientConfig: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
+		log.Error(failMessage)
+		return nil, err
+	}
+
+	return config, nil
+}
+
+func (x *Kubernetes) getKubernetesClient(e transistor.Event) (*kubernetes.Clientset, error) {
+	if x.KubernetesClient != nil {
+		return x.KubernetesClient, nil
+	}
+
+	config, err := x.getClientConfig(e)
+	if err != nil {
+		return nil, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
+		log.Error(failMessage)
+		return nil, err
+	}
+
+	x.KubernetesClient = clientset
+
+	return x.KubernetesClient, nil
+}
+
+func (x *Kubernetes) getContourClient(e transistor.Event) (*contour_client.Clientset, error) {
+	if x.ContourClient != nil {
+		return x.ContourClient, nil
+	}
+
+	config, err := x.getClientConfig(e)
+	if err != nil {
+		return nil, err
+	}
+
+	clientset, err := contour_client.NewForConfig(config)
+	if err != nil {
+		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig", err.Error())
+		log.Error(failMessage)
+		return nil, err
+	}
+
+	x.ContourClient = clientset
+	return x.ContourClient, nil
 }

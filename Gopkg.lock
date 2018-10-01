@@ -394,7 +394,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a729b21f93cea904676a5b1da6f3ed0c529e158396da266ad6a02cbf55d8a0d6"
+  digest = "1:40ea06297b9e54eceee8313657a4bb9fb116089f973d2dce1ec94efb7ba78bf3"
   name = "github.com/heptio/contour"
   packages = [
     "apis/contour/v1beta1",
@@ -403,7 +403,7 @@
     "apis/generated/clientset/versioned/typed/contour/v1beta1",
   ]
   pruneopts = ""
-  revision = "7028ca9c86e204263f63219d5a3efc035493e520"
+  revision = "adef47c918fffa526237c801508f3da29de66686"
 
 [[projects]]
   branch = "master"
@@ -1000,6 +1000,7 @@
     "github.com/gorilla/handlers",
     "github.com/graph-gophers/graphql-go",
     "github.com/graph-gophers/graphql-go/relay",
+    "github.com/heptio/contour/apis/contour/v1beta1",
     "github.com/heptio/contour/apis/generated/clientset/versioned",
     "github.com/jinzhu/gorm",
     "github.com/jinzhu/gorm/dialects/postgres",
@@ -1023,6 +1024,7 @@
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/typed/core/v1",
+    "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/clientcmd",
   ]
   solver-name = "gps-cdcl"
