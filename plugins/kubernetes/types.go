@@ -81,6 +81,7 @@ type IngressRouteInput struct {
 	CertificateAuthority string
 	Controller           IngressController
 	Service              Service
+	EnableWebsockets     bool
 	ControlledApexDomain string
 	UpstreamDomains      []Domain
 }
