@@ -100,7 +100,7 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 func (x *Kubernetes) createIngress(e transistor.Event) error {
 	var artifacts []transistor.Artifact
 
-	inputs, err := getInputs(e)
+	inputs, err := getIngressInputs(e)
 	if err != nil {
 		return err
 	}
@@ -275,7 +275,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 }
 
 func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
-	inputs, err := getInputs(e)
+	inputs, err := getIngressInputs(e)
 	if err != nil {
 		return false, err
 	}
@@ -307,7 +307,7 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 
 }
 
-func getInputs(e transistor.Event) (*IngressInput, error) {
+func getIngressInputs(e transistor.Event) (*IngressInput, error) {
 	input := IngressInput{}
 	var err error
 

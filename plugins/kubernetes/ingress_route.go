@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
@@ -110,6 +111,20 @@ func getIngressRouteInputs(e transistor.Event) (*IngressRouteInput, error) {
 	input.Service = service
 
 	if serviceType.String() == "loadbalancer" {
+		isWebsocket := false
+		enableWebsockets, err := e.GetArtifact("enable_websockets")
+		if err != nil {
+			log.DebugWithFields("enable_websockets property not found, defaulting to false", log.Fields{
+				"id":      e.ID,
+				"message": err.Error(),
+			})
+		} else {
+			isWebsocket, err = strconv.ParseBool(enableWebsockets.String())
+			if err != nil {
+				return nil, fmt.Errorf("enable_websockets property is malformed: %s", err.Error())
+			}
+		}
+		input.EnableWebsockets = isWebsocket
 
 		apexDomain, err := e.GetArtifact("controlled_apex_domain")
 		if err != nil {
@@ -369,7 +384,8 @@ func (x *Kubernetes) createIngressRoute(e transistor.Event) error {
 				},
 				Routes: []contour_v1beta1.Route{
 					contour_v1beta1.Route{
-						Match: "/",
+						Match:            "/",
+						EnableWebsockets: inputs.EnableWebsockets,
 						Services: []contour_v1beta1.Service{
 							contour_v1beta1.Service{
 								Name: inputs.Service.ID,
