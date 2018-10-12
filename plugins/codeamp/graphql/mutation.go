@@ -243,7 +243,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		var projectExtension model.ProjectExtension
 		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.WarnWithFields("Associated project extension not found", log.Fields{
-				"id":                   args.ID,
+				"id": args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 			})
@@ -255,7 +255,7 @@ func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID 
 		var extension model.Extension
 		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.WarnWithFields("Associated extension not found", log.Fields{
-				"id":                   args.ID,
+				"id": args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 				"extension_id":         projectExtension.ExtensionID,
@@ -509,27 +509,9 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		tailFeatureID = currentRelease.HeadFeatureID
 	}
 
-	// Create Release
-	release := model.Release{
-		State:             transistor.GetState("waiting"),
-		StateMessage:      "Release created",
-		ProjectID:         projectID,
-		EnvironmentID:     environmentID,
-		UserID:            uuid.FromStringOrNil(userID),
-		HeadFeatureID:     headFeatureID,
-		TailFeatureID:     tailFeatureID,
-		Secrets:           secretsJsonb,
-		Services:          servicesJsonb,
-		ProjectExtensions: projectExtensionsJsonb,
-		ForceRebuild:      args.Release.ForceRebuild,
-		IsRollback:        isRollback,
-	}
-
-	r.DB.Create(&release)
-
-	if r.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
+	if r.DB.Where("id = ?", projectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
-			"id": release.ProjectID,
+			"id": projectID,
 		})
 		return &ReleaseResolver{}, errors.New("Project not found")
 	}
@@ -538,32 +520,32 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 	var branch string
 	var projectSettings model.ProjectSettings
 
-	if r.DB.Where("environment_id = ? and project_id = ?", release.EnvironmentID, release.ProjectID).First(&projectSettings).RecordNotFound() {
+	if r.DB.Where("environment_id = ? and project_id = ?", environmentID, projectID).First(&projectSettings).RecordNotFound() {
 		log.InfoWithFields("no env project branch found", log.Fields{})
 	} else {
 		branch = projectSettings.GitBranch
 	}
 
 	var environment model.Environment
-	if r.DB.Where("id = ?", release.EnvironmentID).Find(&environment).RecordNotFound() {
+	if r.DB.Where("id = ?", environmentID).Find(&environment).RecordNotFound() {
 		log.InfoWithFields("no env found", log.Fields{
-			"id": release.EnvironmentID,
+			"id": environmentID,
 		})
 		return &ReleaseResolver{}, errors.New("Environment not found")
 	}
 
 	var headFeature model.Feature
-	if r.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+	if r.DB.Where("id = ?", headFeatureID).First(&headFeature).RecordNotFound() {
 		log.InfoWithFields("head feature not found", log.Fields{
-			"id": release.HeadFeatureID,
+			"id": headFeatureID,
 		})
 		return &ReleaseResolver{}, errors.New("head feature not found")
 	}
 
 	var tailFeature model.Feature
-	if r.DB.Where("id = ?", release.TailFeatureID).First(&tailFeature).RecordNotFound() {
+	if r.DB.Where("id = ?", tailFeatureID).First(&tailFeature).RecordNotFound() {
 		log.InfoWithFields("tail feature not found", log.Fields{
-			"id": release.TailFeatureID,
+			"id": tailFeatureID,
 		})
 		return &ReleaseResolver{}, errors.New("Tail feature not found")
 	}
@@ -581,6 +563,46 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 			Value: secret.Value.Value,
 			Type:  secret.Type,
 		})
+	}
+
+	// Create/Emit Release ProjectExtensions
+	willCreateReleaseExtension := false
+	for _, projectExtension := range projectExtensions {
+		extension := model.Extension{}
+		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+			log.ErrorWithFields("extension spec not found", log.Fields{
+				"id": projectExtension.ExtensionID,
+			})
+			return &ReleaseResolver{}, fmt.Errorf("extension spec not found")
+		}
+
+		if plugins.Type(extension.Type) == plugins.GetType("workflow") || plugins.Type(extension.Type) == plugins.GetType("deployment") {
+			willCreateReleaseExtension = true
+			break
+		}
+	}
+
+	var release model.Release
+	if willCreateReleaseExtension == true {
+		// Create Release
+		release = model.Release{
+			State:             transistor.GetState("waiting"),
+			StateMessage:      "Release created",
+			ProjectID:         projectID,
+			EnvironmentID:     environmentID,
+			UserID:            uuid.FromStringOrNil(userID),
+			HeadFeatureID:     headFeatureID,
+			TailFeatureID:     tailFeatureID,
+			Secrets:           secretsJsonb,
+			Services:          servicesJsonb,
+			ProjectExtensions: projectExtensionsJsonb,
+			ForceRebuild:      args.Release.ForceRebuild,
+			IsRollback:        isRollback,
+		}
+
+		r.DB.Create(&release)
+	} else {
+		return nil, fmt.Errorf("No release extensions found")
 	}
 
 	// insert CodeAmp envs
@@ -662,7 +684,6 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 		Services: pluginServices, // ADB Added this
 	}
 
-	// Create/Emit Release ProjectExtensions
 	for _, projectExtension := range projectExtensions {
 		extension := model.Extension{}
 		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
