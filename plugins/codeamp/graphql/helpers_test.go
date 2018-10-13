@@ -80,7 +80,7 @@ func (helper *Helper) CreateEnvironmentWithError(name string) (*graphql_resolver
 
 func (helper *Helper) CreateProject(t *testing.T, envResolver *graphql_resolver.EnvironmentResolver) (*graphql_resolver.ProjectResolver, error) {
 	projectResolver, err := helper.CreateProjectWithRepo(t, envResolver, "https://github.com/foo/goo.git")
-	if (err == nil){
+	if err == nil {
 		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
 	}
 	return projectResolver, err
@@ -494,7 +494,7 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 
 func (helper *Helper) TearDownTest(t *testing.T) {
 	for _, id := range helper.cleanupFeatureIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.Feature{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Feature{}, "id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -502,7 +502,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupFeatureIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupServiceIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.Service{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Service{}, "id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -510,7 +510,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupServiceIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupServiceSpecIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.ServiceSpec{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.ServiceSpec{}, "id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -518,7 +518,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupServiceSpecIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupServiceDeploymentStrategyIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.ServiceDeploymentStrategy{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.ServiceDeploymentStrategy{}, "id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -527,7 +527,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupServiceDeploymentStrategyIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupReleaseExtensionIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.ReleaseExtension{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.ReleaseExtension{}, "id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -536,7 +536,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupReleaseExtensionIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupExtensionIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.Extension{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Extension{}, "id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -544,7 +544,12 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupExtensionIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupReleaseIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.Release{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Release{}, "id = ?", id).Error
+		if err != nil {
+			log.Error(err)
+		}
+
+		err = helper.Resolver.DB.Unscoped().Delete(&model.ReleaseExtension{}, "release_id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -552,7 +557,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupReleaseIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupProjectExtensionIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.ProjectExtension{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.ProjectExtension{}, "id = ?", id).Error
 		if err != nil {
 			log.Error(err)
 		}
@@ -560,7 +565,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupProjectExtensionIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupProjectBookmarkIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.ProjectBookmark{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.ProjectBookmark{}, "id = ?", id).Error
 		if err != nil {
 			assert.FailNow(t, err.Error())
 		}
@@ -568,7 +573,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupProjectBookmarkIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupProjectIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.Project{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Project{}, "id = ?", id).Error
 		if err != nil {
 			assert.FailNow(t, err.Error())
 		}
@@ -598,7 +603,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupProjectIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupEnvironmentIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.Environment{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Environment{}, "id = ?", id).Error
 		if err != nil {
 			assert.FailNow(t, err.Error())
 		}
@@ -606,7 +611,7 @@ func (helper *Helper) TearDownTest(t *testing.T) {
 	helper.cleanupEnvironmentIDs = make([]uuid.UUID, 0)
 
 	for _, id := range helper.cleanupSecretIDs {
-		err := helper.Resolver.DB.Unscoped().Delete(&model.Secret{Model: model.Model{ID: id}}).Error
+		err := helper.Resolver.DB.Unscoped().Delete(&model.Secret{}, "id = ?", id).Error
 		if err != nil {
 			assert.FailNow(t, err.Error())
 		}
