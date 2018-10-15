@@ -337,7 +337,7 @@ func (helper *Helper) CreateReleaseWithError(t *testing.T,
 	// Release
 	releaseResolver, err := helper.Resolver.CreateRelease(helper.context, &struct{ Release *model.ReleaseInput }{releaseInput})
 	if err == nil {
-		helper.cleanupReleaseIDs = append(helper.cleanupServiceSpecIDs, releaseResolver.DBReleaseResolver.Release.Model.ID)
+		helper.cleanupReleaseIDs = append(helper.cleanupReleaseIDs, releaseResolver.DBReleaseResolver.Release.Model.ID)
 	}
 	return releaseResolver, err
 }
