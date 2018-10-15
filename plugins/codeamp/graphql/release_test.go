@@ -372,6 +372,50 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureNoProjectExtensions() {
 	assert.NotNil(ts.T(), err)
 }
 
+func (ts *ReleaseTestSuite) TestCreateReleaseFailureNoReleaseExtensions() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+	extensionResolver.DBExtensionResolver.Extension.Type = "once"
+	ts.Resolver.DB.Save(&extensionResolver.DBExtensionResolver.Extension)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	projectID := string(projectResolver.ID())
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
+
+	featureID := string(featureResolver.ID())
+	releaseInput := &model.ReleaseInput{
+		HeadFeatureID: featureID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		ForceRebuild:  false,
+	}
+
+	// Release
+	_, err = ts.helper.CreateReleaseWithError(ts.T(), projectResolver, releaseInput)
+	assert.NotNil(ts.T(), err)
+}
+
 func (ts *ReleaseTestSuite) TestCreateReleaseFailureNoPermission() {
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
@@ -1009,8 +1053,39 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureBadReleaseExtension() {
 }
 
 func (ts *ReleaseTestSuite) TestStopReleaseFailureNoReleaseExtensions() {
-	_, err := ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{graphql.ID("b3d43558-0ec0-44a5-9755-0a3a0387d8eb")})
-	assert.NotNil(ts.T(), err)
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
+
+	// Project Extension
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+
+	// Force to set to 'complete' state for testing purposes
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Release
+	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
+
+	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
 }
 
 func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
