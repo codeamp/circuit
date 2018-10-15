@@ -136,7 +136,7 @@ type Service struct {
 type ServicePort struct {
 	Model `json:",inline"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 	// Protocol
 	Protocol string `json:"protocol"`
 	// Port
@@ -148,7 +148,7 @@ type ServiceDeploymentStrategy struct {
 	// Model
 	Model `json:",inline"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 	// Type
 	Type plugins.Type `json:"type"`
 	// MaxUnavailable
@@ -162,7 +162,7 @@ type ServiceHealthProbe struct {
 	// Model
 	Model `json:",inline"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 	// Type: required; accepts `readinessProbe` and `livenessProbe`
 	Type plugins.Type `json:"type"`
 	// Method: required; accepts `exec`, `http`, and `tcp`
@@ -191,7 +191,7 @@ type ServiceHealthProbe struct {
 
 type ServiceHealthProbeHttpHeader struct {
 	Model         `json:",inline"`
-	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"-" gorm:"type:uuid"`
+	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"healthProbeID" gorm:"type:uuid"`
 	Name          string    `json:"name"`
 	Value         string    `json:"value"`
 }
