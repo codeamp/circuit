@@ -23,7 +23,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// Environment Resolver Query
+// Project Resolver Mutation
 type ProjectResolverMutation struct {
 	DB *gorm.DB
 }

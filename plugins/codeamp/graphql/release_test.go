@@ -74,11 +74,11 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 	path := "/healthz"
 
 	headers := []model.HealthProbeHttpHeaderInput{
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-Proto",
 			Value: "https",
 		},
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-For",
 			Value: "www.example.com",
 		},

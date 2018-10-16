@@ -10,7 +10,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// Environment Resolver Query
+// Service Resolver Mutation
 type ServiceResolverMutation struct {
 	DB *gorm.DB
 }

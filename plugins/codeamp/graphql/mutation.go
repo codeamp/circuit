@@ -580,63 +580,18 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	serviceSpec := model.ServiceSpec{
-		Name:                   args.ServiceSpec.Name,
-		CpuRequest:             args.ServiceSpec.CpuRequest,
-		CpuLimit:               args.ServiceSpec.CpuLimit,
-		MemoryRequest:          args.ServiceSpec.MemoryRequest,
-		MemoryLimit:            args.ServiceSpec.MemoryLimit,
-		TerminationGracePeriod: args.ServiceSpec.TerminationGracePeriod,
-	}
-
-	r.DB.Create(&serviceSpec)
-
-	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
+	mut := ServiceSpecResolverMutation{r.DB}
+	return mut.CreateServiceSpec(args)
 }
 
 func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	serviceSpec := model.ServiceSpec{}
-
-	serviceSpecID, err := uuid.FromString(*args.ServiceSpec.ID)
-	if err != nil {
-		return nil, fmt.Errorf("UpdateServiceSpec: Missing argument id")
-	}
-
-	if r.DB.Where("id=?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
-		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
-	}
-
-	serviceSpec.Name = args.ServiceSpec.Name
-	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
-	serviceSpec.CpuRequest = args.ServiceSpec.CpuRequest
-	serviceSpec.MemoryLimit = args.ServiceSpec.MemoryLimit
-	serviceSpec.MemoryRequest = args.ServiceSpec.MemoryRequest
-	serviceSpec.TerminationGracePeriod = args.ServiceSpec.TerminationGracePeriod
-
-	r.DB.Save(&serviceSpec)
-
-	//r.ServiceSpecUpdated(&serviceSpec)
-
-	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
+	mut := ServiceSpecResolverMutation{r.DB}
+	return mut.UpdateServiceSpec(args)
 }
 
 func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	serviceSpec := model.ServiceSpec{}
-	if r.DB.Where("id=?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {
-		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
-	} else {
-		services := []model.Service{}
-		r.DB.Where("service_spec_id = ?", serviceSpec.Model.ID).Find(&services)
-		if len(services) == 0 {
-			r.DB.Delete(&serviceSpec)
-
-			//r.ServiceSpecDeleted(&serviceSpec)
-
-			return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
-		} else {
-			return nil, fmt.Errorf("Delete all project-services using this service spec first.")
-		}
-	}
+	mut := ServiceSpecResolverMutation{r.DB}
+	return mut.DeleteServiceSpec(args)
 }
 
 func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
@@ -701,33 +656,8 @@ func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.
 
 // UpdateUserPermissions
 func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissions *model.UserPermissionsInput }) ([]string, error) {
-	var err error
-	var results []string
-
-	if r.DB.Where("id = ?", args.UserPermissions.UserID).Find(&model.User{}).RecordNotFound() {
-		return nil, errors.New("User not found")
-	}
-
-	for _, permission := range args.UserPermissions.Permissions {
-		if _, err = auth.CheckAuth(ctx, []string{permission.Value}); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, permission := range args.UserPermissions.Permissions {
-		if permission.Grant == true {
-			userPermission := model.UserPermission{
-				UserID: uuid.FromStringOrNil(args.UserPermissions.UserID),
-				Value:  permission.Value,
-			}
-			r.DB.Where(userPermission).FirstOrCreate(&userPermission)
-			results = append(results, permission.Value)
-		} else {
-			r.DB.Where("user_id = ? AND value = ?", args.UserPermissions.UserID, permission.Value).Delete(&model.UserPermission{})
-		}
-	}
-
-	return results, nil
+	mut := UserResolverMutation{r.DB}
+	return mut.UpdateUserPermissions(ctx, args)
 }
 
 // UpdateProjectEnvironments

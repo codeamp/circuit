@@ -13,7 +13,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// Environment Resolver Query
+// Secret Resolver Mutation
 type SecretResolverMutation struct {
 	DB *gorm.DB
 }

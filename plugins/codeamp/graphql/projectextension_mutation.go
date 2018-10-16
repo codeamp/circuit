@@ -17,7 +17,7 @@ import (
 	"github.com/jinzhu/gorm/dialects/postgres"
 )
 
-// Environment Resolver Query
+// ProjectExtension Resolver Mutation
 type ProjectExtensionResolverMutation struct {
 	DB *gorm.DB
 	// Events

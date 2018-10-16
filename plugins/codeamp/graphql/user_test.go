@@ -135,7 +135,7 @@ func (ts *UserTestSuite) TestUpdatePermissionsFailureNoAuth() {
 	userPermissionsInput := model.UserPermissionsInput{
 		UserID: string(user.ID()),
 		Permissions: []model.PermissionInput{
-			model.PermissionInput{
+			{
 				"admin",
 				true,
 			},
@@ -152,7 +152,7 @@ func (ts *UserTestSuite) TestUpdatePermissionsFailureBadUser() {
 	userPermissionsInput := model.UserPermissionsInput{
 		UserID: test.ValidUUID,
 		Permissions: []model.PermissionInput{
-			model.PermissionInput{
+			{
 				"admin",
 				true,
 			},
@@ -170,7 +170,7 @@ func (ts *UserTestSuite) TestUpdatePermissionsRemovePermission() {
 	userPermissionsInput := model.UserPermissionsInput{
 		UserID: string(user.ID()),
 		Permissions: []model.PermissionInput{
-			model.PermissionInput{
+			{
 				"admin",
 				true,
 			},
@@ -185,7 +185,7 @@ func (ts *UserTestSuite) TestUpdatePermissionsRemovePermission() {
 	userPermissionsInput = model.UserPermissionsInput{
 		UserID: string(user.ID()),
 		Permissions: []model.PermissionInput{
-			model.PermissionInput{
+			{
 				"admin",
 				false,
 			},
@@ -205,7 +205,7 @@ func (ts *UserTestSuite) TestPermissionInterface() {
 	userPermissionsInput := model.UserPermissionsInput{
 		UserID: string(user.ID()),
 		Permissions: []model.PermissionInput{
-			model.PermissionInput{
+			{
 				"admin",
 				true,
 			},
