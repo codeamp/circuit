@@ -72,8 +72,8 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 
 	// Remove Autocreated ReleaseExtension from Release
-	for re := range releaseResolver.ReleaseExtensions() {
-		ts.Resolver.DB.Unscoped().Delete(&re)
+	for _, re := range releaseResolver.ReleaseExtensions() {
+		ts.Resolver.DB.Unscoped().Delete(&model.ReleaseExtension{}, "id = ? ", re.DBReleaseExtensionResolver.ReleaseExtension.Model.ID)
 	}
 
 	// Release Extension
