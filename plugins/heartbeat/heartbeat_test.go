@@ -32,7 +32,6 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
-	log.Warn("SETUP SUITE REGISTERING HeartBeat")
 	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
 		return &heartbeat.Heartbeat{Cron: CronMock{}}
 	}, plugins.HeartBeat{})
