@@ -6,28 +6,29 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/rk/go-cron"
+	gocron "github.com/rk/go-cron"
 )
 
 type Heartbeat struct {
 	events chan transistor.Event
+	Cron   cron
 }
 
 func init() {
 	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
-		return &Heartbeat{}
+		return &Heartbeat{Cron: Cron{}}
 	}, plugins.HeartBeat{})
 }
 
 func (x *Heartbeat) Start(e chan transistor.Event) error {
 	x.events = e
 
-	cron.NewCronJob(cron.ANY, cron.ANY, cron.ANY, cron.ANY, cron.ANY, 0, func(time.Time) {
+	x.Cron.NewCronJob(gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, func(time.Time) {
 		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "minute"})
 		x.events <- event
 	})
 
-	cron.NewCronJob(cron.ANY, cron.ANY, cron.ANY, cron.ANY, 0, 0, func(time.Time) {
+	x.Cron.NewCronJob(gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, 0, func(time.Time) {
 		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "hour"})
 		x.events <- event
 	})

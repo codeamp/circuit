@@ -2,10 +2,12 @@ package heartbeat_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
-	_ "github.com/codeamp/circuit/plugins/heartbeat"
+	"github.com/codeamp/circuit/plugins/heartbeat"
 	"github.com/codeamp/circuit/test"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -16,6 +18,13 @@ type TestSuite struct {
 	transistor *transistor.Transistor
 }
 
+type CronMock struct{}
+
+func (c CronMock) NewCronJob(month, day, weekday, hour, minute, second int8, task func(time.Time)) {
+	log.Debug("Mocked Cron Response - Firing Immediately")
+	task(time.Now())
+}
+
 var viperConfig = []byte(`
 plugins:
   heartbeat:
@@ -23,6 +32,11 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
+	log.Warn("SETUP SUITE REGISTERING HeartBeat")
+	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
+		return &heartbeat.Heartbeat{Cron: CronMock{}}
+	}, plugins.HeartBeat{})
+
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
 }
@@ -41,7 +55,7 @@ func (suite *TestSuite) TestHeartbeat() {
 		return
 	}
 	payload := e.Payload.(plugins.HeartBeat)
-	assert.Equal(suite.T(), "minute", payload.Tick)
+	assert.Contains(suite.T(), []string{"minute", "hour"}, payload.Tick)
 }
 
 func TestHeartbeat(t *testing.T) {
