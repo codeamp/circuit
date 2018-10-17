@@ -23,11 +23,12 @@ import (
 type DockerBuilder struct {
 	events chan transistor.Event
 	Socket string
+	Dockerer
 }
 
 func init() {
 	transistor.RegisterPlugin("dockerbuilder", func() transistor.Plugin {
-		return &DockerBuilder{Socket: "unix:///var/run/docker.sock"}
+		return &DockerBuilder{Socket: "unix:///var/run/docker.sock", Dockerer: LegitimateDocker{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
@@ -262,7 +263,7 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 		AuthConfigs:  authConfigs,
 	}
 
-	dockerClient, err := docker.NewClient(x.Socket)
+	dockerClient, err := x.Dockerer.NewClient(x.Socket)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -297,7 +298,7 @@ func (x *DockerBuilder) push(repoPath string, event transistor.Event, buildlog i
 		return err
 	}
 
-	dockerClient, err := docker.NewClient(x.Socket)
+	dockerClient, err := x.Dockerer.NewClient(x.Socket)
 
 	fullImageName := fullImageName(event)
 	imageID, err := x.getImageID(fullImageName)
@@ -368,7 +369,7 @@ func imageIDTagLatestGen(e transistor.Event) string {
 }
 
 func (x *DockerBuilder) getImageID(name string) (string, error) {
-	dockerClient, err := docker.NewClient(x.Socket)
+	dockerClient, err := x.Dockerer.NewClient(x.Socket)
 	if err != nil {
 		log.Error(err)
 		return "", err
@@ -380,7 +381,8 @@ func (x *DockerBuilder) getImageID(name string) (string, error) {
 		return "", err
 	}
 
-	truncatedID := image.ID[len(image.ID)-12:]
+	imageID := image.ID()
+	truncatedID := imageID[len(imageID)-12:]
 	return truncatedID, nil
 }
 
