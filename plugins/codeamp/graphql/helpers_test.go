@@ -173,6 +173,7 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 		EnvironmentID: envId,
 		Config:        model.JSON{configData},
 		Type:          "workflow",
+		Cacheable:     false,
 	}
 	extensionResolver, err := helper.Resolver.CreateExtension(&struct {
 		Extension *model.ExtensionInput
@@ -180,6 +181,8 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
+
+	assert.Equal(t, false, extensionResolver.Cacheable())
 
 	helper.cleanupExtensionIDs = append(helper.cleanupExtensionIDs, extensionResolver.DBExtensionResolver.Extension.Model.ID)
 	return extensionResolver
