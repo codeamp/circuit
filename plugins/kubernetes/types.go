@@ -34,8 +34,10 @@ type SimplePodSpec struct {
 // Kubernetes
 type Kubernetes struct {
 	events chan transistor.Event
-	K8sContourer
+	K8sNamespacer
+	K8sContourNamespacer
 	K8sClienter
+	K8sContourer
 }
 
 // ProbeDefaults

@@ -22,7 +22,7 @@ import (
 
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &Kubernetes{K8sClienter: MockKubernetesClient{}, K8sContourer: MockContourClient{}}
+		return &Kubernetes{K8sClienter: LegitimateKubernetesClient{}, K8sContourer: LegitimateContourClient{}, K8sContourNamespacer: LegitimateContourNamespacer{}, K8sNamespacer: LegitimateKubernetesNamespacer{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
@@ -244,16 +244,14 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 }
 
 func (x *Kubernetes) getKubernetesClient(e transistor.Event) (*kubernetes.Clientset, error) {
-	if x.KubernetesClient != nil {
-		return x.KubernetesClient, nil
-	}
-
+	// Find a way to return it if already exists
+	
 	config, err := x.getClientConfig(e)
 	if err != nil {
 		return nil, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := x.K8Namespacer.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Error(failMessage)
@@ -266,9 +264,7 @@ func (x *Kubernetes) getKubernetesClient(e transistor.Event) (*kubernetes.Client
 }
 
 func (x *Kubernetes) getContourClient(e transistor.Event) (*contour_client.Clientset, error) {
-	if x.ContourClient != nil {
-		return x.ContourClient, nil
-	}
+	// Find a way to return it if already exists
 
 	config, err := x.getClientConfig(e)
 	if err != nil {

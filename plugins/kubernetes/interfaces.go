@@ -7,13 +7,14 @@ import (
 )
 
 ///////////////////////////////////////////////////
-type Kuberneteser interface {
+type K8sNamespacer interface {
 	NewForConfig(*rest.Config) (K8sClienter, error)
 }
-type LegitimateKubernetes struct {
+
+type LegitimateKubernetesNamespacer struct {
 }
 
-func (l LegitimateKubernetes) NewForConfig(config *rest.Config) (K8sClienter, error) {
+func (l LegitimateKubernetesNamespacer) NewForConfig(config *rest.Config) (K8sClienter, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	return clientset, err
 }
@@ -32,17 +33,27 @@ type LegitimateKubernetesClient struct {
 
 ///////////////////////////////////////////////////
 
-type K8sCountourer interface {
+type K8sContourNamespacer interface {
 	NewForConfig(*rest.Config) (K8sClienter, error)
 }
 
-type LegitimateK8sCountourClient struct {
-	ContourClient *contour_client.Clientset
-}
+type LegitimateContourNamespacer struct {}
 
-func (l LegitimateKubernetes) NewForConfig(config *rest.Config) (K8sClienter, error) {
+func (l LegitimateContourNamespacer) NewForConfig(config *rest.Config) (K8sClienter, error) {
 	clientset, err := contour_client.NewForConfig(config)
 	return clientset, err
 }
 
 ///////////////////////////////////////////////////
+
+type K8sContourer interface {}
+type LegitimateContourClient struct {
+	ContourClient *contour_client.Clientset
+}
+
+
+
+///////////////////////////////////////////////////
+
+type K8sClientSet interface {}
+type 
