@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
@@ -22,7 +23,7 @@ import (
 
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &Kubernetes{K8sClienter: LegitimateKubernetesClient{}, K8sContourer: LegitimateContourClient{}, K8sContourNamespacer: LegitimateContourNamespacer{}, K8sNamespacer: LegitimateKubernetesNamespacer{}}
+		return &Kubernetes{K8sContourNamespacer: LegitimateContourNamespacer{}, K8sNamespacer: LegitimateKubernetesNamespacer{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
@@ -225,6 +226,7 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 }
 
 func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
+	log.Warn("getClientConfig")
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
@@ -243,15 +245,16 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	return config, nil
 }
 
-func (x *Kubernetes) getKubernetesClient(e transistor.Event) (*kubernetes.Clientset, error) {
+func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interface, error) {
 	// Find a way to return it if already exists
-	
+	log.Warn("getKubernetesClient")
+
 	config, err := x.getClientConfig(e)
 	if err != nil {
 		return nil, err
 	}
 
-	clientset, err := x.K8Namespacer.NewForConfig(config)
+	clientset, err := x.K8sNamespacer.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Error(failMessage)
@@ -263,7 +266,7 @@ func (x *Kubernetes) getKubernetesClient(e transistor.Event) (*kubernetes.Client
 	return x.KubernetesClient, nil
 }
 
-func (x *Kubernetes) getContourClient(e transistor.Event) (*contour_client.Clientset, error) {
+func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
 	// Find a way to return it if already exists
 
 	config, err := x.getClientConfig(e)
@@ -271,7 +274,7 @@ func (x *Kubernetes) getContourClient(e transistor.Event) (*contour_client.Clien
 		return nil, err
 	}
 
-	clientset, err := contour_client.NewForConfig(config)
+	clientset, err := x.K8sContourNamespacer.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig", err.Error())
 		log.Error(failMessage)

@@ -1,22 +1,23 @@
 package kubernetes_test
 
+import (
+	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+)
 
 /////////////////////////////////////////////////////////////////////////
-type MockKubernetesClient struct {}
+type MockKubernetesNamespacer struct{}
 
-func (l LegitimateKubernetes) NewForConfig(config *rest.Config) (K8sClienter, error) {
+func (l MockKubernetesNamespacer) NewForConfig(config *rest.Config) (kubernetes.Interface, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	return clientset, err
 }
 
-
 /////////////////////////////////////////////////////////////////////////
-type MockContourNamespace struct {}
+type MockContourNamespacer struct{}
 
-func (l LegitimateKubernetes) NewForConfig(config *rest.Config) (K8sClienter, error) {
-	clientset, err := kubernetes.NewForConfig(config)
+func (l MockContourNamespacer) NewForConfig(config *rest.Config) (contour_client.Interface, error) {
+	clientset, err := contour_client.NewForConfig(config)
 	return clientset, err
 }
-
-/////////////////////////////////////////////////////////////////////////
-type MockContourClient struct {}

@@ -302,7 +302,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 }
 
 func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
-	log.Info("doDeleteLoadBalancer")
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
@@ -316,7 +315,6 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 }
 
 func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
-	log.Info("deleteLoadBalancer")
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 

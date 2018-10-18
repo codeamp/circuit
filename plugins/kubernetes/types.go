@@ -3,7 +3,9 @@ package kubernetes
 import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Load Balancer
@@ -36,8 +38,9 @@ type Kubernetes struct {
 	events chan transistor.Event
 	K8sNamespacer
 	K8sContourNamespacer
-	K8sClienter
-	K8sContourer
+
+	ContourClient    contour_client.Interface
+	KubernetesClient kubernetes.Interface
 }
 
 // ProbeDefaults
