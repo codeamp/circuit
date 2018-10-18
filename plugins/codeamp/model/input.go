@@ -72,6 +72,8 @@ type ExtensionInput struct {
 	Component string `json:"component"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
+	// Cacheable
+	Cacheable bool `json:"cacheable"`
 	// Config
 	Config JSON `json:"config"`
 	// Type

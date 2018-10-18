@@ -351,6 +351,8 @@ type Extension struct {
 	Name string `json:"name"`
 	// Component
 	Component string `json:"component"`
+	// Cacheable
+	Cacheable bool `json:"cacheable"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 	// Config

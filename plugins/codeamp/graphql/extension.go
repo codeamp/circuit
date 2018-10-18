@@ -28,6 +28,11 @@ func (r *ExtensionResolver) Component() string {
 	return r.DBExtensionResolver.Extension.Component
 }
 
+// Cacheable
+func (r *ExtensionResolver) Cacheable() bool {
+	return r.DBExtensionResolver.Extension.Cacheable
+}
+
 // Type
 func (r *ExtensionResolver) Type() string {
 	return string(r.DBExtensionResolver.Extension.Type)
