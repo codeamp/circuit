@@ -11,24 +11,24 @@ import (
 
 type Heartbeat struct {
 	events chan transistor.Event
-	Cron   cron
+	Croner
 }
 
 func init() {
 	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
-		return &Heartbeat{Cron: Cron{}}
+		return &Heartbeat{Croner: LegitimateCron{}}
 	}, plugins.HeartBeat{})
 }
 
 func (x *Heartbeat) Start(e chan transistor.Event) error {
 	x.events = e
 
-	x.Cron.NewCronJob(gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, func(time.Time) {
+	x.Croner.NewCronJob(gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, func(time.Time) {
 		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "minute"})
 		x.events <- event
 	})
 
-	x.Cron.NewCronJob(gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, 0, func(time.Time) {
+	x.Croner.NewCronJob(gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, 0, func(time.Time) {
 		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "hour"})
 		x.events <- event
 	})
