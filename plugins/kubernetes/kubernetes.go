@@ -22,7 +22,7 @@ import (
 
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &Kubernetes{}
+		return &Kubernetes{K8sClienter: MockKubernetesClient{}, K8sContourer: MockContourClient{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
