@@ -387,11 +387,11 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
 	path := "/healthz"
 
 	headers := []model.HealthProbeHttpHeaderInput{
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-Proto",
 			Value: "https",
 		},
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-For",
 			Value: "www.example.com",
 		},
@@ -545,11 +545,11 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	path := "/healthz"
 
 	headers := []model.HealthProbeHttpHeaderInput{
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-Proto",
 			Value: "https",
 		},
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-For",
 			Value: "www.example.com",
 		},
@@ -577,7 +577,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	serviceID := string(serviceResolver.ID())
 
 	servicePorts := []model.ServicePortInput{
-		model.ServicePortInput{
+		{
 			Port:     80,
 			Protocol: "HTTP",
 		},
@@ -669,11 +669,11 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 	path := "/healthz"
 
 	headers := []model.HealthProbeHttpHeaderInput{
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-Proto",
 			Value: "https",
 		},
-		model.HealthProbeHttpHeaderInput{
+		{
 			Name:  "X-Forwarded-For",
 			Value: "www.example.com",
 		},

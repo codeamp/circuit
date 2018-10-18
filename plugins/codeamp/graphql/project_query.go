@@ -50,7 +50,7 @@ func (u *ProjectResolverQuery) Project(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	if args.EnvironmentID != nil {	
+	if args.EnvironmentID != nil {
 
 		environmentID, err := uuid.FromString(*args.EnvironmentID)
 		if err != nil {
