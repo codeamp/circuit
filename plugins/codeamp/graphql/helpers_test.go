@@ -148,12 +148,12 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *graphql_resolve
 	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
 
 	config := []model.ExtConfig{
-		model.ExtConfig{
+		{
 			Key:           "test-key",
 			Value:         "test-value",
 			AllowOverride: true,
 		},
-		model.ExtConfig{
+		{
 			Key:           "test-key",
 			Value:         "test-value",
 			AllowOverride: true,
@@ -404,7 +404,7 @@ func (helper *Helper) CreateService(t *testing.T,
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	servicePortInputs := []model.ServicePortInput{
-		model.ServicePortInput{
+		{
 			Port:     80,
 			Protocol: "HTTP",
 		},
@@ -461,7 +461,7 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	servicePortInputs := []model.ServicePortInput{
-		model.ServicePortInput{
+		{
 			Port:     80,
 			Protocol: "HTTP",
 		},
