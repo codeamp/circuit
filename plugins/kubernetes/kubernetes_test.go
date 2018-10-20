@@ -46,7 +46,7 @@ func (suite *TestSuite) TestCleanupLBOffice() {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
-	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State, e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
 }
 
 func (suite *TestSuite) TestLBTCPOffice() {
@@ -84,7 +84,7 @@ func (suite *TestSuite) TestLBTCPOffice() {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
-	assert.Equal(suite.T(), transistor.GetState("deleted"), e.State)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
 func strMapKeys(strMap map[string]string) string {
