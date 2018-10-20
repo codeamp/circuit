@@ -16,7 +16,7 @@ type Heartbeat struct {
 
 func init() {
 	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
-		return &Heartbeat{Croner: LegitimateCron{}}
+		return &Heartbeat{Croner: Cron{}}
 	}, plugins.HeartBeat{})
 }
 
