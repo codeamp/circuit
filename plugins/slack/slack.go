@@ -6,7 +6,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	slack "github.com/lytics/slackhook"
 
 	log "github.com/codeamp/logger"
@@ -117,10 +116,10 @@ func (x *Slack) Process(e transistor.Event) error {
 	}
 
 	text := fmt.Sprintf(
-		"Deploy %s to %s\n" +
-		"%s\n" +
-		"<https://github.com/%s/compare/%s...%s|%s...%s> \n"+
-		"to <%s/projects/%s/%s/releases|%s>",
+		"Deploy %s to %s\n"+
+			"%s\n"+
+			"<https://github.com/%s/compare/%s...%s|%s...%s> \n"+
+			"to <%s/projects/%s/%s/releases|%s>",
 		strings.ToUpper(messageStatus.String()), payload.Environment, payload.Release.HeadFeature.Message,
 		payload.Project.Repository, tail, head, tail[:8], head[:8],
 		dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
