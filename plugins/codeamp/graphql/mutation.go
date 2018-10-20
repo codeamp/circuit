@@ -3,12 +3,8 @@ package graphql_resolver
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha1"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
@@ -20,192 +16,26 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/extemporalgenome/slug"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
-	"golang.org/x/crypto/ssh"
 )
 
 // CreateProject Create project
 func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
-	var userId string
-	var err error
-	if userId, err = auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	var project model.Project
-
-	protocol := "HTTPS"
-	switch args.Project.GitProtocol {
-	case "private", "PRIVATE", "ssh", "SSH":
-		protocol = "SSH"
-	case "public", "PUBLIC", "https", "HTTPS":
-		protocol = "HTTPS"
-	}
-
-	// Check if project already exists with same name
-	existingProject := model.Project{}
-	res := plugins.GetRegexParams("(?P<host>(git@|https?:\\/\\/)([\\w\\.@]+)(\\/|:))(?P<owner>[\\w,\\-,\\_]+)\\/(?P<repo>[\\w,\\-,\\_]+)(.git){0,1}((\\/){0,1})", args.Project.GitUrl)
-	repository := fmt.Sprintf("%s/%s", res["owner"], res["repo"])
-	if r.DB.Where("repository = ?", repository).First(&existingProject).RecordNotFound() {
-		log.WarnWithFields("[+] Project not found", log.Fields{
-			"repository": repository,
-		})
-	} else {
-		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
-	}
-
-	project = model.Project{
-		GitProtocol: protocol,
-		GitUrl:      args.Project.GitUrl,
-		Secret:      transistor.RandomString(30),
-	}
-	project.Name = repository
-	project.Repository = repository
-	project.Slug = slug.Slug(repository)
-
-	deletedProject := model.Project{}
-	if err := r.DB.Unscoped().Where("repository = ?", repository).First(&deletedProject).Error; err != nil {
-		project.Model.ID = deletedProject.Model.ID
-	}
-
-	// priv *rsa.PrivateKey;
-	priv, err := rsa.GenerateKey(rand.Reader, 2014)
-	if err != nil {
-		return nil, err
-	}
-
-	err = priv.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	// Get der format. priv_der []byte
-	priv_der := x509.MarshalPKCS1PrivateKey(priv)
-
-	// pem.Block
-	priv_blk := pem.Block{
-		Type:    "RSA PRIVATE KEY",
-		Headers: nil,
-		Bytes:   priv_der,
-	}
-
-	// Public Key generation
-	pub, err := ssh.NewPublicKey(&priv.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	project.RsaPrivateKey = string(pem.EncodeToMemory(&priv_blk))
-	project.RsaPublicKey = string(ssh.MarshalAuthorizedKey(pub))
-
-	r.DB.Create(&project)
-
-	// Create git branch for env per env
-	environments := []model.Environment{}
-	r.DB.Find(&environments)
-	if len(environments) == 0 {
-		log.InfoWithFields("No envs found.", log.Fields{
-			"args": args,
-		})
-		return nil, fmt.Errorf("No envs found")
-	}
-
-	for _, environment := range environments {
-		r.DB.Create(&model.ProjectSettings{
-			EnvironmentID: environment.Model.ID,
-			ProjectID:     project.Model.ID,
-			GitBranch:     "master",
-		})
-
-		// Create ProjectEnvironment rows for default envs
-		if environment.IsDefault {
-			r.DB.Create(&model.ProjectEnvironment{
-				EnvironmentID: environment.Model.ID,
-				ProjectID:     project.Model.ID,
-			})
-		}
-	}
-
-	// Create user permission for project
-	userPermission := model.UserPermission{
-		UserID: uuid.FromStringOrNil(userId),
-		Value:  fmt.Sprintf("projects/%s", project.Repository),
-	}
-	r.DB.Create(&userPermission)
-
-	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
+	mut := ProjectResolverMutation{r.DB}
+	return mut.CreateProject(ctx, args)
 }
 
 // UpdateProject Update project
 func (r *Resolver) UpdateProject(args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
-	var project model.Project
-
-	if args.Project.ID == nil {
-		return nil, fmt.Errorf("Missing argument id")
-	}
-
-	if r.DB.Where("id = ?", args.Project.ID).First(&project).RecordNotFound() {
-		log.WarnWithFields("Project not found", log.Fields{
-			"id": args.Project.ID,
-		})
-		return nil, fmt.Errorf("Project not found.")
-	}
-
-	if args.Project.GitUrl != "" {
-		project.GitUrl = args.Project.GitUrl
-	}
-
-	switch args.Project.GitProtocol {
-	case "private", "PRIVATE", "ssh", "SSH":
-		project.GitProtocol = "SSH"
-		if strings.HasPrefix(project.GitUrl, "http") {
-			project.GitUrl = fmt.Sprintf("git@%s:%s.git", strings.Split(strings.Split(project.GitUrl, "://")[1], "/")[0], project.Repository)
-		}
-	case "public", "PUBLIC", "https", "HTTPS":
-		project.GitProtocol = "HTTPS"
-		if strings.HasPrefix(project.GitUrl, "git@") {
-			project.GitUrl = fmt.Sprintf("https://%s/%s.git", strings.Split(strings.Split(project.GitUrl, "@")[1], ":")[0], project.Repository)
-		}
-	}
-
-	if args.Project.GitBranch != nil {
-		projectID, err := uuid.FromString(*args.Project.ID)
-		if err != nil {
-			return nil, fmt.Errorf("Couldn't parse project ID")
-		}
-
-		environmentID, err := uuid.FromString(*args.Project.EnvironmentID)
-		if err != nil {
-			return nil, fmt.Errorf("Couldn't parse environment ID")
-		}
-
-		var projectSettings model.ProjectSettings
-		if r.DB.Where("environment_id = ? and project_id = ?", environmentID, projectID).First(&projectSettings).RecordNotFound() {
-			projectSettings.EnvironmentID = environmentID
-			projectSettings.ProjectID = projectID
-			projectSettings.GitBranch = *args.Project.GitBranch
-			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
-
-			r.DB.Save(&projectSettings)
-		} else {
-			projectSettings.GitBranch = *args.Project.GitBranch
-			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
-
-			r.DB.Save(&projectSettings)
-		}
-	}
-
-	r.DB.Save(&project)
-
-	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
+	mut := ProjectResolverMutation{r.DB}
+	return mut.UpdateProject(args)
 }
 
 // StopRelease
@@ -735,1002 +565,109 @@ func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *mod
 
 // CreateService Create service
 func (r *Resolver) CreateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
-	// Check service name length
-	if len(args.Service.Name) > 63 {
-		return nil, fmt.Errorf("Service name cannot be longer than 63 characters.")
-	}
-
-	// Check if project can create service in environment
-	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
-		return nil, fmt.Errorf("Project not allowed to create service in given environment")
-	}
-
-	projectID, err := uuid.FromString(args.Service.ProjectID)
-	if err != nil {
-		return nil, err
-	}
-
-	environmentID, err := uuid.FromString(args.Service.EnvironmentID)
-	if err != nil {
-		return nil, err
-	}
-
-	serviceSpecID, err := uuid.FromString(args.Service.ServiceSpecID)
-	if err != nil {
-		return nil, err
-	}
-
-	var deploymentStrategy model.ServiceDeploymentStrategy
-	if args.Service.DeploymentStrategy != nil {
-		deploymentStrategy, err = validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var livenessProbe model.ServiceHealthProbe
-	if args.Service.LivenessProbe != nil {
-		probeType := plugins.GetType("livenessProbe")
-		probe := args.Service.LivenessProbe
-		probe.Type = &probeType
-		livenessProbe, err = validateHealthProbe(*probe)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var readinessProbe model.ServiceHealthProbe
-	if args.Service.ReadinessProbe != nil {
-		probeType := plugins.GetType("readinessProbe")
-		probe := args.Service.ReadinessProbe
-		probe.Type = &probeType
-		readinessProbe, err = validateHealthProbe(*probe)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var preStopHook string
-	if args.Service.PreStopHook != nil {
-		preStopHook = *args.Service.PreStopHook
-	}
-
-	service := model.Service{
-		Name:               args.Service.Name,
-		Command:            args.Service.Command,
-		ServiceSpecID:      serviceSpecID,
-		Type:               plugins.Type(args.Service.Type),
-		Count:              args.Service.Count,
-		ProjectID:          projectID,
-		EnvironmentID:      environmentID,
-		DeploymentStrategy: deploymentStrategy,
-		LivenessProbe:      livenessProbe,
-		ReadinessProbe:     readinessProbe,
-		PreStopHook:        preStopHook,
-	}
-
-	r.DB.Create(&service)
-
-	// Create Health Probe Headers
-	if service.LivenessProbe.HttpHeaders != nil {
-		for _, h := range service.LivenessProbe.HttpHeaders {
-			h.HealthProbeID = service.LivenessProbe.ID
-			r.DB.Create(&h)
-		}
-	}
-
-	if service.ReadinessProbe.HttpHeaders != nil {
-		for _, h := range service.ReadinessProbe.HttpHeaders {
-			h.HealthProbeID = service.ReadinessProbe.ID
-			r.DB.Create(&h)
-		}
-	}
-
-	if args.Service.Ports != nil {
-		for _, cp := range *args.Service.Ports {
-			servicePort := model.ServicePort{
-				ServiceID: service.ID,
-				Port:      cp.Port,
-				Protocol:  cp.Protocol,
-			}
-			r.DB.Create(&servicePort)
-		}
-	}
-
-	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+	mut := ServiceResolverMutation{r.DB}
+	return mut.CreateService(args)
 }
 
 // UpdateService Update Service
 func (r *Resolver) UpdateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
-	serviceID := uuid.FromStringOrNil(*args.Service.ID)
-	serviceSpecID := uuid.FromStringOrNil(args.Service.ServiceSpecID)
-
-	if serviceID == uuid.Nil || serviceSpecID == uuid.Nil {
-		return nil, fmt.Errorf("Missing argument id")
-	}
-
-	var service model.Service
-	if r.DB.Where("id = ?", serviceID).Find(&service).RecordNotFound() {
-		return nil, fmt.Errorf("Record not found with given argument id")
-	}
-
-	service.Command = args.Service.Command
-	service.Name = args.Service.Name
-	service.Type = plugins.Type(args.Service.Type)
-	service.ServiceSpecID = serviceSpecID
-	service.Count = args.Service.Count
-
-	r.DB.Save(&service)
-
-	// delete all previous container ports
-	var servicePorts []model.ServicePort
-	r.DB.Where("service_id = ?", serviceID).Find(&servicePorts)
-
-	// delete all container ports
-	// replace with current
-	for _, cp := range servicePorts {
-		r.DB.Delete(&cp)
-	}
-
-	if args.Service.Ports != nil {
-		for _, cp := range *args.Service.Ports {
-			servicePort := model.ServicePort{
-				ServiceID: service.ID,
-				Port:      cp.Port,
-				Protocol:  cp.Protocol,
-			}
-			r.DB.Create(&servicePort)
-		}
-	}
-
-	var livenessProbe = model.ServiceHealthProbe{}
-	var err error
-	if args.Service.LivenessProbe != nil {
-		probeType := plugins.GetType("livenessProbe")
-		probe := args.Service.LivenessProbe
-		probe.Type = &probeType
-		livenessProbe, err = validateHealthProbe(*probe)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var readinessProbe = model.ServiceHealthProbe{}
-	if args.Service.ReadinessProbe != nil {
-		probeType := plugins.GetType("readinessProbe")
-		probe := args.Service.ReadinessProbe
-		probe.Type = &probeType
-		readinessProbe, err = validateHealthProbe(*probe)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var oldHealthProbes []model.ServiceHealthProbe
-	r.DB.Where("service_id = ?", serviceID).Find(&oldHealthProbes)
-	for _, probe := range oldHealthProbes {
-		var headers []model.ServiceHealthProbeHttpHeader
-		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
-		for _, header := range headers {
-			r.DB.Delete(&header)
-		}
-		r.DB.Delete(&probe)
-	}
-
-	var deploymentStrategy model.ServiceDeploymentStrategy
-	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
-	updatedDeploymentStrategy, err := validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
-	if err != nil {
-		return nil, err
-	}
-
-	deploymentStrategy.Type = updatedDeploymentStrategy.Type
-	deploymentStrategy.MaxUnavailable = updatedDeploymentStrategy.MaxUnavailable
-	deploymentStrategy.MaxSurge = updatedDeploymentStrategy.MaxSurge
-
-	r.DB.Save(&deploymentStrategy)
-	service.DeploymentStrategy = deploymentStrategy
-	service.ReadinessProbe = readinessProbe
-	service.LivenessProbe = livenessProbe
-
-	var preStopHook string
-	if args.Service.PreStopHook != nil {
-		preStopHook = *args.Service.PreStopHook
-	}
-	service.PreStopHook = preStopHook
-	r.DB.Save(&service)
-
-	// Create Health Probe Headers
-	for _, h := range service.LivenessProbe.HttpHeaders {
-		h.HealthProbeID = service.LivenessProbe.ID
-		r.DB.Create(&h)
-	}
-
-	for _, h := range service.ReadinessProbe.HttpHeaders {
-		h.HealthProbeID = service.ReadinessProbe.ID
-		r.DB.Create(&h)
-	}
-
-	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+	mut := ServiceResolverMutation{r.DB}
+	return mut.UpdateService(args)
 }
 
 // DeleteService Delete service
 func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
-	serviceID, err := uuid.FromString(*args.Service.ID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var service model.Service
-
-	r.DB.Where("id = ?", serviceID).Find(&service)
-	r.DB.Delete(&service)
-
-	// delete all previous container ports
-	var servicePorts []model.ServicePort
-	r.DB.Where("service_id = ?", serviceID).Find(&servicePorts)
-
-	// delete all container ports
-	for _, cp := range servicePorts {
-		r.DB.Delete(&cp)
-	}
-
-	var healthProbes []model.ServiceHealthProbe
-	r.DB.Where("service_id = ?", serviceID).Find(&healthProbes)
-	for _, probe := range healthProbes {
-		var headers []model.ServiceHealthProbeHttpHeader
-		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
-		for _, header := range headers {
-			r.DB.Delete(&header)
-		}
-		r.DB.Delete(&probe)
-	}
-
-	var deploymentStrategy model.ServiceDeploymentStrategy
-	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
-	r.DB.Delete(&deploymentStrategy)
-
-	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
-}
-
-func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
-	healthProbe := model.ServiceHealthProbe{}
-
-	switch probeType := *input.Type; probeType {
-	case plugins.GetType("livenessProbe"), plugins.GetType("readinessProbe"):
-		healthProbe.Type = probeType
-		if input.InitialDelaySeconds != nil {
-			healthProbe.InitialDelaySeconds = *input.InitialDelaySeconds
-		}
-		if input.PeriodSeconds != nil {
-			healthProbe.PeriodSeconds = *input.PeriodSeconds
-		}
-		if input.TimeoutSeconds != nil {
-			healthProbe.TimeoutSeconds = *input.TimeoutSeconds
-		}
-		if input.SuccessThreshold != nil {
-			healthProbe.SuccessThreshold = *input.SuccessThreshold
-		}
-		if input.FailureThreshold != nil {
-			healthProbe.FailureThreshold = *input.FailureThreshold
-		}
-	default:
-		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Type %s", string(*input.Type))
-	}
-
-	switch probeMethod := input.Method; probeMethod {
-	case "default", "":
-		return model.ServiceHealthProbe{}, nil
-	case "exec":
-		healthProbe.Method = input.Method
-		if input.Command == nil {
-			return model.ServiceHealthProbe{}, fmt.Errorf("Command is required if Probe method is exec")
-		}
-		healthProbe.Command = *input.Command
-	case "http":
-		healthProbe.Method = input.Method
-		if input.Port == nil {
-			return model.ServiceHealthProbe{}, fmt.Errorf("http probe require a port to be set")
-		}
-		healthProbe.Port = *input.Port
-		if input.Path == nil {
-			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires a path to be set")
-		}
-		healthProbe.Path = *input.Path
-
-		// httpStr := "http"
-		// httpsStr := "https"
-		if input.Scheme == nil || (*input.Scheme != "http" && *input.Scheme != "https") {
-			return model.ServiceHealthProbe{}, fmt.Errorf("http probe requires scheme to be set to either http or https")
-		}
-		healthProbe.Scheme = *input.Scheme
-	case "tcp":
-		healthProbe.Method = input.Method
-		if input.Port == nil {
-			return model.ServiceHealthProbe{}, fmt.Errorf("tcp probe requires a port to be set")
-		}
-		healthProbe.Port = *input.Port
-	default:
-		return model.ServiceHealthProbe{}, fmt.Errorf("Unsuported Probe Method %s", string(input.Method))
-	}
-
-	if input.HttpHeaders != nil {
-		for _, headerInput := range *input.HttpHeaders {
-			header := model.ServiceHealthProbeHttpHeader{
-				Name:          headerInput.Name,
-				Value:         headerInput.Value,
-				HealthProbeID: healthProbe.ID,
-			}
-			healthProbe.HttpHeaders = append(healthProbe.HttpHeaders, header)
-		}
-
-	}
-
-	return healthProbe, nil
-}
-
-func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
-	switch strategy := input.Type; strategy {
-	case plugins.GetType("default"), plugins.GetType("recreate"):
-		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil
-	case plugins.GetType("rollingUpdate"):
-		if input.MaxUnavailable == 0 {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxUnavailable parameter")
-		}
-
-		if input.MaxSurge == 0 {
-			return model.ServiceDeploymentStrategy{}, fmt.Errorf("RollingUpdate DeploymentStrategy requires a valid maxSurge parameter")
-		}
-	default:
-		return model.ServiceDeploymentStrategy{}, fmt.Errorf("Unsuported Deployment Strategy %s", input.Type)
-	}
-
-	deploymentStrategy := model.ServiceDeploymentStrategy{
-		Type:           plugins.Type(input.Type),
-		MaxUnavailable: input.MaxUnavailable,
-		MaxSurge:       input.MaxSurge,
-	}
-
-	return deploymentStrategy, nil
+	mut := ServiceResolverMutation{r.DB}
+	return mut.DeleteService(args)
 }
 
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	serviceSpec := model.ServiceSpec{
-		Name:                   args.ServiceSpec.Name,
-		CpuRequest:             args.ServiceSpec.CpuRequest,
-		CpuLimit:               args.ServiceSpec.CpuLimit,
-		MemoryRequest:          args.ServiceSpec.MemoryRequest,
-		MemoryLimit:            args.ServiceSpec.MemoryLimit,
-		TerminationGracePeriod: args.ServiceSpec.TerminationGracePeriod,
-	}
-
-	r.DB.Create(&serviceSpec)
-
-	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
+	mut := ServiceSpecResolverMutation{r.DB}
+	return mut.CreateServiceSpec(args)
 }
 
 func (r *Resolver) UpdateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	serviceSpec := model.ServiceSpec{}
-
-	serviceSpecID, err := uuid.FromString(*args.ServiceSpec.ID)
-	if err != nil {
-		return nil, fmt.Errorf("UpdateServiceSpec: Missing argument id")
-	}
-
-	if r.DB.Where("id=?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
-		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
-	}
-
-	serviceSpec.Name = args.ServiceSpec.Name
-	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
-	serviceSpec.CpuRequest = args.ServiceSpec.CpuRequest
-	serviceSpec.MemoryLimit = args.ServiceSpec.MemoryLimit
-	serviceSpec.MemoryRequest = args.ServiceSpec.MemoryRequest
-	serviceSpec.TerminationGracePeriod = args.ServiceSpec.TerminationGracePeriod
-
-	r.DB.Save(&serviceSpec)
-
-	//r.ServiceSpecUpdated(&serviceSpec)
-
-	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
+	mut := ServiceSpecResolverMutation{r.DB}
+	return mut.UpdateServiceSpec(args)
 }
 
 func (r *Resolver) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
-	serviceSpec := model.ServiceSpec{}
-	if r.DB.Where("id=?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {
-		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
-	} else {
-		services := []model.Service{}
-		r.DB.Where("service_spec_id = ?", serviceSpec.Model.ID).Find(&services)
-		if len(services) == 0 {
-			r.DB.Delete(&serviceSpec)
-
-			//r.ServiceSpecDeleted(&serviceSpec)
-
-			return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
-		} else {
-			return nil, fmt.Errorf("Delete all project-services using this service spec first.")
-		}
-	}
+	mut := ServiceSpecResolverMutation{r.DB}
+	return mut.DeleteServiceSpec(args)
 }
 
 func (r *Resolver) CreateEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
-	var existingEnv model.Environment
-	if r.DB.Where("key = ?", args.Environment.Key).Find(&existingEnv).RecordNotFound() {
-		env := model.Environment{
-			Name:      args.Environment.Name,
-			Key:       args.Environment.Key,
-			IsDefault: args.Environment.IsDefault,
-			Color:     args.Environment.Color,
-		}
-
-		r.DB.Create(&env)
-
-		//r.EnvironmentCreated(&env)
-
-		return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: env}}, nil
-	} else {
-		return nil, fmt.Errorf("CreateEnvironment: name '%s' already exists", args.Environment.Name)
-	}
+	mut := EnvironmentResolverMutation{r.DB}
+	return mut.CreateEnvironment(ctx, args)
 }
 
 func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
-	var existingEnv model.Environment
-
-	if args.Environment.ID == nil {
-		return &EnvironmentResolver{}, fmt.Errorf("EnvironmentID required param")
-	}
-
-	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
-		return nil, fmt.Errorf("UpdateEnv: couldn't find environment: %s", *args.Environment.ID)
-	} else {
-		existingEnv.Name = args.Environment.Name
-		existingEnv.Color = args.Environment.Color
-		// Check if this is the only default env.
-		if args.Environment.IsDefault == false && existingEnv.IsDefault == true {
-			var defaultEnvs []model.Environment
-			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
-			// Update IsDefault as long as the current is false or
-			// if there are more than 1 default env
-			if len(defaultEnvs) > 1 {
-				existingEnv.IsDefault = args.Environment.IsDefault
-			}
-		} else {
-			// If IsDefault is true, then no harm in updating
-			existingEnv.IsDefault = args.Environment.IsDefault
-		}
-
-		r.DB.Save(&existingEnv)
-
-		return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: existingEnv}}, nil
-	}
+	mut := EnvironmentResolverMutation{r.DB}
+	return mut.UpdateEnvironment(ctx, args)
 }
 
 func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
-	var existingEnv model.Environment
-	if r.DB.Where("id = ?", args.Environment.ID).Find(&existingEnv).RecordNotFound() {
-		return nil, fmt.Errorf("DeleteEnv: couldn't find environment: %s", *args.Environment.ID)
-	} else {
-		// if this is the only default env, do not delete
-		if existingEnv.IsDefault {
-			var defaultEnvs []model.Environment
-			r.DB.Where("is_default = ?", true).Find(&defaultEnvs)
-			if len(defaultEnvs) == 1 {
-				return nil, fmt.Errorf("Cannot delete since this is the only default env. Must be one at all times")
-			}
-		}
-
-		// Only delete env. if no child services exist, else return err
-		childServices := []model.Service{}
-		r.DB.Where("environment_id = ?", args.Environment.ID).Find(&childServices)
-		if len(childServices) == 0 {
-			existingEnv.Name = args.Environment.Name
-			secrets := []model.Secret{}
-
-			r.DB.Delete(&existingEnv)
-			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Find(&secrets)
-			for _, secret := range secrets {
-				r.DB.Delete(&secret)
-				r.DB.Where("secret_id = ?", secret.Model.ID).Delete(model.SecretValue{})
-			}
-
-			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.Release{})
-			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ProjectExtension{})
-			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.ProjectSettings{})
-			r.DB.Where("environment_id = ?", existingEnv.Model.ID).Delete(model.Extension{})
-
-			//r.EnvironmentDeleted(&existingEnv)
-
-			return &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: existingEnv}}, nil
-		} else {
-			return nil, fmt.Errorf("Delete all project-services in environment before deleting environment.")
-		}
-	}
+	mut := EnvironmentResolverMutation{r.DB}
+	return mut.DeleteEnvironment(ctx, args)
 }
 
 func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
-
-	projectID := uuid.UUID{}
-	var environmentID uuid.UUID
-	var secretScope model.SecretScope
-
-	if args.Secret.ProjectID != nil {
-		// Check if project can create secret
-		if r.DB.Where("environment_id = ? and project_id = ?", args.Secret.EnvironmentID, args.Secret.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
-			return nil, errors.New("Project not allowed to create secret in given environment")
-		}
-
-		projectID = uuid.FromStringOrNil(*args.Secret.ProjectID)
-	}
-
-	secretScope = GetSecretScope(args.Secret.Scope)
-	if secretScope == model.SecretScope("unknown") {
-		return nil, fmt.Errorf("Invalid env var scope.")
-	}
-
-	environmentID, err := uuid.FromString(args.Secret.EnvironmentID)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't parse environmentID. Invalid format.")
-	}
-
-	userIDString, err := auth.CheckAuth(ctx, []string{})
-	if err != nil {
-		return &SecretResolver{}, err
-	}
-
-	userID, err := uuid.FromString(userIDString)
-	if err != nil {
-		return &SecretResolver{}, err
-	}
-
-	var existingEnvVar model.Secret
-
-	if r.DB.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ? and type = ?", args.Secret.Key, projectID, environmentID, args.Secret.Type).Find(&existingEnvVar).RecordNotFound() {
-		secret := model.Secret{
-			Key:           args.Secret.Key,
-			ProjectID:     projectID,
-			Type:          plugins.GetType(args.Secret.Type),
-			Scope:         secretScope,
-			EnvironmentID: environmentID,
-			IsSecret:      args.Secret.IsSecret,
-		}
-		r.DB.Create(&secret)
-
-		secretValue := model.SecretValue{
-			SecretID: secret.Model.ID,
-			Value:    args.Secret.Value,
-			UserID:   userID,
-		}
-		r.DB.Create(&secretValue)
-
-		//r.SecretCreated(&secret)
-
-		return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}}, nil
-	} else {
-		return nil, fmt.Errorf("CreateSecret: key already exists")
-	}
-
+	mut := SecretResolverMutation{r.DB}
+	return mut.CreateSecret(ctx, args)
 }
 
 func (r *Resolver) UpdateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
-	var secret model.Secret
-
-	userIDString, err := auth.CheckAuth(ctx, []string{})
-	if err != nil {
-		return &SecretResolver{}, err
-	}
-
-	userID, err := uuid.FromString(userIDString)
-	if err != nil {
-		return &SecretResolver{}, err
-	}
-
-	if r.DB.Where("id = ?", args.Secret.ID).Find(&secret).RecordNotFound() {
-		return nil, fmt.Errorf("UpdateSecret: env var doesn't exist.")
-	} else {
-		secretValue := model.SecretValue{
-			SecretID: secret.Model.ID,
-			Value:    args.Secret.Value,
-			UserID:   userID,
-		}
-		r.DB.Create(&secretValue)
-
-		//r.SecretUpdated(&secret)
-
-		return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}}, nil
-	}
+	mut := SecretResolverMutation{r.DB}
+	return mut.UpdateSecret(ctx, args)
 }
 
 func (r *Resolver) DeleteSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
-	var secret model.Secret
-
-	if r.DB.Where("id = ?", args.Secret.ID).Find(&secret).RecordNotFound() {
-		return nil, fmt.Errorf("DeleteSecret: key doesn't exist.")
-	} else {
-		// check if any configs are using the secret
-		extensions := []model.Extension{}
-		where := fmt.Sprintf(`config @> '{"config": [{"value": "%s"}]}'`, secret.Model.ID.String())
-		r.DB.Where(where).Find(&extensions)
-		if len(extensions) == 0 {
-			versions := []model.SecretValue{}
-
-			r.DB.Delete(&secret)
-			r.DB.Where("secret_id = ?", secret.Model.ID).Delete(&versions)
-
-			//r.SecretDeleted(&secret)
-
-			return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret}}, nil
-		} else {
-			return nil, fmt.Errorf("Remove Config values from Extensions where Secret is used before deleting.")
-		}
-	}
+	mut := SecretResolverMutation{r.DB}
+	return mut.DeleteSecret(ctx, args)
 }
 
 func (r *Resolver) CreateExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
-	environmentID, err := uuid.FromString(args.Extension.EnvironmentID)
-	if err != nil {
-		return nil, fmt.Errorf("Missing argument EnvironmentID")
-	}
-
-	ext := model.Extension{
-		Name:          args.Extension.Name,
-		Component:     args.Extension.Component,
-		Type:          plugins.Type(args.Extension.Type),
-		Key:           args.Extension.Key,
-		EnvironmentID: environmentID,
-		Config:        postgres.Jsonb{[]byte(args.Extension.Config.RawMessage)},
-	}
-
-	r.DB.Create(&ext)
-	//r.ExtensionCreated(&ext)
-
-	return &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}}, nil
+	mut := ExtensionResolverMutation{r.DB}
+	return mut.CreateExtension(args)
 }
 
 func (r *Resolver) UpdateExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
-	ext := model.Extension{}
-	if r.DB.Where("id = ?", args.Extension.ID).Find(&ext).RecordNotFound() {
-		log.InfoWithFields("could not find extensionspec with id", log.Fields{
-			"id": args.Extension.ID,
-		})
-		return &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: model.Extension{}}}, fmt.Errorf("could not find extensionspec with id")
-	}
-
-	environmentID, err := uuid.FromString(args.Extension.EnvironmentID)
-	if err != nil {
-		return nil, fmt.Errorf("Missing argument EnvironmentID")
-	}
-
-	// update extensionspec properties
-	ext.Name = args.Extension.Name
-	ext.Key = args.Extension.Key
-	ext.Type = plugins.Type(args.Extension.Type)
-	ext.Component = args.Extension.Component
-	ext.EnvironmentID = environmentID
-	ext.Config = postgres.Jsonb{args.Extension.Config.RawMessage}
-
-	r.DB.Save(&ext)
-
-	//r.ExtensionUpdated(&ext)
-
-	return &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}}, nil
+	mut := ExtensionResolverMutation{r.DB}
+	return mut.UpdateExtension(args)
 }
 
 func (r *Resolver) DeleteExtension(args *struct{ Extension *model.ExtensionInput }) (*ExtensionResolver, error) {
-	ext := model.Extension{}
-	extensions := []model.ProjectExtension{}
-	if args.Extension.ID == nil {
-		return nil, fmt.Errorf("Missing argument id")
-	}
-
-	extID, err := uuid.FromString(*args.Extension.ID)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid argument id")
-	}
-
-	if r.DB.Where("id=?", extID).Find(&ext).RecordNotFound() {
-		return nil, fmt.Errorf("Extension not found with given argument id")
-	}
-
-	// delete all extensions using extension spec
-	if r.DB.Where("extension_id = ?", extID).Find(&extensions).RecordNotFound() {
-		log.InfoWithFields("no extensions using this extension spec", log.Fields{
-			"extension spec": ext,
-		})
-	}
-
-	if len(extensions) > 0 {
-		return nil, fmt.Errorf("You must delete all extensions using this extension spec in order to delete this extension spec.")
-	} else {
-		r.DB.Delete(&ext)
-
-		//r.ExtensionDeleted(&ext)
-
-		return &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}}, nil
-	}
+	mut := ExtensionResolverMutation{r.DB}
+	return mut.DeleteExtension(args)
 }
 
 func (r *Resolver) CreateProjectExtension(ctx context.Context, args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
-	var projectExtension model.ProjectExtension
-
-	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
-		return nil, err
-	}
-
-	// Check if project can create project extension in environment
-	if err := r.DB.Where("environment_id = ? and project_id = ?", args.ProjectExtension.EnvironmentID, args.ProjectExtension.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
-		return nil, errors.New("Project not allowed to install extensions in given environment")
-	}
-
-	extension := model.Extension{}
-	if err := r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).Error; err != nil {
-		log.InfoWithFields("no extension found", log.Fields{
-			"id": args.ProjectExtension.ExtensionID,
-		})
-		return nil, fmt.Errorf("No extension found for id: '%s'", args.ProjectExtension.ExtensionID)
-	}
-
-	project := model.Project{}
-	if err := r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).Error; err != nil {
-		log.InfoWithFields("no project found", log.Fields{
-			"id": args.ProjectExtension.ProjectID,
-		})
-		return nil, fmt.Errorf("No project found: '%s'", args.ProjectExtension.ProjectID)
-	}
-
-	env := model.Environment{}
-	if err := r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).Error; err != nil {
-		log.InfoWithFields("no env found", log.Fields{
-			"id": args.ProjectExtension.EnvironmentID,
-		})
-		return nil, fmt.Errorf("No environment found: '%s'", args.ProjectExtension.ProjectID)
-	}
-
-	// check if extension already exists with project
-	// ignore if the extension type is 'once' (installable many times)
-	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
-		if extension.Key == "route53" {
-			err := r.handleExtensionRoute53(args, &projectExtension)
-			if err != nil {
-				return &ProjectExtensionResolver{}, err
-			}
-		}
-
-		projectExtension = model.ProjectExtension{
-			State:         transistor.GetState("waiting"),
-			ExtensionID:   extension.Model.ID,
-			ProjectID:     project.Model.ID,
-			EnvironmentID: env.Model.ID,
-			Config:        postgres.Jsonb{[]byte(args.ProjectExtension.Config.RawMessage)},
-			CustomConfig:  postgres.Jsonb{[]byte(args.ProjectExtension.CustomConfig.RawMessage)},
-		}
-
-		r.DB.Save(&projectExtension)
-
-		artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
-		if err != nil {
-			log.Error(err.Error())
-			return nil, err
-		}
-
-		projectExtensionEvent := plugins.ProjectExtension{
-			ID: projectExtension.Model.ID.String(),
-			Project: plugins.Project{
-				ID:         project.Model.ID.String(),
-				Slug:       project.Slug,
-				Repository: project.Repository,
-			},
-			Environment: env.Key,
-		}
-		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("create"), projectExtensionEvent)
-		ev.Artifacts = artifacts
-		r.Events <- ev
-
-		return &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}}, nil
-	}
-
-	return nil, errors.New("This extension is already installed in this project.")
+	mut := ProjectExtensionResolverMutation{r.DB, r.Events}
+	return mut.CreateProjectExtension(ctx, args)
 }
 
 func (r *Resolver) UpdateProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
-	var projectExtension model.ProjectExtension
-
-	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no project extension found", log.Fields{
-			"extension": args.ProjectExtension,
-		})
-		return nil, fmt.Errorf("No project extension found")
-	}
-
-	extension := model.Extension{}
-	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
-			"id": args.ProjectExtension.ExtensionID,
-		})
-		return nil, fmt.Errorf("No extension found.")
-	}
-
-	project := model.Project{}
-	if r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).RecordNotFound() {
-		log.InfoWithFields("no project found", log.Fields{
-			"id": args.ProjectExtension.ProjectID,
-		})
-		return nil, fmt.Errorf("No project found.")
-	}
-
-	env := model.Environment{}
-	if r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).RecordNotFound() {
-		log.InfoWithFields("no env found", log.Fields{
-			"id": args.ProjectExtension.EnvironmentID,
-		})
-		return nil, fmt.Errorf("No environment found.")
-	}
-
-	if extension.Key == "route53" {
-		err := r.handleExtensionRoute53(args, &projectExtension)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	projectExtension.Config = postgres.Jsonb{args.ProjectExtension.Config.RawMessage}
-	projectExtension.CustomConfig = postgres.Jsonb{args.ProjectExtension.CustomConfig.RawMessage}
-	projectExtension.State = transistor.GetState("waiting")
-	projectExtension.StateMessage = ""
-
-	r.DB.Save(&projectExtension)
-
-	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, err
-	}
-
-	projectExtensionEvent := plugins.ProjectExtension{
-		ID: projectExtension.Model.ID.String(),
-		Project: plugins.Project{
-			ID:         project.Model.ID.String(),
-			Slug:       project.Slug,
-			Repository: project.Repository,
-		},
-		Environment: env.Key,
-	}
-
-	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("update"), projectExtensionEvent)
-	ev.Artifacts = artifacts
-
-	r.Events <- ev
-
-	return &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}}, nil
+	mut := ProjectExtensionResolverMutation{r.DB, r.Events}
+	return mut.UpdateProjectExtension(args)
 }
 
 func (r *Resolver) DeleteProjectExtension(args *struct{ ProjectExtension *model.ProjectExtensionInput }) (*ProjectExtensionResolver, error) {
-	var projectExtension model.ProjectExtension
-
-	if r.DB.Where("id = ?", args.ProjectExtension.ID).First(&projectExtension).RecordNotFound() {
-		log.InfoWithFields("no project extension found", log.Fields{
-			"extension": args.ProjectExtension,
-		})
-		return nil, fmt.Errorf("No Project Extension Found")
-	}
-
-	extension := model.Extension{}
-	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
-		log.InfoWithFields("no extension found", log.Fields{
-			"id": args.ProjectExtension.ExtensionID,
-		})
-		return nil, errors.New("No extension found.")
-	}
-
-	project := model.Project{}
-	if r.DB.Where("id = ?", args.ProjectExtension.ProjectID).Find(&project).RecordNotFound() {
-		log.InfoWithFields("no project found", log.Fields{
-			"id": args.ProjectExtension.ProjectID,
-		})
-		return nil, errors.New("No project found.")
-	}
-
-	env := model.Environment{}
-	if r.DB.Where("id = ?", args.ProjectExtension.EnvironmentID).Find(&env).RecordNotFound() {
-		log.InfoWithFields("no env found", log.Fields{
-			"id": args.ProjectExtension.EnvironmentID,
-		})
-		return nil, errors.New("No environment found.")
-	}
-
-	// ADB
-	// Removed logic here that would delete all existing release extensions associated with this project extension
-	// However, that's not really what we want. Doing this means we lose a part of our release history
-	// What we really want is to just delete the project extension from future releases and leave the history unaffected
-
-	r.DB.Delete(&projectExtension)
-
-	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, err
-	}
-
-	projectExtensionEvent := plugins.ProjectExtension{
-		ID: projectExtension.Model.ID.String(),
-		Project: plugins.Project{
-			ID:         project.Model.ID.String(),
-			Slug:       project.Slug,
-			Repository: project.Repository,
-		},
-		Environment: env.Key,
-	}
-	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("delete"), projectExtensionEvent)
-	ev.Artifacts = artifacts
-	r.Events <- ev
-
-	return &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}}, nil
+	mut := ProjectExtensionResolverMutation{r.DB, r.Events}
+	return mut.DeleteProjectExtension(args)
 }
 
 // UpdateUserPermissions
 func (r *Resolver) UpdateUserPermissions(ctx context.Context, args *struct{ UserPermissions *model.UserPermissionsInput }) ([]string, error) {
-	var err error
-	var results []string
-
-	if r.DB.Where("id = ?", args.UserPermissions.UserID).Find(&model.User{}).RecordNotFound() {
-		return nil, errors.New("User not found")
-	}
-
-	for _, permission := range args.UserPermissions.Permissions {
-		if _, err = auth.CheckAuth(ctx, []string{permission.Value}); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, permission := range args.UserPermissions.Permissions {
-		if permission.Grant == true {
-			userPermission := model.UserPermission{
-				UserID: uuid.FromStringOrNil(args.UserPermissions.UserID),
-				Value:  permission.Value,
-			}
-			r.DB.Where(userPermission).FirstOrCreate(&userPermission)
-			results = append(results, permission.Value)
-		} else {
-			r.DB.Where("user_id = ? AND value = ?", args.UserPermissions.UserID, permission.Value).Delete(&model.UserPermission{})
-		}
-	}
-
-	return results, nil
+	mut := UserResolverMutation{r.DB}
+	return mut.UpdateUserPermissions(ctx, args)
 }
 
 // UpdateProjectEnvironments
 func (r *Resolver) UpdateProjectEnvironments(ctx context.Context, args *struct {
 	ProjectEnvironments *model.ProjectEnvironmentsInput
 }) ([]*EnvironmentResolver, error) {
-	var results []*EnvironmentResolver
-
-	project := model.Project{}
-	if r.DB.Where("id = ?", args.ProjectEnvironments.ProjectID).Find(&project).RecordNotFound() {
-		return nil, errors.New("No project found with inputted projectID")
-	}
-
-	for _, permission := range args.ProjectEnvironments.Permissions {
-		// Check if environment object exists
-		environment := model.Environment{}
-		if r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment).RecordNotFound() {
-			return nil, errors.New(fmt.Sprintf("No environment found for environmentID %s", permission.EnvironmentID))
-		}
-
-		if permission.Grant {
-			// Grant permission by adding ProjectEnvironment row
-			projectEnvironment := model.ProjectEnvironment{
-				EnvironmentID: environment.Model.ID,
-				ProjectID:     project.Model.ID,
-			}
-			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectEnvironment)
-			results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
-		} else {
-			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Delete(&model.ProjectEnvironment{})
-		}
-	}
-
-	return results, nil
+	mut := ProjectResolverMutation{r.DB}
+	return mut.UpdateProjectEnvironments(ctx, args)
 }
 
 // GetGitCommits
@@ -1785,34 +722,8 @@ func (r *Resolver) GetGitCommits(ctx context.Context, args *struct {
 }
 
 func (r *Resolver) BookmarkProject(ctx context.Context, args *struct{ ID graphql.ID }) (bool, error) {
-	var projectBookmark model.ProjectBookmark
-
-	_userID, err := auth.CheckAuth(ctx, []string{})
-	if err != nil {
-		return false, err
-	}
-
-	userID, err := uuid.FromString(_userID)
-	if err != nil {
-		return false, err
-	}
-
-	projectID, err := uuid.FromString(string(args.ID))
-	if err != nil {
-		return false, err
-	}
-
-	if r.DB.Where("user_id = ? AND project_id = ?", userID, projectID).First(&projectBookmark).RecordNotFound() {
-		projectBookmark = model.ProjectBookmark{
-			UserID:    userID,
-			ProjectID: projectID,
-		}
-		r.DB.Save(&projectBookmark)
-		return true, nil
-	} else {
-		r.DB.Delete(&projectBookmark)
-		return false, nil
-	}
+	mut := ProjectResolverMutation{r.DB}
+	return mut.BookmarkProject(ctx, args)
 }
 
 /* fills in Config by querying config ids and getting the actual value */
