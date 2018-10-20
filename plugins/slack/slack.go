@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	slack "github.com/lytics/slackhook"
 
 	log "github.com/codeamp/logger"
@@ -105,31 +106,39 @@ func (x *Slack) Process(e transistor.Event) error {
 	tail := payload.Release.TailFeature.Hash
 	head := payload.Release.HeadFeature.Hash
 
-	text := fmt.Sprintf(
-		"%s deployed <https://github.com/%s/compare/%s...%s|%s...%s> to <%s/projects/%s/%s/releases|%s>",
-		payload.Release.User, payload.Project.Repository, tail, head, tail[0:6], head[0:6], dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
-	)
-
-	var resultColor, resultEmoji string
+	var resultColor string
 	switch status := strings.ToLower(messageStatus.String()); status {
 	case "failed":
 		resultColor = "#FF0000"
-		resultEmoji = ":ambulance:"
 	case "canceled":
 		resultColor = "#9400D3"
-		resultEmoji = ":heavy_multiplication_x:"
 	case "success":
 		resultColor = "#008000"
-		resultEmoji = ":rocket:"
 	}
 
-	resultAttachments := slack.Attachment{Color: resultColor, Text: messageStatus.String()}
+	text := fmt.Sprintf(
+		"%s\n" +
+		"%s\n" +
+		"<https://github.com/%s/compare/%s...%s|%s...%s> \n"+
+		"to <%s/projects/%s/%s/releases|%s>",
+		strings.ToUpper(messageStatus.String()), payload.Release.HeadFeature.Message,
+		payload.Project.Repository, tail, head, tail[:8], head[:8],
+		dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
+	)
+
+	resultAttachments := slack.Attachment{
+		Color:     resultColor,
+		Text:      messageStatus.String(),
+		Footer:    fmt.Sprintf("By: %s", payload.Release.User),
+		Title:     fmt.Sprintf("%s - Release", payload.Project.Repository),
+		TitleLink: fmt.Sprintf("https://github.com/%s", payload.Project.Repository),
+	}
 
 	slackPayload := slack.Message{
 		Text:      text,
 		UserName:  "CodeAmp",
 		Channel:   fmt.Sprintf("#%s", channel.String()),
-		IconEmoji: resultEmoji,
+		IconEmoji: ":rocket:",
 	}
 
 	slackPayload.AddAttachment(&resultAttachments)
