@@ -117,11 +117,11 @@ func (x *Slack) Process(e transistor.Event) error {
 	}
 
 	text := fmt.Sprintf(
-		"%s\n" +
+		"Deploy %s to %s\n" +
 		"%s\n" +
 		"<https://github.com/%s/compare/%s...%s|%s...%s> \n"+
 		"to <%s/projects/%s/%s/releases|%s>",
-		strings.ToUpper(messageStatus.String()), payload.Release.HeadFeature.Message,
+		strings.ToUpper(messageStatus.String()), payload.Environment, payload.Release.HeadFeature.Message,
 		payload.Project.Repository, tail, head, tail[:8], head[:8],
 		dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
 	)
