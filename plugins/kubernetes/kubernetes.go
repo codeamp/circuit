@@ -23,7 +23,7 @@ import (
 
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &Kubernetes{K8sContourNamespacer: LegitimateContourNamespacer{}, K8sNamespacer: LegitimateKubernetesNamespacer{}}
+		return &Kubernetes{K8sContourNamespacer: ContourNamespace{}, K8sNamespacer: KubernetesNamespace{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
