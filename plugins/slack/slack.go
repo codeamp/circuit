@@ -128,7 +128,7 @@ func (x *Slack) Process(e transistor.Event) error {
 
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
-		Text:      messageStatus.String(),
+		Text:      text,
 		Footer:    fmt.Sprintf("By: %s", payload.Release.User),
 		Title:     fmt.Sprintf("%s - Release", payload.Project.Repository),
 		TitleLink: fmt.Sprintf("https://github.com/%s", payload.Project.Repository),
