@@ -41,7 +41,7 @@ func (suite *TestSuite) SetupSuite() {
 func (suite *TestSuite) TestCleanupLBOffice() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 10)
+	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
@@ -54,7 +54,7 @@ func (suite *TestSuite) TestLBTCPOffice() {
 
 	var e transistor.Event
 	var err error
-	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
@@ -66,7 +66,7 @@ func (suite *TestSuite) TestLBTCPOffice() {
 	}
 
 	for {
-		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
 		if err != nil {
 			assert.Nil(suite.T(), err, err.Error())
 			return
@@ -79,7 +79,7 @@ func (suite *TestSuite) TestLBTCPOffice() {
 
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 10)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
@@ -106,7 +106,7 @@ func (suite *TestSuite) TestBasicSuccessDeploy() {
 	var e transistor.Event
 	var err error
 	for {
-		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
+		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 5)
 		if err != nil {
 			assert.Nil(suite.T(), err, err.Error())
 			return
@@ -127,7 +127,7 @@ func (suite *TestSuite) TestBasicFailedDeploy() {
 	var e transistor.Event
 	var err error
 	for {
-		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 30)
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 5)
 
 		if err != nil {
 			assert.Nil(suite.T(), err, err.Error())

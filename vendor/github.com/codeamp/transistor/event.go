@@ -51,6 +51,7 @@ func GetState(s string) State {
 		"complete",
 		"failed",
 		"canceled",
+		"deleted",
 	}
 
 	for _, state := range states {
