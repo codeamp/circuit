@@ -105,6 +105,13 @@ func (x *Slack) Process(e transistor.Event) error {
 	tail := payload.Release.TailFeature.Hash
 	head := payload.Release.HeadFeature.Hash
 
+	showGithubCompareUrl := true
+	releaseFeatureHash := fmt.Sprintf("%s ... %s", tail[:8], head[:8])
+	if tail == head {
+		releaseFeatureHash = head[:8]
+		showGithubCompareUrl = false
+	}
+
 	var resultColor string
 	switch status := strings.ToLower(messageStatus.String()); status {
 	case "failed":
@@ -115,17 +122,21 @@ func (x *Slack) Process(e transistor.Event) error {
 		resultColor = "#008000"
 	}
 
-	text := fmt.Sprintf(
-		"Deploy %s to %s\n"+
-			"%s\n"+
-			"<https://github.com/%s/compare/%s...%s|%s...%s> \n"+
-			"to <%s/projects/%s/%s/releases|%s>",
-		strings.ToUpper(messageStatus.String()), payload.Environment, payload.Release.HeadFeature.Message,
-		payload.Project.Repository, tail, head, tail[:8], head[:8],
-		dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
-	)
+	deployMessage := fmt.Sprintf("[%s] Deploy %s\n", payload.Environment, strings.ToUpper(messageStatus.String()))
+	githubCompareURL := fmt.Sprintf("<https://github.com/%s/compare/%s...%s|%s...%s>", payload.Project.Repository, tail, head)
+	dashboardPath := fmt.Sprintf("<%s/projects/%s/%s/releases|%s>", dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository)
+	releaseMessage := fmt.Sprintf("/%s/", payload.Release.HeadFeature.Message)
 
+	text := deployMessage
+	text = text + "\n" + releaseMessage
+	if showGithubCompareUrl {
+		text = text + "\n" + githubCompareURL
+	}
+	text = text + "\n" + releaseMessage
+
+	header := fmt.Sprintf("Release - %s ", strings.ToUpper(messageStatus.String()))
 	resultAttachments := slack.Attachment{
+		Pretext:   header,
 		Color:     resultColor,
 		Text:      text,
 		Footer:    fmt.Sprintf("By: %s", payload.Release.User),
@@ -134,7 +145,6 @@ func (x *Slack) Process(e transistor.Event) error {
 	}
 
 	slackPayload := slack.Message{
-		Text:      text,
 		UserName:  "CodeAmp",
 		Channel:   fmt.Sprintf("#%s", channel.String()),
 		IconEmoji: ":rocket:",
