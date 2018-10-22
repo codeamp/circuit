@@ -135,7 +135,7 @@ func (x *Slack) Process(e transistor.Event) error {
 	}
 	text = text + "\n" + dashboardPath
 
-	header := fmt.Sprintf("Deployed ", payload.Project.Repository)
+	header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
 		Text:      text,
