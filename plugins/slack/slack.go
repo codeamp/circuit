@@ -122,21 +122,20 @@ func (x *Slack) Process(e transistor.Event) error {
 		resultColor = "#008000"
 	}
 
-	deployMessage := fmt.Sprintf("[%s] Deploy %s\n", payload.Environment, strings.ToUpper(messageStatus.String()))
+	deployMessage := fmt.Sprintf("%s - %s", strings.ToUpper(messageStatus.String()), payload.Environment)
 	githubCompareURL := fmt.Sprintf("<https://github.com/%s/compare/%s...%s|%s ... %s>", payload.Project.Repository, tail, head, tail[:8], head[:8])
-	githubLinkUrl := fmt.Sprintf("<https://github.com/%s/commit/%s", payload.Project.Repository, head)
+	githubLinkUrl := fmt.Sprintf("<https://github.com/%s/commit/%s>", payload.Project.Repository, head)
 	dashboardPath := fmt.Sprintf("<%s/projects/%s/%s/releases|%s>", dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository)
-	releaseMessage := fmt.Sprintf("<%s|%s> /%s/", githubLinkUrl, releaseFeatureHash, payload.Release.HeadFeature.Message)
+	releaseMessage := fmt.Sprintf("Project <%s|%s> _%s_", githubLinkUrl, releaseFeatureHash, payload.Release.HeadFeature.Message)
 
-	text := deployMessage
+	text := deployMessage + "\n"
 	text = text + "\n" + releaseMessage
 	if showGithubCompareUrl {
 		text = text + "\n" + githubCompareURL
 	}
-	text = text + "\n" + releaseMessage
 	text = text + "\n" + dashboardPath
 
-	header := fmt.Sprintf("Release - %s ", strings.ToUpper(messageStatus.String()))
+	header := fmt.Sprintf("Deployed ", payload.Project.Repository)
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
 		Text:      text,
