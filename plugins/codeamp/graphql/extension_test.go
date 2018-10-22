@@ -61,12 +61,15 @@ func (ts *ExtensionTestSuite) TestUpdateExtensionSuccess() {
 		ID:            &extensionID,
 		EnvironmentID: string(envResolver.ID()),
 		Config:        model.JSON{[]byte("[]")},
+		Cacheable:     !extensionResolver.Cacheable(),
 	}
 
-	_, err := ts.Resolver.UpdateExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
+	updatedExtensionResolver, err := ts.Resolver.UpdateExtension(&struct{ Extension *model.ExtensionInput }{&extensionInput})
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
+
+	assert.Equal(ts.T(), !extensionResolver.Cacheable(), updatedExtensionResolver.Cacheable())
 }
 
 func (ts *ExtensionTestSuite) TestUpdateExtensionFailureNoEnv() {

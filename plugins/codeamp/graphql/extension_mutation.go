@@ -29,6 +29,7 @@ func (r *ExtensionResolverMutation) CreateExtension(args *struct{ Extension *mod
 		Type:          plugins.Type(args.Extension.Type),
 		Key:           args.Extension.Key,
 		EnvironmentID: environmentID,
+		Cacheable:     args.Extension.Cacheable,
 		Config:        postgres.Jsonb{[]byte(args.Extension.Config.RawMessage)},
 	}
 
@@ -58,6 +59,7 @@ func (r *ExtensionResolverMutation) UpdateExtension(args *struct{ Extension *mod
 	ext.Type = plugins.Type(args.Extension.Type)
 	ext.Component = args.Extension.Component
 	ext.EnvironmentID = environmentID
+	ext.Cacheable = args.Extension.Cacheable
 	ext.Config = postgres.Jsonb{args.Extension.Config.RawMessage}
 
 	r.DB.Save(&ext)

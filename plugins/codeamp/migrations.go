@@ -120,10 +120,6 @@ func (x *CodeAmp) Migrate() {
 					"DOCKER_PASS",
 					"ACCESS_LOG_S3_BUCKET",
 					"SSL_CERT_ARN",
-					"CERTIFICATE_AUTHORITY",
-					"CLIENT_KEY",
-					"CLIENT_CERTIFICATE",
-					"KUBECONFIG",
 				}
 
 				fileSecrets := []string{
@@ -445,6 +441,25 @@ func (x *CodeAmp) Migrate() {
 			},
 			Rollback: func(tx *gorm.DB) error {
 				return nil
+			},
+		},
+		// migrate ProjectExtension config to customConfig
+		{
+			ID: "201810181637",
+			Migrate: func(tx *gorm.DB) error {
+
+				extensions := []model.Extension{}
+				tx.Find(&extensions)
+
+				for _, ext := range extensions {
+					ext.Cacheable = false
+					tx.Save(&ext)
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return db.Model(&model.Extension{}).DropColumn("cacheable").Error
 			},
 		},
 	})

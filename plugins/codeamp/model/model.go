@@ -136,7 +136,7 @@ type Service struct {
 type ServicePort struct {
 	Model `json:",inline"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 	// Protocol
 	Protocol string `json:"protocol"`
 	// Port
@@ -148,7 +148,7 @@ type ServiceDeploymentStrategy struct {
 	// Model
 	Model `json:",inline"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 	// Type
 	Type plugins.Type `json:"type"`
 	// MaxUnavailable
@@ -162,7 +162,7 @@ type ServiceHealthProbe struct {
 	// Model
 	Model `json:",inline"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"-" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 	// Type: required; accepts `readinessProbe` and `livenessProbe`
 	Type plugins.Type `json:"type"`
 	// Method: required; accepts `exec`, `http`, and `tcp`
@@ -351,6 +351,8 @@ type Extension struct {
 	Name string `json:"name"`
 	// Component
 	Component string `json:"component"`
+	// Cacheable
+	Cacheable bool `json:"cacheable"`
 	// EnvironmentID
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 	// Config
