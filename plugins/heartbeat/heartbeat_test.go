@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
-	_ "github.com/codeamp/circuit/plugins/heartbeat"
+	"github.com/codeamp/circuit/plugins/heartbeat"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +23,10 @@ plugins:
 `)
 
 func (suite *TestSuite) SetupSuite() {
+	transistor.RegisterPlugin("heartbeat", func() transistor.Plugin {
+		return &heartbeat.Heartbeat{Croner: MockedCron{}}
+	}, plugins.HeartBeat{})
+
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
 }
@@ -41,7 +45,7 @@ func (suite *TestSuite) TestHeartbeat() {
 		return
 	}
 	payload := e.Payload.(plugins.HeartBeat)
-	assert.Equal(suite.T(), "minute", payload.Tick)
+	assert.Contains(suite.T(), []string{"minute", "hour"}, payload.Tick)
 }
 
 func TestHeartbeat(t *testing.T) {
