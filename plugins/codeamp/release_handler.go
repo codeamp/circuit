@@ -58,17 +58,27 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				eventState := transistor.GetState("waiting")
 				eventStateMessage := ""
 
-				// check if can cache workflows
-				if !release.ForceRebuild &&
-					!x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
-						projectExtension.Model.ID, releaseExtension.ServicesSignature, releaseExtension.SecretsSignature,
-						releaseExtension.FeatureHash, []string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).RecordNotFound() &&
-					extension.Cacheable {
+				// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
+				err = x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
+					projectExtension.Model.ID, releaseExtension.ServicesSignature,
+					releaseExtension.SecretsSignature, releaseExtension.FeatureHash,
+					[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
+
+				if !release.ForceRebuild && err == nil && extension.Cacheable {
 					eventAction = transistor.GetAction("status")
 					eventState = lastReleaseExtension.State
 					eventStateMessage = lastReleaseExtension.StateMessage
 
 					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+					if err != nil {
+						log.Error(err.Error())
+						return nil
+					}
+					eventAction = transistor.GetAction("status")
+					eventState = lastReleaseExtension.State
+					eventStateMessage = lastReleaseExtension.StateMessage
+
+					err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
 					if err != nil {
 						log.Error(err.Error())
 						return nil
