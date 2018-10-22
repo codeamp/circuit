@@ -31,13 +31,13 @@ func (r *Resolver) UpdateProject(args *struct {
 
 // StopRelease
 func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID }) (*ReleaseResolver, error) {
-	mut := ReleaseResolverMutation{r.DB}
+	mut := ReleaseResolverMutation{r.DB, r.Events}
 	return mut.StopRelease(ctx, args)
 }
 
 // CreateRelease
 func (r *Resolver) CreateRelease(ctx context.Context, args *struct{ Release *model.ReleaseInput }) (*ReleaseResolver, error) {
-	mut := ReleaseResolverMutation{r.DB}
+	mut := ReleaseResolverMutation{r.DB, r.Events}
 	return mut.CreateRelease(ctx, args)
 }
 

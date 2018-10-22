@@ -24,7 +24,10 @@ import (
 
 // Secret Resolver Mutation
 type ReleaseResolverMutation struct {
+	// DB
 	DB *gorm.DB
+	// Events
+	Events chan transistor.Event
 }
 
 // CreateRelease
@@ -468,7 +471,6 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		r.DB.Save(&release)
 
 		r.Events <- transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEvent)
-
 		return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 	}
 }
@@ -549,4 +551,21 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 	}
 
 	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
+}
+
+func (r *ReleaseResolverMutation) setupServices(services []model.Service) ([]plugins.Service, error) {
+	var pluginServices []plugins.Service
+	for _, service := range services {
+		var spec model.ServiceSpec
+		if r.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
+			log.WarnWithFields("servicespec not found", log.Fields{
+				"id": service.ServiceSpecID,
+			})
+			return []plugins.Service{}, fmt.Errorf("ServiceSpec not found")
+		}
+
+		pluginServices = AppendPluginService(pluginServices, service, spec)
+	}
+
+	return pluginServices, nil
 }
