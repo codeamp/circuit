@@ -124,31 +124,32 @@ func (x *Slack) Process(e transistor.Event) error {
 
 	deployMessage := fmt.Sprintf("%s - %s", strings.ToUpper(messageStatus.String()), payload.Environment)
 	githubCompareURL := fmt.Sprintf("<https://github.com/%s/compare/%s...%s|%s ... %s>", payload.Project.Repository, tail, head, tail[:8], head[:8])
-	githubLinkUrl := fmt.Sprintf("<https://github.com/%s/commit/%s>", payload.Project.Repository, head)
+	githubLinkUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
 	dashboardPath := fmt.Sprintf("<%s/projects/%s/%s/releases|%s>", dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository)
 	releaseMessage := fmt.Sprintf("Project <%s|%s> _%s_", githubLinkUrl, releaseFeatureHash, payload.Release.HeadFeature.Message)
 
-	text := deployMessage + "\n"
-	text = text + "\n" + releaseMessage
+	// text := deployMessage + "\n"
+	text := text + "\n" + releaseMessage
 	if showGithubCompareUrl {
 		text = text + "\n" + githubCompareURL
 	}
-	text = text + "\n" + dashboardPath
+	// text = text + "\n" + dashboardPath
 
 	header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
 		Text:      text,
 		Footer:    fmt.Sprintf("By: %s", payload.Release.User),
-		Title:     fmt.Sprintf("%s - Release", payload.Project.Repository),
-		TitleLink: fmt.Sprintf("https://github.com/%s", payload.Project.Repository),
+		Title:     fmt.Sprintf("Deployed to %s - %s", payload.Environment, strings.ToUpper(messageStatus.String())),
+		TitleLink: fmt.Sprintf("%s/projects/%s/%s/releases", dashboardURL.String(), payload.Project.Slug, payload.Environment),
 	}
+
+	// fmt.Sprintf("https://github.com/%s", payload.Project.Repository)
 
 	slackPayload := slack.Message{
 		UserName:  "CodeAmp",
 		Channel:   fmt.Sprintf("#%s", channel.String()),
 		IconEmoji: ":rocket:",
-		Text:      header,
 	}
 
 	slackPayload.AddAttachment(&resultAttachments)
