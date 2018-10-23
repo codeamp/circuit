@@ -106,9 +106,9 @@ func (x *Slack) Process(e transistor.Event) error {
 	head := payload.Release.HeadFeature.Hash
 
 	showGithubCompareUrl := true
-	releaseFeatureHash := fmt.Sprintf("%s ... %s", tail[:8], head[:8])
+	releaseFeatureHash := fmt.Sprintf("%s ... %s", tail[:7], head[:7])
 	if tail == head {
-		releaseFeatureHash = head[:8]
+		releaseFeatureHash = head[:7]
 		showGithubCompareUrl = false
 	}
 
@@ -122,25 +122,22 @@ func (x *Slack) Process(e transistor.Event) error {
 		resultColor = "#008000"
 	}
 
-	// deployMessage := fmt.Sprintf("%s - %s", strings.ToUpper(messageStatus.String()), payload.Environment)
-	githubCompareURL := fmt.Sprintf("<https://github.com/%s/compare/%s...%s|%s ... %s>", payload.Project.Repository, tail, head, tail[:8], head[:8])
+	githubCompareURL := fmt.Sprintf("<https://github.com/%s/compare/%s...%s|%s ... %s>", payload.Project.Repository, tail, head, tail[:7], head[:7])
 	githubLinkUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
-	dashboardPath := fmt.Sprintf("<%s/projects/%s/%s/releases|%s>", dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository)
-	releaseMessage := fmt.Sprintf("Project <%s|%s> _%s_", githubLinkUrl, releaseFeatureHash, payload.Release.HeadFeature.Message)
+	compareUrl := githubLinkUrl
 
-	// text := deployMessage + "\n"
-	text := releaseMessage
 	if showGithubCompareUrl {
-		text = text + "\n" + githubCompareURL
+		compareURL := githubCompareURL
 	}
-	text = text + "\n" + dashboardPath
+
+	releaseMessage := fmt.Sprintf("<%s|%s> _%s_", compareUrl, releaseFeatureHash, payload.Release.HeadFeature.Message)
 
 	// header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
-		Text:      text,
-		Footer:    fmt.Sprintf("By: %s", payload.Release.User),
-		Title:     fmt.Sprintf("Deployed to %s - %s", payload.Environment, strings.ToUpper(messageStatus.String())),
+		Text:      releaseMessage,
+		Footer:    fmt.Sprintf("%s", payload.Release.User),
+		Title:     fmt.Sprintf("Release on %s - %s", payload.Environment, strings.ToUpper(messageStatus.String())),
 		TitleLink: fmt.Sprintf("%s/projects/%s/%s/releases", dashboardURL.String(), payload.Project.Slug, payload.Environment),
 	}
 
