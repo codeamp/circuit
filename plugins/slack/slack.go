@@ -129,7 +129,7 @@ func (x *Slack) Process(e transistor.Event) error {
 	releaseMessage := fmt.Sprintf("Project <%s|%s> _%s_", githubLinkUrl, releaseFeatureHash, payload.Release.HeadFeature.Message)
 
 	// text := deployMessage + "\n"
-	text := text + "\n" + releaseMessage
+	text := releaseMessage
 	if showGithubCompareUrl {
 		text = text + "\n" + githubCompareURL
 	}
