@@ -122,7 +122,7 @@ func (x *Slack) Process(e transistor.Event) error {
 		resultColor = "#008000"
 	}
 
-	deployMessage := fmt.Sprintf("%s - %s", strings.ToUpper(messageStatus.String()), payload.Environment)
+	// deployMessage := fmt.Sprintf("%s - %s", strings.ToUpper(messageStatus.String()), payload.Environment)
 	githubCompareURL := fmt.Sprintf("<https://github.com/%s/compare/%s...%s|%s ... %s>", payload.Project.Repository, tail, head, tail[:8], head[:8])
 	githubLinkUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
 	dashboardPath := fmt.Sprintf("<%s/projects/%s/%s/releases|%s>", dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository)
@@ -133,9 +133,9 @@ func (x *Slack) Process(e transistor.Event) error {
 	if showGithubCompareUrl {
 		text = text + "\n" + githubCompareURL
 	}
-	// text = text + "\n" + dashboardPath
+	text = text + "\n" + dashboardPath
 
-	header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
+	// header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
 		Text:      text,
