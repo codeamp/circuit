@@ -122,7 +122,7 @@ func (x *Slack) Process(e transistor.Event) error {
 		resultColor = "#008000"
 	}
 
-	githubCompareURL := fmt.Sprintf("<https://github.com/%s/compare/%s...%s|%s ... %s>", payload.Project.Repository, tail, head, tail[:7], head[:7])
+	githubCompareURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s", payload.Project.Repository, tail, head)
 	githubLinkUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
 	compareUrl := githubLinkUrl
 
@@ -130,15 +130,13 @@ func (x *Slack) Process(e transistor.Event) error {
 		compareUrl = githubCompareURL
 	}
 
-	releaseMessage := fmt.Sprintf("<%s|%s> _%s_", compareUrl, releaseFeatureHash, payload.Release.HeadFeature.Message)
-
 	// header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
-		Text:      releaseMessage,
-		Footer:    fmt.Sprintf("%s | %s", payload.Project.Repository, payload.Release.User),
 		Title:     fmt.Sprintf("Release on %s - %s", payload.Environment, strings.ToUpper(messageStatus.String())),
 		TitleLink: fmt.Sprintf("%s/projects/%s/%s/releases", dashboardURL.String(), payload.Project.Slug, payload.Environment),
+		Text:      fmt.Sprintf("<%s|%s> - _%s_", compareUrl, releaseFeatureHash, payload.Release.HeadFeature.Message),
+		Footer:    fmt.Sprintf("%s | %s", payload.Project.Repository, payload.Release.User),
 	}
 
 	// fmt.Sprintf("https://github.com/%s", payload.Project.Repository)
