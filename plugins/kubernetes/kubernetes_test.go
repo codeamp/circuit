@@ -37,7 +37,7 @@ func (suite *TestSuite) SetupSuite() {
 	go suite.transistor.Run()
 }
 
-// // Load Balancers Tests
+// Load Balancers Tests
 func (suite *TestSuite) TestCleanupLBOffice() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
@@ -49,6 +49,7 @@ func (suite *TestSuite) TestCleanupLBOffice() {
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
 }
 
+// TestLBTCPOffice
 func (suite *TestSuite) TestLBTCPOffice() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
@@ -362,3 +363,34 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 
 	return releaseExtension
 }
+
+/*
+Test Spec
+
+
+Test Scenarios:
+
+	- Test for a successful deployment of one general service in a new namespace
+	in: 1 General Service,
+	out: 1 namespace, 1 deployment
+
+	- Test for a successful deployment of one general service in an existing namespace
+	in: 1 General Service
+	out: 1 deployment
+
+	- Test for a failed deployment of one general service in a new namespace
+	in: 1 General Service
+	out: 1 namespace, 0 deploymnts
+
+	- Test for a successful deployment of one one-shot service in a new namespace
+	in: 1 one-shot Service
+	out: 1 namespace, 1 job
+
+	- Test for a successful deployment of one general service and one one-shot service in a new namespace
+	in: 1 one-shot Service, 1 General Service
+	out: 1 namespace, 1 job, 1 deployment
+
+	- Test for a failed deployment of one one-shot service with one general service in a new namespace
+	in: 1 one-shot Service, 1 General Service
+	out: 1 namespace, 1 jobs with failed status, 0 deployments
+*/

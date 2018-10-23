@@ -27,10 +27,12 @@ func init() {
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
+// Description return plugin description
 func (x *Kubernetes) Description() string {
 	return "Kubernetes"
 }
 
+// SampleConfig returns plugin sample config
 func (x *Kubernetes) SampleConfig() string {
 	return ` `
 }
