@@ -255,6 +255,7 @@ type Extension {
   name: String!
   component: String!
   type: String!
+  cacheable: Boolean!
   key: String!
   environment: Environment!
   config: JSON!
@@ -404,13 +405,14 @@ input SecretInput {
   isSecret: Boolean!
 }
 
-# ProjectExtension spec input
+# Extension spec input
 input ExtensionInput {
   id: String
   name: String!
   key: String!
   component: String!
   environmentID: String!
+  cacheable: Boolean!
   config: JSON!
   type: String!
 }

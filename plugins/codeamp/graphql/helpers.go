@@ -6,7 +6,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
 )
@@ -95,23 +94,6 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 		},
 		PreStopHook: service.PreStopHook,
 	})
-}
-
-func (r *Resolver) setupServices(services []model.Service) ([]plugins.Service, error) {
-	var pluginServices []plugins.Service
-	for _, service := range services {
-		var spec model.ServiceSpec
-		if r.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
-			log.WarnWithFields("servicespec not found", log.Fields{
-				"id": service.ServiceSpecID,
-			})
-			return []plugins.Service{}, fmt.Errorf("ServiceSpec not found")
-		}
-
-		pluginServices = AppendPluginService(pluginServices, service, spec)
-	}
-
-	return pluginServices, nil
 }
 
 func BuildReleasePayload(release model.Release, project model.Project, environment model.Environment, branch string, headFeature model.Feature, tailFeature model.Feature, services []plugins.Service, secrets []plugins.Secret) plugins.Release {
