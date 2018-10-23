@@ -105,11 +105,11 @@ func (x *Slack) Process(e transistor.Event) error {
 	tail := payload.Release.TailFeature.Hash
 	head := payload.Release.HeadFeature.Hash
 
-	showGithubCompareUrl := true
+	compareUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
 	releaseFeatureHash := fmt.Sprintf("%s ... %s", tail[:7], head[:7])
 	if tail == head {
 		releaseFeatureHash = head[:7]
-		showGithubCompareUrl = false
+		compareUrl = fmt.Sprintf("https://github.com/%s/compare/%s...%s", payload.Project.Repository, tail, head)
 	}
 
 	var resultColor string
@@ -120,14 +120,6 @@ func (x *Slack) Process(e transistor.Event) error {
 		resultColor = "#9400D3"
 	case "success":
 		resultColor = "#008000"
-	}
-
-	githubCompareURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s", payload.Project.Repository, tail, head)
-	githubLinkUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
-	compareUrl := githubLinkUrl
-
-	if showGithubCompareUrl {
-		compareUrl = githubCompareURL
 	}
 
 	// header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
