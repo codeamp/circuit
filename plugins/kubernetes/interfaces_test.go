@@ -3,6 +3,7 @@ package kubernetes_test
 import (
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 )
 
@@ -10,8 +11,7 @@ import (
 type MockKubernetesNamespacer struct{}
 
 func (l MockKubernetesNamespacer) NewForConfig(config *rest.Config) (kubernetes.Interface, error) {
-	clientset, err := kubernetes.NewForConfig(config)
-	return clientset, err
+	return kubefake.NewSimpleClientset(), nil
 }
 
 /////////////////////////////////////////////////////////////////////////
