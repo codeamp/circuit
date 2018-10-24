@@ -226,14 +226,12 @@ func (suite *ProjectTestSuite) TestLockUnlockProjectSuccess() {
 	userResolver := suite.helper.CreateUser(suite.T())
 
 	// Project
-	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
-	assert.NotNil(suite.T(), err)
+	projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 
-	lockedByUser, err := projectResolver.LockedBy()
-	assert.NotNil(suite.T(), err)
+	lockedByUser, _ := projectResolver.LockedBy()
 	assert.Equal(suite.T(), "", string(lockedByUser.Email()))
 
-	projectResolver, err = suite.Resolver.ToggleProjectLock(&struct {
+	projectResolver, _ = suite.Resolver.ToggleProjectLock(&struct {
 		ProjectLock *model.ProjectLockInput
 	}{
 		ProjectLock: &model.ProjectLockInput{
@@ -241,10 +239,8 @@ func (suite *ProjectTestSuite) TestLockUnlockProjectSuccess() {
 			UserID:    string(userResolver.ID()),
 		},
 	})
-	assert.NotNil(suite.T(), err)
 
-	lockedByUser, err = projectResolver.LockedBy()
-	assert.NotNil(suite.T(), err)
+	lockedByUser, _ = projectResolver.LockedBy()
 
 	assert.Equal(suite.T(), string(userResolver.ID()), string(lockedByUser.ID()))
 }
