@@ -29,6 +29,14 @@ func (r *Resolver) UpdateProject(args *struct {
 	return mut.UpdateProject(args)
 }
 
+// ToggleProjectLock toggles the lock state for a project
+func (r *Resolver) ToggleProjectLock(args *struct {
+	ProjectLock *model.ProjectLockInput
+}) (*ProjectResolver, error) {
+	mut := ProjectResolverMutation{r.DB}
+	return mut.ToggleProjectLock(args)
+}
+
 // StopRelease
 func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID }) (*ReleaseResolver, error) {
 	mut := ReleaseResolverMutation{r.DB, r.Events}

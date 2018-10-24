@@ -59,6 +59,18 @@ func (r *ProjectResolver) RsaPublicKey() string {
 	return r.DBProjectResolver.Project.RsaPublicKey
 }
 
+// LockedBy
+func (r *ProjectResolver) LockedBy() (*UserResolver, error) {
+	db_resolver, err := r.DBProjectResolver.LockedBy()
+	if err != nil {
+		return nil, err
+	}
+
+	return &UserResolver{
+		DBUserResolver: db_resolver,
+	}, nil
+}
+
 // Features
 func (r *ProjectResolver) Features(args *struct {
 	ShowDeployed *bool

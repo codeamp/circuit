@@ -47,9 +47,21 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		return nil, err
 	}
 
+	if r.DB.Where("id = ?", args.Release.ProjectID).First(&project).RecordNotFound() {
+		log.InfoWithFields("project not found", log.Fields{
+			"id": args.Release.ProjectID,
+		})
+		return &ReleaseResolver{}, errors.New("Project not found")
+	}
+
 	// Check if project can create release in environment
 	if r.DB.Where("environment_id = ? and project_id = ?", args.Release.EnvironmentID, args.Release.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
 		return nil, errors.New("Project not allowed to create release in given environment")
+	}
+
+	// check if project is locked
+	if project.LockedBy != nil {
+		return nil, fmt.Errorf("can't deploy right now. project is locked")
 	}
 
 	if args.Release.ID == nil {
@@ -252,13 +264,6 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	tailFeatureID := headFeatureID
 	if err = r.DB.Where("state = ? and project_id = ? and environment_id = ?", transistor.GetState("complete"), projectID, environmentID).Find(&currentRelease).Order("created_at desc").Limit(1).Error; err == nil {
 		tailFeatureID = currentRelease.HeadFeatureID
-	}
-
-	if r.DB.Where("id = ?", projectID).First(&project).RecordNotFound() {
-		log.InfoWithFields("project not found", log.Fields{
-			"id": projectID,
-		})
-		return &ReleaseResolver{}, errors.New("Project not found")
 	}
 
 	// get all branches relevant for the project

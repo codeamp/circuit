@@ -273,6 +273,8 @@ type Project struct {
 	RsaPrivateKey string `json:"-"`
 	// RsaPublicKey
 	RsaPublicKey string `json:"rsaPublicKey"`
+	// LockedBy
+	LockedBy *string `json:"lockedBy" gorm:"type:uuid"`
 }
 
 // Project settings

@@ -239,6 +239,30 @@ func (r *ProjectResolverMutation) BookmarkProject(ctx context.Context, args *str
 	}
 }
 
+// ToggleProjectLock
+func (r *ProjectResolverMutation) ToggleProjectLock(args *struct{ ProjectLock *model.ProjectLockInput }) (*ProjectResolver, error) {
+	project := model.Project{}
+	if err := r.DB.Where("id = ?", args.ProjectLock.ProjectID).First(&project).Error; err != nil {
+		return nil, err
+	}
+
+	user := model.User{}
+	if err := r.DB.Where("id = ?", args.ProjectLock.UserID).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	// update to null if locked; update to user if locked is null
+	if project.LockedBy != nil && *project.LockedBy == args.ProjectLock.UserID {
+		project.LockedBy = nil
+	} else {
+		project.LockedBy = &args.ProjectLock.UserID
+	}
+
+	r.DB.Save(&project)
+
+	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
+}
+
 // UpdateProjectEnvironments
 func (r *ProjectResolverMutation) UpdateProjectEnvironments(ctx context.Context, args *struct {
 	ProjectEnvironments *model.ProjectEnvironmentsInput

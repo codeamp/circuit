@@ -98,6 +98,14 @@ type ProjectInput struct {
 	EnvironmentID *string `json:"environmentID"`
 }
 
+// ProjectLockInput
+type ProjectLockInput struct {
+	// ProjectID
+	ProjectID string `json:"projectID"`
+	// UserID
+	UserID string `json:"userID"`
+}
+
 // ProjectSearchInput
 type ProjectSearchInput struct {
 	// Repository

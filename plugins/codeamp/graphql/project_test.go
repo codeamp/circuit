@@ -218,6 +218,17 @@ func (suite *ProjectTestSuite) TestCreateProjectSuccess() {
 	suite.helper.CreateProject(suite.T(), environmentResolver)
 }
 
+func (suite *ProjectTestSuite) TestLockUnlockProjectSuccess() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	assert.NotNil(err)
+
+	// suite.Resolver.LockProject(string(projectResolver.ID()))
+}
+
 func (suite *ProjectTestSuite) TestCreateProjectFailureNoEnvironments() {
 	// DB Backup all Environments
 	existingEnvironments := []*model.Environment{}

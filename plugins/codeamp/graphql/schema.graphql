@@ -92,6 +92,8 @@ type Mutation {
   updateProjectEnvironments(projectEnvironments: ProjectEnvironmentsInput): [Environment!]!
   # Bookmark project
   bookmarkProject(id: ID!): Boolean!
+  # Toggle project lock
+  toggleProjectLock(projectLock: ProjectLockInput): Project!
   # Get Git Commits
   getGitCommits(projectID: ID!, environmentID: ID!, new: Boolean): Boolean!
 }
@@ -236,6 +238,7 @@ type Project {
   gitProtocol: String!
   rsaPrivateKey: String!
   rsaPublicKey: String!
+  lockedBy: User
   features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
   currentRelease: Release
   releases(params: PaginatorInput): ReleaseList!
@@ -290,6 +293,12 @@ type ReleaseExtension {
   started: Time!  
   finished: Time!
   created: Time!
+}
+
+# ProjectLock input
+input ProjectLockInput {
+  projectID: String!
+  userID: String!
 }
 
 # Project input

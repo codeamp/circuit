@@ -158,6 +158,27 @@ func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	return results
 }
 
+// LockedBy
+func (r *ProjectResolver) LockedBy() (*UserResolver, error) {
+	user := model.User{}
+
+	if r.Project.LockedBy == nil {
+		return &UserResolver{
+			User: user,
+			DB:   r.DB,
+		}, nil
+	}
+
+	if err := r.DB.Where("id = ?", r.Project.LockedBy).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &UserResolver{
+		User: user,
+		DB:   r.DB,
+	}, nil
+}
+
 // Bookmarked
 func (r *ProjectResolver) Bookmarked(ctx context.Context) bool {
 	var userID string
