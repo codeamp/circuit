@@ -231,9 +231,9 @@ func (suite *ProjectTestSuite) TestLockUnlockProjectSuccess() {
 
 	lockedByUser, err := projectResolver.LockedBy()
 	assert.NotNil(suite.T(), err)
-	assert.Equal(suite.T(), nil, string(lockedByUser.ID()))
+	assert.Equal(suite.T(), "", string(lockedByUser.Email()))
 
-	suite.Resolver.ToggleProjectLock(&struct {
+	projectResolver, err = suite.Resolver.ToggleProjectLock(&struct {
 		ProjectLock *model.ProjectLockInput
 	}{
 		ProjectLock: &model.ProjectLockInput{
@@ -241,6 +241,7 @@ func (suite *ProjectTestSuite) TestLockUnlockProjectSuccess() {
 			UserID:    string(userResolver.ID()),
 		},
 	})
+	assert.NotNil(suite.T(), err)
 
 	lockedByUser, err = projectResolver.LockedBy()
 	assert.NotNil(suite.T(), err)
