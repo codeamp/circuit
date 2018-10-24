@@ -222,11 +222,30 @@ func (suite *ProjectTestSuite) TestLockUnlockProjectSuccess() {
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
+	// User
+	userResolver := suite.helper.CreateUser(suite.T())
+
 	// Project
 	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
-	assert.NotNil(err)
+	assert.NotNil(suite.T(), err)
 
-	// suite.Resolver.LockProject(string(projectResolver.ID()))
+	lockedByUser, err := projectResolver.LockedBy()
+	assert.NotNil(suite.T(), err)
+	assert.Equal(suite.T(), nil, string(lockedByUser.ID()))
+
+	suite.Resolver.ToggleProjectLock(&struct {
+		ProjectLock *model.ProjectLockInput
+	}{
+		ProjectLock: &model.ProjectLockInput{
+			ProjectID: string(projectResolver.ID()),
+			UserID:    string(userResolver.ID()),
+		},
+	})
+
+	lockedByUser, err = projectResolver.LockedBy()
+	assert.NotNil(suite.T(), err)
+
+	assert.Equal(suite.T(), string(userResolver.ID()), string(lockedByUser.ID()))
 }
 
 func (suite *ProjectTestSuite) TestCreateProjectFailureNoEnvironments() {
