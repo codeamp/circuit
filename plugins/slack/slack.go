@@ -105,31 +105,38 @@ func (x *Slack) Process(e transistor.Event) error {
 	tail := payload.Release.TailFeature.Hash
 	head := payload.Release.HeadFeature.Hash
 
-	text := fmt.Sprintf(
-		"%s deployed <https://github.com/%s/compare/%s...%s|%s...%s> to <%s/projects/%s/%s/releases|%s>",
-		payload.Release.User, payload.Project.Repository, tail, head, tail[0:6], head[0:6], dashboardURL.String(), payload.Project.Slug, payload.Environment, payload.Project.Repository,
-	)
+	compareUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
+	releaseFeatureHash := fmt.Sprintf("%s ... %s", tail[:7], head[:7])
+	if tail == head {
+		releaseFeatureHash = head[:7]
+		compareUrl = fmt.Sprintf("https://github.com/%s/compare/%s...%s", payload.Project.Repository, tail, head)
+	}
 
-	var resultColor, resultEmoji string
+	var resultColor string
 	switch status := strings.ToLower(messageStatus.String()); status {
 	case "failed":
 		resultColor = "#FF0000"
-		resultEmoji = ":ambulance:"
 	case "canceled":
 		resultColor = "#9400D3"
-		resultEmoji = ":heavy_multiplication_x:"
 	case "success":
 		resultColor = "#008000"
-		resultEmoji = ":rocket:"
 	}
 
-	resultAttachments := slack.Attachment{Color: resultColor, Text: messageStatus.String()}
+	// header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
+	resultAttachments := slack.Attachment{
+		Color:     resultColor,
+		Title:     fmt.Sprintf("Release on %s - %s", payload.Environment, strings.ToUpper(messageStatus.String())),
+		TitleLink: fmt.Sprintf("%s/projects/%s/%s/releases", dashboardURL.String(), payload.Project.Slug, payload.Environment),
+		Text:      fmt.Sprintf("<%s|%s> - _%s_", compareUrl, releaseFeatureHash, payload.Release.HeadFeature.Message),
+		Footer:    fmt.Sprintf("%s | %s", payload.Project.Repository, payload.Release.User),
+	}
+
+	// fmt.Sprintf("https://github.com/%s", payload.Project.Repository)
 
 	slackPayload := slack.Message{
-		Text:      text,
 		UserName:  "CodeAmp",
 		Channel:   fmt.Sprintf("#%s", channel.String()),
-		IconEmoji: resultEmoji,
+		IconEmoji: ":rocket:",
 	}
 
 	slackPayload.AddAttachment(&resultAttachments)
