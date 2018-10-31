@@ -258,12 +258,12 @@ func LBTCPEvent(action transistor.Action, t plugins.Type) transistor.Event {
 	listener_pairs[0] = map[string]interface{}{
 		"serviceProtocol": "TCP",
 		"port":            "443",
-		"containerPort":   "3000",
+		"containerPort":   float64(3000),
 	}
 	listener_pairs[1] = map[string]interface{}{
 		"serviceProtocol": "TCP",
 		"port":            "444",
-		"containerPort":   "3001",
+		"containerPort":   float64(3001),
 	}
 	event.AddArtifact("listener_pairs", listener_pairs, false)
 

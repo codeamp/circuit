@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -111,7 +111,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := x.K8sNamespacer.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Error(failMessage)
@@ -182,6 +182,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		case "UDP":
 			realProto = "UDP"
 		}
+		spew.Dump(p)
+
 		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
 		if err != nil {
 			return err
@@ -331,7 +333,7 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 		return errors.New(fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := x.K8sNamespacer.NewForConfig(config)
 	if err != nil {
 		return errors.New(fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error()))
 	}
