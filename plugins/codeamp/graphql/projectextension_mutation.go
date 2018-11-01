@@ -243,6 +243,12 @@ func (r *ProjectExtensionResolverMutation) DeleteProjectExtension(args *struct{ 
 
 func (r *ProjectExtensionResolverMutation) handleExtensionRoute53(args *struct{ ProjectExtension *model.ProjectExtensionInput }, projectExtension *model.ProjectExtension) error {
 	extension := model.Extension{}
+	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+		log.InfoWithFields("no extension found", log.Fields{
+			"id": args.ProjectExtension.ExtensionID,
+		})
+		return errors.New("No extension found.")
+	}	
 
 	// HOTFIX: check for existing subdomains for route53
 	unmarshaledCustomConfig := make(map[string]interface{})
