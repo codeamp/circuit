@@ -233,12 +233,15 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		Spec: serviceSpec,
 	}
 
+	spew.Dump(serviceParams)
+
 	// Implement service update-or-create semantics.
 	log.Debug("Implement service update-or-create semantics.")
 	service := coreInterface.Services(namespace)
 	svc, err := service.Get(lbName.String(), meta_v1.GetOptions{})
 	switch {
 	case err == nil:
+		log.Debug("FOUND SERVICE")
 		// Preserve the NodePorts for PATCH service.
 		if svc.Spec.Type == "LoadBalancer" {
 			for i := range svc.Spec.Ports {
@@ -258,12 +261,15 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
-		_, err = service.Create(&serviceParams)
+		log.Debug("ERROR FINDING SERVICE")
+		res, err := service.Create(&serviceParams)
+		log.Debug(*res)
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
 		}
 		log.Debug(fmt.Sprintf("Service created: %s", lbName.String()))
 	default:
+		log.Debug("ISSUE")
 		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
 	}
 
@@ -279,7 +285,10 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 			if elbErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' describing service %s", elbErr, lbName.String()))
 			} else {
+				spew.Dump(elbResult.Status.LoadBalancer)
 				ingressList := elbResult.Status.LoadBalancer.Ingress
+
+				spew.Dump(ingressList)
 				if len(ingressList) > 0 {
 					ELBDNS = ingressList[0].Hostname
 					break
