@@ -527,7 +527,6 @@ func (ts *ProjectExtensionTestSuite) TestHandleExtensionRoute53DuplicateFailure(
 	extCustomConfigMap["service"] = "test-server"
 	extCustomConfigMap["listener_pairs"] = []string{}
 	extCustomConfigMap["subdomain"] = "test-subdomain"
-	extCustomConfigMap["HOSTED_ZONE_ID"] = "test-subdomain"
 
 	_, err = ts.helper.CreateProjectExtensionWithConfig(ts.T(), extensionResolver, projectResolver, &extConfig, &extCustomConfigMap)
 	if err != nil {
