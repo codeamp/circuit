@@ -13,6 +13,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 )
@@ -64,7 +65,7 @@ func (r *ProjectExtensionResolverMutation) CreateProjectExtension(ctx context.Co
 	// ignore if the extension type is 'once' (installable many times)
 	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") || r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
 		if extension.Key == "route53" {
-			err := r.handleExtensionRoute53(args, &projectExtension)
+			err := r.HandleExtensionRoute53(args, &projectExtension)
 			if err != nil {
 				return &ProjectExtensionResolver{}, err
 			}
@@ -141,7 +142,7 @@ func (r *ProjectExtensionResolverMutation) UpdateProjectExtension(args *struct{ 
 	}
 
 	if extension.Key == "route53" {
-		err := r.handleExtensionRoute53(args, &projectExtension)
+		err := r.HandleExtensionRoute53(args, &projectExtension)
 		if err != nil {
 			return nil, err
 		}
@@ -241,14 +242,15 @@ func (r *ProjectExtensionResolverMutation) DeleteProjectExtension(args *struct{ 
 	return &ProjectExtensionResolver{DBProjectExtensionResolver: &db_resolver.ProjectExtensionResolver{DB: r.DB, ProjectExtension: projectExtension}}, nil
 }
 
-func (r *ProjectExtensionResolverMutation) handleExtensionRoute53(args *struct{ ProjectExtension *model.ProjectExtensionInput }, projectExtension *model.ProjectExtension) error {
+func (r *ProjectExtensionResolverMutation) HandleExtensionRoute53(args *struct{ ProjectExtension *model.ProjectExtensionInput }, projectExtension *model.ProjectExtension) error {
 	extension := model.Extension{}
 	if r.DB.Where("id = ?", args.ProjectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 		log.InfoWithFields("no extension found", log.Fields{
 			"id": args.ProjectExtension.ExtensionID,
 		})
 		return errors.New("No extension found.")
-	}	
+	}
+	spew.Dump(extension)
 
 	// HOTFIX: check for existing subdomains for route53
 	unmarshaledCustomConfig := make(map[string]interface{})
@@ -270,13 +272,21 @@ func (r *ProjectExtensionResolverMutation) handleExtensionRoute53(args *struct{ 
 		}
 	}
 
+	if hostedZoneId == "" {
+		return fmt.Errorf("No HOSTED_ZONE_ID Provided")
+	}
+
 	existingProjectExtensions := GetProjectExtensionsWithRoute53Subdomain(strings.ToUpper(unmarshaledCustomConfig["subdomain"].(string)), r.DB)
+	spew.Dump(existingProjectExtensions)
+
 	for _, existingProjectExtension := range existingProjectExtensions {
 		if existingProjectExtension.Model.ID.String() != "" {
 			// check if HOSTED_ZONE_ID is the same
 			var tmpExtension model.Extension
 
-			r.DB.Where("id = ?", existingProjectExtension.ExtensionID).First(&tmpExtension)
+			if err := r.DB.Where("id = ?", existingProjectExtension.ExtensionID).First(&tmpExtension).Error; err != nil {
+				return err
+			}
 
 			tmpExtensionArtifacts, err := ExtractArtifacts(existingProjectExtension, tmpExtension, r.DB)
 			if err != nil {
