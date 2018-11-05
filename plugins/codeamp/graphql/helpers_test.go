@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	. "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -250,8 +248,6 @@ func (helper *Helper) CreateProjectExtensionWithConfig(t *testing.T,
 		CustomConfig:  model.JSON{extCustomConfigJSON},
 		EnvironmentID: envID,
 	}
-
-	spew.Dump(projectExtensionInput)
 
 	projectExtensionResolver, err := helper.Resolver.CreateProjectExtension(helper.context, &struct {
 		ProjectExtension *model.ProjectExtensionInput
