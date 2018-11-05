@@ -5,7 +5,6 @@ import (
 
 	. "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -494,9 +493,6 @@ func (suite *ProjectExtensionTestSuite) SetupTest() {
 // }
 
 func (ts *ProjectExtensionTestSuite) TestHandleExtensionRoute53DuplicateFailure() {
-	ts.Resolver.DB.LogMode(true)
-	defer ts.Resolver.DB.LogMode(false)
-
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -510,27 +506,32 @@ func (ts *ProjectExtensionTestSuite) TestHandleExtensionRoute53DuplicateFailure(
 	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
 
 	// Extension
-	extensionResolver := ts.helper.CreateExtension(ts.T(), environmentResolver)
-
-	// Project Extension
-	projectExtension := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
-
-	projectExtensionID := string(projectExtension.ID())
-	projectExtensionInput := model.ProjectExtensionInput{
-		ID:            &projectExtensionID,
-		ProjectID:     string(projectResolver.ID()),
-		ExtensionID:   string(extensionResolver.ID()),
-		CustomConfig:  projectExtension.CustomConfig(),
-		EnvironmentID: string(environmentResolver.ID()),
+	config := []model.ExtConfig{
+		{
+			Key:           "HOSTED_ZONE_ID",
+			Value:         "test-subdomain",
+			AllowOverride: true,
+		},
 	}
 
-	spew.Dump(projectExtensionInput)
+	extensionResolver := ts.helper.CreateExtensionOfType(ts.T(), environmentResolver, "route53", "once", &config)
 
-	mutation := ProjectExtensionResolverMutation{ts.Resolver.DB, ts.Resolver.Events}
-	err = mutation.HandleExtensionRoute53(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput}, &projectExtension.DBProjectExtensionResolver.ProjectExtension)
-	assert.Nil(ts.T(), err)
+	// Project Extension
+	extConfig := make([]model.ExtConfig, 0)
 
-	err = mutation.HandleExtensionRoute53(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput}, &projectExtension.DBProjectExtensionResolver.ProjectExtension)
+	extCustomConfigMap := make(map[string]interface{})
+	extCustomConfigMap["type"] = "internal"
+	extCustomConfigMap["service"] = "test-server"
+	extCustomConfigMap["listener_pairs"] = []string{}
+	extCustomConfigMap["subdomain"] = "test-subdomain"
+	extCustomConfigMap["HOSTED_ZONE_ID"] = "test-subdomain"
+
+	_, err = ts.helper.CreateProjectExtensionWithConfig(ts.T(), extensionResolver, projectResolver, &extConfig, &extCustomConfigMap)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	_, err = ts.helper.CreateProjectExtensionWithConfig(ts.T(), extensionResolver, projectResolver, &extConfig, &extCustomConfigMap)
 	assert.NotNil(ts.T(), err)
 }
 

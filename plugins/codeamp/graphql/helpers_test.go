@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
+
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	. "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -144,6 +146,28 @@ func (helper *Helper) CreateSecretWithInput(secretInput *model.SecretInput) (*Se
 	return secretResolver, err
 }
 
+func (helper *Helper) CreateExtensionOfType(t *testing.T, envResolver *EnvironmentResolver, extensionKey string, extensionType string, config *[]model.ExtConfig) *ExtensionResolver {
+	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
+
+	configData, err := json.Marshal(&config)
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
+
+	// Extension
+	extensionInput := model.ExtensionInput{
+		Name:          helper.name,
+		Key:           extensionKey,
+		Component:     "test-component",
+		EnvironmentID: envId,
+		Config:        model.JSON{configData},
+		Type:          extensionType,
+		Cacheable:     false,
+	}
+
+	return helper.CreateExtensionWithInput(t, &extensionInput)
+}
+
 func (helper *Helper) CreateExtension(t *testing.T, envResolver *EnvironmentResolver) *ExtensionResolver {
 	envId := fmt.Sprintf("%v", envResolver.DBEnvironmentResolver.Environment.Model.ID)
 
@@ -175,14 +199,17 @@ func (helper *Helper) CreateExtension(t *testing.T, envResolver *EnvironmentReso
 		Type:          "workflow",
 		Cacheable:     false,
 	}
+
+	return helper.CreateExtensionWithInput(t, &extensionInput)
+}
+
+func (helper *Helper) CreateExtensionWithInput(t *testing.T, extensionInput *model.ExtensionInput) *ExtensionResolver {
 	extensionResolver, err := helper.Resolver.CreateExtension(&struct {
 		Extension *model.ExtensionInput
-	}{Extension: &extensionInput})
+	}{Extension: extensionInput})
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
-
-	assert.Equal(t, false, extensionResolver.Cacheable())
 
 	helper.cleanupExtensionIDs = append(helper.cleanupExtensionIDs, extensionResolver.DBExtensionResolver.Extension.Model.ID)
 	return extensionResolver
@@ -199,38 +226,18 @@ func (helper *Helper) CreateProjectExtension(t *testing.T,
 	return resolver
 }
 
-func (helper *Helper) CreateProjectExtensionWithError(t *testing.T,
+func (helper *Helper) CreateProjectExtensionWithConfig(t *testing.T,
 	extensionResolver *ExtensionResolver,
-	projectResolver *ProjectResolver) (*ProjectExtensionResolver, error) {
+	projectResolver *ProjectResolver,
+	extConfig *[]model.ExtConfig,
+	extCustomConfigMap *map[string]interface{}) (*ProjectExtensionResolver, error) {
 
 	projectID := string(projectResolver.ID())
 	envID := projectResolver.DBProjectResolver.Environment.Model.ID.String()
 
 	// Project Extension
-	extConfigMap := make([]model.ExtConfig, 0)
-	extConfigMap = append(extConfigMap,
-		model.ExtConfig{
-			Key:           "test-key",
-			Value:         "test-value",
-			AllowOverride: true,
-			Secret:        false,
-		})
-
-	extConfigJSON, err := json.Marshal(extConfigMap)
+	extConfigJSON, err := json.Marshal(extConfig)
 	assert.Nil(t, err)
-
-	extCustomConfigMap := make(map[string]interface{})
-	extCustomConfigMap["test"] = model.ExtConfig{
-		Key:           "test-key",
-		Value:         "test-value",
-		AllowOverride: true,
-		Secret:        false,
-	}
-	extCustomConfigMap["type"] = "internal"
-	extCustomConfigMap["service"] = "test-server"
-	extCustomConfigMap["listener_pairs"] = []string{}
-	extCustomConfigMap["subdomain"] = "test-subdomain"
-	extCustomConfigMap["HOSTED_ZONE_ID"] = "test-subdomain"
 
 	extCustomConfigJSON, err := json.Marshal(extCustomConfigMap)
 	assert.Nil(t, err)
@@ -244,6 +251,8 @@ func (helper *Helper) CreateProjectExtensionWithError(t *testing.T,
 		EnvironmentID: envID,
 	}
 
+	spew.Dump(projectExtensionInput)
+
 	projectExtensionResolver, err := helper.Resolver.CreateProjectExtension(helper.context, &struct {
 		ProjectExtension *model.ProjectExtensionInput
 	}{ProjectExtension: &projectExtensionInput})
@@ -251,6 +260,31 @@ func (helper *Helper) CreateProjectExtensionWithError(t *testing.T,
 		helper.cleanupProjectExtensionIDs = append(helper.cleanupProjectExtensionIDs, projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.Model.ID)
 	}
 	return projectExtensionResolver, err
+}
+
+func (helper *Helper) CreateProjectExtensionWithError(t *testing.T,
+	extensionResolver *ExtensionResolver,
+	projectResolver *ProjectResolver) (*ProjectExtensionResolver, error) {
+
+	// Project Extension
+	extConfig := make([]model.ExtConfig, 0)
+	extConfig = append(extConfig,
+		model.ExtConfig{
+			Key:           "test-key",
+			Value:         "test-value",
+			AllowOverride: true,
+			Secret:        false,
+		})
+
+	extCustomConfigMap := make(map[string]interface{})
+	extCustomConfigMap["test"] = model.ExtConfig{
+		Key:           "test-key",
+		Value:         "test-value",
+		AllowOverride: true,
+		Secret:        false,
+	}
+
+	return helper.CreateProjectExtensionWithConfig(t, extensionResolver, projectResolver, &extConfig, &extCustomConfigMap)
 }
 
 func (helper *Helper) CreateFeature(t *testing.T, projectResolver *ProjectResolver) *FeatureResolver {
