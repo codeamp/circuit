@@ -140,7 +140,6 @@ func (r *ProjectExtensionResolverMutation) UpdateProjectExtension(args *struct{ 
 		return nil, fmt.Errorf("No environment found.")
 	}
 
-	log.Info("GETTING AROUND ROUTE53 - 2")
 	if extension.Key == "route53" {
 		err := r.HandleExtensionRoute53(args, &projectExtension)
 		if err != nil {
