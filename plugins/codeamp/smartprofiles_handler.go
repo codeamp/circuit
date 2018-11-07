@@ -37,7 +37,7 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 			}
 			
 			fmt.Println(fmt.Sprintf("Sending event %s - %s", project.Slug, env.Name))
-			ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("create"), payload)
+			ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), payload)
 			ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
 			ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
 
