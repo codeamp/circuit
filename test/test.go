@@ -52,6 +52,7 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 		plugins.ReleaseExtension{},
 		plugins.Release{},
 		plugins.ReleaseExtension{},
+		plugins.Project{},
 	}
 	for _, i := range events {
 		transistor.EventRegistry[reflect.TypeOf(i).String()] = i

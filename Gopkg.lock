@@ -431,6 +431,29 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:3c7f31e70e96bc6aad4dbadde020f4741e07e2456bd9b63aa5576fd3059a94e5"
+  name = "github.com/influxdata/influxdb"
+  packages = [
+    "client/v2",
+    "models",
+    "pkg/escape",
+  ]
+  pruneopts = ""
+  revision = "2e7d8d753fd70e7378c537dfe82b64fd2786b1cb"
+
+[[projects]]
+  branch = "master"
+  digest = "1:85711855bbca97c5c6444b686d7aed9df3b004bbecf1f1e56b1de40cfec358ad"
+  name = "github.com/influxdata/platform"
+  packages = [
+    "models",
+    "pkg/escape",
+  ]
+  pruneopts = ""
+  revision = "362d4c6b34d40aa8873bfe3e425c9f29a51fa26b"
+
+[[projects]]
+  branch = "master"
   digest = "1:e19eb20c74cfdd81fdd562e874ed3743586e7eb1be5f67ce72361f39e23a04ce"
   name = "github.com/jinzhu/gorm"
   packages = [
@@ -500,6 +523,14 @@
   version = "v1.7.6"
 
 [[projects]]
+  digest = "1:82b912465c1da0668582a7d1117339c278e786c2536b3c3623029a0c7141c2d0"
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  pruneopts = ""
+  revision = "ce7b0b5c7b45a81508558cd1dba6bb1e4ddb51bb"
+  version = "v0.0.3"
+
+[[projects]]
   branch = "master"
   digest = "1:59fa50d593e5673a0dfffa1852b66fd700c05b35e368680b4b89a68fdb2c1379"
   name = "github.com/mitchellh/mapstructure"
@@ -530,6 +561,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
+
+[[projects]]
+  digest = "1:28a9131d18ac1b8761f41370e59b7e807148bbd24a926816233522fb64e593bf"
+  name = "github.com/olekukonko/tablewriter"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e6d60cf7ba1f42d86d54cdf5508611c4aafb3970"
+  version = "v0.0.1"
 
 [[projects]]
   digest = "1:5d9b668b0b4581a978f07e7d2e3314af18eb27b3fb5d19b70185b7c575723d11"
@@ -1002,9 +1041,11 @@
     "github.com/graph-gophers/graphql-go/relay",
     "github.com/heptio/contour/apis/contour/v1beta1",
     "github.com/heptio/contour/apis/generated/clientset/versioned",
+    "github.com/influxdata/influxdb/client/v2",
     "github.com/jinzhu/gorm",
     "github.com/jinzhu/gorm/dialects/postgres",
     "github.com/lytics/slackhook",
+    "github.com/olekukonko/tablewriter",
     "github.com/rk/go-cron",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",

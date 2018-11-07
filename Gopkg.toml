@@ -116,6 +116,10 @@
   name = "github.com/heptio/contour"
   branch = "master"
 
+[[constraint]]
+  name = "github.com/influxdata/influxdb"
+  branch = "master"  
+
 #############
 # OVERRIDES #
 #############
