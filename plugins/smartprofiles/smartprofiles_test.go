@@ -26,7 +26,7 @@ plugins:
 
 func (suite *TestSuite) SetupSuite() {
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
-	go suite.transistor.Run()
+	go suite.transistor.Run()	
 }
 
 func (suite *TestSuite) TearDownSuite() {
@@ -34,19 +34,29 @@ func (suite *TestSuite) TearDownSuite() {
 }
 
 func (suite *TestSuite) TestSmartProfilesNotifySuccessfulRecommendations() {
-	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), plugins.Project{})
+	project := plugins.Project{
+		Slug: "checkr-checkr",
+		Repository: "https://github.com/checkr/checkr",
+		Environment: "production",
+		Services: []plugins.Service{
+			plugins.Service{
+				Name: "web",
+				Command: "npm start",
+			},
+		},
+	}	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
+	ev.AddArtifact("INFLUX_HOST", "", false)
+	ev.AddArtifact("INFLUX_DB", "telegraf", false)
 
 	spew.Dump("TESTING SMART PROFILES")
 	suite.transistor.Events <- ev	
 	spew.Dump("SENT EVENT")
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
-	spew.Dump("GOT EVENT")
-
-	spew.Dump(e)
-
 	return
 }
 

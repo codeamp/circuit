@@ -53,13 +53,14 @@ type Resource struct {
 
 type InfluxClienter struct {
 	Client client.Client
+	InfluxDBName string
 }
 
-func RenderResourceMonitor() *tablewriter.Table {
+func RenderResourceMonitor(influxHost string, influxDBName string) *tablewriter.Table {
 	fmt.Println("main")
 
 	// initialize influx client connection
-	influxClient, err := InitInfluxClient()
+	influxClient, err := InitInfluxClient(influxHost, influxDBName)
 	if err != nil {
 		panic(err)
 	}
@@ -130,12 +131,9 @@ func RenderResourceMonitor() *tablewriter.Table {
 	return table
 }
 
-func InitInfluxClient() (*InfluxClienter, error) {
-	// spew.Dump(os.Getenv("INFLUX_HOST"))
+func InitInfluxClient(influxHost string, influxDBName string) (*InfluxClienter, error) {
 	c, err := client.NewHTTPClient(client.HTTPConfig{
-		Addr: "",
-		// Username:           os.Getenv("INFLUX_USERNAME"),
-		// Password:           os.Getenv("INFLUX_PASSWORD"),
+		Addr: influxHost,
 	})
 	if err != nil {
 		return nil, err
@@ -143,7 +141,7 @@ func InitInfluxClient() (*InfluxClienter, error) {
 
 	defer c.Close()
 
-	return &InfluxClienter{Client: c}, nil
+	return &InfluxClienter{Client: c, InfluxDBName: influxDBName}, nil
 }
 
 func (ic *InfluxClienter) GetService(name string, namespace string, timeRange string, svcChan chan *Service) {
@@ -290,10 +288,10 @@ func (ic *InfluxClienter) getServiceMemoryCost(serviceName string, namespace str
 	}
 
 	return &Resource{
-		Limit:             fmt.Sprintf("%.2f", maxCostFloat),
-		Request:             fmt.Sprintf("%.2f", minCostFloat),
-		Current:         fmt.Sprintf("%.2f", currentCostFloat),
-		P90:         	 fmt.Sprintf("%.2f", p90Float),
+		Limit:   fmt.Sprintf("%.2f", maxCostFloat),
+		Request: fmt.Sprintf("%.2f", minCostFloat),
+		Current: fmt.Sprintf("%.2f", currentCostFloat),
+		P90:     fmt.Sprintf("%.2f", p90Float),
 		OverProvisioned: overProvisioned,
 	}, nil
 }
@@ -350,7 +348,7 @@ func (ic *InfluxClienter) getServiceCPUCost(serviceName string, namespace string
 	}
 
 	// get p90
-	res, err = ic.queryDB(fmt.Sprintf("select percentile(cpu_usage_nanocores, 90)/1000000000 from kubernetes_pod_container where time > now() - " + timeRange + " and container_name = '%s' and namespace = '%s'", serviceName, namespace))
+	res, err = ic.queryDB(fmt.Sprintf("select percentile(cpu_usage_nanocores, 90)/100000000 from kubernetes_pod_container where time > now() - " + timeRange + " and container_name = '%s' and namespace = '%s'", serviceName, namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +383,7 @@ func (ic *InfluxClienter) getServiceCPUCost(serviceName string, namespace string
 func (ic *InfluxClienter) queryDB(cmd string) (res []client.Result, err error) {
 	q := client.Query{
 		Command:  cmd,
-		Database: "telegraf",
+		Database: ic.InfluxDBName,
 	}
 	if response, err := ic.Client.Query(q); err == nil {
 		if response.Error() != nil {
