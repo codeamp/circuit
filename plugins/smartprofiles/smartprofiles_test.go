@@ -1,6 +1,7 @@
 package smartprofiles_test
 
 import (
+	"github.com/spf13/viper"
 	"github.com/davecgh/go-spew/spew"
 	"testing"
 
@@ -21,7 +22,10 @@ type TestSuite struct {
 var viperConfig = []byte(`
 plugins:
   smartprofiles:
-    workers: 1
+    influxdb:
+      host: ""
+      db: "telegraf"
+    workers: 1    
 `)
 
 func (suite *TestSuite) SetupSuite() {
@@ -47,8 +51,8 @@ func (suite *TestSuite) TestSmartProfilesNotifySuccessfulRecommendations() {
 	}	
 
 	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
-	ev.AddArtifact("INFLUX_HOST", "", false)
-	ev.AddArtifact("INFLUX_DB", "telegraf", false)
+	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
 
 	spew.Dump("TESTING SMART PROFILES")
 	suite.transistor.Events <- ev	
