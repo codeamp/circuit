@@ -33,6 +33,9 @@ plugins:
   slack:
     workers: 1
   smartprofiles:
+    influxdb:
+      host: ""
+      db: ""
     workers: 1    
   dockerbuilder:
     workers: 1
