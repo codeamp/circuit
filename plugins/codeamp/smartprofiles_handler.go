@@ -1,6 +1,7 @@
 package codeamp
 
 import (
+	"github.com/spf13/viper"
 	"fmt"
 	"github.com/codeamp/transistor"
 	"github.com/codeamp/circuit/plugins"
@@ -37,8 +38,8 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 			
 			fmt.Println(fmt.Sprintf("Sending event %s - %s", project.Slug, env.Name))
 			ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("create"), payload)
-			ev.AddArtifact("INFLUX_HOST", "", false)
-			ev.AddArtifact("INFLUX_DB", "", false)
+			ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+			ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
 
 			x.Events <- ev
 		}
