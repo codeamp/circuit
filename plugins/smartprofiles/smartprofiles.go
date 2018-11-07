@@ -1,6 +1,7 @@
 package smartprofiles
 
 import (
+	"strings"
 	"fmt"
 	// "github.com/davecgh/go-spew/spew"
 	"github.com/codeamp/circuit/plugins"
@@ -56,7 +57,7 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 	})
 
 	project := e.Payload.(plugins.Project)
-	projectNamespace := fmt.Sprintf("%s-%s", project.Environment, project.Slug)
+	projectNamespace := fmt.Sprintf("%s-%s", strings.ToLower(project.Environment), strings.ToLower(project.Slug))
 
 	// new event with project service
 	influxHost, err := e.GetArtifact("INFLUX_HOST")
