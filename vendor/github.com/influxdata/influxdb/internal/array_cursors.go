@@ -14,7 +14,10 @@ var (
 type ArrayCursorMock struct {
 	CloseFn func()
 	ErrFn   func() error
+<<<<<<< HEAD
 	StatsFn func() tsdb.CursorStats
+=======
+>>>>>>> initial push
 }
 
 // NewArrayCursorMock returns an initialised ArrayCursorMock, which
@@ -23,7 +26,10 @@ func NewArrayCursorMock() *ArrayCursorMock {
 	return &ArrayCursorMock{
 		CloseFn: func() {},
 		ErrFn:   func() error { return nil },
+<<<<<<< HEAD
 		StatsFn: func() tsdb.CursorStats { return tsdb.CursorStats{} },
+=======
+>>>>>>> initial push
 	}
 }
 
@@ -33,10 +39,13 @@ func (c *ArrayCursorMock) Close() { c.CloseFn() }
 // Err returns the latest error, if any.
 func (c *ArrayCursorMock) Err() error { return c.ErrFn() }
 
+<<<<<<< HEAD
 func (c *ArrayCursorMock) Stats() tsdb.CursorStats {
 	return c.StatsFn()
 }
 
+=======
+>>>>>>> initial push
 // IntegerArrayCursorMock provides a mock implementation of an IntegerArrayCursorMock.
 type IntegerArrayCursorMock struct {
 	*ArrayCursorMock

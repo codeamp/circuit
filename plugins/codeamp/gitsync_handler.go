@@ -1,6 +1,7 @@
 package codeamp
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"context"
 	"fmt"
 
@@ -70,6 +71,18 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
 		}
 	}
+
+	return nil
+}
+
+func (x *CodeAmp) SmartProfiles(project *model.Project) error {
+	spew.Dump("SmartProfiles")
+
+	payload := plugins.Project{}
+
+	x.Events <- transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("create"), payload)
+
+	// spew.Dump(ev)
 
 	return nil
 }

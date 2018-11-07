@@ -53,8 +53,11 @@ type StorageResultsMock struct {
 	NextFn   func() bool
 	CursorFn func() tsdb.Cursor
 	TagsFn   func() models.Tags
+<<<<<<< HEAD
 	ErrFn    func() error
 	StatsFn  func() tsdb.CursorStats
+=======
+>>>>>>> initial push
 }
 
 // NewStorageResultsMock initialises a StorageResultsMock whose methods all return
@@ -65,6 +68,7 @@ func NewStorageResultsMock() *StorageResultsMock {
 		NextFn:   func() bool { return false },
 		CursorFn: func() tsdb.Cursor { return nil },
 		TagsFn:   func() models.Tags { return nil },
+<<<<<<< HEAD
 		ErrFn:    func() error { return nil },
 		StatsFn:  func() tsdb.CursorStats { return tsdb.CursorStats{} },
 	}
@@ -76,6 +80,11 @@ func (r *StorageResultsMock) Stats() tsdb.CursorStats {
 	return r.StatsFn()
 }
 
+=======
+	}
+}
+
+>>>>>>> initial push
 // Close closes the result set.
 func (r *StorageResultsMock) Close() { r.CloseFn() }
 

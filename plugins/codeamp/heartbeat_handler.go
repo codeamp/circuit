@@ -16,6 +16,9 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 		switch payload.Tick {
 		case "minute":
 			x.GitSync(&project)
+		case "5*minute":
+			x.SmartProfiles(&project)
 		}
+
 	}
 }

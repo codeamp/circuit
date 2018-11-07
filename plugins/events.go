@@ -29,6 +29,7 @@ func GetEventName(s string) transistor.EventName {
 		"websocket",
 		"slack",
 		"slack:notify",
+		"smartprofiles",
 	}
 
 	for _, t := range eventNames {
@@ -271,7 +272,9 @@ type Release struct {
 
 // Project event data struct
 type Project struct {
-	ID         string `json:"id"`
-	Slug       string `json:"slug"`
-	Repository string `json:"repository"`
+	ID          string `json:"id"`
+	Slug        string `json:"slug"`
+	Repository  string `json:"repository"`
+	Environment string `json:"environment"`
+	Services    []Service `json:"service"`
 }

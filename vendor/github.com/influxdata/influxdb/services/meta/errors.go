@@ -23,10 +23,13 @@ var (
 	// ErrDatabaseNameRequired is returned when creating a database without a name.
 	ErrDatabaseNameRequired = errors.New("database name required")
 
+<<<<<<< HEAD
 	// ErrNameTooLong is returned when attempting to create a database or
 	// retention policy with a name that is too long.
 	ErrNameTooLong = errors.New("name too long")
 
+=======
+>>>>>>> initial push
 	// ErrInvalidName is returned when attempting to create a database or retention policy with an invalid name
 	ErrInvalidName = errors.New("invalid name")
 )

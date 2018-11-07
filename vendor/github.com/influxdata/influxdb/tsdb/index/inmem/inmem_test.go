@@ -115,6 +115,7 @@ func TestIndex_Bytes(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 func TestIndex_MeasurementTracking(t *testing.T) {
 	sfile := mustOpenSeriesFile()
 	defer sfile.Close()
@@ -156,6 +157,8 @@ func TestIndex_MeasurementTracking(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> initial push
 // seriesFileWrapper is a test wrapper for tsdb.seriesFileWrapper.
 type seriesFileWrapper struct {
 	*tsdb.SeriesFile

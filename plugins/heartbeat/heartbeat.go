@@ -28,6 +28,11 @@ func (x *Heartbeat) Start(e chan transistor.Event) error {
 		x.events <- event
 	})
 
+	x.Croner.NewCronJob(gocron.ANY/5, gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, func(time.Time) {
+		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "5*minute"})
+		x.events <- event
+	})	
+
 	x.Croner.NewCronJob(gocron.ANY, gocron.ANY, gocron.ANY, gocron.ANY, 0, 0, func(time.Time) {
 		event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "hour"})
 		x.events <- event

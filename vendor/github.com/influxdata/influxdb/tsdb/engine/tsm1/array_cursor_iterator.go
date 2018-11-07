@@ -32,10 +32,13 @@ type arrayCursorIterator struct {
 	}
 }
 
+<<<<<<< HEAD
 func (q *arrayCursorIterator) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 func (q *arrayCursorIterator) Next(ctx context.Context, r *tsdb.CursorRequest) (tsdb.Cursor, error) {
 	// Look up fields for measurement.
 	mf := q.e.fieldset.Fields(r.Name)

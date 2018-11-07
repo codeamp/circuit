@@ -35,8 +35,11 @@ The commands are:
 
     export               reshapes existing shards to a new shard duration
     compact-shard        fully compacts the specified shard
+<<<<<<< HEAD
     gen-init             creates database and retention policy metadata 
     gen-exec             generates data
+=======
+>>>>>>> initial push
     help                 display this help message
 
 Use "influx-tools command -help" for more information about a command.

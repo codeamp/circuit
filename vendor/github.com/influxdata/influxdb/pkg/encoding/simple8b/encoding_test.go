@@ -123,6 +123,7 @@ func TestEncodeAll(t *testing.T) {
 			in[120] = 5
 			return in
 		}},
+<<<<<<< HEAD
 		{name: "119 ones", fn: func() []uint64 {
 			in := ones(240)()
 			in[119] = 5
@@ -133,6 +134,8 @@ func TestEncodeAll(t *testing.T) {
 			in[239] = 5
 			return in
 		}},
+=======
+>>>>>>> initial push
 	}
 
 	for _, test := range tests {

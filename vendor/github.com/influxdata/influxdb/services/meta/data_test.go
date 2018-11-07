@@ -2,7 +2,10 @@ package meta_test
 
 import (
 	"fmt"
+<<<<<<< HEAD
 	"math/rand"
+=======
+>>>>>>> initial push
 	"reflect"
 	"testing"
 	"time"
@@ -14,10 +17,13 @@ import (
 	"github.com/influxdata/influxdb/services/meta"
 )
 
+<<<<<<< HEAD
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+=======
+>>>>>>> initial push
 func Test_Data_DropDatabase(t *testing.T) {
 	data := &meta.Data{
 		Databases: []meta.DatabaseInfo{
@@ -71,6 +77,7 @@ func Test_Data_DropDatabase(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 func Test_Data_CreateDatabase(t *testing.T) {
 	data := meta.Data{}
 
@@ -86,6 +93,8 @@ func Test_Data_CreateDatabase(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> initial push
 func Test_Data_CreateRetentionPolicy(t *testing.T) {
 	data := meta.Data{}
 
@@ -131,6 +140,7 @@ func Test_Data_CreateRetentionPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+<<<<<<< HEAD
 
 	// Try creating a retention policy with a name that is too long. Should fail.
 	err = data.CreateRetentionPolicy("foo", &meta.RetentionPolicyInfo{
@@ -141,6 +151,8 @@ func Test_Data_CreateRetentionPolicy(t *testing.T) {
 	if err != meta.ErrNameTooLong {
 		t.Fatalf("exp: %v, got %v", meta.ErrNameTooLong, err)
 	}
+=======
+>>>>>>> initial push
 }
 
 func TestData_AdminUserExists(t *testing.T) {
@@ -383,6 +395,7 @@ func TestShardGroupInfo_Contains(t *testing.T) {
 		})
 	}
 }
+<<<<<<< HEAD
 
 func randString(n int) string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -392,3 +405,5 @@ func randString(n int) string {
 	}
 	return string(b)
 }
+=======
+>>>>>>> initial push

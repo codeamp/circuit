@@ -21,7 +21,10 @@ type (
 	BooleanArrayCursor  = cursors.BooleanArrayCursor
 
 	Cursor          = cursors.Cursor
+<<<<<<< HEAD
 	CursorStats     = cursors.CursorStats
+=======
+>>>>>>> initial push
 	CursorRequest   = cursors.CursorRequest
 	CursorIterator  = cursors.CursorIterator
 	CursorIterators = cursors.CursorIterators

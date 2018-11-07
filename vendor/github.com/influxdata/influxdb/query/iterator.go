@@ -687,10 +687,14 @@ func newIteratorOptionsStmt(stmt *influxql.SelectStatement, sopt SelectOptions) 
 }
 
 func newIteratorOptionsSubstatement(ctx context.Context, stmt *influxql.SelectStatement, opt IteratorOptions) (IteratorOptions, error) {
+<<<<<<< HEAD
 	subOpt, err := newIteratorOptionsStmt(stmt, SelectOptions{
 		Authorizer: opt.Authorizer,
 		MaxSeriesN: opt.MaxSeriesN,
 	})
+=======
+	subOpt, err := newIteratorOptionsStmt(stmt, SelectOptions{})
+>>>>>>> initial push
 	if err != nil {
 		return IteratorOptions{}, err
 	}

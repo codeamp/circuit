@@ -185,6 +185,7 @@ func (x *CodeAmp) Stop() {
 func (x *CodeAmp) Subscribe() []string {
 	return []string{
 		"gitsync:status",
+		"smartprofiles",
 		"heartbeat",
 		"websocket",
 		"project",

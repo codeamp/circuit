@@ -55,10 +55,13 @@ func (c *floatArrayAscendingCursor) reset(seek, end int64, cacheValues Values, t
 
 func (c *floatArrayAscendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *floatArrayAscendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 // close closes the cursor and any dependent cursors.
 func (c *floatArrayAscendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
@@ -213,10 +216,13 @@ func (c *floatArrayDescendingCursor) reset(seek, end int64, cacheValues Values, 
 
 func (c *floatArrayDescendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *floatArrayDescendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 func (c *floatArrayDescendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
 		c.tsm.keyCursor.Close()
@@ -346,10 +352,13 @@ func (c *integerArrayAscendingCursor) reset(seek, end int64, cacheValues Values,
 
 func (c *integerArrayAscendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *integerArrayAscendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 // close closes the cursor and any dependent cursors.
 func (c *integerArrayAscendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
@@ -504,10 +513,13 @@ func (c *integerArrayDescendingCursor) reset(seek, end int64, cacheValues Values
 
 func (c *integerArrayDescendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *integerArrayDescendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 func (c *integerArrayDescendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
 		c.tsm.keyCursor.Close()
@@ -637,10 +649,13 @@ func (c *unsignedArrayAscendingCursor) reset(seek, end int64, cacheValues Values
 
 func (c *unsignedArrayAscendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *unsignedArrayAscendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 // close closes the cursor and any dependent cursors.
 func (c *unsignedArrayAscendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
@@ -795,10 +810,13 @@ func (c *unsignedArrayDescendingCursor) reset(seek, end int64, cacheValues Value
 
 func (c *unsignedArrayDescendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *unsignedArrayDescendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 func (c *unsignedArrayDescendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
 		c.tsm.keyCursor.Close()
@@ -928,10 +946,13 @@ func (c *stringArrayAscendingCursor) reset(seek, end int64, cacheValues Values, 
 
 func (c *stringArrayAscendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *stringArrayAscendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 // close closes the cursor and any dependent cursors.
 func (c *stringArrayAscendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
@@ -1086,10 +1107,13 @@ func (c *stringArrayDescendingCursor) reset(seek, end int64, cacheValues Values,
 
 func (c *stringArrayDescendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *stringArrayDescendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 func (c *stringArrayDescendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
 		c.tsm.keyCursor.Close()
@@ -1219,10 +1243,13 @@ func (c *booleanArrayAscendingCursor) reset(seek, end int64, cacheValues Values,
 
 func (c *booleanArrayAscendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *booleanArrayAscendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 // close closes the cursor and any dependent cursors.
 func (c *booleanArrayAscendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
@@ -1377,10 +1404,13 @@ func (c *booleanArrayDescendingCursor) reset(seek, end int64, cacheValues Values
 
 func (c *booleanArrayDescendingCursor) Err() error { return nil }
 
+<<<<<<< HEAD
 func (c *booleanArrayDescendingCursor) Stats() tsdb.CursorStats {
 	return tsdb.CursorStats{}
 }
 
+=======
+>>>>>>> initial push
 func (c *booleanArrayDescendingCursor) Close() {
 	if c.tsm.keyCursor != nil {
 		c.tsm.keyCursor.Close()

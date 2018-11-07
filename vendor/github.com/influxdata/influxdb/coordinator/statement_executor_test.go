@@ -130,6 +130,7 @@ func TestQueryExecutor_ExecuteQuery_MaxSelectBucketsN(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 func TestStatementExecutor_ExecuteQuery_WriteInto(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
@@ -232,6 +233,8 @@ func TestStatementExecutor_ExecuteQuery_WriteInto(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> initial push
 func TestStatementExecutor_NormalizeStatement(t *testing.T) {
 
 	testCases := []struct {
@@ -600,6 +603,7 @@ func (itr *FloatIterator) Next() (*query.FloatPoint, error) {
 	itr.Points = itr.Points[1:]
 	return v, nil
 }
+<<<<<<< HEAD
 
 func ts(s string) time.Time {
 	t, err := time.Parse(time.RFC3339, s)
@@ -614,3 +618,5 @@ type writePointsIntoFunc func(req *coordinator.IntoWriteRequest) error
 func (fn writePointsIntoFunc) WritePointsInto(req *coordinator.IntoWriteRequest) error {
 	return fn(req)
 }
+=======
+>>>>>>> initial push

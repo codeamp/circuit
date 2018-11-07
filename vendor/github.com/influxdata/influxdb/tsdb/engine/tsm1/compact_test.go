@@ -88,6 +88,7 @@ func TestCompactor_Snapshot(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 func TestCompactor_CompactFullLastTimestamp(t *testing.T) {
 	dir := MustTempDir()
 	defer os.RemoveAll(dir)
@@ -140,6 +141,8 @@ func TestCompactor_CompactFullLastTimestamp(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> initial push
 // Ensures that a compaction will properly merge multiple TSM files
 func TestCompactor_CompactFull(t *testing.T) {
 	dir := MustTempDir()
@@ -2325,7 +2328,11 @@ func TestDefaultPlanner_PlanOptimize_Tombstones(t *testing.T) {
 
 }
 
+<<<<<<< HEAD
 // Ensure that the planner will compact files in groups if no writes
+=======
+// Ensure that the planner will compact all files if no writes
+>>>>>>> initial push
 // have happened in some interval
 func TestDefaultPlanner_Plan_FullOnCold(t *testing.T) {
 	data := []tsm1.FileStat{
@@ -2353,6 +2360,7 @@ func TestDefaultPlanner_Plan_FullOnCold(t *testing.T) {
 			Path: "06-01.tsm1",
 			Size: 2 * 1024 * 1024,
 		},
+<<<<<<< HEAD
 		{
 			Path: "07-01.tsm1",
 			Size: 2 * 1024 * 1024,
@@ -2373,6 +2381,8 @@ func TestDefaultPlanner_Plan_FullOnCold(t *testing.T) {
 			Path: "11-01.tsm1",
 			Size: 2 * 1024 * 1024,
 		},
+=======
+>>>>>>> initial push
 	}
 
 	cp := tsm1.NewDefaultPlanner(
@@ -2385,6 +2395,7 @@ func TestDefaultPlanner_Plan_FullOnCold(t *testing.T) {
 	)
 
 	tsm := cp.Plan(time.Now().Add(-time.Second))
+<<<<<<< HEAD
 	if exp, got := 2, len(tsm); got != exp {
 		t.Fatalf("tsm groups length mismatch: got %v, exp %v", got, exp)
 	}
@@ -2417,6 +2428,16 @@ func TestDefaultPlanner_Plan_FullOnCold(t *testing.T) {
 		t.Fatalf("tsm file mismatch: got %v, exp %v", got, exp)
 	} else if got, exp := tsm[1][2], data[10].Path; got != exp {
 		t.Fatalf("tsm file mismatch: got %v, exp %v", got, exp)
+=======
+	if exp, got := len(data), len(tsm[0]); got != exp {
+		t.Fatalf("tsm file length mismatch: got %v, exp %v", got, exp)
+	}
+
+	for i, p := range data {
+		if got, exp := tsm[0][i], p.Path; got != exp {
+			t.Fatalf("tsm file mismatch: got %v, exp %v", got, exp)
+		}
+>>>>>>> initial push
 	}
 }
 
@@ -2596,7 +2617,11 @@ func TestDefaultPlanner_Plan_TwoGenLevel3(t *testing.T) {
 		time.Hour)
 
 	tsm := cp.Plan(time.Now().Add(-24 * time.Hour))
+<<<<<<< HEAD
 	if exp, got := 2, len(tsm); got != exp {
+=======
+	if exp, got := 1, len(tsm); got != exp {
+>>>>>>> initial push
 		t.Fatalf("tsm file length mismatch: got %v, exp %v", got, exp)
 	}
 }
