@@ -193,7 +193,7 @@ type ServiceHealthProbe struct {
 
 type ServiceHealthProbeHttpHeader struct {
 	Model         `json:",inline"`
-	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"healthProbeID" gorm:"type:uuid"`
+	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"-" gorm:"type:uuid"`
 	Name          string    `json:"name"`
 	Value         string    `json:"value"`
 }
