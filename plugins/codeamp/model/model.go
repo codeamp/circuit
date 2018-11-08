@@ -101,6 +101,8 @@ type ServiceSpec struct {
 	MemoryLimit string `json:"memoryLimit"`
 	// TerminationGracePeriod
 	TerminationGracePeriod string `json:"terminationGracePeriod"`
+	// ServiceID
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 }
 
 // Service

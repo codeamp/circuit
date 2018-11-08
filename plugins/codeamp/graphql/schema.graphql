@@ -204,6 +204,7 @@ type ServiceSpec {
   memoryRequest: String!
   memoryLimit: String!
   terminationGracePeriod: String!
+  service: Service!
   created: Time!
 }
 

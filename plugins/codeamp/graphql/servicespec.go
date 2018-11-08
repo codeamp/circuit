@@ -47,6 +47,16 @@ func (r *ServiceSpecResolver) TerminationGracePeriod() string {
 	return r.DBServiceSpecResolver.ServiceSpec.TerminationGracePeriod
 }
 
+// Service
+func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
+	dbServiceSpecResolver, err := r.DBServiceSpecResolver.Service()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ServiceResolver{DBServiceResolver: dbServiceSpecResolver}, nil
+}
+
 // Created
 func (r *ServiceSpecResolver) Created() graphql.Time {
 	return graphql.Time{Time: r.DBServiceSpecResolver.ServiceSpec.Model.CreatedAt}
