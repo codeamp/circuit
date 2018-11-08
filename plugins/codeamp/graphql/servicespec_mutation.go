@@ -92,6 +92,15 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	if serviceSpec.Model.ID.String() == currentDefault.Model.ID.String() {
 		isDefault = true
 	}
+	
+	// if IsDefault is True, check which one is the current default
+	if args.ServiceSpec.IsDefault {
+		var currentDefault model.ServiceSpec
+		if err := r.DB.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
+			currentDefault.IsDefault = false			
+			r.DB.Save(&currentDefault)
+		}
+	}	
 
 	serviceSpec.Name = args.ServiceSpec.Name
 	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
