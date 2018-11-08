@@ -13,7 +13,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
+_	"github.com/davecgh/go-spew/spew"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -182,7 +182,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		case "UDP":
 			realProto = "UDP"
 		}
-		spew.Dump(p)
+//		spew.Dump(p)
 
 		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
 		if err != nil {
@@ -233,7 +233,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		Spec: serviceSpec,
 	}
 
-	spew.Dump(serviceParams)
+	// spew.Dump(serviceParams)
 
 	// Implement service update-or-create semantics.
 	log.Debug("Implement service update-or-create semantics.")
@@ -285,10 +285,10 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 			if elbErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' describing service %s", elbErr, lbName.String()))
 			} else {
-				spew.Dump(elbResult.Status.LoadBalancer)
+				// spew.Dump(elbResult.Status.LoadBalancer)
 				ingressList := elbResult.Status.LoadBalancer.Ingress
 
-				spew.Dump(ingressList)
+				// spew.Dump(ingressList)
 				if len(ingressList) > 0 {
 					ELBDNS = ingressList[0].Hostname
 					break

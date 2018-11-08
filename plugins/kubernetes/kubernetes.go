@@ -248,6 +248,9 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interface, error) {
 	// Find a way to return it if already exists
 	log.Warn("getKubernetesClient")
+	if x.KubernetesClient != nil {
+		return x.KubernetesClient, nil
+	}
 
 	config, err := x.getClientConfig(e)
 	if err != nil {
@@ -268,6 +271,9 @@ func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interfa
 
 func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
 	// Find a way to return it if already exists
+	if x.ContourClient != nil {
+		return x.ContourClient, nil
+	}
 
 	config, err := x.getClientConfig(e)
 	if err != nil {
