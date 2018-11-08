@@ -206,6 +206,7 @@ type ServiceSpec {
   terminationGracePeriod: String!
   service: Service!
   created: Time!
+  isDefault: Boolean!
 }
 
 # Release
@@ -383,6 +384,7 @@ input ServiceSpecInput {
   memoryRequest: String!
   memoryLimit: String!
   terminationGracePeriod: String!
+  isDefault: Boolean!
 }
 
 # Environment input

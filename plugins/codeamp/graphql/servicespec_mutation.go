@@ -14,7 +14,18 @@ type ServiceSpecResolverMutation struct {
 	DB *gorm.DB
 }
 
+// CreateServiceSpec
 func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
+
+	// if IsDefault is True, check which one is the current default
+	if args.ServiceSpec.IsDefault {
+		var currentDefault model.ServiceSpec
+		if err := r.DB.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
+			currentDefault.IsDefault = false			
+			r.DB.Save(&currentDefault)
+		}
+	}
+
 	serviceSpec := model.ServiceSpec{
 		Name:                   args.ServiceSpec.Name,
 		CpuRequest:             args.ServiceSpec.CpuRequest,
@@ -22,6 +33,7 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 		MemoryRequest:          args.ServiceSpec.MemoryRequest,
 		MemoryLimit:            args.ServiceSpec.MemoryLimit,
 		TerminationGracePeriod: args.ServiceSpec.TerminationGracePeriod,
+		IsDefault: 				args.ServiceSpec.IsDefault,
 	}
 
 	r.DB.Create(&serviceSpec)
@@ -29,6 +41,7 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 }
 
+// UpdateServiceSpec
 func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := model.ServiceSpec{}
 
@@ -37,9 +50,18 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 		return nil, fmt.Errorf("UpdateServiceSpec: Missing argument id")
 	}
 
-	if r.DB.Where("id=?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
+	if r.DB.Where("id = ?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
 		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
 	}
+	
+	// if IsDefault is True, check which one is the current default
+	if args.ServiceSpec.IsDefault {
+		var currentDefault model.ServiceSpec
+		if err := r.DB.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
+			currentDefault.IsDefault = false			
+			r.DB.Save(&currentDefault)
+		}
+	}	
 
 	serviceSpec.Name = args.ServiceSpec.Name
 	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
@@ -55,6 +77,8 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 }
 
+
+// DeleteServiceSpec
 func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := model.ServiceSpec{}
 	if r.DB.Where("id=?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {

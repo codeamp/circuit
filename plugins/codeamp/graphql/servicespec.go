@@ -47,6 +47,11 @@ func (r *ServiceSpecResolver) TerminationGracePeriod() string {
 	return r.DBServiceSpecResolver.ServiceSpec.TerminationGracePeriod
 }
 
+// IsDefault
+func (r *ServiceSpecResolver) IsDefault() bool {
+	return r.DBServiceSpecResolver.ServiceSpec.IsDefault
+}
+
 // Service
 func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
 	dbServiceSpecResolver, err := r.DBServiceSpecResolver.Service()

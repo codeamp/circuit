@@ -103,6 +103,8 @@ type ServiceSpec struct {
 	TerminationGracePeriod string `json:"terminationGracePeriod"`
 	// ServiceID
 	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	// IsDefault
+	IsDefault bool `bson:"isDefault" json:"isDefault"`
 }
 
 // Service

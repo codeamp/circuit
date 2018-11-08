@@ -500,7 +500,24 @@ func (x *CodeAmp) Migrate() {
 			Rollback: func(tx *gorm.DB) error {
 				return db.Model(&model.ServiceSpec{}).DropColumn("service_id").Error
 			},
-		},		
+		},
+		{
+			ID: "201811080959",
+			Migrate: func(tx *gorm.DB) error {
+				serviceSpecs := []model.ServiceSpec{}
+				tx.Find(&serviceSpecs)				
+
+				for _, serviceSpec := range serviceSpecs {
+					serviceSpec.IsDefault = false
+					tx.Save(&serviceSpec)
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return db.Model(&model.ServiceSpec{}).DropColumn("is_default").Error
+			},
+		},	
 	})
 
 	if err = m.Migrate(); err != nil {
