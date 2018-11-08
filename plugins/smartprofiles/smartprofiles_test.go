@@ -2,7 +2,6 @@ package smartprofiles_test
 
 import (
 	"github.com/spf13/viper"
-	"github.com/davecgh/go-spew/spew"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
@@ -37,15 +36,13 @@ func (suite *TestSuite) TearDownSuite() {
 	suite.transistor.Stop()
 }
 
-func (suite *TestSuite) TestSmartProfilesNotifySuccessfulRecommendations() {
+func (suite *TestSuite) TestSmartProfilesSuccess() {
 	project := plugins.Project{
-		Slug: "checkr-checkr",
-		Repository: "https://github.com/checkr/checkr",
+		Slug: "codeamp-circuit",
 		Environment: "production",
 		Services: []plugins.Service{
 			plugins.Service{
 				Name: "web",
-				Command: "npm start",
 			},
 		},
 	}	
@@ -54,13 +51,148 @@ func (suite *TestSuite) TestSmartProfilesNotifySuccessfulRecommendations() {
 	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
 	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
 
-	spew.Dump("TESTING SMART PROFILES")
 	suite.transistor.Events <- ev	
-	spew.Dump("SENT EVENT")
 	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
+
+	return
+}
+
+func (suite *TestSuite) TestSmartProfilesFailInvalidProjectInputs() {
+	project := plugins.Project{
+		Slug: "",
+		Environment: "production",
+		Services: []plugins.Service{
+			plugins.Service{
+				Name: "web",
+			},
+		},
+	}	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
+	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
+
+	suite.transistor.Events <- ev	
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
+	assert.NotNil(suite.T(), err.Error())
+
+	return
+}
+
+
+func (suite *TestSuite) TestSmartProfilesFailInvalidArtifactInputs() {
+	project := plugins.Project{
+		Slug: "checkr-checkr",
+		Environment: "production",
+		Services: []plugins.Service{
+			plugins.Service{
+				Name: "web",
+			},
+		},
+	}	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
+	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
+
+	suite.transistor.Events <- ev	
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
+	assert.NotNil(suite.T(), err.Error())
+
+	return
+}
+
+func (suite *TestSuite) TestSmartProfilesFailInfluxConnectionTimeout() {
+	project := plugins.Project{
+		Slug: "",
+		Environment: "production",
+		Services: []plugins.Service{
+			plugins.Service{
+				Name: "web",
+			},
+		},
+	}	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
+	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
+
+	suite.transistor.Events <- ev	
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
+	assert.NotNil(suite.T(), err.Error())
+
+	return
+}
+
+
+func (suite *TestSuite) TestSmartProfilesFailInfluxQueryFails() {
+	project := plugins.Project{
+		Slug: "",
+		Environment: "production",
+		Services: []plugins.Service{
+			plugins.Service{
+				Name: "web",
+			},
+		},
+	}	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
+	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
+
+	suite.transistor.Events <- ev	
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
+	assert.NotNil(suite.T(), err.Error())
+
+	return
+}
+
+
+func (suite *TestSuite) TestSmartProfilesFailInvalidOutputsRequestEmptyString() {
+	project := plugins.Project{
+		Slug: "",
+		Environment: "production",
+		Services: []plugins.Service{
+			plugins.Service{
+				Name: "web",
+			},
+		},
+	}	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
+	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
+
+	suite.transistor.Events <- ev	
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
+	assert.NotNil(suite.T(), err.Error())
+
+	return
+}
+
+
+func (suite *TestSuite) TestSmartProfilesFailInvalidOutputs() {
+	project := plugins.Project{
+		Slug: "",
+		Environment: "production",
+		Services: []plugins.Service{
+			plugins.Service{
+				Name: "web",
+			},
+		},
+	}	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), project)
+	ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
+	ev.AddArtifact("INFLUX_DB", viper.GetString("plugins.smartprofiles.influxdb.db"), false)
+
+	suite.transistor.Events <- ev	
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), 100)
+	assert.NotNil(suite.T(), err.Error())
+
 	return
 }
 
