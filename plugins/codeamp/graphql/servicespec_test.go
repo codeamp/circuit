@@ -181,9 +181,9 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 	}		
 	serviceSpecResolver2, err = ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	
-	// 1st service spec is now false
+	// 1st service spec is now default = false
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
-	// 2nd service spec is now true
+	// 2nd service spec is now default = true
 	assert.Equal(ts.T(), true, serviceSpecResolver2.IsDefault())
 	assert.Nil(ts.T(), err)
 }
