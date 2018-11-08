@@ -150,7 +150,7 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
 	
 	serviceSpecResolverID := string(serviceSpecResolver.ID())
-	serviceSpecResolver2ID := string(serviceSpecResolver.ID())	
+	serviceSpecResolver2ID := string(serviceSpecResolver2.ID())	
 
 	// update 1st service spec with default true
 	serviceSpecInput := model.ServiceSpecInput{
