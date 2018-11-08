@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/olekukonko/tablewriter"
 )
@@ -65,7 +64,6 @@ func RenderResourceMonitor(influxHost string, influxDBName string) *tablewriter.
 		panic(err)
 	}
 
-	spew.Dump("initialized influx client")
 	res, err := influxClient.queryDB("select * from kubernetes_pod_container where time > now() - " + os.Args[1] + "")
 	if err != nil {
 		panic(err)
@@ -149,7 +147,6 @@ func (ic *InfluxClienter) GetService(name string, namespace string, timeRange st
 
 	memoryCost, err := ic.getServiceMemoryCost(name, namespace, timeRange)
 	if err != nil {
-		spew.Dump(err)
 		panic(err.Error())
 	}
 

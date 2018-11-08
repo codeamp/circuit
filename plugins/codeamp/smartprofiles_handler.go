@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"github.com/codeamp/transistor"
 	"github.com/codeamp/circuit/plugins"
-	"github.com/davecgh/go-spew/spew"
+	// "github.com/davecgh/go-spew/spew"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 )
 
 // SmartProfiles
 func (x *CodeAmp) SmartProfiles(project *model.Project) error {
-	spew.Dump("SmartProfiles")
-
 	project_envs := []model.ProjectEnvironment{}
 	if err := x.DB.Where("project_id = ?", project.Model.ID).Find(&project_envs).Error; err != nil {
 		return err

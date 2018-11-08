@@ -3,7 +3,7 @@ package smartprofiles
 import (
 	"strings"
 	"fmt"
-	// "github.com/davecgh/go-spew/spew"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
 
@@ -99,24 +99,26 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 			},			
 		}
 
-		fmt.Println(fmt.Sprintf(`
-		%s %s
+		spew.Dump(svc)
+
+		// fmt.Println(fmt.Sprintf(`
+		// %s %s
 		
-		Current Mem Usage (gb): %s
-		Mem Req: %s -> %s
-		Mem Limit: %s -> %s
+		// Current Mem Usage (gb): %s
+		// Mem Req: %s -> %s
+		// Mem Limit: %s -> %s
 		
-		Current CPU Usage (cores): %s
-		CPU Req: %s -> %s
-		CPU Limit: %s -> %s
-		`, 
-		svc.Name, svc.Namespace,
-		svc.CurrentState.Memory.Current,
-		svc.CurrentState.Memory.Request, svc.RecommendedState.Memory.Request,
-		svc.CurrentState.Memory.Limit, svc.RecommendedState.Memory.Limit,
-		svc.CurrentState.CPU.Current,
-		svc.CurrentState.CPU.Request, svc.RecommendedState.CPU.Request,
-		svc.CurrentState.CPU.Limit, svc.RecommendedState.CPU.Limit))
+		// Current CPU Usage (cores): %s
+		// CPU Req: %s -> %s
+		// CPU Limit: %s -> %s
+		// `, 
+		// svc.Name, svc.Namespace,
+		// svc.CurrentState.Memory.Current,
+		// svc.CurrentState.Memory.Request, svc.RecommendedState.Memory.Request,
+		// svc.CurrentState.Memory.Limit, svc.RecommendedState.Memory.Limit,
+		// svc.CurrentState.CPU.Current,
+		// svc.CurrentState.CPU.Request, svc.RecommendedState.CPU.Request,
+		// svc.CurrentState.CPU.Limit, svc.RecommendedState.CPU.Limit))
 
 		respProject.Services = append(respProject.Services, projectService)
 	}
