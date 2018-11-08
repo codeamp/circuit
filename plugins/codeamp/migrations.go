@@ -517,10 +517,10 @@ func (x *CodeAmp) Migrate() {
 						ServiceID: service.Model.ID,
 					}
 
-					tx.Create(&newServiceSpec)
+					tx.FirstOrCreate(&newServiceSpec, model.ServiceSpec{ServiceID: service.Model.ID})
 
 					service.ServiceSpecID = newServiceSpec.Model.ID
-					
+
 					tx.Save(&service)
 				}
 
