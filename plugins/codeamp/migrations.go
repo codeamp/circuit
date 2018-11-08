@@ -462,6 +462,7 @@ func (x *CodeAmp) Migrate() {
 				return db.Model(&model.Extension{}).DropColumn("cacheable").Error
 			},
 		},
+		// Add service spec for each service
 		{
 			ID: "201811071804",
 			Migrate: func(tx *gorm.DB) error {
