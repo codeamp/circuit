@@ -491,6 +491,40 @@ func (x *CodeAmp) Migrate() {
 				return db.Model(&model.ServiceSpec{}).DropColumn("is_default").Error
 			},
 		},	
+		{
+			ID: "201811071804",
+			Migrate: func(tx *gorm.DB) error {
+				services := []model.Service{}
+				tx.Find(&services)
+
+				for _, service := range services {
+					// get the service spec for each service to copy over its resource spec as a baseline
+					var serviceSpec model.ServiceSpec
+					if err := tx.Where("id = ?", service.ServiceSpecID).First(&serviceSpec).Error; err != nil {
+						log.Info(err.Error())
+						continue
+					}
+
+					// create a service spec for each service that's mapped to the service
+					newServiceSpec := model.ServiceSpec{
+						Name: serviceSpec.Name,
+						CpuRequest: serviceSpec.CpuRequest,
+						CpuLimit: serviceSpec.CpuLimit,
+						MemoryRequest: serviceSpec.MemoryRequest,
+						MemoryLimit: serviceSpec.MemoryLimit,
+						TerminationGracePeriod: serviceSpec.TerminationGracePeriod,
+						ServiceID: service.Model.ID,
+					}
+
+					tx.Create(&newServiceSpec)
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return db.Model(&model.ServiceSpec{}).DropColumn("service_id").Error
+			},
+		},		
 	})
 
 	if err = m.Migrate(); err != nil {
