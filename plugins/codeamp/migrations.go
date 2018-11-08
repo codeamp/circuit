@@ -489,6 +489,10 @@ func (x *CodeAmp) Migrate() {
 					}
 
 					tx.Create(&newServiceSpec)
+
+					service.ServiceSpecID = newServiceSpec.Model.ID
+					
+					tx.Save(&service)
 				}
 
 				return nil
