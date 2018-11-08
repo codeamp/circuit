@@ -143,6 +143,51 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
 	assert.NotNil(ts.T(), err)	
 }
 
+func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T())
+
+	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
+	
+	serviceSpecResolverID := string(serviceSpecResolver.ID())
+	serviceSpecResolver2ID := string(serviceSpecResolver.ID())	
+
+	// update 1st service spec with default true
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: 					&serviceSpecResolverID,
+		Name:                   serviceSpecResolver.Name(),
+		CpuRequest:             serviceSpecResolver.CpuRequest(),
+		CpuLimit:               serviceSpecResolver.CpuLimit(),
+		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
+		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
+		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
+		IsDefault: true,
+	}	
+
+	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
+	assert.Nil(ts.T(), err)
+	
+	// update 2nd service spec with default true
+	serviceSpecInput = model.ServiceSpecInput{
+		ID: 					&serviceSpecResolver2ID,
+		Name:                   serviceSpecResolver2.Name(),
+		CpuRequest:             serviceSpecResolver2.CpuRequest(),
+		CpuLimit:               serviceSpecResolver2.CpuLimit(),
+		MemoryRequest:          serviceSpecResolver2.MemoryRequest(),
+		MemoryLimit:            serviceSpecResolver2.MemoryLimit(),
+		TerminationGracePeriod: serviceSpecResolver2.TerminationGracePeriod(),
+		IsDefault: true,
+	}		
+	serviceSpecResolver2, err = ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	
+	// 1st service spec is now false
+	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
+	// 2nd service spec is now true
+	assert.Equal(ts.T(), true, serviceSpecResolver2.IsDefault())
+	assert.Nil(ts.T(), err)
+}
+
 func (ts *ServiceSpecTestSuite) TestUpdateServiceSpecSuccess() {
 	// Service Spec
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
