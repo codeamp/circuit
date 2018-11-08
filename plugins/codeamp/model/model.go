@@ -106,6 +106,8 @@ type ServiceSpec struct {
 	// IsDefault
 	IsDefault bool `bson:"isDefault" json:"isDefault"`
 	Service Service `gorm:"foreignkey:ServiceID"`
+	// IsDefault
+	IsDefault bool `bson:"isDefault" json:"isDefault"`
 }
 
 // Service

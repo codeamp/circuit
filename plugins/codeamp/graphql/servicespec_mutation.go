@@ -70,6 +70,7 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 		return nil, fmt.Errorf("serviceSpec not found with given argument id")
 	}
 
+<<<<<<< HEAD
 	/*
 	* Find existing default; if input.default = true,
 	* set existing default spec = false.
@@ -114,7 +115,20 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	// if so, isDefault must always be true
 	if serviceSpec.Model.ID.String() == currentDefault.Model.ID.String() {
 		isDefault = true
+=======
+	if r.DB.Where("id = ?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
+		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
+>>>>>>> Add default property for service spec profiles
 	}
+	
+	// if IsDefault is True, check which one is the current default
+	if args.ServiceSpec.IsDefault {
+		var currentDefault model.ServiceSpec
+		if err := r.DB.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
+			currentDefault.IsDefault = false			
+			r.DB.Save(&currentDefault)
+		}
+	}	
 
 	serviceSpec.Name = args.ServiceSpec.Name
 	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
