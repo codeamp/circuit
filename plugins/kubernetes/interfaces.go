@@ -4,6 +4,9 @@ import (
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	v1 "k8s.io/api/batch/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 ///////////////////////////////////////////////////
@@ -33,3 +36,13 @@ func (l ContourNamespace) NewForConfig(config *rest.Config) (contour_client.Inte
 }
 
 ///////////////////////////////////////////////////
+
+type BatchV1Jobber interface {
+	Get(kubernetes.Interface, string, string, meta_v1.GetOptions) (*v1.Job, error)
+}
+
+type BatchV1Job struct {}
+
+func (l BatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error){
+	return clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
+}

@@ -38,6 +38,7 @@ type Kubernetes struct {
 	events chan transistor.Event
 	K8sNamespacer
 	K8sContourNamespacer
+	BatchV1Jobber
 
 	ContourClient    contour_client.Interface
 	KubernetesClient kubernetes.Interface

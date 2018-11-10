@@ -23,7 +23,7 @@ type TestSuiteDeployment struct {
 
 func (suite *TestSuiteDeployment) SetupSuite() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &kubernetes.Kubernetes{K8sContourNamespacer: MockContourNamespacer{}, K8sNamespacer: MockKubernetesNamespacer{}}
+		return &kubernetes.Kubernetes{K8sContourNamespacer: MockContourNamespacer{}, K8sNamespacer: MockKubernetesNamespacer{}, BatchV1Jobber: MockBatchV1Job{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -43,35 +43,13 @@ func strMapKeys(strMap map[string]string) string {
 }
 
 // // Deploys Tests
-func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
-	suite.transistor.Events <- BasicReleaseEvent()
-
-	var e transistor.Event
-	var err error
-	for {
-		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
-		if err != nil {
-			assert.Nil(suite.T(), err, err.Error())
-			return
-		}
-
-		if e.State != "running" {
-			break
-		}
-	}
-
-	suite.T().Log(e.StateMessage)
-	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
-}
-
-// func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
-// 	suite.transistor.Events <- BasicFailedReleaseEvent()
+// func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
+// 	suite.transistor.Events <- BasicReleaseEvent()
 
 // 	var e transistor.Event
 // 	var err error
 // 	for {
-// 		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 5)
-
+// 		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
 // 		if err != nil {
 // 			assert.Nil(suite.T(), err, err.Error())
 // 			return
@@ -83,8 +61,30 @@ func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
 // 	}
 
 // 	suite.T().Log(e.StateMessage)
-// 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 // }
+
+func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
+	suite.transistor.Events <- BasicFailedReleaseEvent()
+
+	var e transistor.Event
+	var err error
+	for {
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 5)
+
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+}
 
 func TestDeployments(t *testing.T) {
 	proceed := true

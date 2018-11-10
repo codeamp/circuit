@@ -696,7 +696,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		// Loop and block any other jobs/ deployments from running until
 		// the current job is terminated
 		for {
-			job, err := batchv1DepInterface.Jobs(namespace).Get(createdJob.Name, meta_v1.GetOptions{})
+			job, err := x.BatchV1Jobber.Get(clientset, namespace, createdJob.Name, meta_v1.GetOptions{})
 			if err != nil {
 				log.Error(fmt.Sprintf("Error '%s' fetching job status for %s", err, createdJob.Name))
 				time.Sleep(deploySleepTime)
