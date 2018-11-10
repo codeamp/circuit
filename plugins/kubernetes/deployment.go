@@ -11,8 +11,6 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 
-	"github.com/davecgh/go-spew/spew"
-
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -68,7 +66,6 @@ func genOneShotServiceName(slugName string, serviceName string) string {
 
 func secretifyDockerCred(e transistor.Event) (string, error) {
 	user, err := e.GetArtifactFromSource("user", "dockerbuilder")
-	log.Warn(user, " ", err)
 	if err != nil {
 		return "", err
 	}
@@ -469,10 +466,15 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 }
 
 func (x *Kubernetes) doDeploy(e transistor.Event) error {
-	log.Error("DOING DEPLOY***************")
+
+
+	/******************************************
+	*
+	*	Build Kubernetes Configuration
+	*
+	*******************************************/
 	// write kubeconfig
 	reData := e.Payload.(plugins.ReleaseExtension)
-	spew.Dump(reData.Release.Project.Repository)
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 
 	kubeconfig, err := x.SetupKubeConfig(e)
@@ -482,6 +484,12 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		return err
 	}
 
+
+	/******************************************
+	*	
+	*	Create ClientSet
+	*
+	*******************************************/
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
@@ -495,8 +503,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		}
 	}
 
-	log.Warn("Deployment 1")
-
 	clientset, err := x.K8sNamespacer.NewForConfig(config)
 	if err != nil {
 		log.Error("Error getting cluster config.  Aborting!")
@@ -504,7 +510,19 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		return err
 	}
 
+	/******************************************
+	*	
+	*	Report: Deploy In Progress
+	*
+	*******************************************/
 	x.sendInProgress(e, "Deploy in-progress")
+
+
+	/******************************************
+	*	
+	*	Build Prospective Namespace Name
+	*
+	*******************************************/
 	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 	coreInterface := clientset.Core()
 
@@ -517,20 +535,30 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	//}
 	curTime := 0
 
+
+	/******************************************
+	*	
+	*	Ensure Namespace Exists
+	*
+	*******************************************/
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
 		x.sendErrorResponse(e, createNamespaceErr.Error())
 		return createNamespaceErr
 	}
 
-	log.Warn("Deployment 2")
 
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, coreInterface, e)
 	if createDockerIOSecretErr != nil {
 		x.sendErrorResponse(e, createDockerIOSecretErr.Error())
 		return createDockerIOSecretErr
 	}
-	// Create secrets for this deploy
+
+	/******************************************
+	*	
+	*	Create Secrets for Deploy
+	*
+	*******************************************/
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
 	var myEnvVars []v1.EnvVar
@@ -561,8 +589,20 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		return fmt.Errorf(failMessage)
 	}
 	secretName := secretResult.Name
+
+	/******************************************
+	*	
+	*	Report: Secrets created
+	*
+	*******************************************/
 	x.sendInProgress(e, "Secrets created")
 
+
+	/******************************************
+	*	
+	*	Build Env Vars
+	*
+	*******************************************/
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
 	for _, secret := range reData.Release.Secrets {
@@ -584,8 +624,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	// expose pod details to running container via env variables
 	myEnvVars = x.exposePodInfoViaEnvVariable(myEnvVars)
 
-	log.Warn("Deployment 4")
-
+	/******************************************
+	*	
+	*	Place File-type Env Vars on FS
+	*
+	*******************************************/
 	// as Files
 	var volumeMounts []v1.VolumeMount
 	var deployVolumes []v1.Volume
@@ -619,9 +662,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		},
 	})
 
-	log.Warn("Deployment 5")
-
-	// Do update/create of deployments and services
+	/******************************************
+	*	
+	*	Update/Create Deployment & Services
+	*
+	*******************************************/
 	depInterface := clientset.Extensions()
 	batchv1DepInterface := clientset.BatchV1()
 
@@ -649,8 +694,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		})
 	}
 
-	log.Warn("Deployment 6")
-
+	/******************************************
+	*	
+	*	One-Shot Services Run First
+	*
+	*******************************************/
 	// prioritize one-shot services over deployments
 	// because migrations (which are one-shot jobs) should be
 	// run before app code deployments
@@ -670,17 +718,13 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		}
 	}
 
-	log.Warn("Deployment 7")
+	// For all OneShot Services
 	for index, service := range oneShotServices {
-		log.Warn("Deployment 8")
 		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
-		log.Warn(oneShotServiceName)
 
 		// Check and delete any completed or failed jobs, and delete respective pods
 		listOptions := meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}
-		spew.Dump(listOptions)
 		existingJobs, err := batchv1DepInterface.Jobs(namespace).List(listOptions)
-		log.Warn("listed")
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
 			log.Error(errMsg)
@@ -688,11 +732,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			return nil
 		}
 
-		log.Warn("post error")
-
-		spew.Dump(existingJobs.Items)
 		for _, job := range existingJobs.Items {
-			spew.Dump(job)
 			if *job.Spec.Completions > 0 {
 				if (job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0) || job.Status.Active > 0 {
 					errMsg := fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
@@ -701,48 +741,36 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 					return fmt.Errorf(errMsg)
 				}
 			}
-			log.Error("a")
-
 			// delete old job
 			gracePeriod := int64(0)
 			deleteOptions := meta_v1.DeleteOptions{
 				GracePeriodSeconds: &gracePeriod,
 			}
 
-			log.Error("b")
 			err = batchv1DepInterface.Jobs(namespace).Delete(job.Name, &deleteOptions)
 			if err != nil {
 				log.Error(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
 			}
-
-			log.Error("c")
 
 			correspondingPods, err := coreInterface.Pods(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
 			if err != nil {
 				log.Error(fmt.Sprintf("Failed to find corresponding pods with job-name %s with err %s", job.Name, err))
 			}
 
-			log.Error("d")
-
 			// delete associated pods
 			for _, cp := range correspondingPods.Items {
-				log.Error("e")
 				err := coreInterface.Pods(namespace).Delete(cp.Name, &meta_v1.DeleteOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Failed to delete pod %s with err %s", cp.Name, err))
 				}
 			}
 
-			log.Error("f")
 			if err != nil {
 				log.Error(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
 			}
-
-			log.Error("g")
 		}
 
 		// Command parsing into entrypoint vs. args
-		log.Warn("14")
 		commandArray, _ := shlex.Split(service.Command)
 
 		// Node selector
@@ -751,15 +779,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			arrayKeyValue := strings.SplitN(viper.GetString("plugins.deployments.node_selector"), "=", 2)
 			nodeSelector = map[string]string{arrayKeyValue[0]: arrayKeyValue[1]}
 		}
-		log.Warn("15")
 
 		dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
-		log.Warn(dockerImage)
 		if err != nil {
 			return err
-		}
-
-		log.Warn("16")
+		}	
 
 		// expose codeamp service name via env variable
 		podEnvVars := append(myEnvVars, v1.EnvVar{
@@ -777,14 +801,12 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			Env:           podEnvVars,
 			VolumeMounts:  volumeMounts,
 			Volumes:       deployVolumes,
-		}
-
-		log.Warn("17")
+		}		
 
 		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Job")
 
 		numParallelPods := int32(1)
-		numCompletionsToTerminate := int32(service.Replicas)
+		numCompletionsToTerminate := int32(service.Replicas)	
 
 		var jobParams *apis_batch_v1.Job
 		jobParams = &apis_batch_v1.Job{
@@ -803,9 +825,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				Template:    podTemplateSpec,
 			},
 		}
-
-		log.Warn("18")
-
+	
+		// Create the job
 		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
 		if err != nil {
 			log.Error(fmt.Sprintf("Failed to create service job %s, with error: %s", createdJob.Name, err))
@@ -814,18 +835,11 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			return nil
 		}
 
-		//spew.Dump(*createdJob)
-
-		log.Warn("19")
 
 		// Loop and block any other jobs/ deployments from running until
 		// the current job is terminated
 		for {
-			log.Warn("loop")
 			job, err := batchv1DepInterface.Jobs(namespace).Get(createdJob.Name, meta_v1.GetOptions{})
-			log.Warn("")
-			spew.Dump(job)
-			log.Warn("")
 			if err != nil {
 				log.Error(fmt.Sprintf("Error '%s' fetching job status for %s", err, createdJob.Name))
 				time.Sleep(5 * time.Second)
@@ -836,8 +850,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 			// Container is still creating
 			if int32(service.Replicas) != 0 && job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0 {
-				log.Warn("container creating")
-				spew.Dump(job.Status)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -860,7 +872,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			if job.Status.Active == int32(0) {
 				// Check for success
 				if job.Status.Succeeded == int32(service.Replicas) {
-					log.Warn("complete")
 					oneShotServices[index].State = transistor.GetState("complete")
 					break
 				} else {
@@ -870,8 +881,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 					return fmt.Errorf(errMsg)
 				}
 			}
-
-			log.Warn("check pod status")
 
 			// Check Job's Pod status
 			if pods, err := clientset.Core().Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
@@ -887,13 +896,12 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 				}
 			}
 
-			log.Warn("sleep")
 			time.Sleep(5 * time.Second)
 		}
 	}
 
+	// Now process all deployment services
 	for _, service := range deploymentServices {
-		log.Warn("Deployment 9")
 		deploymentName := genDeploymentName(projectSlug, service.Name)
 		deployPorts := getContainerPorts(service)
 
@@ -1033,6 +1041,12 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 	} // All service deployments initiated.
 
+
+	/******************************************
+	*	
+	*	Wait for deployment to succeed
+	*
+	*******************************************/
 	log.Info(fmt.Sprintf("Waiting %d seconds for deployment to succeed.", timeout))
 	for i := range deploymentServices {
 		deploymentServices[i].State = transistor.GetState("waiting")
@@ -1124,17 +1138,26 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 	}
 
+	/******************************************
+	*	
+	*	Report: Deployment Completed Successfully
+	*
+	*******************************************/
 	x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 
 	// all success!
 	log.Info(fmt.Sprintf("All deployments successful."))
-	// Cleanup orphan jobs
+
+	/******************************************
+	*	
+	*	Cleanup orphans and environment
+	*
+	*******************************************/
 	existingJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to list existing jobs in namespace %s, with error: %s", namespace, err))
 	}
-
-	log.Warn("Deployment 11")
+	
 	for _, job := range existingJobs.Items {
 		var foundIt bool
 		for _, service := range oneShotServices {
@@ -1196,7 +1219,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	}
 
 	// Delete the deployments
-	log.Warn("Deployment 12")
 	for _, deleteThis := range orphans {
 		matched, _ := regexp.MatchString("^keep", deleteThis.Name)
 		if matched {
@@ -1231,8 +1253,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			}
 		}
 	}
-	log.Warn("Deployment 13")
-
+	
 	return nil
 }
 
