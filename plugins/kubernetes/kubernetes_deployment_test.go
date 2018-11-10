@@ -1,0 +1,240 @@
+package kubernetes_test
+
+import (
+	"errors"
+	"io/ioutil"
+	"os"
+	"path"
+	"strings"
+	"testing"
+
+	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/kubernetes"
+	"github.com/codeamp/circuit/test"
+	"github.com/codeamp/transistor"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+)
+
+type TestSuiteDeployment struct {
+	suite.Suite
+	transistor *transistor.Transistor
+}
+
+func (suite *TestSuiteDeployment) SetupSuite() {
+	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
+		return &kubernetes.Kubernetes{K8sContourNamespacer: MockContourNamespacer{}, K8sNamespacer: MockKubernetesNamespacer{}}
+	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
+
+	suite.transistor, _ = test.SetupPluginTest(viperConfig)
+	go suite.transistor.Run()
+}
+
+func strMapKeys(strMap map[string]string) string {
+	keys := make([]string, len(strMap))
+
+	i := 0
+	for k := range strMap {
+		keys[i] = k
+		i++
+	}
+
+	return strings.Join(keys, "\n")
+}
+
+// // Deploys Tests
+func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
+	suite.transistor.Events <- BasicReleaseEvent()
+
+	var e transistor.Event
+	var err error
+	for {
+		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+}
+
+// func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
+// 	suite.transistor.Events <- BasicFailedReleaseEvent()
+
+// 	var e transistor.Event
+// 	var err error
+// 	for {
+// 		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 5)
+
+// 		if err != nil {
+// 			assert.Nil(suite.T(), err, err.Error())
+// 			return
+// 		}
+
+// 		if e.State != "running" {
+// 			break
+// 		}
+// 	}
+
+// 	suite.T().Log(e.StateMessage)
+// 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+// }
+
+func TestDeployments(t *testing.T) {
+	proceed := true
+
+	if err := verifyDeploymentArtifacts(); err != nil {
+		proceed = false
+		assert.Nil(t, err, err.Error())
+	}
+
+	if err := verifyLoadBalancerArtifacts(); err != nil {
+		proceed = false
+		assert.Nil(t, err, err.Error())
+	}
+
+	if proceed {
+		suite.Run(t, new(TestSuiteDeployment))
+	}
+}
+
+func (suite *TestSuiteDeployment) TearDownSuite() {
+	// TODO:
+	// teardown docker-io secret?
+	// teardown the deployment / namespaces
+	suite.transistor.Stop()
+}
+
+func verifyDeploymentArtifacts() error {
+	e := BasicReleaseEvent()
+
+	basicReleaseEventArtifacts := map[string]string{
+		"user":                  "",
+		"password":              "",
+		"host":                  "",
+		"email":                 "",
+		"image":                 "",
+		"kubeconfig":            "",
+		"client_certificate":    "",
+		"client_key":            "",
+		"certificate_authority": "",
+	}
+
+	for _, artifact := range e.Artifacts {
+		delete(basicReleaseEventArtifacts, artifact.Key)
+	}
+
+	if len(basicReleaseEventArtifacts) != 0 {
+		return errors.New("BasicReleaseEvent\nMissing Artifacts:\n" + strMapKeys(basicReleaseEventArtifacts))
+	}
+
+	return nil
+}
+
+func BasicFailedReleaseEvent() transistor.Event {
+	extension := BasicReleaseExtension()
+	extension.Release.Services[0].Command = "/bin/false"
+
+	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("create"), extension)
+	addBasicReleaseExtensionArtifacts(extension, &event)
+
+	return event
+}
+
+func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
+	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
+	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
+
+	event.AddArtifact("user", "test", false)
+	event.AddArtifact("password", "test", false)
+	event.AddArtifact("host", "test", false)
+	event.AddArtifact("email", "test", false)
+	event.AddArtifact("image", "nginx", false)
+
+	for idx := range event.Artifacts {
+		event.Artifacts[idx].Source = "dockerbuilder"
+	}
+
+	event.AddArtifact("kubeconfig", string(kubeConfig), false)
+	event.AddArtifact("client_certificate", "", false)
+	event.AddArtifact("client_key", "", false)
+	event.AddArtifact("certificate_authority", "", false)
+}
+
+func BasicReleaseEvent() transistor.Event {
+	extension := BasicReleaseExtension()
+
+	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("create"), extension)
+	addBasicReleaseExtensionArtifacts(extension, &event)
+
+	return event
+}
+
+func BasicReleaseExtension() plugins.ReleaseExtension {
+
+	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
+
+	release := plugins.Release{
+		Project: plugins.Project{
+			Repository: "checkr/deploy-test",
+			Slug:       "checkr-deploy-test",
+		},
+		Git: plugins.Git{
+			Url:           "https://github.com/checkr/deploy-test.git",
+			Protocol:      "HTTPS",
+			Branch:        "master",
+			RsaPrivateKey: "",
+			RsaPublicKey:  "",
+			Workdir:       "/tmp/something",
+		},
+		Services: []plugins.Service{
+			{
+				Name: "www",
+				Listeners: []plugins.Listener{
+					{
+						Port:     80,
+						Protocol: "TCP",
+					},
+				},
+				State: transistor.GetState("waiting"),
+				Spec: plugins.ServiceSpec{
+
+					CpuRequest:                    "10m",
+					CpuLimit:                      "500m",
+					MemoryRequest:                 "1Mi",
+					MemoryLimit:                   "500Mi",
+					TerminationGracePeriodSeconds: int64(1),
+				},
+				Replicas: 1,
+				Type:     "one-shot",
+			},
+		},
+		HeadFeature: plugins.Feature{
+			Hash:       deploytestHash,
+			ParentHash: deploytestHash,
+			User:       "",
+			Message:    "Test",
+		},
+		Environment: "testing",
+		Secrets: []plugins.Secret{
+			{
+				Key:   "secret-key",
+				Value: "secret-value",
+				Type:  plugins.GetType("internal"),
+			},
+		},
+	}
+
+	releaseExtension := plugins.ReleaseExtension{
+		//		Slug:    "kubernetesdeployments",
+		Release: release,
+	}
+
+	return releaseExtension
+}
