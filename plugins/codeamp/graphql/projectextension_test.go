@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	. "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
 
@@ -19,7 +19,7 @@ import (
 
 type ProjectExtensionTestSuite struct {
 	suite.Suite
-	Resolver *graphql_resolver.Resolver
+	Resolver *Resolver
 
 	helper Helper
 }
@@ -41,7 +41,7 @@ func (suite *ProjectExtensionTestSuite) SetupTest() {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
+	suite.Resolver = &Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestProjectExtension")
 	suite.helper.SetContext(test.ResolverAuthContext())
 }
@@ -194,7 +194,7 @@ func (ts *ProjectExtensionTestSuite) TestProjectExtensionExtractArtifacts() {
 	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
 	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
 
-	graphql_resolver.ExtractArtifacts(projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension,
+	ExtractArtifacts(projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension,
 		extensionResolver.DBExtensionResolver.Extension, ts.Resolver.DB)
 }
 
@@ -492,6 +492,48 @@ func (ts *ProjectExtensionTestSuite) TestDeleteProjectExtensionFailureNoProjectE
 		ID: &projectExtensionID,
 	}
 	_, err := ts.Resolver.DeleteProjectExtension(&struct{ ProjectExtension *model.ProjectExtensionInput }{&projectExtensionInput})
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ProjectExtensionTestSuite) TestHandleExtensionRoute53DuplicateFailure() {
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secret
+	_ = ts.helper.CreateSecret(ts.T(), projectResolver)
+
+	// Extension
+	config := []model.ExtConfig{
+		{
+			Key:           "HOSTED_ZONE_ID",
+			Value:         "test-subdomain",
+			AllowOverride: true,
+		},
+	}
+
+	extensionResolver := ts.helper.CreateExtensionOfType(ts.T(), environmentResolver, "route53", "once", &config)
+
+	// Project Extension
+	extConfig := make([]model.ExtConfig, 0)
+
+	extCustomConfigMap := make(map[string]interface{})
+	extCustomConfigMap["type"] = "internal"
+	extCustomConfigMap["service"] = "test-server"
+	extCustomConfigMap["listener_pairs"] = []string{}
+	extCustomConfigMap["subdomain"] = "test-subdomain"
+
+	_, err = ts.helper.CreateProjectExtensionWithConfig(ts.T(), extensionResolver, projectResolver, &extConfig, &extCustomConfigMap)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	_, err = ts.helper.CreateProjectExtensionWithConfig(ts.T(), extensionResolver, projectResolver, &extConfig, &extCustomConfigMap)
 	assert.NotNil(ts.T(), err)
 }
 
