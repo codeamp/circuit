@@ -574,7 +574,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 	e transistor.Event, namespace string, projectSlug string,
 	envVars []v1.EnvVar, volumeMounts []v1.VolumeMount, deployVolumes []v1.Volume, secretItems []v1.KeyToPath,
 	oneShotServices []plugins.Service) error {
-
 	batchv1DepInterface := clientset.BatchV1()
 	coreInterface := clientset.Core()
 
@@ -687,10 +686,10 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		// Create the job
 		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
 		if err != nil {
-			log.Error(fmt.Sprintf("Failed to create service job %s, with error: %s", createdJob.Name, err))
-			errMsg := fmt.Sprintf("Failed to create job %s, with error: %s", createdJob.Name, err)
-			x.sendErrorResponse(e, errMsg)
-			return nil
+			errMsg := fmt.Errorf("Failed to create job %s, with error: %s", createdJob.Name, err)
+			log.Error(errMsg)
+			
+			return errMsg
 		}
 
 		// Loop and block any other jobs/ deployments from running until
@@ -721,9 +720,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 					log.Error(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
 				}
 
-				errMsg := fmt.Sprintf("Error job has failed %s", oneShotServiceName)
-				x.sendErrorResponse(e, errMsg)
-				return fmt.Errorf(errMsg)
+				return fmt.Errorf("Error job has 1 failed %s", oneShotServiceName)
 			}
 
 			if job.Status.Active == int32(0) {
@@ -733,15 +730,13 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 					break
 				} else {
 					// Job has failed!
-					errMsg := fmt.Sprintf("Error job has failed %s", oneShotServiceName)
-					return fmt.Errorf(errMsg)
+					return fmt.Errorf("Error job has 2 failed %s", oneShotServiceName)
 				}
 			}
 
 			// Check Job's Pod status
 			if pods, err := coreInterface.Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
-				errMsg := fmt.Sprintf("List Pods of service[%s] error: %v", job.Name, err)
-				x.sendErrorResponse(e, errMsg)
+				return fmt.Errorf("List Pods of service[%s] error: %v", job.Name, err)
 			} else {
 				for _, item := range pods.Items {
 					if message, result := detectPodFailure(item); result {
@@ -762,7 +757,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 	e transistor.Event, namespace string, projectSlug string, isRollback bool,
 	envVars []v1.EnvVar, volumeMounts []v1.VolumeMount, deployVolumes []v1.Volume, secretItems []v1.KeyToPath, deploymentServices []plugins.Service) error {
-
 	depInterface := clientset.Extensions()
 
 	// Now process all deployment services

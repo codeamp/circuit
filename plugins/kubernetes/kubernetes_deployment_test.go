@@ -14,16 +14,19 @@ import (
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	v1 "k8s.io/api/batch/v1"
 )
 
 type TestSuiteDeployment struct {
 	suite.Suite
 	transistor *transistor.Transistor
+	MockBatchV1Job
 }
 
 func (suite *TestSuiteDeployment) SetupSuite() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &kubernetes.Kubernetes{K8sContourNamespacer: MockContourNamespacer{}, K8sNamespacer: MockKubernetesNamespacer{}, BatchV1Jobber: MockBatchV1Job{}}
+		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{}, K8sNamespacer: &MockKubernetesNamespacer{}, BatchV1Jobber: &suite.MockBatchV1Job}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -42,35 +45,39 @@ func strMapKeys(strMap map[string]string) string {
 	return strings.Join(keys, "\n")
 }
 
-// // Deploys Tests
-// func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
-// 	suite.transistor.Events <- BasicReleaseEvent()
-
-// 	var e transistor.Event
-// 	var err error
-// 	for {
-// 		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
-// 		if err != nil {
-// 			assert.Nil(suite.T(), err, err.Error())
-// 			return
-// 		}
-
-// 		if e.State != "running" {
-// 			break
-// 		}
-// 	}
-
-// 	suite.T().Log(e.StateMessage)
-// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
-// }
-
-func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
-	suite.transistor.Events <- BasicFailedReleaseEvent()
+// Deploys Tests
+func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
+	suite.transistor.Events <- BasicReleaseEvent()
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded:1}
+	suite.MockBatchV1Job.StatusOverride.Succeeded = 1
 
 	var e transistor.Event
 	var err error
 	for {
-		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 5)
+		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+}
+
+func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
+	suite.transistor.Events <- BasicFailedReleaseEvent()
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{}
+	suite.MockBatchV1Job.StatusOverride.Failed = 1
+
+	var e transistor.Event
+	var err error
+	for {
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 30)
 
 		if err != nil {
 			assert.Nil(suite.T(), err, err.Error())
@@ -94,20 +101,12 @@ func TestDeployments(t *testing.T) {
 		assert.Nil(t, err, err.Error())
 	}
 
-	if err := verifyLoadBalancerArtifacts(); err != nil {
-		proceed = false
-		assert.Nil(t, err, err.Error())
-	}
-
 	if proceed {
 		suite.Run(t, new(TestSuiteDeployment))
 	}
 }
 
 func (suite *TestSuiteDeployment) TearDownSuite() {
-	// TODO:
-	// teardown docker-io secret?
-	// teardown the deployment / namespaces
 	suite.transistor.Stop()
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -98,6 +99,10 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 }
 
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
+	_, file, no, ok := runtime.Caller(1)
+    if ok {
+        fmt.Printf("called from %s#%d\n", file, no)
+    }
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), msg)
 	x.events <- event
 }
