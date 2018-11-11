@@ -25,10 +25,10 @@ type TestSuiteDeployment struct {
 
 func (suite *TestSuiteDeployment) SetupSuite() {
 	var viperConfig = []byte(`
-	plugins:
-	  kubernetes:
-	    workers: 1
-	`)
+plugins:
+  kubernetes:
+    workers: 1
+`)
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{}, K8sNamespacer: &MockKubernetesNamespacer{}, BatchV1Jobber: &suite.MockBatchV1Job}
@@ -36,18 +36,6 @@ func (suite *TestSuiteDeployment) SetupSuite() {
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
-}
-
-func strMapKeys(strMap map[string]string) string {
-	keys := make([]string, len(strMap))
-
-	i := 0
-	for k := range strMap {
-		keys[i] = k
-		i++
-	}
-
-	return strings.Join(keys, "\n")
 }
 
 // Deploys Tests
@@ -97,46 +85,11 @@ func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
 }
 
 func TestDeployments(t *testing.T) {
-	proceed := true
-
-	if err := verifyDeploymentArtifacts(); err != nil {
-		proceed = false
-		assert.Nil(t, err, err.Error())
-	}
-
-	if proceed {
-		suite.Run(t, new(TestSuiteDeployment))
-	}
+	suite.Run(t, new(TestSuiteDeployment))
 }
 
 func (suite *TestSuiteDeployment) TearDownSuite() {
 	suite.transistor.Stop()
-}
-
-func verifyDeploymentArtifacts() error {
-	e := BasicReleaseEvent()
-
-	basicReleaseEventArtifacts := map[string]string{
-		"user":                  "",
-		"password":              "",
-		"host":                  "",
-		"email":                 "",
-		"image":                 "",
-		"kubeconfig":            "",
-		"client_certificate":    "",
-		"client_key":            "",
-		"certificate_authority": "",
-	}
-
-	for _, artifact := range e.Artifacts {
-		delete(basicReleaseEventArtifacts, artifact.Key)
-	}
-
-	if len(basicReleaseEventArtifacts) != 0 {
-		return errors.New("BasicReleaseEvent\nMissing Artifacts:\n" + strMapKeys(basicReleaseEventArtifacts))
-	}
-
-	return nil
 }
 
 func BasicFailedReleaseEvent() transistor.Event {

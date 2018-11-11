@@ -7,118 +7,92 @@ import (
 	"os"
 	"path"
 	_ "strings"
-	_ "testing"
+	"testing"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/kubernetes"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
-	_ "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-type TestSuite struct {
+type TestSuiteServices struct {
 	suite.Suite
 	transistor *transistor.Transistor
 }
 
-func (suite *TestSuite) SetupSuite() {
+func (suite *TestSuiteServices) SetupSuite() {
 	var viperConfig = []byte(`
-	plugins:
-	  kubernetes:
-	    workers: 1
-	`)
+plugins:
+  kubernetes:
+    workers: 1
+`)
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &kubernetes.Kubernetes{K8sContourNamespacer: MockContourNamespacer{}, K8sNamespacer: MockKubernetesNamespacer{}}
+		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{}, K8sNamespacer: &MockKubernetesNamespacer{}, BatchV1Jobber: &MockBatchV1Job{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
 }
 
-// // // Load Balancers Tests
-// func (suite *TestSuite) TestCleanupLBOffice() {
-// 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
-
-// 	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
-// 	if err != nil {
-// 		assert.Nil(suite.T(), err, err.Error())
-// 		return
-// 	}
-// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
-// }
-
-// func (suite *TestSuite) TestLBTCPOffice() {
-// 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
-
-// 	var e transistor.Event
-// 	var err error
-// 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 15)
-// 	if err != nil {
-// 		assert.Nil(suite.T(), err, err.Error())
-// 		return
-// 	}
-
-// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
-// 	if e.State != transistor.GetState("complete") {
-// 		return
-// 	}
-
-// 	for {
-// 		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
-// 		if err != nil {
-// 			assert.Nil(suite.T(), err, err.Error())
-// 			return
-// 		}
-
-// 		if e.State != "running" {
-// 			break
-// 		}
-// 	}
-
-// 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
-
-// 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
-// 	if err != nil {
-// 		assert.Nil(suite.T(), err, err.Error())
-// 		return
-// 	}
-// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
-// }
-
-func (suite *TestSuite) TearDownSuite() {
-	// TODO:
-	// teardown docker-io secret?
-	// teardown the deployment / namespaces
-	suite.transistor.Stop()
+func TestServices(t *testing.T) {
+	suite.Run(t, new(TestSuiteServices))
 }
 
-func verifyLoadBalancerArtifacts() error {
-	e := LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
+// // Load Balancers Tests
+func (suite *TestSuiteServices) TestCleanupLBOffice() {
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	lbTCPArtifacts := map[string]string{
-		"service":               "",
-		"name":                  "",
-		"ssl_cert_arn":          "",
-		"access_log_s3_bucket":  "",
-		"type":                  "",
-		"kubeconfig":            "",
-		"client_certificate":    "",
-		"client_key":            "",
-		"certificate_authority": "",
-		"listener_pairs":        "",
+	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
+}
+
+func (suite *TestSuiteServices) TestLBTCPOffice() {
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
+
+	var e transistor.Event
+	var err error
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 15)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
 	}
 
-	for _, artifact := range e.Artifacts {
-		delete(lbTCPArtifacts, artifact.Key)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
+	if e.State != transistor.GetState("complete") {
+		return
 	}
 
-	if len(lbTCPArtifacts) != 0 {
-		return errors.New("LoadBalancer\nMissing Artifacts:\n" + strMapKeys(lbTCPArtifacts))
+	for {
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
 	}
 
-	return nil
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
+
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+}
+
+func (suite *TestSuiteServices) TearDownSuite() {
+	suite.transistor.Stop()
 }
 
 func LBDataForTCP(action transistor.Action, t plugins.Type) plugins.ProjectExtension {
