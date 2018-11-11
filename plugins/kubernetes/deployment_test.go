@@ -1,10 +1,8 @@
 package kubernetes_test
 
 import (
-	"errors"
 	"io/ioutil"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"

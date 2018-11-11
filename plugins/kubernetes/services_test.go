@@ -33,9 +33,9 @@ plugins:
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{},
-		 K8sNamespacer: &MockKubernetesNamespacer{},
-		 BatchV1Jobber: &MockBatchV1Job{},
-		 CoreServicer: &suite.MockCoreService,}
+			K8sNamespacer: &MockKubernetesNamespacer{},
+			BatchV1Jobber: &MockBatchV1Job{},
+			CoreServicer:  &suite.MockCoreService}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -72,7 +72,6 @@ func (suite *TestSuiteServices) TestCreateService() {
 	}
 	log.Warn("State: ", e.State)
 
-
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
@@ -105,9 +104,8 @@ func (suite *TestSuiteServices) TestDeleteService() {
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
-	}	
+	}
 }
-
 
 func (suite *TestSuiteServices) TearDownSuite() {
 	suite.transistor.Stop()

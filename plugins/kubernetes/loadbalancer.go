@@ -13,7 +13,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-_	"github.com/davecgh/go-spew/spew"
+	_ "github.com/davecgh/go-spew/spew"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -46,7 +46,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*
 	*	Extract Parameters
 	*
-	*********************************************/	
+	*********************************************/
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
@@ -254,7 +254,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 	/********************************************
 	*
-	*	Update Kubernetes Service to use new 
+	*	Update Kubernetes Service to use new
 	*	resource version and ClusterIP
 	*
 	*********************************************/
@@ -275,7 +275,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		Spec: serviceSpec,
 	}
 
-	// Implement service update-or-create semantics.	
+	// Implement service update-or-create semantics.
 	service := coreInterface.Services(namespace)
 	svc, err := service.Get(lbName.String(), meta_v1.GetOptions{})
 	switch {
@@ -345,7 +345,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	} else {
 		ELBDNS = fmt.Sprintf("%s.%s", lbName.String(), x.GenNamespaceName(payload.Environment, projectSlug))
 	}
-
 
 	/********************************************
 	*

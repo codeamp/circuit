@@ -39,7 +39,7 @@ func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jo
 
 /////////////////////////////////////////////////////////////////////////
 
-type MockCoreService struct {}
+type MockCoreService struct{}
 
 func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, serviceName string, getOptions meta_v1.GetOptions) (*corev1.Service, error) {
 	service, err := clientset.Core().Services(namespace).Get(serviceName, getOptions)
@@ -47,7 +47,7 @@ func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, s
 	if service != nil {
 		fakeIngressList := []corev1.LoadBalancerIngress{
 			{
-				IP: "127.0.0.1",
+				IP:       "127.0.0.1",
 				Hostname: "localhost",
 			},
 		}

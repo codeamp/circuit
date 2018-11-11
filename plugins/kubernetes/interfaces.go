@@ -42,9 +42,9 @@ type BatchV1Jobber interface {
 	Get(kubernetes.Interface, string, string, meta_v1.GetOptions) (*v1.Job, error)
 }
 
-type BatchV1Job struct {}
+type BatchV1Job struct{}
 
-func (l BatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error){
+func (l BatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error) {
 	return clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
 }
 
@@ -55,7 +55,7 @@ type CoreServicer interface {
 	Delete(kubernetes.Interface, string, string, *meta_v1.DeleteOptions) error
 }
 
-type CoreService struct {}
+type CoreService struct{}
 
 func (l CoreService) Get(clientset kubernetes.Interface, namespace string, serviceName string, getOptions meta_v1.GetOptions) (*corev1.Service, error) {
 	return clientset.Core().Services(namespace).Get(serviceName, getOptions)
