@@ -39,6 +39,7 @@ type Kubernetes struct {
 	K8sNamespacer
 	K8sContourNamespacer
 	BatchV1Jobber
+	CoreServicer
 
 	ContourClient    contour_client.Interface
 	KubernetesClient kubernetes.Interface

@@ -7,6 +7,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	v1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,4 +35,29 @@ func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jo
 	job.Status = l.StatusOverride
 
 	return job, err
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+type MockCoreService struct {}
+
+func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, serviceName string, getOptions meta_v1.GetOptions) (*corev1.Service, error) {
+	service, err := clientset.Core().Services(namespace).Get(serviceName, getOptions)
+
+	if service != nil {
+		fakeIngressList := []corev1.LoadBalancerIngress{
+			{
+				IP: "127.0.0.1",
+				Hostname: "localhost",
+			},
+		}
+
+		service.Status.LoadBalancer.Ingress = fakeIngressList
+	}
+
+	return service, err
+}
+
+func (l MockCoreService) Delete(clientset kubernetes.Interface, namespace string, serviceName string, deleteOptions *meta_v1.DeleteOptions) error {
+	return clientset.Core().Services(namespace).Delete(serviceName, deleteOptions)
 }

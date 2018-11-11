@@ -275,13 +275,11 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		Spec: serviceSpec,
 	}
 
-	// Implement service update-or-create semantics.
-	log.Debug("Implement service update-or-create semantics.")
+	// Implement service update-or-create semantics.	
 	service := coreInterface.Services(namespace)
 	svc, err := service.Get(lbName.String(), meta_v1.GetOptions{})
 	switch {
 	case err == nil:
-		log.Debug("FOUND SERVICE")
 		// Preserve the NodePorts for PATCH service.
 		if svc.Spec.Type == "LoadBalancer" {
 			for i := range svc.Spec.Ports {
@@ -301,15 +299,15 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
-		log.Debug("ERROR FINDING SERVICE")
-		res, err := service.Create(&serviceParams)
-		log.Debug(*res)
+		log.Error("ERROR FINDING SERVICE")
+		_, err := service.Create(&serviceParams)
 		if err != nil {
+			log.Error("ERROR CREATING SERVICE")
 			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
 		}
 		log.Debug(fmt.Sprintf("Service created: %s", lbName.String()))
 	default:
-		log.Debug("ISSUE")
+		log.Error("ISSUE")
 		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
 	}
 
@@ -327,7 +325,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		// Timeout waiting for ELB DNS name after 90 seconds
 		timeout := 90
 		for {
-			elbResult, elbErr := coreInterface.Services(namespace).Get(lbName.String(), meta_v1.GetOptions{})
+			elbResult, elbErr := x.CoreServicer.Get(clientset, namespace, lbName.String(), meta_v1.GetOptions{})
 			if elbErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' describing service %s", elbErr, lbName.String()))
 			} else {
@@ -409,14 +407,12 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 	}
 
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
-
-	coreInterface := clientset.Core()
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
 
-	_, svcGetErr := coreInterface.Services(namespace).Get(lbName.String(), meta_v1.GetOptions{})
+	_, svcGetErr := x.CoreServicer.Get(clientset, namespace, lbName.String(), meta_v1.GetOptions{})
 	if svcGetErr == nil {
 		// Service was found, ready to delete
-		svcDeleteErr := coreInterface.Services(namespace).Delete(lbName.String(), &meta_v1.DeleteOptions{})
+		svcDeleteErr := x.CoreServicer.Delete(clientset, namespace, lbName.String(), &meta_v1.DeleteOptions{})
 		if svcDeleteErr != nil {
 			return errors.New(fmt.Sprintf("Error managing loadbalancer '%s' deleting service %s. %s.", svcDeleteErr, lbName.String(), svcName.String()))
 		}

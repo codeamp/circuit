@@ -23,7 +23,10 @@ import (
 
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &Kubernetes{K8sContourNamespacer: ContourNamespace{}, K8sNamespacer: KubernetesNamespace{}, BatchV1Jobber: BatchV1Job{}}
+		return &Kubernetes{K8sContourNamespacer: ContourNamespace{},
+			K8sNamespacer: KubernetesNamespace{},
+			BatchV1Jobber: BatchV1Job{},
+			CoreServicer:  CoreService{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
 
@@ -94,6 +97,7 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	event.Artifacts = artifacts
 
+	log.Warn("Sending event ", e.Event(), " ", e.State)
 	x.events <- event
 }
 

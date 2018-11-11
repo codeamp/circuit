@@ -1,7 +1,6 @@
 package kubernetes_test
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,11 +14,14 @@ import (
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	log "github.com/codeamp/logger"
 )
 
 type TestSuiteServices struct {
 	suite.Suite
 	transistor *transistor.Transistor
+	MockCoreService
 }
 
 func (suite *TestSuiteServices) SetupSuite() {
@@ -30,7 +32,10 @@ plugins:
 `)
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{}, K8sNamespacer: &MockKubernetesNamespacer{}, BatchV1Jobber: &MockBatchV1Job{}}
+		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{},
+		 K8sNamespacer: &MockKubernetesNamespacer{},
+		 BatchV1Jobber: &MockBatchV1Job{},
+		 CoreServicer: &suite.MockCoreService,}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -42,44 +47,57 @@ func TestServices(t *testing.T) {
 }
 
 // // Load Balancers Tests
-func (suite *TestSuiteServices) TestCleanupLBOffice() {
-	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
+// func (suite *TestSuiteServices) TestCleanupLBOffice() {
+// 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
+// 	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
+// 	if err != nil {
+// 		assert.Nil(suite.T(), err, err.Error())
+// 		return
+// 	}
+// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
+// }
+
+func (suite *TestSuiteServices) TestCreateService() {
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
+
+	log.Warn("sent event")
+
+	var e transistor.Event
+	var err error
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("update"), 20)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
-	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
+	log.Warn("State: ", e.State)
+
+
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
-func (suite *TestSuiteServices) TestLBTCPOffice() {
+func (suite *TestSuiteServices) TestDeleteService() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
 	var e transistor.Event
 	var err error
-	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 15)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("update"), 20)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
 
-	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
-	if e.State != transistor.GetState("complete") {
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
-
-	for {
-		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
-		if err != nil {
-			assert.Nil(suite.T(), err, err.Error())
-			return
-		}
-
-		if e.State != "running" {
-			break
-		}
-	}
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
 
@@ -87,9 +105,9 @@ func (suite *TestSuiteServices) TestLBTCPOffice() {
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
-	}
-	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+	}	
 }
+
 
 func (suite *TestSuiteServices) TearDownSuite() {
 	suite.transistor.Stop()

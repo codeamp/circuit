@@ -6,6 +6,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	v1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,4 +46,21 @@ type BatchV1Job struct {}
 
 func (l BatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error){
 	return clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
+}
+
+////////////////////////////
+
+type CoreServicer interface {
+	Get(kubernetes.Interface, string, string, meta_v1.GetOptions) (*corev1.Service, error)
+	Delete(kubernetes.Interface, string, string, *meta_v1.DeleteOptions) error
+}
+
+type CoreService struct {}
+
+func (l CoreService) Get(clientset kubernetes.Interface, namespace string, serviceName string, getOptions meta_v1.GetOptions) (*corev1.Service, error) {
+	return clientset.Core().Services(namespace).Get(serviceName, getOptions)
+}
+
+func (l CoreService) Delete(clientset kubernetes.Interface, namespace string, serviceName string, deleteOptions *meta_v1.DeleteOptions) error {
+	return clientset.Core().Services(namespace).Delete(serviceName, deleteOptions)
 }
