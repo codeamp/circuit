@@ -202,21 +202,21 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin.pem", randomDirectory),
 		[]byte(clientCert.String()), 0644)
 	if err != nil {
-		log.Error(fmt.Sprintf("ERROR 1: %s", err.Error()))
+		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
 		[]byte(clientKey.String()), 0644)
 	if err != nil {
-		log.Error(fmt.Sprintf("ERROR 2: %s", err.Error()))
+		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
 		[]byte(certificateAuthority.String()), 0644)
 	if err != nil {
-		log.Error(fmt.Sprintf("ERROR 3: %s", err.Error()))
+		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
 		return "", err
 	}
 
