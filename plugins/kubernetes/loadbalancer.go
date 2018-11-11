@@ -41,6 +41,12 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	log.Info("doLoadBalancer")
+
+	/********************************************
+	*
+	*	Extract Parameters
+	*
+	*********************************************/	
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
@@ -50,24 +56,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 	lbName, err := e.GetArtifact("name")
 	if err != nil {
-		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
-		e.AddArtifact("name", name, false)
-
-		lbName, err = e.GetArtifact("name")
-		if err != nil {
-			return err
-		}
-	}
-
-	// Delete old LB if service was changed and update the name
-	if !strings.HasPrefix(lbName.String(), fmt.Sprintf("%s-", svcName.String())) {
-		err := deleteLoadBalancer(e, x)
-		// The load balancer might fail to delete because it does not exist in the first place
-		// The point is to make sure it's not there when we try to create it later.
-		if err != nil {
-			log.Warn(err)
-		}
-
 		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
 		e.AddArtifact("name", name, false)
 
@@ -92,9 +80,42 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return err
 	}
 
-	lbType := plugins.GetType(_lbType.String())
+	listenerPairs, err := e.GetArtifact("listener_pairs")
+	if err != nil {
+		return err
+	}
 
+	lbType := plugins.GetType(_lbType.String())
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
+
+	/********************************************
+	*
+	*	If service name changed, cleanup old service lb
+	*
+	*********************************************/
+	// Delete old LB if service was changed and update the name
+	if !strings.HasPrefix(lbName.String(), fmt.Sprintf("%s-", svcName.String())) {
+		err := deleteLoadBalancer(e, x)
+		// The load balancer might fail to delete because it does not exist in the first place
+		// The point is to make sure it's not there when we try to create it later.
+		if err != nil {
+			log.Warn(err)
+		}
+
+		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
+		e.AddArtifact("name", name, false)
+
+		lbName, err = e.GetArtifact("name")
+		if err != nil {
+			return err
+		}
+	}
+
+	/********************************************
+	*
+	*	Setup Kube Config & Clientset
+	*
+	*********************************************/
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
@@ -130,6 +151,11 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return createNamespaceErr
 	}
 
+	/********************************************
+	*
+	*	Prepare Annotations and ServiceType
+	*
+	*********************************************/
 	// Begin create
 	switch lbType {
 	case plugins.GetType("internal"):
@@ -139,6 +165,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout"] = "300"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled"] = "true"
+
+		// Build logging confguration
 		if s3AccessLogs.String() != "" {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
@@ -151,6 +179,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout"] = "300"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled"] = "true"
+
+		// Build logging confguration
 		if s3AccessLogs.String() != "" {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-emit-interval"] = "5"
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-enabled"] = "true"
@@ -158,11 +188,12 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 			serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-access-log-s3-bucket-prefix"] = fmt.Sprintf("elb/%s/%s", projectSlug, svcName.String())
 		}
 	}
-	listenerPairs, err := e.GetArtifact("listener_pairs")
-	if err != nil {
-		return err
-	}
 
+	/********************************************
+	*
+	*	Build Listeners Configuration
+	*
+	*********************************************/
 	var sslPorts []string
 	for _, p := range listenerPairs.Value.([]interface{}) {
 		var realProto string
@@ -182,7 +213,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		case "UDP":
 			realProto = "UDP"
 		}
-//		spew.Dump(p)
 
 		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
 		if err != nil {
@@ -211,11 +241,23 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		servicePorts = append(servicePorts, newPort)
 	}
 
+	/********************************************
+	*
+	*	Attach SSL Cert if requested
+	*
+	*********************************************/
 	if len(sslPorts) > 0 {
 		sslPortsCombined := strings.Join(sslPorts, ",")
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-ports"] = sslPortsCombined
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-ssl-cert"] = sslARN.String()
 	}
+
+	/********************************************
+	*
+	*	Update Kubernetes Service to use new 
+	*	resource version and ClusterIP
+	*
+	*********************************************/
 	serviceSpec := v1.ServiceSpec{
 		Selector: map[string]string{"app": deploymentName},
 		Type:     serviceType,
@@ -232,8 +274,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		},
 		Spec: serviceSpec,
 	}
-
-	// spew.Dump(serviceParams)
 
 	// Implement service update-or-create semantics.
 	log.Debug("Implement service update-or-create semantics.")
@@ -273,6 +313,12 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
 	}
 
+	/********************************************
+	*
+	*	Capture the Generated DNS Name from the LB
+	*	If using a type that is not instantaneous
+	*
+	*********************************************/
 	// If ELB grab the DNS name for the response
 	log.Debug("If ELB grab the DNS name for the response ", lbType)
 	ELBDNS := ""
@@ -285,10 +331,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 			if elbErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' describing service %s", elbErr, lbName.String()))
 			} else {
-				// spew.Dump(elbResult.Status.LoadBalancer)
 				ingressList := elbResult.Status.LoadBalancer.Ingress
 
-				// spew.Dump(ingressList)
 				if len(ingressList) > 0 {
 					ELBDNS = ingressList[0].Hostname
 					break
@@ -304,6 +348,13 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		ELBDNS = fmt.Sprintf("%s.%s", lbName.String(), x.GenNamespaceName(payload.Environment, projectSlug))
 	}
 
+
+	/********************************************
+	*
+	*	Package up output into artifacts of event
+	*	and send success response
+	*
+	*********************************************/
 	artifacts := make([]transistor.Artifact, 2, 2)
 	artifacts[0] = transistor.Artifact{Key: "dns", Value: ELBDNS, Secret: false}
 	artifacts[1] = transistor.Artifact{Key: "name", Value: lbName.String(), Secret: false}
