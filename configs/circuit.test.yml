@@ -12,7 +12,7 @@ plugins:
     oidc_uri: http://0.0.0.0:5556/dex
     oidc_client_id: example-app
     postgres:
-      host: "localhost"
+      host: "postgres"
       port: "5432"
       user: "postgres"
       dbname: "codeamp"

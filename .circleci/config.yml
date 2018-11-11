@@ -24,7 +24,6 @@ jobs:
           command: |
             set -x
             docker-compose up -d postgres redis
-            sleep 30
       - run: 
           name: Build Docker Container
           command: |
