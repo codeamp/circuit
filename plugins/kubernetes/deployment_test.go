@@ -24,6 +24,12 @@ type TestSuiteDeployment struct {
 }
 
 func (suite *TestSuiteDeployment) SetupSuite() {
+	var viperConfig = []byte(`
+	plugins:
+	  kubernetes:
+	    workers: 1
+	`)
+
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{}, K8sNamespacer: &MockKubernetesNamespacer{}, BatchV1Jobber: &suite.MockBatchV1Job}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
@@ -47,7 +53,7 @@ func strMapKeys(strMap map[string]string) string {
 // Deploys Tests
 func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
 	suite.transistor.Events <- BasicReleaseEvent()
-	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded:1}
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded: 1}
 
 	var e transistor.Event
 	var err error
@@ -69,7 +75,7 @@ func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
 
 func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
 	suite.transistor.Events <- BasicFailedReleaseEvent()
-	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Failed:1}
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Failed: 1}
 
 	var e transistor.Event
 	var err error

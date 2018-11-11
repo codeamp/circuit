@@ -25,11 +25,11 @@ func (l MockContourNamespacer) NewForConfig(config *rest.Config) (contour_client
 	return clientset, err
 }
 
-type MockBatchV1Job struct{
+type MockBatchV1Job struct {
 	StatusOverride v1.JobStatus
 }
 
-func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error){
+func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error) {
 	job, err := clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
 	job.Status = l.StatusOverride
 

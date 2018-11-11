@@ -22,13 +22,13 @@ type TestSuite struct {
 	transistor *transistor.Transistor
 }
 
-var viperConfig = []byte(`
-plugins:
-  kubernetes:
-    workers: 1
-`)
-
 func (suite *TestSuite) SetupSuite() {
+	var viperConfig = []byte(`
+	plugins:
+	  kubernetes:
+	    workers: 1
+	`)
+
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &kubernetes.Kubernetes{K8sContourNamespacer: MockContourNamespacer{}, K8sNamespacer: MockKubernetesNamespacer{}}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
