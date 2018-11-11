@@ -3,7 +3,6 @@ package kubernetes_test
 import (
 	"errors"
 	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 	"testing"
@@ -49,7 +48,6 @@ func strMapKeys(strMap map[string]string) string {
 func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
 	suite.transistor.Events <- BasicReleaseEvent()
 	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded:1}
-	suite.MockBatchV1Job.StatusOverride.Succeeded = 1
 
 	var e transistor.Event
 	var err error
@@ -71,8 +69,7 @@ func (suite *TestSuiteDeployment) TestBasicSuccessDeploy() {
 
 func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
 	suite.transistor.Events <- BasicFailedReleaseEvent()
-	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{}
-	suite.MockBatchV1Job.StatusOverride.Failed = 1
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Failed:1}
 
 	var e transistor.Event
 	var err error
@@ -147,7 +144,7 @@ func BasicFailedReleaseEvent() transistor.Event {
 }
 
 func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
-	kubeConfigPath := path.Join(os.Getenv("HOME"), ".kube", "config")
+	kubeConfigPath := path.Join("testdata", "kubeconfig")
 	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
 
 	event.AddArtifact("user", "test", false)

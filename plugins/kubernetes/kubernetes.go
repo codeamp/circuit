@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -99,10 +98,6 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 }
 
 func (x *Kubernetes) sendErrorResponse(e transistor.Event, msg string) {
-	_, file, no, ok := runtime.Caller(1)
-    if ok {
-        fmt.Printf("called from %s#%d\n", file, no)
-    }
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), msg)
 	x.events <- event
 }
@@ -202,28 +197,26 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 		return "", err
 	}
 
-	log.Info("Using kubeconfig file: ", fmt.Sprintf("%s/kubeconfig", randomDirectory))
-
 	// generate client cert, client key
 	// certificate authority
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin.pem", randomDirectory),
 		[]byte(clientCert.String()), 0644)
 	if err != nil {
-		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
+		log.Error(fmt.Sprintf("ERROR 1: %s", err.Error()))
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
 		[]byte(clientKey.String()), 0644)
 	if err != nil {
-		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
+		log.Error(fmt.Sprintf("ERROR 2: %s", err.Error()))
 		return "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
 		[]byte(certificateAuthority.String()), 0644)
 	if err != nil {
-		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
+		log.Error(fmt.Sprintf("ERROR 3: %s", err.Error()))
 		return "", err
 	}
 
@@ -231,7 +224,6 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 }
 
 func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
-	log.Warn("getClientConfig")
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
@@ -252,7 +244,6 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 
 func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interface, error) {
 	// Find a way to return it if already exists
-	log.Warn("getKubernetesClient")
 	if x.KubernetesClient != nil {
 		return x.KubernetesClient, nil
 	}

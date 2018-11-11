@@ -688,7 +688,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		if err != nil {
 			errMsg := fmt.Errorf("Failed to create job %s, with error: %s", createdJob.Name, err)
 			log.Error(errMsg)
-			
+
 			return errMsg
 		}
 
@@ -877,7 +877,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			if myError != nil {
 				// send failed status
 				errMsg := fmt.Errorf("Failed to create service deployment %s, with error: %s", deploymentName, myError)
-				log.Error(errMsg)				
+				log.Error(errMsg)
 				return errMsg
 			}
 		} else {
@@ -885,7 +885,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
 				errMsg := fmt.Errorf("Failed to update service deployment %s, with error: %s", deploymentName, myError)
-				log.Error(errMsg)				
+				log.Error(errMsg)
 				return errMsg
 			}
 		}
