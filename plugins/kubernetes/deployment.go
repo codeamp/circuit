@@ -720,7 +720,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 					log.Error(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
 				}
 
-				return fmt.Errorf("Error job has 1 failed %s", oneShotServiceName)
+				return fmt.Errorf("Error job has failed %s", oneShotServiceName)
 			}
 
 			if job.Status.Active == int32(0) {
@@ -730,7 +730,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 					break
 				} else {
 					// Job has failed!
-					return fmt.Errorf("Error job has 2 failed %s", oneShotServiceName)
+					return fmt.Errorf("Error job has failed %s", oneShotServiceName)
 				}
 			}
 

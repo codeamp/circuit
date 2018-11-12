@@ -276,6 +276,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	}
 
 	// Implement service update-or-create semantics.
+	log.Debug("Implement service update-or-create semantics.")
 	service := coreInterface.Services(namespace)
 	svc, err := service.Get(lbName.String(), meta_v1.GetOptions{})
 	switch {
@@ -299,9 +300,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
-		_, err := service.Create(&serviceParams)
+		_, err = service.Create(&serviceParams)
 		if err != nil {
-			log.Error("ERROR CREATING SERVICE")
 			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
 		}
 		log.Debug(fmt.Sprintf("Service created: %s", lbName.String()))
