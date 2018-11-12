@@ -978,7 +978,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 			}
 
 			if curTime >= timeout || replicaFailures > 1 {
-				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
+				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed. %d %d %d", curTime, timeout, replicaFailures)
 				log.Error(fmt.Sprintf(errMsg))
 				return fmt.Errorf(errMsg)
 			}
@@ -1160,10 +1160,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 	// TODO: get timeout from formValues
 	//timeout := e.Payload.(plugins.ReleaseExtension).Release.Timeout
-	// Set default timeout to 600 seconds if not specified.
-	//if timeout == 0 {
-	timeout := 600
-	//}
 
 	/******************************************
 	*
