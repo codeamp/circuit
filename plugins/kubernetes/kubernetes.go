@@ -8,7 +8,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
@@ -97,7 +96,6 @@ func (x *Kubernetes) sendSuccessResponse(e transistor.Event, state transistor.St
 	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
 	event.Artifacts = artifacts
 
-	log.Warn("Sending event ", e.Event(), " ", e.State)
 	x.events <- event
 }
 
@@ -200,6 +198,8 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 		log.Error(err.Error())
 		return "", err
 	}
+
+	log.Info("Using kubeconfig file: ", fmt.Sprintf("%s/kubeconfig", randomDirectory))
 
 	// generate client cert, client key
 	// certificate authority

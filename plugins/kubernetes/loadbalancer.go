@@ -299,7 +299,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
-		log.Error("ERROR FINDING SERVICE")
 		_, err := service.Create(&serviceParams)
 		if err != nil {
 			log.Error("ERROR CREATING SERVICE")
@@ -307,7 +306,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service created: %s", lbName.String()))
 	default:
-		log.Error("ISSUE")
 		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
 	}
 

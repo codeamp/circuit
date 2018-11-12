@@ -32,9 +32,9 @@ plugins:
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{},
-		 K8sNamespacer: &MockKubernetesNamespacer{},
-		 BatchV1Jobber: &MockBatchV1Job{},
-		 CoreServicer: &suite.MockCoreService,}
+			K8sNamespacer: &MockKubernetesNamespacer{},
+			BatchV1Jobber: &MockBatchV1Job{},
+			CoreServicer:  &suite.MockCoreService}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -44,18 +44,6 @@ plugins:
 func TestServices(t *testing.T) {
 	suite.Run(t, new(TestSuiteServices))
 }
-
-// // Load Balancers Tests
-// func (suite *TestSuiteServices) TestCleanupLBOffice() {
-// 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
-
-// 	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
-// 	if err != nil {
-// 		assert.Nil(suite.T(), err, err.Error())
-// 		return
-// 	}
-// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State, e.StateMessage)
-// }
 
 func (suite *TestSuiteServices) TestCreateService() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
@@ -70,7 +58,6 @@ func (suite *TestSuiteServices) TestCreateService() {
 		return
 	}
 	log.Warn("State: ", e.State)
-
 
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
 	if err != nil {
@@ -104,9 +91,8 @@ func (suite *TestSuiteServices) TestDeleteService() {
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
-	}	
+	}
 }
-
 
 func (suite *TestSuiteServices) TearDownSuite() {
 	suite.transistor.Stop()
