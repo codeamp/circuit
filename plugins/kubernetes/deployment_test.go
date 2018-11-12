@@ -29,7 +29,12 @@ plugins:
 `)
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{}, K8sNamespacer: &MockKubernetesNamespacer{}, BatchV1Jobber: &suite.MockBatchV1Job}
+		return &kubernetes.Kubernetes{
+			K8sContourNamespacer: &MockContourNamespacer{},
+			K8sNamespacer:        &MockKubernetesNamespacer{},
+			BatchV1Jobber:        &suite.MockBatchV1Job,
+			CoreSecreter:         &MockCoreSecret{},
+		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)

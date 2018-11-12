@@ -1,6 +1,8 @@
 package kubernetes_test
 
 import (
+	"fmt"
+
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -9,6 +11,8 @@ import (
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 /////////////////////////////////////////////////////////////////////////
@@ -60,4 +64,24 @@ func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, s
 
 func (l MockCoreService) Delete(clientset kubernetes.Interface, namespace string, serviceName string, deleteOptions *meta_v1.DeleteOptions) error {
 	return clientset.Core().Services(namespace).Delete(serviceName, deleteOptions)
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+type MockCoreSecret struct{}
+
+func (l MockCoreSecret) Create(clientset kubernetes.Interface, namespace string, secretParams *corev1.Secret) (*corev1.Secret, error) {
+	var secretsCopy corev1.Secret
+
+	if secretParams != nil {
+		secretsCopy = *secretParams
+
+		genSuffix := uuid.NewV4()
+
+		if secretsCopy.GenerateName != "" {
+			secretsCopy.Name = fmt.Sprintf("%s-%s", secretsCopy.GenerateName, genSuffix)
+		}
+	}
+
+	return clientset.Core().Secrets(namespace).Create(&secretsCopy)
 }

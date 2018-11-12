@@ -13,8 +13,6 @@ import (
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-
-	log "github.com/codeamp/logger"
 )
 
 type TestSuiteServices struct {
@@ -31,10 +29,13 @@ plugins:
 `)
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
-		return &kubernetes.Kubernetes{K8sContourNamespacer: &MockContourNamespacer{},
-			K8sNamespacer: &MockKubernetesNamespacer{},
-			BatchV1Jobber: &MockBatchV1Job{},
-			CoreServicer:  &suite.MockCoreService}
+		return &kubernetes.Kubernetes{
+			K8sContourNamespacer: &MockContourNamespacer{},
+			K8sNamespacer:        &MockKubernetesNamespacer{},
+			BatchV1Jobber:        &MockBatchV1Job{},
+			CoreServicer:         &suite.MockCoreService,
+			CoreSecreter:         &MockCoreSecret{},
+		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -48,8 +49,6 @@ func TestServices(t *testing.T) {
 func (suite *TestSuiteServices) TestCreateService() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
-	log.Warn("sent event")
-
 	var e transistor.Event
 	var err error
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("update"), 20)
@@ -57,7 +56,6 @@ func (suite *TestSuiteServices) TestCreateService() {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
-	log.Warn("State: ", e.State)
 
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
 	if err != nil {

@@ -48,7 +48,7 @@ func (l BatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobNam
 	return clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
 }
 
-////////////////////////////
+///////////////////////////////////////////////////
 
 type CoreServicer interface {
 	Get(kubernetes.Interface, string, string, meta_v1.GetOptions) (*corev1.Service, error)
@@ -63,4 +63,16 @@ func (l CoreService) Get(clientset kubernetes.Interface, namespace string, servi
 
 func (l CoreService) Delete(clientset kubernetes.Interface, namespace string, serviceName string, deleteOptions *meta_v1.DeleteOptions) error {
 	return clientset.Core().Services(namespace).Delete(serviceName, deleteOptions)
+}
+
+///////////////////////////////////////////////////
+
+type CoreSecreter interface {
+	Create(kubernetes.Interface, string, *corev1.Secret) (*corev1.Secret, error)
+}
+
+type CoreSecret struct{}
+
+func (l CoreSecret) Create(clientset kubernetes.Interface, namespace string, secretParams *corev1.Secret) (*corev1.Secret, error) {
+	return clientset.Core().Secrets(namespace).Create(secretParams)
 }

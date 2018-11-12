@@ -116,7 +116,7 @@ func (x *Kubernetes) createDockerIOSecretIfNotExists(namespace string, clientset
 			secretMap := map[string]string{
 				".dockercfg": dockerCred,
 			}
-			_, createDockerIOSecretErr := coreInterface.Secrets(namespace).Create(&v1.Secret{
+			_, createDockerIOSecretErr := x.CoreSecreter.Create(clientset, namespace, &v1.Secret{
 				TypeMeta: meta_v1.TypeMeta{
 					Kind:       "Secret",
 					APIVersion: "v1",
@@ -474,8 +474,6 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 
 // Create the secrets for the deployment
 func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets []plugins.Secret) (string, error) {
-	coreInterface := clientset.Core()
-
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
 
@@ -490,7 +488,6 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 			APIVersion: "v1",
 		},
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:         fmt.Sprintf("%v-", projectSlug),
 			GenerateName: fmt.Sprintf("%v-", projectSlug),
 			Namespace:    namespace,
 		},
@@ -498,7 +495,7 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 		Type:       v1.SecretTypeOpaque,
 	}
 
-	secretResult, secErr := coreInterface.Secrets(namespace).Create(&secretParams)
+	secretResult, secErr := x.CoreSecreter.Create(clientset, namespace, &secretParams)
 	if secErr != nil {
 		failMessage := fmt.Sprintf("Error '%s' creating secret %s", secErr, projectSlug)
 		return "", fmt.Errorf(failMessage)
@@ -672,7 +669,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				APIVersion: "batch/v1",
 			},
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:         fmt.Sprintf("%v-", oneShotServiceName),
 				GenerateName: fmt.Sprintf("%v-", oneShotServiceName),
 				Labels:       map[string]string{"app": oneShotServiceName},
 			},
