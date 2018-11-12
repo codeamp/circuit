@@ -978,7 +978,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 			}
 
 			if curTime >= timeout || replicaFailures > 1 {
-				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed. %d %d %d %d", curTime, timeout, deploySleepTime)
+				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
 				log.Error(fmt.Sprintf(errMsg))
 				return fmt.Errorf(errMsg)
 			}
