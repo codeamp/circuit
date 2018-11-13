@@ -32,6 +32,12 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 				return nil, err
 			}
 		}
+		
+		currentDefault.IsDefault = false			
+		if err := tx.Save(&currentDefault).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}		
 	}
 
 	serviceSpec := model.ServiceSpec{
