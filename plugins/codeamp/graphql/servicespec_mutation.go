@@ -20,8 +20,8 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 	tx := r.DB.Begin()
 
 	/*
-	* Find existing default if input.default = true.
-	* set existing default spec to false 
+	* Find existing default; if input.default = true,
+	* set existing default spec = false.
 	*/
 	if args.ServiceSpec.IsDefault {
 		var currentDefault model.ServiceSpec
