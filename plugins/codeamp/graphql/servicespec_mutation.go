@@ -16,14 +16,25 @@ type ServiceSpecResolverMutation struct {
 
 // CreateServiceSpec
 func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
+	// make create operation atomic
+	tx := r.DB.Begin()
 
-	// if IsDefault is True, check which one is the current default
+	/*
+	* Find existing default if input.default = true.
+	* set existing default spec to false 
+	*/
 	if args.ServiceSpec.IsDefault {
 		var currentDefault model.ServiceSpec
-		if err := r.DB.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
-			currentDefault.IsDefault = false			
-			r.DB.Save(&currentDefault)
+		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("could not find default service spec")
 		}
+		
+		currentDefault.IsDefault = false			
+		if err := tx.Save(&currentDefault).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}		
 	}
 
 	serviceSpec := model.ServiceSpec{
@@ -36,7 +47,15 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 		IsDefault: 				args.ServiceSpec.IsDefault,
 	}
 
-	r.DB.Create(&serviceSpec)
+	if err := r.DB.Create(&serviceSpec).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
 	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 }
