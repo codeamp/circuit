@@ -98,15 +98,29 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	if serviceSpec.Model.ID.String() == currentDefault.Model.ID.String() {
 		isDefault = true
 	}
-	
-	// if IsDefault is True, check which one is the current default
+
+	/*
+	* Find existing default; if input.default = true,
+	* set existing default spec = false.
+	*/
 	if args.ServiceSpec.IsDefault {
-		var currentDefault model.ServiceSpec
-		if err := r.DB.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
-			currentDefault.IsDefault = false			
-			r.DB.Save(&currentDefault)
+		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("could not find default service spec")
 		}
-	}	
+		
+		currentDefault.IsDefault = false			
+		if err := tx.Save(&currentDefault).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}		
+	}
+
+	// check if currentDefault is the same as serviceSpec
+	// if so, isDefault must always be true
+	if serviceSpec.Model.ID.String() == currentDefault.Model.ID.String() {
+		isDefault = true
+	}
 
 	serviceSpec.Name = args.ServiceSpec.Name
 	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
@@ -115,7 +129,6 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	serviceSpec.MemoryRequest = args.ServiceSpec.MemoryRequest
 	serviceSpec.TerminationGracePeriod = args.ServiceSpec.TerminationGracePeriod
 	serviceSpec.IsDefault = isDefault
-
 
 	if err := tx.Save(&serviceSpec).Error; err != nil {
 		tx.Rollback()
