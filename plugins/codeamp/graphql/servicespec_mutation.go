@@ -64,28 +64,20 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	serviceSpec := model.ServiceSpec{}
 	currentDefault := model.ServiceSpec{}
-	isDefault := args.ServiceSpec.IsDefault
-
-	serviceSpecID, err := uuid.FromString(*args.ServiceSpec.ID)
-	if err != nil {
-		return nil, fmt.Errorf("missing argument id")
-	}
-
-	if r.DB.Where("id = ?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
-		return nil, fmt.Errorf("serviceSpec not found with given argument id")
-	}
+	isDefault := false
 
 	tx := r.DB.Begin()
-	if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("could not find default service spec")
+
+	if tx.Where("id = ?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {
+		return nil, fmt.Errorf("serviceSpec not found with given argument id")
 	}
 
 	/*
 	* Find existing default; if input.default = true,
 	* set existing default spec = false.
+	* Condition: service spec cannot have a service mapped to it in order to be a default.
 	*/
-	if args.ServiceSpec.IsDefault {
+	if args.ServiceSpec.IsDefault && uuid.Equal(serviceSpec.ServiceID, uuid.Nil) {
 		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("could not find default service spec")
@@ -95,7 +87,9 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 		if err := tx.Save(&currentDefault).Error; err != nil {
 			tx.Rollback()
 			return nil, err
-		}		
+		}	
+		
+		isDefault = true
 	}
 
 	// check if currentDefault is the same as serviceSpec
@@ -135,6 +129,11 @@ func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpe
 	} else {
 		services := []model.Service{}
 		r.DB.Where("service_spec_id = ?", serviceSpec.Model.ID).Find(&services)
+		
+		if serviceSpec.IsDefault {
+			return nil, fmt.Errorf("Select another service spec to be a default before deleting this.")
+		}
+		
 		if len(services) == 0 {
 			r.DB.Delete(&serviceSpec)
 
