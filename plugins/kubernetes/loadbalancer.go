@@ -13,7 +13,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	_ "github.com/davecgh/go-spew/spew"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
