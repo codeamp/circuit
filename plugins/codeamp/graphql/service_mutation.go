@@ -36,10 +36,11 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 		return nil, err
 	}
 
-	serviceSpecID, err := uuid.FromString(args.Service.ServiceSpecID)
-	if err != nil {
-		return nil, err
-	}
+	// Find the default service spec and create ServiceSpec specific for Service
+	defaultServiceSpec := model.ServiceSpec{}
+	if err := r.DB.Where("is_default = ?", true).First(&defaultServiceSpec).Error; err != nil {
+		return nil, fmt.Errorf("no default service spec found")
+	}	
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	if args.Service.DeploymentStrategy != nil {
@@ -79,7 +80,6 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	service := model.Service{
 		Name:               args.Service.Name,
 		Command:            args.Service.Command,
-		ServiceSpecID:      serviceSpecID,
 		Type:               plugins.Type(args.Service.Type),
 		Count:              args.Service.Count,
 		ProjectID:          projectID,
@@ -90,7 +90,20 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 		PreStopHook:        preStopHook,
 	}
 
-	r.DB.Create(&service)
+	r.DB.Create(&service)	
+
+	serviceSpec := model.ServiceSpec{
+		Name: defaultServiceSpec.Name,
+		CpuRequest: defaultServiceSpec.CpuRequest,
+		CpuLimit: defaultServiceSpec.CpuLimit,
+		MemoryRequest: defaultServiceSpec.MemoryRequest,
+		MemoryLimit: defaultServiceSpec.MemoryLimit,
+		TerminationGracePeriod: defaultServiceSpec.TerminationGracePeriod,
+		ServiceID: service.Model.ID,
+		IsDefault: false,
+	}
+
+	r.DB.Create(&serviceSpec)
 
 	// Create Health Probe Headers
 	if service.LivenessProbe.HttpHeaders != nil {
@@ -124,9 +137,8 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 // UpdateService Update Service
 func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
 	serviceID := uuid.FromStringOrNil(*args.Service.ID)
-	serviceSpecID := uuid.FromStringOrNil(args.Service.ServiceSpecID)
 
-	if serviceID == uuid.Nil || serviceSpecID == uuid.Nil {
+	if serviceID == uuid.Nil {
 		return nil, fmt.Errorf("Missing argument id")
 	}
 
@@ -138,7 +150,6 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 	service.Command = args.Service.Command
 	service.Name = args.Service.Name
 	service.Type = plugins.Type(args.Service.Type)
-	service.ServiceSpecID = serviceSpecID
 	service.Count = args.Service.Count
 
 	r.DB.Save(&service)

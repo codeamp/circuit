@@ -40,7 +40,7 @@ func (r *ServiceResolver) Name() string {
 func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 	var serviceSpec model.ServiceSpec
 
-	r.DB.Model(r.Service).Related(&serviceSpec)
+	r.DB.Where("service_id = ?", r.Service.Model.ID).First(&serviceSpec)
 
 	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}
 }
