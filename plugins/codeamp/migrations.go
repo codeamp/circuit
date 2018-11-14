@@ -512,6 +512,18 @@ func (x *CodeAmp) Migrate() {
 					tx.Save(&serviceSpec)
 				}
 
+				defaultServiceSpec := model.ServiceSpec{
+					Name: "default",
+					CpuLimit: "1000",
+					CpuRequest: "100",
+					MemoryLimit: "1000",
+					MemoryRequest: "100",
+					TerminationGracePeriod: "300",
+					IsDefault: true,
+				}
+
+				tx.Create(&defaultServiceSpec)
+
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
