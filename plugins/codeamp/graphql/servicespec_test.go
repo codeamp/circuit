@@ -45,9 +45,6 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
-    ts.helper.Resolver.DB.LogMode(true)
-    defer ts.helper.Resolver.DB.LogMode(false)	
-
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T())
 
