@@ -10,14 +10,14 @@ type ServiceSpecResolver struct {
 	DB *gorm.DB
 }
 
-func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
+func (r *ServiceSpecResolver) Service() *ServiceResolver {
 	service := model.Service{}
 	if err := r.DB.Where("id = ?", r.ServiceSpec.ServiceID).First(&service).Error; err != nil {
-		return nil, err
+		return nil
 	}
 	
 	return &ServiceResolver{
 		DB: r.DB,
 		Service: service,
-	}, nil
+	}
 }
