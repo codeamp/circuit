@@ -143,6 +143,24 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
 	assert.NotNil(ts.T(), err)	
 }
 
+func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultSuccess() {
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolverID := string(serviceSpecResolver.ID())	
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: 					&serviceSpecResolverID,
+		Name:                   serviceSpecResolver.Name(),
+		CpuRequest:             serviceSpecResolver.CpuRequest(),
+		CpuLimit:               serviceSpecResolver.CpuLimit(),
+		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
+		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
+		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
+		IsDefault: serviceSpecResolver.IsDefault(),
+	}	
+
+	_, err := ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	assert.Nil(ts.T(), err)	
+}
+
 func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 
