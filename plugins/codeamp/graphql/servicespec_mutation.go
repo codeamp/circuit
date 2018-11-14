@@ -25,16 +25,13 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 	* set existing default spec = false.
 	*/
 	if args.ServiceSpec.IsDefault {
-		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("could not find default service spec")
+		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
+			currentDefault.IsDefault = false			
+			if err := tx.Save(&currentDefault).Error; err != nil {
+				tx.Rollback()
+				return nil, err
+			}				
 		}
-		
-		currentDefault.IsDefault = false			
-		if err := tx.Save(&currentDefault).Error; err != nil {
-			tx.Rollback()
-			return nil, err
-		}		
 	}
 
 	serviceSpec := model.ServiceSpec{
@@ -78,18 +75,15 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	* Condition: service spec cannot have a service mapped to it in order to be a default.
 	*/
 	if args.ServiceSpec.IsDefault && uuid.Equal(serviceSpec.ServiceID, uuid.Nil) {
-		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("could not find default service spec")
+		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
+			currentDefault.IsDefault = false			
+			if err := tx.Save(&currentDefault).Error; err != nil {
+				tx.Rollback()
+				return nil, err
+			}	
 		}
-		
-		currentDefault.IsDefault = false			
-		if err := tx.Save(&currentDefault).Error; err != nil {
-			tx.Rollback()
-			return nil, err
-		}	
 
-		isDefault = true
+		isDefault = true		
 	}
 
 	// check if currentDefault is the same as serviceSpec

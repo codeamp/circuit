@@ -45,15 +45,8 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
-	// create default service spec since that must be a pre-condition to calling graphql resolvers
-	defaultServiceSpec := model.ServiceSpec{
-		IsDefault: true,
-	}
-
     ts.helper.Resolver.DB.LogMode(true)
     defer ts.helper.Resolver.DB.LogMode(false)	
-
-	ts.helper.Resolver.DB.Create(&defaultServiceSpec)
 
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T())
