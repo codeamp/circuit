@@ -149,6 +149,9 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 		IsDefault: true,
 	}
 
+    ts.helper.Resolver.DB.LogMode(true)
+    defer ts.helper.Resolver.DB.LogMode(false)	
+
 	ts.helper.Resolver.DB.Create(&defaultServiceSpec)
 
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
