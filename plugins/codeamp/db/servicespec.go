@@ -48,5 +48,5 @@ func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
 	return &ServiceResolver{
 		DB: r.DB,
 		Service: service,
-	}
+	}	
 }

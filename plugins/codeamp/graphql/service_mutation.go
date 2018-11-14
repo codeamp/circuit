@@ -22,8 +22,10 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 		return nil, fmt.Errorf("Service name cannot be longer than 63 characters.")
 	}
 
+	tx := r.DB.Begin()
+
 	// Check if project can create service in environment
-	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
+	if tx.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
 		return nil, fmt.Errorf("Project not allowed to create service in given environment")
 	}
 
@@ -91,7 +93,13 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 		PreStopHook:        preStopHook,
 	}
 
-	r.DB.Create(&service)	
+	tx.Create(&service)
+
+	// Create service spec from default
+	defaultServiceSpec := model.ServiceSpec{}
+	if err := tx.Where("is_default= ?", true).First(&defaultServiceSpec).Error; err != nil {
+		return nil, fmt.Errorf("no default service spec found")
+	}
 
 	serviceSpec := model.ServiceSpec{
 		Name: defaultServiceSpec.Name,
@@ -104,20 +112,23 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 		IsDefault: false,
 	}
 
-	r.DB.Create(&serviceSpec)
+	if err := tx.Create(&serviceSpec).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
 	// Create Health Probe Headers
 	if service.LivenessProbe.HttpHeaders != nil {
 		for _, h := range service.LivenessProbe.HttpHeaders {
 			h.HealthProbeID = service.LivenessProbe.ID
-			r.DB.Create(&h)
+			tx.Create(&h)
 		}
 	}
 
 	if service.ReadinessProbe.HttpHeaders != nil {
 		for _, h := range service.ReadinessProbe.HttpHeaders {
 			h.HealthProbeID = service.ReadinessProbe.ID
-			r.DB.Create(&h)
+			tx.Create(&h)
 		}
 	}
 
@@ -128,8 +139,16 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 				Port:      cp.Port,
 				Protocol:  cp.Protocol,
 			}
-			r.DB.Create(&servicePort)
+			if err := tx.Create(&servicePort).Error; err != nil {
+				tx.Rollback()
+				return nil, err
+			}
 		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil, err
 	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
