@@ -145,7 +145,6 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 	// create default service spec since that must be a pre-condition to calling graphql resolvers
-	
 	defaultServiceSpec := model.ServiceSpec{
 		IsDefault: true,
 	}
@@ -187,13 +186,14 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 		TerminationGracePeriod: serviceSpecResolver2.TerminationGracePeriod(),
 		IsDefault: true,
 	}		
+
 	serviceSpecResolver2, err = ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	
 	// 1st service spec is now default = false
-	firstServiceSpec := model.ServiceSpec{}
-	ts.helper.Resolver.DB.Where("id = ?", string(serviceSpecResolver.ID())).First(&firstServiceSpec)
+	firstSS := model.ServiceSpec{}
+	ts.helper.Resolver.DB.Where("id = ?", serviceSpecResolverID).First(&firstSS)
 
-	assert.Equal(ts.T(), false, firstServiceSpec.IsDefault)
+	assert.Equal(ts.T(), false, firstSS.IsDefault)
 	// 2nd service spec is now default = true
 	assert.Equal(ts.T(), true, serviceSpecResolver2.IsDefault())
 	assert.Nil(ts.T(), err)
