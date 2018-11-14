@@ -103,6 +103,7 @@ type ServiceSpec struct {
 	TerminationGracePeriod string `json:"terminationGracePeriod"`
 	// ServiceID
 	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	Service Service `gorm:"foreignkey:ServiceID"`
 }
 
 // Service

@@ -12,7 +12,7 @@ type ServiceSpecResolver struct {
 
 func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
 	service := model.Service{}
-	if err := r.DB.Where("id = ?", r.ServiceSpec.ServiceID).First(&service).Error; err != nil {
+	if err := r.DB.Model(&r.ServiceSpec).Related(&service).Error; err != nil {
 		return nil, err
 	}
 	
