@@ -44,6 +44,33 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
 	ts.helper.CreateServiceSpec(ts.T())
 }
 
+func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+
+	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
+	
+	serviceSpecResolverID := string(serviceSpecResolver.ID())
+
+	// update 1st service spec with default true
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: 					&serviceSpecResolverID,
+		Name:                   serviceSpecResolver.Name(),
+		CpuRequest:             serviceSpecResolver.CpuRequest(),
+		CpuLimit:               serviceSpecResolver.CpuLimit(),
+		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
+		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
+		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
+		IsDefault: true,
+	}	
+
+	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
+	assert.Nil(ts.T(), err)
+
+	_, err = ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	assert.NotNil(ts.T(), err)	
+}
+
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
 	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T())
