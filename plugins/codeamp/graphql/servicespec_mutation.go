@@ -122,7 +122,7 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 			tx.Rollback()
 			return nil, err
 		}	
-		
+
 		isDefault = true
 	}
 
