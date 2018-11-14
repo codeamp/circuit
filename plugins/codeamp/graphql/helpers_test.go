@@ -434,7 +434,6 @@ func (helper *Helper) CreateServiceSpec(t *testing.T, isDefault bool) *ServiceSp
 
 
 func (helper *Helper) CreateService(t *testing.T,
-	serviceSpecResolver *ServiceSpecResolver,
 	projectResolver *ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
 	readinessProbe *model.ServiceHealthProbeInput,
@@ -490,7 +489,6 @@ func (helper *Helper) CreateUser(t *testing.T) *UserResolver {
 }
 
 func (helper *Helper) CreateServiceWithError(t *testing.T,
-	serviceSpecResolver *ServiceSpecResolver,
 	projectResolver *ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
 	readinessProbe *model.ServiceHealthProbeInput,

@@ -84,7 +84,7 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 	preStopHookCommand := "sleep 15"
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, &preStopHookCommand)
 }
 
@@ -130,7 +130,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
 	readinessProbe := model.ServiceHealthProbeInput{}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -156,7 +156,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
 	readinessProbe := model.ServiceHealthProbeInput{}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -184,7 +184,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
 	readinessProbe := model.ServiceHealthProbeInput{}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -270,7 +270,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesDefault() {
 	livenessProbe := model.ServiceHealthProbeInput{Method: "default"}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -301,7 +301,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCP() {
 	livenessProbe := model.ServiceHealthProbeInput{Method: "tcp", Port: &portTwo}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -373,7 +373,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTP() {
 	livenessProbe := healthProbe
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -424,7 +424,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
 	livenessProbe := healthProbe
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -500,7 +500,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExec() {
 	livenessProbe := healthProbe
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 }
 
@@ -583,7 +583,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	preStopHookCommand := "/bin/true"
 
 	// Services
-	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	serviceResolver := ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, &preStopHookCommand)
 
 	preStopHookCommand = "/bin/change"
@@ -628,7 +628,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Update Service
 	serviceID := "null"
@@ -651,7 +651,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureBadRecordID() {
 	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Update Service
 	serviceID := test.ValidUUID
@@ -705,7 +705,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 	livenessProbe := healthProbe
 
 	// Services
-	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	serviceResolver := ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 
 	// Update Service
@@ -736,7 +736,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceFailure() {
 	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Update Service
 	serviceID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
@@ -771,7 +771,7 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	preHookCommand := "sleep 15"
 
 	// Services
-	serviceResolver := ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	serviceResolver := ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, &preHookCommand)
 
 	// Test Service Interface
@@ -839,7 +839,7 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 	readinessProbe := model.ServiceHealthProbeInput{}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 
 	// Test Service Query
