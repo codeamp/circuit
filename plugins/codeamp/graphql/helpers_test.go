@@ -412,7 +412,7 @@ func (helper *Helper) CreateReleaseExtension(t *testing.T,
 	return &ReleaseExtensionResolver{DBReleaseExtensionResolver: &db_resolver.ReleaseExtensionResolver{ReleaseExtension: releaseExtension, DB: helper.Resolver.DB}}
 }
 
-func (helper *Helper) CreateServiceSpec(t *testing.T) *ServiceSpecResolver {
+func (helper *Helper) CreateServiceSpec(t *testing.T, isDefault bool) *ServiceSpecResolver {
 	// Service Spec ID
 	serviceSpecInput := model.ServiceSpecInput{
 		Name:                   helper.name,
@@ -431,6 +431,7 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *ServiceSpecResolver {
 	helper.cleanupServiceSpecIDs = append(helper.cleanupServiceSpecIDs, serviceSpecResolver.DBServiceSpecResolver.ServiceSpec.Model.ID)
 	return serviceSpecResolver
 }
+
 
 func (helper *Helper) CreateService(t *testing.T,
 	serviceSpecResolver *ServiceSpecResolver,
@@ -455,7 +456,6 @@ func (helper *Helper) CreateService(t *testing.T,
 		ProjectID:          projectID,
 		Command:            "echo \"hello\" && exit 0",
 		Name:               helper.name,
-		ServiceSpecID:      string(serviceSpecResolver.ID()),
 		Count:              1,
 		Ports:              &servicePortInputs,
 		Type:               "general",
@@ -512,7 +512,6 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 		ProjectID:          projectID,
 		Command:            "echo \"hello\" && exit 0",
 		Name:               helper.name,
-		ServiceSpecID:      string(serviceSpecResolver.ID()),
 		Count:              1,
 		Ports:              &servicePortInputs,
 		Type:               "general",
