@@ -44,8 +44,8 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
-	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T(), true)
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
+	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T(), false)
 
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
 	
@@ -152,7 +152,7 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
 
 func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
 
 	_ = serviceSpecResolver.ID()
 	assert.Equal(ts.T(), "TestServiceSpec", serviceSpecResolver.Name())
