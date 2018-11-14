@@ -47,7 +47,7 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 		IsDefault: 				args.ServiceSpec.IsDefault,
 	}
 
-	if err := r.DB.Create(&serviceSpec).Error; err != nil {
+	if err := tx.Create(&serviceSpec).Error; err != nil {
 		tx.Rollback()
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 			tx.Rollback()
 			return nil, err
 		}	
-		
+
 		isDefault = true
 	}
 
