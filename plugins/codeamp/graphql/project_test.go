@@ -138,7 +138,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	assert.NotNil(suite.T(), releasesList)
 
 	// Service Spec ID
-	serviceSpecResolver := suite.helper.CreateServiceSpec(suite.T())
+	suite.helper.CreateServiceSpec(suite.T(), true)
 
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type: plugins.GetType("recreate"),
@@ -148,7 +148,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	readinessProbe := model.ServiceHealthProbeInput{}
 
 	// Services
-	suite.helper.CreateService(suite.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	suite.helper.CreateService(suite.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 
 	// Test

@@ -40,12 +40,12 @@ func (suite *ServiceSpecTestSuite) SetupTest() {
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
 	// Service Spec
-	ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T(), true)
 
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
 	
@@ -90,7 +90,7 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 
 func (ts *ServiceSpecTestSuite) TestUpdateServiceSpecSuccess() {
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Update Service Spec
 	serviceSpecID := string(serviceSpecResolver.ID())
@@ -103,7 +103,7 @@ func (ts *ServiceSpecTestSuite) TestUpdateServiceSpecSuccess() {
 
 func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecSuccess() {
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Delete Service Spec
 	serviceSpecID := string(serviceSpecResolver.ID())
@@ -136,10 +136,10 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
 	projectResolver.DBProjectResolver.Environment = environmentResolver.DBEnvironmentResolver.Environment
 
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Delete Service Spec
 	serviceSpecID := test.ValidUUID
@@ -152,7 +152,7 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
 
 func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
 
 	_ = serviceSpecResolver.ID()
 	assert.Equal(ts.T(), "TestServiceSpec", serviceSpecResolver.Name())

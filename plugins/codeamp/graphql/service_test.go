@@ -57,7 +57,7 @@ func (ts *ServiceTestSuite) TestCreateServiceNoDefaultServiceSpecFailure() {
 	}
 
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), nil, projectResolver, nil, nil, nil, nil)
+	_, err = ts.helper.CreateServiceWithError(ts.T(), projectResolver, nil, nil, nil, nil)
 	assert.NotNil(ts.T(), err)
 }
 
@@ -72,7 +72,7 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -99,11 +99,11 @@ func (ts *ServiceTestSuite) TestCreateServiceNameTooLong() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
 	ts.helper.name = "this-service-name-is-too-long-to-be-accepeted-fooooooooooooooooo"
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	_, err = ts.helper.CreateServiceWithError(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	assert.NotNil(ts.T(), err)
 }
@@ -119,7 +119,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -145,7 +145,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -171,7 +171,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -199,7 +199,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFail
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -210,7 +210,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFail
 	readinessProbe := model.ServiceHealthProbeInput{}
 
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	_, err = ts.helper.CreateServiceWithError(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy of type rollingUpdate created with invalid inputs"))
@@ -228,7 +228,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyInvalid() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -239,7 +239,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyInvalid() {
 	readinessProbe := model.ServiceHealthProbeInput{}
 
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	_, err = ts.helper.CreateServiceWithError(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("DeploymentStrategy succesfully created with invalid parameters"))
@@ -257,7 +257,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesDefault() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -285,7 +285,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCP() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -316,7 +316,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCPInvalid() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -331,7 +331,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCPInvalid() {
 	livenessProbe := model.ServiceHealthProbeInput{Method: "tcp"}
 
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	_, err = ts.helper.CreateServiceWithError(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
@@ -349,7 +349,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTP() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -388,7 +388,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -439,7 +439,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPInvalid() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -463,7 +463,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPInvalid() {
 	livenessProbe := healthProbe
 
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	_, err = ts.helper.CreateServiceWithError(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
@@ -481,7 +481,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExec() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -515,7 +515,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExecInvalid() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -530,7 +530,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExecInvalid() {
 	livenessProbe := healthProbe
 
 	// Services
-	_, err = ts.helper.CreateServiceWithError(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy,
+	_, err = ts.helper.CreateServiceWithError(ts.T(), projectResolver, &deploymentStrategy,
 		&readinessProbe, &livenessProbe, nil)
 	if err == nil {
 		assert.FailNow(ts.T(), fmt.Sprint("Health Probes successfully created with invalid parameters"))
@@ -548,7 +548,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -625,7 +625,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
 	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
@@ -648,7 +648,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureBadRecordID() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
 	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
@@ -671,7 +671,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -733,7 +733,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceFailure() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
 	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
@@ -829,7 +829,7 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type: plugins.GetType("recreate"),
