@@ -1,6 +1,7 @@
 package graphql_resolver
 
 import (
+	"github.com/jinzhu/gorm"
 	"fmt"
 
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
@@ -70,7 +71,6 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 		return nil, fmt.Errorf("serviceSpec not found with given argument id")
 	}
 
-<<<<<<< HEAD
 	/*
 	* Find existing default; if input.default = true,
 	* set existing default spec = false.
@@ -93,42 +93,6 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	if serviceSpec.Model.ID.String() == currentDefault.Model.ID.String() {
 		isDefault = true
 	}
-
-	/*
-	* Find existing default; if input.default = true,
-	* set existing default spec = false.
-	* Condition: service spec cannot have a service mapped to it in order to be a default.
-	*/
-	if args.ServiceSpec.IsDefault && uuid.Equal(serviceSpec.ServiceID, uuid.Nil) {
-		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
-			currentDefault.IsDefault = false			
-			if err := tx.Save(&currentDefault).Error; err != nil {
-				tx.Rollback()
-				return nil, err
-			}	
-		}
-
-		isDefault = true		
-	}
-
-	// check if currentDefault is the same as serviceSpec
-	// if so, isDefault must always be true
-	if serviceSpec.Model.ID.String() == currentDefault.Model.ID.String() {
-		isDefault = true
-=======
-	if r.DB.Where("id = ?", serviceSpecID).Find(&serviceSpec).RecordNotFound() {
-		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
->>>>>>> Add default property for service spec profiles
-	}
-	
-	// if IsDefault is True, check which one is the current default
-	if args.ServiceSpec.IsDefault {
-		var currentDefault model.ServiceSpec
-		if err := r.DB.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
-			currentDefault.IsDefault = false			
-			r.DB.Save(&currentDefault)
-		}
-	}	
 
 	serviceSpec.Name = args.ServiceSpec.Name
 	serviceSpec.CpuLimit = args.ServiceSpec.CpuLimit
@@ -153,41 +117,35 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 
 
 // DeleteServiceSpec
-func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
+func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {	
 	tx := r.DB.Begin()
 
 	serviceSpec := model.ServiceSpec{}
-	if err := tx.Where("id=?", args.ServiceSpec.ID).First(&serviceSpec).Error; err != nil {
+	service := model.Service{}
+
+	if err := tx.Where("id = ?", args.ServiceSpec.ID).First(&serviceSpec).Error; err != nil {
+		tx.Rollback()		
+		return nil, err
+	}
+	
+	if serviceSpec.IsDefault {
 		tx.Rollback()
-		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
-	} else {
-		services := []model.Service{}
-		if err := tx.Where("id = ?", serviceSpec.ServiceID).Find(&services).Error; err != nil {
-			tx.Rollback()
+		return nil, fmt.Errorf("Select another service spec to be a default before deleting this.")
+	}	
+
+	if err := tx.Where("id = ?", serviceSpec.ServiceID).First(&service).Error; gorm.IsRecordNotFoundError(err) {
+		if err := tx.Delete(&serviceSpec).Error; err != nil {
+			tx.Rollback()			
 			return nil, err
 		}
 		
-		if serviceSpec.IsDefault {
-			tx.Rollback()
-			return nil, fmt.Errorf("Select another service spec to be a default before deleting this.")
+		if err := tx.Commit().Error; err != nil {
+			tx.Rollback()			
+			return nil, err
 		}
-		
-		if len(services) == 0 {
-			if err := tx.Delete(&serviceSpec).Error; err != nil {
-				tx.Rollback()
-				return nil, err
-			}
 
-			if err := tx.Commit().Error; err != nil {
-				tx.Rollback()
-				return nil, err
-			}
-
-			//r.ServiceSpecDeleted(&serviceSpec)
-
-			return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
-		} else {
-			return nil, fmt.Errorf("Delete all project-services using this service spec first.")
-		}
+		return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
+	} else {
+		return nil, fmt.Errorf("Delete the service mapped to this service-spec first.")
 	}
 }
