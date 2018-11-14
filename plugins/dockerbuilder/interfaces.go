@@ -1,6 +1,6 @@
 package dockerbuilder
 
-import(
+import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
@@ -13,9 +13,9 @@ type Dockerer interface {
 type Docker struct {
 }
 
-func (l Docker) NewClient(socket string) (DockerClienter, error){
+func (l Docker) NewClient(socket string) (DockerClienter, error) {
 	client, err := docker.NewClient(socket)
-	DockerClient := DockerClient{ client }
+	DockerClient := DockerClient{client}
 	return DockerClient, err
 }
 
@@ -38,7 +38,7 @@ func (l DockerClient) BuildImage(buildOptions docker.BuildImageOptions) error {
 
 func (l DockerClient) InspectImage(name string) (DockerImager, error) {
 	image, err := l.Client.InspectImage(name)
-	DockerImage := DockerImage{ image }
+	DockerImage := DockerImage{image}
 	return DockerImage, err
 }
 
@@ -49,7 +49,6 @@ func (l DockerClient) TagImage(name string, tagImageOptions docker.TagImageOptio
 func (l DockerClient) PushImage(pushImageOptions docker.PushImageOptions, authConfig docker.AuthConfiguration) error {
 	return l.Client.PushImage(pushImageOptions, authConfig)
 }
-
 
 ////////////////////////////
 

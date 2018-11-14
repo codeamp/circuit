@@ -1,6 +1,6 @@
 package dockerbuilder_test
 
-import(
+import (
 	"github.com/codeamp/circuit/plugins/dockerbuilder"
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -10,7 +10,7 @@ import(
 type MockedDocker struct {
 }
 
-func (l MockedDocker) NewClient(socket string) (dockerbuilder.DockerClienter, error){
+func (l MockedDocker) NewClient(socket string) (dockerbuilder.DockerClienter, error) {
 	return MockedDockerClient{}, nil
 }
 
@@ -38,7 +38,6 @@ func (l MockedDockerClient) PushImage(pushImageOptions docker.PushImageOptions, 
 ////////////////////////////
 
 type MockedDockerImage struct {
-	
 }
 
 func (i MockedDockerImage) ID() string {
