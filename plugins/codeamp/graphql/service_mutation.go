@@ -102,7 +102,7 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	}
 
 	serviceSpec := model.ServiceSpec{
-		Name: defaultServiceSpec.Name,
+		Name: "",
 		CpuRequest: defaultServiceSpec.CpuRequest,
 		CpuLimit: defaultServiceSpec.CpuLimit,
 		MemoryRequest: defaultServiceSpec.MemoryRequest,

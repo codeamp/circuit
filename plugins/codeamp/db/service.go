@@ -21,7 +21,7 @@ type ServiceResolver struct {
 func (r *ServiceResolver) Project() *ProjectResolver {
 	var project model.Project
 
-	r.DB.Model(r.Service).Related(&project)
+	r.DB.Model(&r.Service).Related(&project)
 
 	return &ProjectResolver{DB: r.DB, Project: project}
 }
