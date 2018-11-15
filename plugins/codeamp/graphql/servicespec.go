@@ -53,8 +53,13 @@ func (r *ServiceSpecResolver) IsDefault() bool {
 }
 
 // Service
-func (r *ServiceSpecResolver) Service() *ServiceResolver {
-	return &ServiceResolver{DBServiceResolver: r.DBServiceSpecResolver.Service()}
+func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
+	service, err := r.DBServiceSpecResolver.Service()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ServiceResolver{DBServiceResolver: service}, nil
 }
 
 // Created

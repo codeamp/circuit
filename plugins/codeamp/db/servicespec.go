@@ -1,7 +1,6 @@
 package db_resolver
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"fmt"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -14,6 +13,7 @@ type ServiceSpecResolver struct {
 	DB *gorm.DB
 }
 
+// Name
 func (r *ServiceSpecResolver) Name() string {
 	env := model.Environment{}
 	project := model.Project{}
@@ -40,19 +40,18 @@ func (r *ServiceSpecResolver) Name() string {
 		return r.ServiceSpec.Name
 	}	
 
-	spew.Dump(fmt.Sprintf("%s/%s/%s", service.Name, project.Slug, env.Key))
-
 	return fmt.Sprintf("%s/%s/%s", service.Name, project.Slug, env.Key)
 }
 
+// Service
 func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
 	service := model.Service{}
 	if err := r.DB.Where("id = ?", r.ServiceSpec.ServiceID).First(&service).Error; err != nil {
 		return nil, err
-  	}
+	}
 	
 	return &ServiceResolver{
 		DB: r.DB,
 		Service: service,
-	}	
+	}, nil
 }
