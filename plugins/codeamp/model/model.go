@@ -104,8 +104,9 @@ type ServiceSpec struct {
 	// ServiceID
 	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
 	// IsDefault
-	IsDefault bool `bson:"isDefault" json:"isDefault"`
-	Service Service `gorm:"foreignkey:ServiceID"`
+	IsDefault bool    `bson:"isDefault" json:"isDefault"`
+	Service   Service `gorm:"foreignkey:ServiceID"`
+	Type      string  `json:"type"`
 }
 
 // Service
@@ -133,6 +134,8 @@ type Service struct {
 	LivenessProbe ServiceHealthProbe `json:"livenessProbe"`
 	// PreStopHook
 	PreStopHook string `json:"preStopHook"`
+	// AutoscaleEnabled
+	AutoscaleEnabled bool `json:"autoscaleEnabled"`
 }
 
 // ServicePort

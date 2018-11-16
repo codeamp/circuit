@@ -34,9 +34,19 @@ func (r *ServiceResolver) Name() string {
 	return r.DBServiceResolver.Service.Name
 }
 
+// AutoscaleEnabled
+func (r *ServiceResolver) AutoscaleEnabled() bool {
+	return r.DBServiceResolver.Service.AutoscaleEnabled
+}
+
 // ServiceSpec
 func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 	return &ServiceSpecResolver{DBServiceSpecResolver: r.DBServiceResolver.ServiceSpec()}
+}
+
+// SuggestedServiceSpec
+func (r *ServiceResolver) SuggestedServiceSpec() *ServiceSpecResolver {
+	return &ServiceSpecResolver{DBServiceSpecResolver: r.DBServiceResolver.SuggestedServiceSpec()}
 }
 
 // Count

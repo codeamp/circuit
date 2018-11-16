@@ -1,11 +1,12 @@
 package smartprofiles
 
 import (
-	"strings"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
+	"strings"
+
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
 	log "github.com/codeamp/logger"
 )
@@ -55,6 +56,7 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 	log.DebugWithFields("Processing SmartProfiles event", log.Fields{
 		"event": e.Event(),
 	})
+	fmt.Println("Processing SmartProfiles event")
 
 	project := e.Payload.(plugins.Project)
 	projectNamespace := fmt.Sprintf("%s-%s", strings.ToLower(project.Environment), strings.ToLower(project.Slug))
@@ -67,63 +69,42 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 	influxDBName, err := e.GetArtifact("INFLUX_DB")
 	if err != nil {
 		return err
-	}	
+	}
 
 	influxClient, err := InitInfluxClient(influxHost.String(), influxDBName.String())
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	ch := make(chan *Service)
 
 	for _, service := range project.Services {
-		go influxClient.GetService(service.Name, projectNamespace, "72h", ch)
+		go influxClient.GetService(service.ID, service.Name, projectNamespace, "72h", ch)
 	}
 
 	respProject := project
 	respProject.Services = []plugins.Service{}
-	
-	fmt.Println("Current State -> Recommended State:")
-	
+
 	for range project.Services {
 		var svc *Service
-		svc = <-ch			
+		svc = <-ch
+
+		spew.Dump(svc.RecommendedState)
 
 		projectService := plugins.Service{
 			Name: svc.Name,
 			Spec: plugins.ServiceSpec{
-				CpuRequest: svc.RecommendedState.CPU.Request,
-				CpuLimit: svc.RecommendedState.CPU.Limit,
+				CpuRequest:    svc.RecommendedState.CPU.Request,
+				CpuLimit:      svc.RecommendedState.CPU.Limit,
 				MemoryRequest: svc.RecommendedState.Memory.Request,
-				MemoryLimit: svc.RecommendedState.Memory.Limit,
-			},			
+				MemoryLimit:   svc.RecommendedState.Memory.Limit,
+			},
 		}
-
-		spew.Dump(svc)
-
-		// fmt.Println(fmt.Sprintf(`
-		// %s %s
-		
-		// Current Mem Usage (gb): %s
-		// Mem Req: %s -> %s
-		// Mem Limit: %s -> %s
-		
-		// Current CPU Usage (cores): %s
-		// CPU Req: %s -> %s
-		// CPU Limit: %s -> %s
-		// `, 
-		// svc.Name, svc.Namespace,
-		// svc.CurrentState.Memory.Current,
-		// svc.CurrentState.Memory.Request, svc.RecommendedState.Memory.Request,
-		// svc.CurrentState.Memory.Limit, svc.RecommendedState.Memory.Limit,
-		// svc.CurrentState.CPU.Current,
-		// svc.CurrentState.CPU.Request, svc.RecommendedState.CPU.Request,
-		// svc.CurrentState.CPU.Limit, svc.RecommendedState.CPU.Limit))
 
 		respProject.Services = append(respProject.Services, projectService)
 	}
-	
-	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), respProject)	
+
+	ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("status"), respProject)
 	x.events <- ev
 
 	return nil

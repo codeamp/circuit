@@ -2,7 +2,7 @@ package db_resolver
 
 import (
 	"fmt"
-	log "github.com/codeamp/logger"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
@@ -29,16 +29,16 @@ func (r *ServiceSpecResolver) Name() string {
 	if err := r.DB.Where("id = ?", service.ProjectID).First(&project).Error; err != nil {
 		log.InfoWithFields("project not found", log.Fields{
 			"id": service.ProjectID,
-		})		
+		})
 		return r.ServiceSpec.Name
 	}
 
 	if err := r.DB.Where("id = ?", service.EnvironmentID).First(&env).Error; err != nil {
 		log.InfoWithFields("environment not found", log.Fields{
 			"id": service.EnvironmentID,
-		})		
+		})
 		return r.ServiceSpec.Name
-	}	
+	}
 
 	return fmt.Sprintf("%s/%s/%s", service.Name, project.Slug, env.Key)
 }
@@ -49,9 +49,9 @@ func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
 	if err := r.DB.Where("id = ?", r.ServiceSpec.ServiceID).First(&service).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return &ServiceResolver{
-		DB: r.DB,
+		DB:      r.DB,
 		Service: service,
 	}, nil
 }

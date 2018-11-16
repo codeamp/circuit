@@ -1,11 +1,14 @@
 package codeamp
 
 import (
-	"github.com/spf13/viper"
 	"fmt"
-	"github.com/codeamp/transistor"
+	"log"
+
 	"github.com/codeamp/circuit/plugins"
-	// "github.com/davecgh/go-spew/spew"
+	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/spf13/viper"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 )
 
@@ -30,16 +33,17 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 		pluginServices := []plugins.Service{}
 		for _, svc := range services {
 			pluginServices = append(pluginServices, plugins.Service{
+				ID:   svc.Model.ID.String(),
 				Name: svc.Name,
 			})
 		}
 
 		payload := plugins.Project{
-			Slug: project.Slug,
+			Slug:        project.Slug,
 			Environment: env.Name,
-			Services: pluginServices,
+			Services:    pluginServices,
 		}
-		
+
 		fmt.Println(fmt.Sprintf("Sending event %s - %s", project.Slug, env.Name))
 		ev := transistor.NewEvent(plugins.GetEventName("smartprofiles"), transistor.GetAction("update"), payload)
 		ev.AddArtifact("INFLUX_HOST", viper.GetString("plugins.smartprofiles.influxdb.host"), false)
@@ -51,11 +55,28 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 	return nil
 }
 
-// SmartProfilesEventHandler
+// ProjectEventHandler
 func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
-	// check how many upgrades have been made to the particular service. if more than 2, then create a service modification request to admins
+	// For each service's service spec, find + update or create the corresponding suggested service spec
+	projectPayload := e.Payload.(plugins.Project)
+	for _, service := range projectPayload.Services {
+		dbService := model.Service{}
+		if err := x.DB.Where("id = ?", service.ID).First(&dbService).Error; err != nil {
+			log.Printf(err.Error())
+		} else {
+			// suggestedServiceSpec := model.ServiceSpec{
+			// 	ServiceID:     dbService.Model.ID,
+			// 	CpuRequest:    service.Spec.CpuRequest,
+			// 	CpuLimit:      service.Spec.CpuLimit,
+			// 	MemoryRequest: service.Spec.MemoryRequest,
+			// 	MemoryLimit:   service.Spec.MemoryLimit,
+			// 	Type:          "suggested",
+			// }
 
-	// check if downgrade or upgrade. if upgrade, create a service modification request for admins to accept
-	
+			spew.Dump("found corresponding service", service)
+			// x.DB.Create(&suggestedServiceSpec)
+		}
+	}
+
 	return nil
 }

@@ -36,6 +36,11 @@ func (r *ServiceResolver) Name() string {
 	return r.Service.Name
 }
 
+// AutoscaleEnabled
+func (r *ServiceResolver) AutoscaleEnabled() bool {
+	return r.Service.AutoscaleEnabled
+}
+
 // ServiceSpec
 func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 	var serviceSpec model.ServiceSpec
@@ -46,6 +51,15 @@ func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 		})
 		return nil
 	}
+
+	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}
+}
+
+// SuggestedServiceSpec
+func (r *ServiceResolver) SuggestedServiceSpec() *ServiceSpecResolver {
+	var serviceSpec model.ServiceSpec
+
+	r.DB.Where("service_id = ? and type = ?", r.Service.Model.ID, "suggested").Order("created_at desc").First(&serviceSpec)
 
 	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}
 }

@@ -508,13 +508,13 @@ func (x *CodeAmp) Migrate() {
 
 					// create a service spec for each service that's mapped to the service
 					newServiceSpec := model.ServiceSpec{
-						Name: serviceSpec.Name,
-						CpuRequest: serviceSpec.CpuRequest,
-						CpuLimit: serviceSpec.CpuLimit,
-						MemoryRequest: serviceSpec.MemoryRequest,
-						MemoryLimit: serviceSpec.MemoryLimit,
+						Name:                   serviceSpec.Name,
+						CpuRequest:             serviceSpec.CpuRequest,
+						CpuLimit:               serviceSpec.CpuLimit,
+						MemoryRequest:          serviceSpec.MemoryRequest,
+						MemoryLimit:            serviceSpec.MemoryLimit,
 						TerminationGracePeriod: serviceSpec.TerminationGracePeriod,
-						ServiceID: service.Model.ID,
+						ServiceID:              service.Model.ID,
 					}
 
 					tx.FirstOrCreate(&newServiceSpec, model.ServiceSpec{ServiceID: service.Model.ID})
@@ -534,7 +534,7 @@ func (x *CodeAmp) Migrate() {
 			ID: "201811080959",
 			Migrate: func(tx *gorm.DB) error {
 				serviceSpecs := []model.ServiceSpec{}
-				tx.Find(&serviceSpecs)				
+				tx.Find(&serviceSpecs)
 
 				for _, serviceSpec := range serviceSpecs {
 					serviceSpec.IsDefault = false
@@ -542,13 +542,13 @@ func (x *CodeAmp) Migrate() {
 				}
 
 				defaultServiceSpec := model.ServiceSpec{
-					Name: "default",
-					CpuLimit: "1000",
-					CpuRequest: "100",
-					MemoryLimit: "1000",
-					MemoryRequest: "100",
+					Name:                   "default",
+					CpuLimit:               "1000",
+					CpuRequest:             "100",
+					MemoryLimit:            "1000",
+					MemoryRequest:          "100",
 					TerminationGracePeriod: "300",
-					IsDefault: true,
+					IsDefault:              true,
 				}
 
 				tx.Create(&defaultServiceSpec)
@@ -558,7 +558,24 @@ func (x *CodeAmp) Migrate() {
 			Rollback: func(tx *gorm.DB) error {
 				return db.Model(&model.ServiceSpec{}).DropColumn("is_default").Error
 			},
-		},	
+		},
+		{
+			ID: "201811151549",
+			Migrate: func(tx *gorm.DB) error {
+				services := []model.Service{}
+				tx.Find(&services)
+
+				for _, service := range services {
+					service.AutoscaleEnabled = false
+					tx.Save(&service)
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return db.Model(&model.Service{}).DropColumn("autoscale_enabled").Error
+			},
+		},
 	})
 
 	if err = m.Migrate(); err != nil {

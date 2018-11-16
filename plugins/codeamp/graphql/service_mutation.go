@@ -171,6 +171,7 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 	service.Name = args.Service.Name
 	service.Type = plugins.Type(args.Service.Type)
 	service.Count = args.Service.Count
+	service.AutoscaleEnabled = args.Service.AutoscaleEnabled
 
 	if err := r.DB.Save(&service).Error; err != nil {
 		log.Error(err.Error())

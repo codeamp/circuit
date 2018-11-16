@@ -21,11 +21,11 @@ plugins:
     service_address: ":3011"
   gitsync:
     workers: 1
-    workdir: "/tmp/gitsync" 
+    workdir: "/tmp/gitsync"
   heartbeat:
     workers: 0
   kubernetes:
-    workers: 1  
+    workers: 1
   githubstatus:
     workers: 1
   route53:
@@ -34,9 +34,9 @@ plugins:
     workers: 1
   smartprofiles:
     influxdb:
-      host: ""
-      db: ""
-    workers: 1    
+      host: "https://influxdb.checkrhq.net:8086"
+      db: "telegraf"
+    workers: 1
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"
@@ -45,4 +45,4 @@ plugins:
     registry_password: ""
     registry_user_email: ""
     docker_host: "unix:///var/run/docker.sock"
-    workdir: "/tmp/docker_build"  
+    workdir: "/tmp/docker_build"
