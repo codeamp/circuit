@@ -478,6 +478,10 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 		return "", fmt.Errorf("Secrets in createSecretsForDeploy cannot be null")
 	}
 
+	if len(secrets) == 0 {
+		log.Warn("There were no secrets found for this deploy!", log.Fields{"namespace": namespace, "slug": projectSlug})
+	}
+
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
 
