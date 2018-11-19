@@ -29,7 +29,7 @@ func (r *ExtensionResolverQuery) Extensions(ctx context.Context, args *struct{ E
 
 	db.Order("environment_id asc, name asc").Find(&rows)
 	for _, ext := range rows {
-		results = append(results, &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: db, Extension: ext}})
+		results = append(results, &ExtensionResolver{DBExtensionResolver: &db_resolver.ExtensionResolver{DB: r.DB, Extension: ext}})
 	}
 
 	return results, nil
