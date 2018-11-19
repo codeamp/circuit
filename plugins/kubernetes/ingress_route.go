@@ -383,11 +383,11 @@ func (x *Kubernetes) createIngressRoute(e transistor.Event) error {
 					Fqdn: domain.FQDN,
 				},
 				Routes: []contour_v1beta1.Route{
-					{
+					contour_v1beta1.Route{
 						Match:            "/",
 						EnableWebsockets: inputs.EnableWebsockets,
 						Services: []contour_v1beta1.Service{
-							{
+							contour_v1beta1.Service{
 								Name: inputs.Service.ID,
 								Port: int(inputs.Service.Port.SourcePort),
 							},
