@@ -43,7 +43,7 @@ func hasScopePermission(scope string, permissions []string) bool {
 
 		// Loop through the tokens to ensure that the permission covers the requested scope
 		permissionCoversScope := true
-		for i := range permissionTokens {
+		for i, _ := range permissionTokens {
 			if permissionTokens[i] != scopeTokens[i] {
 				permissionCoversScope = false
 				break
