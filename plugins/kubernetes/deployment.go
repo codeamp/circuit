@@ -474,11 +474,15 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 
 // Create the secrets for the deployment
 func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets *[]plugins.Secret) (string, error) {
+	if secrets == nil {
+		return "", fmt.Errorf("Secrets in createSecretsForDeploy cannot be null")
+	}
+
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
 
 	// This map is used in to create the secrets themselves
-	for _, secret := range secrets {
+	for _, secret := range *secrets {
 		secretMap[secret.Key] = secret.Value
 	}
 
@@ -506,11 +510,14 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 
 // Build the configuration needed for the environment of the deploy
 func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets *[]plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
-	log.Warn("setupEnvironmentForDeploy")
+	if secrets == nil {
+		return nil, nil, nil, nil, fmt.Errorf("Secrets in setupEnvironmentForDeploy cannot be null")
+	}
+
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
 	var envVars []v1.EnvVar
-	for _, secret := range secrets {
+	for _, secret := range *secrets {
 		if secret.Type == plugins.GetType("env") || secret.Type == plugins.GetType("protected-env") {
 			newEnv := v1.EnvVar{
 				Name: secret.Key,
@@ -541,7 +548,7 @@ func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets *[]plu
 		ReadOnly:  true,
 	})
 
-	for _, secret := range secrets {
+	for _, secret := range *secrets {
 		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
 				Path: secret.Key,
@@ -574,8 +581,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 	oneShotServices []plugins.Service) error {
 	batchv1DepInterface := clientset.BatchV1()
 	coreInterface := clientset.Core()
-
-	log.Warn("deployOneShotServices")
 
 	// For all OneShot Services
 	for index, service := range oneShotServices {
@@ -758,8 +763,6 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 	envVars []v1.EnvVar, volumeMounts []v1.VolumeMount, deployVolumes []v1.Volume, secretItems []v1.KeyToPath, deploymentServices []plugins.Service) error {
 	depInterface := clientset.Extensions()
 
-	log.Warn("deployServices")
-
 	// Now process all deployment services
 	for _, service := range deploymentServices {
 		deploymentName := genDeploymentName(projectSlug, service.Name)
@@ -900,8 +903,6 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 	namespace string, projectSlug string, deploymentServices []plugins.Service) error {
 
-	log.Warn("waitForDeploymentSuccess")
-
 	coreInterface := clientset.Core()
 	depInterface := clientset.Extensions()
 
@@ -1000,8 +1001,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 // Cleans up any resources leftover from a previous or inactive deployment
 func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 	namespace string, projectSlug string, oneShotServices []plugins.Service, services []plugins.Service) error {
-
-	log.Warn("Cleanup orphans")
 
 	batchv1DepInterface := clientset.BatchV1()
 	depInterface := clientset.Extensions()
@@ -1113,7 +1112,6 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 }
 
 func (x *Kubernetes) doDeploy(e transistor.Event) error {
-	log.Warn("doDeploy")
 	/******************************************
 	*
 	*	Build Kubernetes Configuration
@@ -1153,7 +1151,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		x.sendErrorResponse(e, err.Error())
 		return err
 	}
-	log.Warn("built config")
 
 	/******************************************
 	*
@@ -1167,7 +1164,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Build Prospective Namespace Name
 	*
 	*******************************************/
-	log.Warn("building namespace name")
 	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 
 	// TODO: get timeout from formValues
@@ -1178,7 +1174,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Ensure Namespace Exists
 	*
 	*******************************************/
-	log.Warn("creating namespace name")
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, clientset)
 	if createNamespaceErr != nil {
 		x.sendErrorResponse(e, createNamespaceErr.Error())
@@ -1190,7 +1185,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Create Docker IO Secret
 	*
 	*******************************************/
-	log.Warn("creting docker io secret")
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, clientset, e)
 	if createDockerIOSecretErr != nil {
 		x.sendErrorResponse(e, createDockerIOSecretErr.Error())
@@ -1203,9 +1197,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*
 	*******************************************/
 	secrets := reData.Release.Secrets
-
-	log.Warn("creating secrets for deploy")
-	secretName, err := x.createSecretsForDeploy(clientset, namespace, projectSlug, secrets)
+	secretName, err := x.createSecretsForDeploy(clientset, namespace, projectSlug, &secrets)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
@@ -1218,8 +1210,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Build Environment / EnvVars
 	*
 	*******************************************/
-	log.Warn("setup environment for deploy")
-	envVars, volumeMounts, volumes, volumeSecretItems, err := x.setupEnvironmentForDeploy(secretName, secrets)
+	envVars, volumeMounts, volumes, volumeSecretItems, err := x.setupEnvironmentForDeploy(secretName, &secrets)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
@@ -1231,7 +1222,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*
 	*******************************************/
 	// Validate we have some services to deploy
-	log.Warn("validating services to deploy")
 	if len(reData.Release.Services) == 0 {
 		zeroServicesErr := fmt.Errorf("ERROR: Zero services were found in the deploy message.")
 		x.sendErrorResponse(e, zeroServicesErr.Error())
@@ -1266,7 +1256,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	var deploymentServices []plugins.Service
 	var oneShotServices []plugins.Service
 
-	log.Warn("releasing loop services")
 	for _, service := range reData.Release.Services {
 		if service.Type == "one-shot" {
 			if !reData.Release.IsRollback {
@@ -1280,7 +1269,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	}
 
 	// One Shot Services
-	log.Warn("one shot services")
 	err = x.deployOneShotServices(clientset, e, namespace, projectSlug, envVars, volumeMounts, volumes, volumeSecretItems, oneShotServices)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
@@ -1288,7 +1276,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	}
 
 	// Deployment Services
-	log.Warn("deployment services")
 	err = x.deployServices(clientset, e, namespace, projectSlug, reData.Release.IsRollback, envVars, volumeMounts, volumes, volumeSecretItems, deploymentServices)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
@@ -1315,7 +1302,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Cleanup orphans and environment
 	*
 	*******************************************/
-	log.Warn("cleaning up orphans")
 	if err := x.cleanupOrphans(clientset, namespace, projectSlug, oneShotServices, deploymentServices); err != nil {
 		log.Error(err)
 	}
@@ -1324,8 +1310,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 }
 
 func (x *Kubernetes) exposePodInfoViaEnvVariable(myEnvVars []v1.EnvVar) []v1.EnvVar {
-	log.Warn("exposePodInfoViaEnvVariable")
-
 	// TODO rename to KUBE_POD_IP for consistency when all consumers get updated
 	myEnvVars = append(myEnvVars, v1.EnvVar{
 		Name: "POD_IP",
