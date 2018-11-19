@@ -473,7 +473,7 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 }
 
 // Create the secrets for the deployment
-func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets []plugins.Secret) (string, error) {
+func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets *[]plugins.Secret) (string, error) {
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
 
@@ -505,7 +505,7 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 }
 
 // Build the configuration needed for the environment of the deploy
-func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets []plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
+func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets *[]plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
 	log.Warn("setupEnvironmentForDeploy")
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
@@ -1202,7 +1202,8 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Create Secrets for Deploy
 	*
 	*******************************************/
-	var secrets []plugins.Secret
+	secrets := reData.Release.Secrets
+
 	log.Warn("creating secrets for deploy")
 	secretName, err := x.createSecretsForDeploy(clientset, namespace, projectSlug, secrets)
 	if err != nil {
