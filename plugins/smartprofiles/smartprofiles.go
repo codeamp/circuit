@@ -89,9 +89,8 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 		var svc *Service
 		svc = <-ch
 
-		spew.Dump(svc.RecommendedState)
-
 		projectService := plugins.Service{
+			ID:   svc.ID,
 			Name: svc.Name,
 			Spec: plugins.ServiceSpec{
 				CpuRequest:    svc.RecommendedState.CPU.Request,
@@ -100,6 +99,8 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 				MemoryLimit:   svc.RecommendedState.Memory.Limit,
 			},
 		}
+
+		spew.Dump("svc", svc, "projectService", projectService)
 
 		respProject.Services = append(respProject.Services, projectService)
 	}

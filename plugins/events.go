@@ -272,9 +272,9 @@ type Release struct {
 
 // Project event data struct
 type Project struct {
-	ID          string `json:"id"`
-	Slug        string `json:"slug"`
-	Repository  string `json:"repository"`
-	Environment string `json:"environment"`
+	ID          string    `json:"id"`
+	Slug        string    `json:"slug"`
+	Repository  string    `json:"repository"`
+	Environment string    `json:"environment"`
 	Services    []Service `json:"service"`
 }

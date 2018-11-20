@@ -365,16 +365,15 @@ func (ic *InfluxClienter) queryDB(cmd string) (res []client.Result, err error) {
 		Database: ic.InfluxDBName,
 	}
 
-	if response, err := ic.Client.Query(q); err == nil {
+	if response, err := ic.Client.Query(q); err != nil {
+		return nil, err
+	} else {
 		if response.Error() != nil {
 			return nil, response.Error()
+		} else {
+			return response.Results, nil
 		}
-		res = response.Results
-	} else {
-		return nil, err
 	}
-
-	return nil, fmt.Errorf("Couldn't query db")
 }
 
 func getFirstValue(res []client.Result) (interface{}, error) {

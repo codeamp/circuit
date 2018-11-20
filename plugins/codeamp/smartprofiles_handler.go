@@ -59,22 +59,34 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
 	// For each service's service spec, find + update or create the corresponding suggested service spec
 	projectPayload := e.Payload.(plugins.Project)
+	spew.Dump("got project event", projectPayload)
 	for _, service := range projectPayload.Services {
 		dbService := model.Service{}
 		if err := x.DB.Where("id = ?", service.ID).First(&dbService).Error; err != nil {
 			log.Printf(err.Error())
+			return err
 		} else {
-			// suggestedServiceSpec := model.ServiceSpec{
-			// 	ServiceID:     dbService.Model.ID,
-			// 	CpuRequest:    service.Spec.CpuRequest,
-			// 	CpuLimit:      service.Spec.CpuLimit,
-			// 	MemoryRequest: service.Spec.MemoryRequest,
-			// 	MemoryLimit:   service.Spec.MemoryLimit,
-			// 	Type:          "suggested",
-			// }
+			// check if previous suggested service spec already exists with exact same spec
+			previousSuggestedServiceSpec := model.ServiceSpec{}
 
-			spew.Dump("found corresponding service", service)
-			// x.DB.Create(&suggestedServiceSpec)
+			// spew.Dump("got the service", service)
+
+			suggestedServiceSpec := model.ServiceSpec{
+				ServiceID:     dbService.Model.ID,
+				CpuRequest:    service.Spec.CpuRequest,
+				CpuLimit:      service.Spec.CpuLimit,
+				MemoryRequest: service.Spec.MemoryRequest,
+				MemoryLimit:   service.Spec.MemoryLimit,
+				Type:          "suggested",
+			}
+
+			spew.Dump(suggestedServiceSpec)
+
+			if err := x.DB.Where(suggestedServiceSpec).Order("created_at desc").First(&previousSuggestedServiceSpec).Error; err == nil {
+				return nil
+			} else {
+				x.DB.Create(&suggestedServiceSpec)
+			}
 		}
 	}
 
