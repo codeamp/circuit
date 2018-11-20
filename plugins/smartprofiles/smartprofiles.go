@@ -6,7 +6,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 
 	log "github.com/codeamp/logger"
 )
@@ -99,8 +98,6 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 				MemoryLimit:   svc.RecommendedState.Memory.Limit,
 			},
 		}
-
-		spew.Dump("svc", svc, "projectService", projectService)
 
 		respProject.Services = append(respProject.Services, projectService)
 	}

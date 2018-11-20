@@ -511,7 +511,7 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 		var projectExtension model.ProjectExtension
 		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.WarnWithFields("Associated project extension not found", log.Fields{
-				"id": args.ID,
+				"id":                   args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 			})
@@ -523,7 +523,7 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 		var extension model.Extension
 		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.WarnWithFields("Associated extension not found", log.Fields{
-				"id": args.ID,
+				"id":                   args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 				"extension_id":         projectExtension.ExtensionID,
@@ -557,7 +557,14 @@ func (r *ReleaseResolverMutation) setupServices(services []model.Service) ([]plu
 	var pluginServices []plugins.Service
 	for _, service := range services {
 		var spec model.ServiceSpec
-		if r.DB.Where("service_id = ?", service.Model.ID).First(&spec).RecordNotFound() {
+		// Check if service has AutoscaleEnabled or not
+		// if it does, use the suggested service spec
+		query := r.DB.Where("service_id = ?", service.Model.ID.String())
+		if service.AutoscaleEnabled {
+			query = r.DB.Where("service_id = ? and type = ?", service.Model.ID.String(), "suggested")
+		}
+
+		if err := query.First(&spec).Error; gorm.IsRecordNotFoundError(err) {
 			log.WarnWithFields("servicespec not found", log.Fields{
 				"service_id": service.Model.ID,
 			})

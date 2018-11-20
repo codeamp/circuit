@@ -2,11 +2,9 @@ package codeamp
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -57,35 +55,51 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 
 // ProjectEventHandler
 func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
+	tx := x.DB.Begin()
+
 	// For each service's service spec, find + update or create the corresponding suggested service spec
 	projectPayload := e.Payload.(plugins.Project)
-	spew.Dump("got project event", projectPayload)
 	for _, service := range projectPayload.Services {
 		dbService := model.Service{}
-		if err := x.DB.Where("id = ?", service.ID).First(&dbService).Error; err != nil {
-			log.Printf(err.Error())
+		if err := tx.Where("id = ?", service.ID).First(&dbService).Error; err != nil {
+			tx.Rollback()
 			return err
 		} else {
+			// get the non-suggested service spec for the service in order to copy over any
+			// non-resource related attributes e.g. TerminationGracePeriod
+			nonSuggestedServiceSpec := model.ServiceSpec{}
+			if err := tx.Where("service_id = ? and type != ?", dbService.Model.ID.String(), "suggested").First(&nonSuggestedServiceSpec).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
+
 			// check if previous suggested service spec already exists with exact same spec
 			previousSuggestedServiceSpec := model.ServiceSpec{}
 
-			// spew.Dump("got the service", service)
-
 			suggestedServiceSpec := model.ServiceSpec{
-				ServiceID:     dbService.Model.ID,
-				CpuRequest:    service.Spec.CpuRequest,
-				CpuLimit:      service.Spec.CpuLimit,
-				MemoryRequest: service.Spec.MemoryRequest,
-				MemoryLimit:   service.Spec.MemoryLimit,
-				Type:          "suggested",
+				ServiceID:              dbService.Model.ID,
+				CpuRequest:             service.Spec.CpuRequest,
+				CpuLimit:               service.Spec.CpuLimit,
+				MemoryRequest:          service.Spec.MemoryRequest,
+				MemoryLimit:            service.Spec.MemoryLimit,
+				Type:                   "suggested",
+				TerminationGracePeriod: nonSuggestedServiceSpec.TerminationGracePeriod,
+				Name:                   nonSuggestedServiceSpec.Name,
 			}
 
-			spew.Dump(suggestedServiceSpec)
-
-			if err := x.DB.Where(suggestedServiceSpec).Order("created_at desc").First(&previousSuggestedServiceSpec).Error; err == nil {
+			if err := tx.Where(suggestedServiceSpec).Order("created_at desc").First(&previousSuggestedServiceSpec).Error; err == nil {
+				tx.Rollback()
 				return nil
 			} else {
-				x.DB.Create(&suggestedServiceSpec)
+				if err := tx.Create(&suggestedServiceSpec).Error; err != nil {
+					tx.Rollback()
+					return err
+				}
+			}
+
+			if err := tx.Commit().Error; err != nil {
+				tx.Rollback()
+				return nil
 			}
 		}
 	}
