@@ -196,7 +196,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		ingressRuleValue := v1beta1.IngressRuleValue{
 			HTTP: &v1beta1.HTTPIngressRuleValue{
 				Paths: []v1beta1.HTTPIngressPath{
-					v1beta1.HTTPIngressPath{
+					{
 						Backend: v1beta1.IngressBackend{
 							ServiceName: inputs.Service.ID,
 							ServicePort: intstr.IntOrString{
