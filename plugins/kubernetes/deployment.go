@@ -473,13 +473,12 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 }
 
 // Create the secrets for the deployment
-func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets *[]plugins.Secret) (string, error) {
-	// Secrets is a pointer to a pointer (array)
-	if *secrets == nil {
+func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets []plugins.Secret) (string, error) {
+	if secrets == nil {
 		return "", fmt.Errorf("Secrets in createSecretsForDeploy cannot be null")
 	}
 
-	if len(*secrets) == 0 {
+	if len(secrets) == 0 {
 		log.Warn("There were no secrets found for this deploy!", log.Fields{"namespace": namespace, "slug": projectSlug})
 	}
 
@@ -487,7 +486,7 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 	secretMap = make(map[string]string)
 
 	// This map is used in to create the secrets themselves
-	for _, secret := range *secrets {
+	for _, secret := range secrets {
 		secretMap[secret.Key] = secret.Value
 	}
 
@@ -514,16 +513,15 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 }
 
 // Build the configuration needed for the environment of the deploy
-func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets *[]plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
-	// Secrets is a pointer to a pointer (array)
-	if *secrets == nil {
+func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets []plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
+	if secrets == nil {
 		return nil, nil, nil, nil, fmt.Errorf("Secrets in setupEnvironmentForDeploy cannot be null")
 	}
 
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
 	var envVars []v1.EnvVar
-	for _, secret := range *secrets {
+	for _, secret := range secrets {
 		if secret.Type == plugins.GetType("env") || secret.Type == plugins.GetType("protected-env") {
 			newEnv := v1.EnvVar{
 				Name: secret.Key,
@@ -554,7 +552,7 @@ func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets *[]plu
 		ReadOnly:  true,
 	})
 
-	for _, secret := range *secrets {
+	for _, secret := range secrets {
 		if secret.Type == plugins.GetType("file") {
 			volumeSecretItems = append(volumeSecretItems, v1.KeyToPath{
 				Path: secret.Key,
@@ -1203,7 +1201,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*
 	*******************************************/
 	secrets := reData.Release.Secrets
-	secretName, err := x.createSecretsForDeploy(clientset, namespace, projectSlug, &secrets)
+	secretName, err := x.createSecretsForDeploy(clientset, namespace, projectSlug, secrets)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
@@ -1216,7 +1214,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Build Environment / EnvVars
 	*
 	*******************************************/
-	envVars, volumeMounts, volumes, volumeSecretItems, err := x.setupEnvironmentForDeploy(secretName, &secrets)
+	envVars, volumeMounts, volumes, volumeSecretItems, err := x.setupEnvironmentForDeploy(secretName, secrets)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
