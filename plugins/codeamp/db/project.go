@@ -142,16 +142,22 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 // Environments
 func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	var permissions []model.ProjectEnvironment
-	var results []*EnvironmentResolver
+	if err := r.DB.Where("project_id = ?", r.Project.ID).Find(&permissions).Error; err != nil {
+		log.Error(err)
+	}
 
-	// var environments []model.Environment
-	// ADB : Change this to use a JOIN query instead of JOINING manually here
-	r.DB.Where("project_id = ?", r.Project.ID).Order("environment_id asc").Find(&permissions)
-	// r.DB.Model(&r.Project).Related(&permissions, "ProjectID")
-
+	envIDs := make([]string, 0, 0)
 	for _, permission := range permissions {
-		var environment model.Environment
-		r.DB.Where("id = ?", permission.EnvironmentID).Find(&environment)
+		envIDs = append(envIDs, permission.EnvironmentID.String())
+	}
+
+	var environments []model.Environment
+	if err := r.DB.Where("id IN (?)", envIDs).Order("name desc").Find(&environments).Error; err != nil {
+		log.Error(err.Error())
+	}
+
+	var results []*EnvironmentResolver
+	for _, environment := range environments {
 		results = append(results, &EnvironmentResolver{DB: r.DB, Environment: environment, Project: r.Project})
 	}
 
