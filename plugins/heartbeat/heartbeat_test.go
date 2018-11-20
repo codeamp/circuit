@@ -2,6 +2,7 @@ package heartbeat_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/heartbeat"
@@ -33,6 +34,7 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) TearDownSuite() {
 	suite.transistor.Stop()
+	time.Sleep(1 * time.Second)
 }
 
 func (suite *TestSuite) TestHeartbeat() {
