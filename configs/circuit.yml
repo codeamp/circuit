@@ -26,16 +26,16 @@ plugins:
     workers: 0
   kubernetes:
     workers: 1
+  smartprofiles:
+    influxdb:
+      host: "http://localhost:8086"
+      db: "telegraf"
+    workers: 1
   githubstatus:
     workers: 1
   route53:
     workers: 1
   slack:
-    workers: 1
-  smartprofiles:
-    influxdb:
-      host: "https://influxdb.checkrhq.net:8086"
-      db: "telegraf"
     workers: 1
   dockerbuilder:
     workers: 1
