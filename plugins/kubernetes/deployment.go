@@ -474,7 +474,8 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 
 // Create the secrets for the deployment
 func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets *[]plugins.Secret) (string, error) {
-	if secrets == nil {
+	// Secrets is a pointer to a pointer (array)
+	if *secrets == nil {
 		return "", fmt.Errorf("Secrets in createSecretsForDeploy cannot be null")
 	}
 
@@ -514,7 +515,8 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 
 // Build the configuration needed for the environment of the deploy
 func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets *[]plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
-	if secrets == nil {
+	// Secrets is a pointer to a pointer (array)
+	if *secrets == nil {
 		return nil, nil, nil, nil, fmt.Errorf("Secrets in setupEnvironmentForDeploy cannot be null")
 	}
 
