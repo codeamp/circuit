@@ -361,6 +361,7 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
+		log.Warn("SENDING ERROR RESPONES")
 		x.sendErrorResponse(e, err.Error())
 	} else {
 		log.Warn("sending success deleted")

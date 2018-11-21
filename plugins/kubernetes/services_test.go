@@ -47,6 +47,27 @@ func TestServices(t *testing.T) {
 }
 
 func (suite *TestSuiteServices) TestCreateService() {
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("create"), plugins.GetType("office"))
+
+	var e transistor.Event
+	var err error
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("create"), 20)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+}
+
+func (suite *TestSuiteServices) TestUpdateService() {
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
 
 	var e transistor.Event
@@ -62,15 +83,17 @@ func (suite *TestSuiteServices) TestCreateService() {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
+
+	suite.T().Log(e.StateMessage)
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
 func (suite *TestSuiteServices) TestDeleteService() {
-	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
+	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("create"), plugins.GetType("office"))
 
 	var e transistor.Event
 	var err error
-	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("update"), 20)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("create"), 20)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
@@ -84,7 +107,7 @@ func (suite *TestSuiteServices) TestDeleteService() {
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
 	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
-
+	suite.T().Log(e.StateMessage)
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
