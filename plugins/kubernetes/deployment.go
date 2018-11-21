@@ -15,7 +15,7 @@ import (
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -24,6 +24,8 @@ import (
 
 	"github.com/google/shlex"
 	"github.com/spf13/viper"
+
+	"github.com/go-errors/errors"
 )
 
 var deploySleepTime = 5 * time.Second
@@ -70,22 +72,22 @@ func genOneShotServiceName(slugName string, serviceName string) string {
 func secretifyDockerCred(e transistor.Event) (string, error) {
 	user, err := e.GetArtifactFromSource("user", "dockerbuilder")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	pass, err := e.GetArtifactFromSource("password", "dockerbuilder")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	email, err := e.GetArtifactFromSource("email", "dockerbuilder")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	host, err := e.GetArtifactFromSource("host", "dockerbuilder")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	encodeMe := fmt.Sprintf("%s:%s", user.String(), pass.String())
@@ -107,11 +109,11 @@ func (x *Kubernetes) createDockerIOSecretIfNotExists(namespace string, clientset
 	// Load up the docker-io secrets for image pull if not exists
 	_, dockerIOSecretErr := coreInterface.Secrets(namespace).Get("docker-io", meta_v1.GetOptions{})
 	if dockerIOSecretErr != nil {
-		if errors.IsNotFound(dockerIOSecretErr) {
+		if k8s_errors.IsNotFound(dockerIOSecretErr) {
 			dockerCred, err := secretifyDockerCred(e)
 			if err != nil {
-				log.Error(fmt.Sprintf("Error '%s' creating docker-io secret for %s.", err, namespace))
-				return err
+				log.Error(fmt.Sprintf("Error '%s' creating docker-io secret for %s.", err.Error(), namespace))
+				return errors.Wrap(err, 1)
 			}
 			secretMap := map[string]string{
 				".dockercfg": dockerCred,
@@ -129,12 +131,12 @@ func (x *Kubernetes) createDockerIOSecretIfNotExists(namespace string, clientset
 				Type:       v1.SecretTypeDockercfg,
 			})
 			if createDockerIOSecretErr != nil {
-				log.Error(fmt.Sprintf("Error '%s' creating docker-io secret for %s.", createDockerIOSecretErr, namespace))
-				return createDockerIOSecretErr
+				log.Error(fmt.Sprintf("Error '%s' creating docker-io secret for %s.", createDockerIOSecretErr.Error(), namespace))
+				return errors.Wrap(createDockerIOSecretErr, 1)
 			}
 		} else {
 			log.Error(fmt.Sprintf("Error unhandled '%s' while attempting to lookup docker-io secret.", dockerIOSecretErr))
-			return dockerIOSecretErr
+			return errors.Wrap(dockerIOSecretErr, 1)
 		}
 	}
 
@@ -147,7 +149,7 @@ func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kube
 	// Create namespace if it does not exist.
 	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
-		if errors.IsNotFound(nameGetErr) {
+		if k8s_errors.IsNotFound(nameGetErr) {
 			log.Debug(fmt.Sprintf("Namespace %s does not yet exist, creating.", namespace))
 			namespaceParams := &v1.Namespace{
 				TypeMeta: meta_v1.TypeMeta{
@@ -161,12 +163,12 @@ func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kube
 			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
 			if createNamespaceErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' creating namespace %s", createNamespaceErr, namespace))
-				return createNamespaceErr
+				return errors.Wrap(createNamespaceErr, 1)
 			}
 			log.Debug(fmt.Sprintf("Namespace created: %s", namespace))
 		} else {
-			log.Error(fmt.Sprintf("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr))
-			return nameGetErr
+			log.Error(fmt.Sprintf("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr.Error()))
+			return errors.Wrap(nameGetErr, 1)
 		}
 	}
 	return nil
@@ -475,7 +477,7 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 // Create the secrets for the deployment
 func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets []plugins.Secret) (string, error) {
 	if secrets == nil {
-		return "", fmt.Errorf("Secrets in createSecretsForDeploy cannot be null")
+		return "", errors.New("Secrets in createSecretsForDeploy cannot be null")
 	}
 
 	if len(secrets) == 0 {
@@ -506,7 +508,7 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 	secretResult, secErr := x.CoreSecreter.Create(clientset, namespace, &secretParams)
 	if secErr != nil {
 		failMessage := fmt.Sprintf("Error '%s' creating secret %s", secErr, projectSlug)
-		return "", fmt.Errorf(failMessage)
+		return "", errors.New(failMessage)
 	}
 
 	return secretResult.Name, nil
@@ -515,7 +517,7 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 // Build the configuration needed for the environment of the deploy
 func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets []plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
 	if secrets == nil {
-		return nil, nil, nil, nil, fmt.Errorf("Secrets in setupEnvironmentForDeploy cannot be null")
+		return nil, nil, nil, nil, errors.New("Secrets in setupEnvironmentForDeploy cannot be null")
 	}
 
 	// This is for building the configuration to use the secrets from inside the deployment
@@ -596,7 +598,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
 			log.Error(errMsg)
-			return fmt.Errorf(errMsg)
+			return errors.New(errMsg)
 		}
 
 		for _, job := range existingJobs.Items {
@@ -604,7 +606,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				if (job.Status.Active == 0 && job.Status.Failed == 0 && job.Status.Succeeded == 0) || job.Status.Active > 0 {
 					errMsg := fmt.Sprintf("Cancelled deployment as a previous one-shot (%s) is still active. Redeploy your release once the currently running deployment process completes.", job.Name)
 					log.Error(errMsg)
-					return fmt.Errorf(errMsg)
+					return errors.New(errMsg)
 				}
 			}
 			// delete old job
@@ -648,7 +650,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 
 		dockerImage, err := e.GetArtifactFromSource("image", "dockerbuilder")
 		if err != nil {
-			return err
+			return errors.Wrap(err, 1)
 		}
 
 		// expose codeamp service name via env variable
@@ -694,10 +696,10 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		// Create the job
 		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
 		if err != nil {
-			errMsg := fmt.Errorf("Failed to create job %s, with error: %s", createdJob.Name, err)
+			errMsg := errors.New(fmt.Errorf("Failed to create job %s, with error: %s", createdJob.Name, err))
 			log.Error(errMsg)
 
-			return errMsg
+			return errors.Wrap(errMsg, 1)
 		}
 
 		// Loop and block any other jobs/ deployments from running until
@@ -728,7 +730,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 					log.Error(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
 				}
 
-				return fmt.Errorf("Error job has failed %s", oneShotServiceName)
+				return errors.New(fmt.Errorf("Error job has failed %s", oneShotServiceName))
 			}
 
 			if job.Status.Active == int32(0) {
@@ -738,18 +740,18 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 					break
 				} else {
 					// Job has failed!
-					return fmt.Errorf("Error job has failed %s", oneShotServiceName)
+					return errors.New(fmt.Errorf("Error job has failed %s", oneShotServiceName))
 				}
 			}
 
 			// Check Job's Pod status
 			if pods, err := coreInterface.Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
-				return fmt.Errorf("List Pods of service[%s] error: %v", job.Name, err)
+				return errors.New(fmt.Errorf("List Pods of service[%s] error: %v", job.Name, err))
 			} else {
 				for _, item := range pods.Items {
 					if message, result := detectPodFailure(item); result {
 						// Job has failed
-						return fmt.Errorf(message)
+						return errors.New(message)
 					}
 				}
 			}
@@ -884,17 +886,17 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			_, myError = depInterface.Deployments(namespace).Create(deployParams)
 			if myError != nil {
 				// send failed status
-				errMsg := fmt.Errorf("Failed to create service deployment %s, with error: %s", deploymentName, myError)
+				errMsg := errors.New(fmt.Errorf("Failed to create service deployment %s, with error: %s", deploymentName, myError))
 				log.Error(errMsg)
-				return errMsg
+				return errors.Wrap(errMsg, 1)
 			}
 		} else {
 			// Deployment exists, update deployment with new configuration
 			_, myError = depInterface.Deployments(namespace).Update(deployParams)
 			if myError != nil {
-				errMsg := fmt.Errorf("Failed to update service deployment %s, with error: %s", deploymentName, myError)
+				errMsg := errors.New(fmt.Errorf("Failed to update service deployment %s, with error: %s", deploymentName, myError))
 				log.Error(errMsg)
-				return errMsg
+				return errors.Wrap(errMsg, 1)
 			}
 		}
 
@@ -977,7 +979,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 								// This is a pod we want to check status for
 								if message, result := detectPodFailure(pod); result {
 									// Pod is waiting forever, fail the deployment.
-									return fmt.Errorf(message)
+									return errors.New(message)
 								}
 							}
 						}
@@ -992,7 +994,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 			if curTime >= timeout || replicaFailures > 1 {
 				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
 				log.Error(fmt.Sprintf(errMsg))
-				return fmt.Errorf(errMsg)
+				return errors.New(errMsg)
 			}
 			time.Sleep(deploySleepTime)
 			curTime += int(deploySleepTime / time.Second)
@@ -1128,7 +1130,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	if err != nil {
 		log.Error(err.Error())
 		x.sendErrorResponse(e, "failed writing kubeconfig")
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	/******************************************
@@ -1145,7 +1147,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		if err != nil {
 			log.Error(fmt.Sprintf("ERROR '%s' while attempting inClusterConfig fallback. Aborting!", err))
 			x.sendErrorResponse(e, "failed writing kubeconfig")
-			return err
+			return errors.Wrap(err, 1)
 		}
 	}
 
@@ -1153,7 +1155,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	if err != nil {
 		log.Error("Error getting cluster config.  Aborting!")
 		x.sendErrorResponse(e, err.Error())
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	/******************************************
@@ -1181,7 +1183,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	createNamespaceErr := x.createNamespaceIfNotExists(namespace, clientset)
 	if createNamespaceErr != nil {
 		x.sendErrorResponse(e, createNamespaceErr.Error())
-		return createNamespaceErr
+		return errors.Wrap(createNamespaceErr, 1)
 	}
 
 	/******************************************
@@ -1192,7 +1194,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	createDockerIOSecretErr := x.createDockerIOSecretIfNotExists(namespace, clientset, e)
 	if createDockerIOSecretErr != nil {
 		x.sendErrorResponse(e, createDockerIOSecretErr.Error())
-		return createDockerIOSecretErr
+		return errors.Wrap(createDockerIOSecretErr, 1)
 	}
 
 	/******************************************
@@ -1204,7 +1206,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	secretName, err := x.createSecretsForDeploy(clientset, namespace, projectSlug, secrets)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	x.sendInProgress(e, "Secrets created")
@@ -1217,7 +1219,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	envVars, volumeMounts, volumes, volumeSecretItems, err := x.setupEnvironmentForDeploy(secretName, secrets)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	/******************************************
@@ -1227,9 +1229,9 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*******************************************/
 	// Validate we have some services to deploy
 	if len(reData.Release.Services) == 0 {
-		zeroServicesErr := fmt.Errorf("ERROR: Zero services were found in the deploy message.")
+		zeroServicesErr := errors.New("ERROR: Zero services were found in the deploy message.")
 		x.sendErrorResponse(e, zeroServicesErr.Error())
-		return zeroServicesErr
+		return errors.Wrap(zeroServicesErr, 1)
 	}
 
 	/******************************************
@@ -1268,7 +1270,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 		} else if service.Type == "general" {
 			deploymentServices = append(deploymentServices, service)
 		} else {
-			return fmt.Errorf("This service type is not supported. Try again with either 'one-shot' or 'general' as the service type.")
+			return errors.New("This service type is not supported. Try again with either 'one-shot' or 'general' as the service type.")
 		}
 	}
 
@@ -1276,14 +1278,14 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	err = x.deployOneShotServices(clientset, e, namespace, projectSlug, envVars, volumeMounts, volumes, volumeSecretItems, oneShotServices)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	// Deployment Services
 	err = x.deployServices(clientset, e, namespace, projectSlug, reData.Release.IsRollback, envVars, volumeMounts, volumes, volumeSecretItems, deploymentServices)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	/******************************************
@@ -1294,7 +1296,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	log.Info(fmt.Sprintf("Waiting %d seconds for deployment to succeed.", timeout))
 	if err := x.waitForDeploymentSuccess(clientset, namespace, projectSlug, deploymentServices); err != nil {
 		x.sendErrorResponse(e, err.Error())
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	// all success!
@@ -1307,7 +1309,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*
 	*******************************************/
 	if err := x.cleanupOrphans(clientset, namespace, projectSlug, oneShotServices, deploymentServices); err != nil {
-		log.Error(err)
+		log.Error(err.Error())
 	}
 
 	return nil

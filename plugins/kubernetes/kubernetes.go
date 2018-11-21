@@ -8,11 +8,12 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/go-errors/errors"
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -128,7 +129,7 @@ func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface 
 	// Create namespace if it does not exist.
 	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
-		if errors.IsNotFound(nameGetErr) {
+		if k8s_errors.IsNotFound(nameGetErr) {
 			log.Warn(fmt.Sprintf("Namespace %s does not yet exist, creating.", namespace))
 			namespaceParams := &v1.Namespace{
 				TypeMeta: meta_v1.TypeMeta{
@@ -142,12 +143,12 @@ func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface 
 			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
 			if createNamespaceErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' creating namespace %s", createNamespaceErr, namespace))
-				return createNamespaceErr
+				return errors.Wrap(createNamespaceErr, 1)
 			}
 			log.Debug(fmt.Sprintf("Namespace created: %s", namespace))
 		} else {
 			log.Error(fmt.Sprintf("Unhandled error occured looking up namespace %s: '%s'", namespace, nameGetErr))
-			return nameGetErr
+			return errors.Wrap(nameGetErr, 1)
 		}
 	}
 	return nil
@@ -162,7 +163,7 @@ func (x *Kubernetes) GetTempDir() (string, error) {
 			err = os.MkdirAll(filePath, os.ModeDir|0700)
 			if err != nil {
 				log.Error(err.Error())
-				return "", err
+				return "", errors.Wrap(err, 1)
 			}
 			return filePath, nil
 		}
@@ -173,33 +174,33 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 	randomDirectory, err := x.GetTempDir()
 	if err != nil {
 		log.Error(err.Error())
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	kubeconfig, err := e.GetArtifact("kubeconfig")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	clientCert, err := e.GetArtifact("client_certificate")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	clientKey, err := e.GetArtifact("client_key")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	certificateAuthority, err := e.GetArtifact("certificate_authority")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.String()), 0644)
 	if err != nil {
 		log.Error(err.Error())
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	log.Info("Using kubeconfig file: ", fmt.Sprintf("%s/kubeconfig", randomDirectory))
@@ -210,21 +211,21 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 		[]byte(clientCert.String()), 0644)
 	if err != nil {
 		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
 		[]byte(clientKey.String()), 0644)
 	if err != nil {
 		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
 		[]byte(certificateAuthority.String()), 0644)
 	if err != nil {
 		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
-		return "", err
+		return "", errors.Wrap(err, 1)
 	}
 
 	return fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
@@ -234,7 +235,7 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
-		return nil, err
+		return nil, errors.Wrap(err, 1)
 	}
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
@@ -243,7 +244,7 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR getClientConfig: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
 		log.Error(failMessage)
-		return nil, err
+		return nil, errors.Wrap(err, 1)
 	}
 
 	return config, nil
@@ -256,14 +257,14 @@ func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interfa
 
 	config, err := x.getClientConfig(e)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, 1)
 	}
 
 	clientset, err := x.K8sNamespacer.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Error(failMessage)
-		return nil, err
+		return nil, errors.Wrap(err, 1)
 	}
 
 	x.KubernetesClient = clientset
@@ -277,14 +278,14 @@ func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interf
 
 	config, err := x.getClientConfig(e)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, 1)
 	}
 
 	clientset, err := x.K8sContourNamespacer.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig", err.Error())
 		log.Error(failMessage)
-		return nil, err
+		return nil, errors.Wrap(err, 1)
 	}
 
 	x.ContourClient = clientset

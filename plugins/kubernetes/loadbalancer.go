@@ -1,12 +1,12 @@
 package kubernetes
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/go-errors/errors"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -50,7 +50,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
 		log.Warn("missing service")
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	lbName, err := e.GetArtifact("name")
@@ -60,28 +60,28 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 		lbName, err = e.GetArtifact("name")
 		if err != nil {
-			return err
+			return errors.Wrap(err, 1)
 		}
 	}
 
 	sslARN, err := e.GetArtifact("ssl_cert_arn")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	s3AccessLogs, err := e.GetArtifact("access_log_s3_bucket")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	_lbType, err := e.GetArtifact("type")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	listenerPairs, err := e.GetArtifact("listener_pairs")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	lbType := plugins.GetType(_lbType.String())
@@ -106,7 +106,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 		lbName, err = e.GetArtifact("name")
 		if err != nil {
-			return err
+			return errors.Wrap(err, 1)
 		}
 	}
 
@@ -118,7 +118,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -128,14 +128,14 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
 		log.Error(failMessage)
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	clientset, err := x.K8sNamespacer.NewForConfig(config)
 	if err != nil {
 		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
 		log.Error(failMessage)
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	coreInterface := clientset.Core()
@@ -147,7 +147,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
 	createNamespaceErr := x.CreateNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
-		return createNamespaceErr
+		return errors.Wrap(createNamespaceErr, 1)
 	}
 
 	/********************************************
@@ -215,7 +215,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
 		if err != nil {
-			return err
+			return errors.Wrap(err, 1)
 		}
 
 		intContainerPort := int(p.(map[string]interface{})["containerPort"].(float64))
@@ -295,17 +295,17 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		serviceParams.Spec.ClusterIP = svc.Spec.ClusterIP
 		_, err = service.Update(&serviceParams)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error: failed to update service: %s", err.Error()))
+			return errors.New(fmt.Errorf("Error: failed to update service: %s", err.Error()))
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
 		_, err = service.Create(&serviceParams)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
+			return errors.New(fmt.Errorf("Error: failed to create service: %s", err.Error()))
 		}
 		log.Debug(fmt.Sprintf("Service created: %s", lbName.String()))
 	default:
-		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
+		return errors.New(fmt.Errorf("Unexpected error: %s", err.Error()))
 	}
 
 	/********************************************
@@ -333,7 +333,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 					break
 				}
 				if timeout <= 0 {
-					return errors.New(fmt.Sprintf("Error: timeout waiting for ELB DNS name for: %s", lbName.String()))
+					return errors.New(fmt.Errorf("Error: timeout waiting for ELB DNS name for: %s", lbName.String()))
 				}
 			}
 			time.Sleep(time.Second * 5)
@@ -376,7 +376,7 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 
 	kubeconfig, err := x.SetupKubeConfig(e)
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -384,22 +384,22 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
 
 	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
+		return errors.New(fmt.Errorf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
 	}
 
 	clientset, err := x.K8sNamespacer.NewForConfig(config)
 	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error()))
+		return errors.New(fmt.Errorf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error()))
 	}
 
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	lbName, err := e.GetArtifact("name")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
@@ -410,11 +410,11 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 		// Service was found, ready to delete
 		svcDeleteErr := x.CoreServicer.Delete(clientset, namespace, lbName.String(), &meta_v1.DeleteOptions{})
 		if svcDeleteErr != nil {
-			return errors.New(fmt.Sprintf("Error managing loadbalancer '%s' deleting service %s. %s.", svcDeleteErr, lbName.String(), svcName.String()))
+			return errors.New(fmt.Errorf("Error managing loadbalancer '%s' deleting service %s. %s.", svcDeleteErr, lbName.String(), svcName.String()))
 		}
 	} else {
 		// Send failure message that we couldn't find the service to delete
-		return errors.New(fmt.Sprintf("Error managing loadbalancer finding %s service: '%s'. '%s'", lbName.String(), svcGetErr, svcName.String()))
+		return errors.New(fmt.Errorf("Error managing loadbalancer finding %s service: '%s'. '%s'", lbName.String(), svcGetErr, svcName.String()))
 	}
 
 	return nil
