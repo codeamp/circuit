@@ -13,6 +13,7 @@ import (
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
+	log.Warn("RELEASE EVENT HANDLER")
 	var err error
 	payload := e.Payload.(plugins.Release)
 	release := model.Release{}
@@ -111,6 +112,15 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				x.DB.Save(&releaseExtension)
 
 				x.Events <- ev
+
+				// Notify the front end a release started
+				websocketPayload := plugins.WebsocketMsg{
+					Event:   fmt.Sprintf("projects/%s/%s/releases", payload.Project.Slug, payload.Environment),
+					Payload: release,
+				}
+				event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), websocketPayload)
+				event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", payload.Project.Slug, payload.Environment), false)
+				x.Events <- event
 			}
 		}
 	}
@@ -118,6 +128,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
+	log.Warn("RELEASE FAILED")
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
 	release.Finished = time.Now()
@@ -161,6 +172,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
+	log.Warn("RELEASE COMPLETED")
 	project := model.Project{}
 	environment := model.Environment{}
 
@@ -202,6 +214,7 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 }
 
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
+	log.Warn("RUN QUEUED RELEASES")
 	var nextQueuedRelease model.Release
 
 	if x.DB.Where("id != ? and state = ? and project_id = ? and environment_id = ? and created_at > ?", release.Model.ID, "waiting", release.ProjectID, release.EnvironmentID, release.CreatedAt).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
