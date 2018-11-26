@@ -311,7 +311,6 @@ func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interfa
 
 func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
 	if x.ContourClient != nil {
-		log.Error("Missing Contour client")
 		return x.ContourClient, nil
 	}
 
