@@ -45,7 +45,7 @@ func (r *ServiceResolver) AutoscaleEnabled() bool {
 func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 	var serviceSpec model.ServiceSpec
 
-	if err := r.DB.Where("service_id = ?", r.Service.Model.ID).First(&serviceSpec).Error; err != nil {
+	if err := r.DB.Where("service_id = ? and type != ?", r.Service.Model.ID, "suggested").First(&serviceSpec).Error; err != nil {
 		log.ErrorWithFields(err.Error(), log.Fields{
 			"service_id": r.Service.Model.ID,
 		})

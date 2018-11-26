@@ -49,6 +49,7 @@ func (suite *ServiceSpecTestSuite) SetupTest() {
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
 	// Service Spec
 	ts.helper.CreateServiceSpec(ts.T(), true)
+<<<<<<< HEAD
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
@@ -141,92 +142,94 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
 
 	_, err = ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	assert.NotNil(ts.T(), err)	
+=======
+>>>>>>> add spews and create service spec
 }
 
 func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultSuccess() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	serviceSpecResolverID := string(serviceSpecResolver.ID())	
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	serviceSpecResolverID := string(serviceSpecResolver.ID())
 	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
+		ID:                     &serviceSpecResolverID,
 		Name:                   serviceSpecResolver.Name(),
 		CpuRequest:             serviceSpecResolver.CpuRequest(),
 		CpuLimit:               serviceSpecResolver.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: serviceSpecResolver.IsDefault(),
-	}	
+		IsDefault:              serviceSpecResolver.IsDefault(),
+	}
 
 	_, err := ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	assert.Nil(ts.T(), err)	
+	assert.Nil(ts.T(), err)
 }
 
 func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
 
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
-	
+
 	serviceSpecResolverID := string(serviceSpecResolver.ID())
 
 	// update 1st service spec with default true
 	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
+		ID:                     &serviceSpecResolverID,
 		Name:                   serviceSpecResolver.Name(),
 		CpuRequest:             serviceSpecResolver.CpuRequest(),
 		CpuLimit:               serviceSpecResolver.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: true,
-	}	
+		IsDefault:              true,
+	}
 
 	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
 	assert.Nil(ts.T(), err)
 
 	_, err = ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	assert.NotNil(ts.T(), err)	
+	assert.NotNil(ts.T(), err)
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
+	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T(), true)
 
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
-	
+
 	serviceSpecResolverID := string(serviceSpecResolver.ID())
-	serviceSpecResolver2ID := string(serviceSpecResolver2.ID())	
+	serviceSpecResolver2ID := string(serviceSpecResolver2.ID())
 
 	// update 1st service spec with default true
 	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
+		ID:                     &serviceSpecResolverID,
 		Name:                   serviceSpecResolver.Name(),
 		CpuRequest:             serviceSpecResolver.CpuRequest(),
 		CpuLimit:               serviceSpecResolver.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: true,
-	}	
+		IsDefault:              true,
+	}
 
 	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
 	assert.Nil(ts.T(), err)
-	
+
 	// update 2nd service spec with default true
 	serviceSpecInput = model.ServiceSpecInput{
-		ID: 					&serviceSpecResolver2ID,
+		ID:                     &serviceSpecResolver2ID,
 		Name:                   serviceSpecResolver2.Name(),
 		CpuRequest:             serviceSpecResolver2.CpuRequest(),
 		CpuLimit:               serviceSpecResolver2.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver2.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver2.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver2.TerminationGracePeriod(),
-		IsDefault: true,
-	}		
+		IsDefault:              true,
+	}
 
 	serviceSpecResolver2, err = ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	
+
 	// 1st service spec is now default = false
 	firstSS := model.ServiceSpec{}
 	ts.helper.Resolver.DB.Where("id = ?", serviceSpecResolverID).First(&firstSS)
@@ -310,7 +313,7 @@ func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	assert.Equal(ts.T(), "300", serviceSpecResolver.MemoryRequest())
 	assert.Equal(ts.T(), "400", serviceSpecResolver.MemoryLimit())
 	assert.Equal(ts.T(), "500", serviceSpecResolver.TerminationGracePeriod())
-	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())	
+	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
 
 	data, err := serviceSpecResolver.MarshalJSON()
 	assert.Nil(ts.T(), err)

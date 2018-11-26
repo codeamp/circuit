@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/olekukonko/tablewriter"
 )
@@ -140,6 +141,8 @@ func (ic *InfluxClienter) GetService(id string, name string, namespace string, t
 	memDifference := ic.getResourceDiff(*memoryCost, *memRecommendation)
 	cpuDifference := ic.getResourceDiff(*cpuCost, *cpuRecommendation)
 
+	spew.Dump(memRecommendation, cpuRecommendation)
+
 	service := &Service{
 		ID:        id,
 		Name:      name,
@@ -217,6 +220,8 @@ func (ic *InfluxClienter) getServiceMemoryCost(serviceName string, namespace str
 		currentCost = resFirstValue.(json.Number)
 	}
 
+	spew.Dump("currentCost", resFirstValue)
+
 	// get min cost
 	res, err = ic.queryDB(fmt.Sprintf("select mean(gauge)/1000000000 from prom_kube_pod_container_resource_requests_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace ='%s'", serviceName, namespace))
 	if err != nil {
@@ -230,6 +235,8 @@ func (ic *InfluxClienter) getServiceMemoryCost(serviceName string, namespace str
 		minCost = resFirstValue.(json.Number)
 	}
 
+	spew.Dump("minCost", resFirstValue)
+
 	// get max cost
 	res, err = ic.queryDB(fmt.Sprintf("select mean(gauge)/1000000000 from prom_kube_pod_container_resource_limits_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace = '%s'", serviceName, namespace))
 	if err != nil {
@@ -242,6 +249,8 @@ func (ic *InfluxClienter) getServiceMemoryCost(serviceName string, namespace str
 	} else {
 		maxCost = resFirstValue.(json.Number)
 	}
+
+	spew.Dump("maxCost", resFirstValue)
 
 	// get p90
 	res, err = ic.queryDB(fmt.Sprintf("select percentile(memory_usage_bytes, 90)/1000000000 from kubernetes_pod_container where time > now() - "+timeRange+" and container_name = '%s' and namespace = '%s'", serviceName, namespace))

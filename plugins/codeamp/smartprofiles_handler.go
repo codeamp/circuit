@@ -5,6 +5,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -72,6 +73,8 @@ func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
 				tx.Rollback()
 				return err
 			}
+
+			spew.Dump(service.Spec)
 
 			// check if previous suggested service spec already exists with exact same spec
 			previousSuggestedServiceSpec := model.ServiceSpec{}
