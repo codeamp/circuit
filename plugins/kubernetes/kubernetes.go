@@ -170,7 +170,9 @@ func (x *Kubernetes) GetTempDir() (string, error) {
 	}
 }
 
-func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
+// Build a KubeConfig file and save to temporary directory
+// Use this file later when building the clientset
+func (x *Kubernetes) setupKubeConfig(e transistor.Event) (string, error) {
 	randomDirectory, err := x.GetTempDir()
 	if err != nil {
 		log.Error(err.Error())
@@ -231,8 +233,34 @@ func (x *Kubernetes) SetupKubeConfig(e transistor.Event) (string, error) {
 	return fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
 }
 
+// Builds a Kube ClientSet. Depends on setupKubeConfig to build the
+// config file for interacting with K8s
+func (x *Kubernetes) SetupClientset(e transistor.Event) (kubernetes.Interface, error) {
+	kubeconfig, err := x.setupKubeConfig(e)
+	if err != nil {
+		return nil, errors.Wrap(err, 1)
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
+
+	if err != nil {
+		log.Error(fmt.Errorf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
+		return nil, errors.New(ErrClientSetup)
+	}
+
+	clientset, err := x.K8sNamespacer.NewForConfig(config)
+	if err != nil {
+		log.Error(fmt.Errorf("ERROR: %s; setting NewForConfig", err.Error()))
+		return nil, errors.New(ErrNewForConfig)
+	}
+
+	return clientset, nil
+}
+
 func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
-	kubeconfig, err := x.SetupKubeConfig(e)
+	kubeconfig, err := x.setupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, errors.Wrap(err, 1)
