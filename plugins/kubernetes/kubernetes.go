@@ -178,12 +178,12 @@ func (x *Kubernetes) setupKubeConfig(e transistor.Event) (bool, string, error) {
 	randomDirectory, err := x.GetTempDir()
 	if err != nil {
 		log.Error(err.Error())
-		return false, "", errors.Wrap(err, 1)
+		return false, "", err
 	}
 
 	kubeconfig, err := e.GetArtifact("kubeconfig")
 	if err != nil {
-		return false, "", errors.Wrap(err, 1)
+		return false, "", err
 	}
 
 	kubeconfig_md5_raw := md5.Sum([]byte(kubeconfig.String()))
@@ -191,23 +191,23 @@ func (x *Kubernetes) setupKubeConfig(e transistor.Event) (bool, string, error) {
 
 	clientCert, err := e.GetArtifact("client_certificate")
 	if err != nil {
-		return false, "", errors.Wrap(err, 1)
+		return false, "", err
 	}
 
 	clientKey, err := e.GetArtifact("client_key")
 	if err != nil {
-		return false, "", errors.Wrap(err, 1)
+		return false, "", err
 	}
 
 	certificateAuthority, err := e.GetArtifact("certificate_authority")
 	if err != nil {
-		return false, "", errors.Wrap(err, 1)
+		return false, "", err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.String()), 0644)
 	if err != nil {
 		log.Error(err.Error())
-		return false, "", errors.Wrap(err, 1)
+		return false, "", err
 	}
 
 	log.Info("Using kubeconfig file: ", fmt.Sprintf("%s/kubeconfig", randomDirectory))
@@ -250,7 +250,7 @@ func (x *Kubernetes) SetupClientset(e transistor.Event) (kubernetes.Interface, e
 
 	reuse, kubeconfig, err := x.setupKubeConfig(e)
 	if err != nil {
-		return nil, errors.Wrap(err, 1)
+		return nil, err
 	}
 
 	if reuse == false || x.KubernetesClient == nil {
@@ -281,7 +281,7 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	_, kubeconfig, err := x.setupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
-		return nil, errors.Wrap(err, 1)
+		return nil, err
 	}
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
@@ -316,7 +316,7 @@ func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interf
 
 	config, err := x.getClientConfig(e)
 	if err != nil {
-		return nil, errors.Wrap(err, 1)
+		return nil, err
 	}
 
 	clientset, err := x.K8sContourNamespacer.NewForConfig(config)

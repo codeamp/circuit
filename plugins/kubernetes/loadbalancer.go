@@ -48,7 +48,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
-		return errors.Wrap(err, 1)
+		return err
 	}
 
 	lbName, err := e.GetArtifact("name")
@@ -63,28 +63,28 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 		lbName, err = e.GetArtifact("name")
 		if err != nil {
-			return errors.Wrap(err, 1)
+			return err
 		}
 	}
 
 	sslARN, err := e.GetArtifact("ssl_cert_arn")
 	if err != nil {
-		return errors.Wrap(err, 1)
+		return err
 	}
 
 	s3AccessLogs, err := e.GetArtifact("access_log_s3_bucket")
 	if err != nil {
-		return errors.Wrap(err, 1)
+		return err
 	}
 
 	_lbType, err := e.GetArtifact("type")
 	if err != nil {
-		return errors.Wrap(err, 1)
+		return err
 	}
 
 	listenerPairs, err := e.GetArtifact("listener_pairs")
 	if err != nil {
-		return errors.Wrap(err, 1)
+		return err
 	}
 
 	lbType := plugins.GetType(_lbType.String())
