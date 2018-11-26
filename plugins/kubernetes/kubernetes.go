@@ -260,13 +260,13 @@ func (x *Kubernetes) SetupClientset(e transistor.Event) (kubernetes.Interface, e
 
 		if err != nil {
 			log.Error(fmt.Errorf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
-			return nil, errors.New(ErrClientSetup)
+			return nil, errors.New(ErrKubernetesClientSetup)
 		}
 
 		clientset, err := x.K8sNamespacer.NewForConfig(config)
 		if err != nil {
 			log.Error(fmt.Errorf("ERROR: %s; setting NewForConfig", err.Error()))
-			return nil, errors.New(ErrNewForConfig)
+			return nil, errors.New(ErrKubernetesNewForConfig)
 		}
 
 		x.KubernetesClient = clientset

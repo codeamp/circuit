@@ -293,7 +293,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		log.Debug(fmt.Sprintf("Service created: %s", lbName.String()))
 	default:
 		log.Error(fmt.Errorf("Unexpected error: %s", err.Error()))
-		return errors.New(ErrUnexpectedServiceError)
+		return errors.New(ErrServiceUnexpectedError)
 	}
 
 	/********************************************

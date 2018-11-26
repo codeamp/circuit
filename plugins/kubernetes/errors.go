@@ -26,9 +26,9 @@ var ErrDeployPodWaitingForever = errors.Errorf("Pod is waiting forever")
 var ErrDeployTimeout = errors.Errorf("Error, timeout reached waiting for all deployments to succeed.")
 
 // Services Errors
-var ErrClientSetup = errors.Errorf("You must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig")
-var ErrNewForConfig = errors.Errorf("Could not create NewConfig for Kubernetes")
-var ErrUnexpectedServiceError = errors.Errorf("There was an unexpected error involving services")
+var ErrKubernetesClientSetup = errors.Errorf("You must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig")
+var ErrKubernetesNewForConfig = errors.Errorf("Could not create config for Kubernetes")
+var ErrServiceUnexpectedError = errors.Errorf("There was an unexpected error involving services")
 var ErrServiceUpdateFailed = errors.Errorf("Failed to update service")
 var ErrServiceCreateFailed = errors.Errorf("Failed to create service")
 var ErrServiceDeleteFailed = errors.Errorf("Failed to delete service")
