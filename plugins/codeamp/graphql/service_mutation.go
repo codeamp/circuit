@@ -9,6 +9,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+	log "github.com/codeamp/logger"
 )
 
 // Service Resolver Mutation
