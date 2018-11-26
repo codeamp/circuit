@@ -92,6 +92,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*********************************************/
 	// Delete old LB if service was changed and update the name
 	if !strings.HasPrefix(lbName.String(), fmt.Sprintf("%s-", svcName.String())) {
+		log.Debug(fmt.Sprintf("Deleting old service with previous name: '%s'. Replacing with '%s'.", svcName.String(), fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])))
 		err := deleteLoadBalancer(e, x)
 		// The load balancer might fail to delete because it does not exist in the first place
 		// The point is to make sure it's not there when we try to create it later.
@@ -99,15 +100,14 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 			log.Warn(err)
 		}
 
-		// name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
-		// e.AddArtifact("name", name, false)
+		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
+		e.AddArtifact("name", name, false)
 
-		// log.Warn("JUST ADDED NAME ARTIFACT", name)
-
-		// lbName, err = e.GetArtifact("name")
-		// if err != nil {
-		// 	return errors.Wrap(err, 1)
-		// }
+		// Ensure it was added
+		lbName, err := e.GetArtifact("name")
+		if err != nil || lbName.String() != name {
+			return err
+		}
 	}
 
 	/********************************************
