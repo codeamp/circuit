@@ -9,7 +9,6 @@ import (
 	"time"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func RandomString(strlen int) string {
@@ -44,8 +43,8 @@ func SliceContains(name string, list []string) bool {
 	// ADB
 	log.DebugWithFields("SliceContains regex not matched", log.Fields{
 		"string": name,
+		"list":   list,
 	})
-	spew.Dump(list)
 
 	return false
 }
