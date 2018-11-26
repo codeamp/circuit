@@ -98,6 +98,8 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	// Create service spec from default
 	defaultServiceSpec := model.ServiceSpec{}
 	if err := tx.Where("is_default= ?", true).First(&defaultServiceSpec).Error; err != nil {
+		tx.Rollback()
+		log.Info(err.Error())
 		return nil, fmt.Errorf("no default service spec found")
 	}
 
