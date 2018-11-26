@@ -38,7 +38,7 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 }
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
-	log.Info("doLoadBalancer")
+	log.Debug("Received LoadBalancer Event")
 
 	/********************************************
 	*
@@ -52,6 +52,11 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	}
 
 	lbName, err := e.GetArtifact("name")
+
+	projectSlug := plugins.GetSlug(payload.Project.Repository)
+	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
+
+	log.Debug(fmt.Sprintf("Working on LoadBalancer: '%s' for service '%s' in '%s'", lbName.String(), svcName.String(), namespace))
 	if err != nil {
 		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
 		e.AddArtifact("name", name, false)
@@ -83,7 +88,16 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	}
 
 	lbType := plugins.GetType(_lbType.String())
-	projectSlug := plugins.GetSlug(payload.Project.Repository)
+
+	/********************************************
+	*
+	*	Setup Kube Config & Clientset
+	*
+	*********************************************/
+	clientset, err := x.SetupClientset(e)
+	if err != nil {
+		return err
+	}
 
 	/********************************************
 	*
@@ -110,22 +124,11 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 	}
 
-	/********************************************
-	*
-	*	Setup Kube Config & Clientset
-	*
-	*********************************************/
-	clientset, err := x.SetupClientset(e)
-	if err != nil {
-		return err
-	}
-
 	deploymentName := x.GenDeploymentName(projectSlug, svcName.String())
 
 	var serviceType v1.ServiceType
 	var servicePorts []v1.ServicePort
 	serviceAnnotations := make(map[string]string)
-	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
 	createNamespaceErr := x.CreateNamespaceIfNotExists(namespace, clientset.Core())
 	if createNamespaceErr != nil {
 		return createNamespaceErr
