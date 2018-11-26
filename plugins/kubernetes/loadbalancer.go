@@ -48,7 +48,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
-		log.Warn("missing service")
 		return errors.Wrap(err, 1)
 	}
 
@@ -283,7 +282,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
-		log.Warn("CREATING SERVICE NOW")
 		_, err = x.CoreServicer.Create(clientset, namespace, &serviceParams)
 		if err != nil {
 			log.Error(fmt.Errorf("Error: failed to create service: %s", err.Error()))
@@ -342,7 +340,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	artifacts[0] = transistor.Artifact{Key: "dns", Value: ELBDNS, Secret: false}
 	artifacts[1] = transistor.Artifact{Key: "name", Value: lbName.String(), Secret: false}
 
-	log.Warn("Created LoadBalancer: ", lbName.String())
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 	return nil
 }
@@ -351,11 +348,9 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
-		log.Warn("SENDING ERROR RESPONES")
 		log.Error(err.Error())
 		x.sendErrorResponse(e, err.Error())
 	} else {
-		log.Warn("sending success deleted")
 		x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 	}
 
@@ -394,9 +389,6 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 	*********************************************/
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
-
-	log.Warn("Want to delete LB: ", lbName.String())
-	log.Warn("Namespace = ", namespace)
 
 	_, svcGetErr := x.CoreServicer.Get(clientset, namespace, lbName.String(), meta_v1.GetOptions{})
 	if svcGetErr == nil {

@@ -1,6 +1,8 @@
 package kubernetes
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -172,37 +174,40 @@ func (x *Kubernetes) GetTempDir() (string, error) {
 
 // Build a KubeConfig file and save to temporary directory
 // Use this file later when building the clientset
-func (x *Kubernetes) setupKubeConfig(e transistor.Event) (string, error) {
+func (x *Kubernetes) setupKubeConfig(e transistor.Event) (bool, string, error) {
 	randomDirectory, err := x.GetTempDir()
 	if err != nil {
 		log.Error(err.Error())
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
 	kubeconfig, err := e.GetArtifact("kubeconfig")
 	if err != nil {
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
+
+	kubeconfig_md5_raw := md5.Sum([]byte(kubeconfig.String()))
+	kubeconfig_md5 := hex.EncodeToString(kubeconfig_md5_raw[:])
 
 	clientCert, err := e.GetArtifact("client_certificate")
 	if err != nil {
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
 	clientKey, err := e.GetArtifact("client_key")
 	if err != nil {
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
 	certificateAuthority, err := e.GetArtifact("certificate_authority")
 	if err != nil {
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/kubeconfig", randomDirectory), []byte(kubeconfig.String()), 0644)
 	if err != nil {
 		log.Error(err.Error())
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
 	log.Info("Using kubeconfig file: ", fmt.Sprintf("%s/kubeconfig", randomDirectory))
@@ -213,54 +218,67 @@ func (x *Kubernetes) setupKubeConfig(e transistor.Event) (string, error) {
 		[]byte(clientCert.String()), 0644)
 	if err != nil {
 		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/admin-key.pem", randomDirectory),
 		[]byte(clientKey.String()), 0644)
 	if err != nil {
 		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/ca.pem", randomDirectory),
 		[]byte(certificateAuthority.String()), 0644)
 	if err != nil {
 		log.Error(fmt.Sprintf("ERROR: %s", err.Error()))
-		return "", errors.Wrap(err, 1)
+		return false, "", errors.Wrap(err, 1)
 	}
 
-	return fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
+	if kubeconfig_md5 != x.KubernetesConfig.Hash {
+		x.KubernetesConfig.Hash = kubeconfig_md5
+		log.Warn("Updated the hash for kubeconfig file ", kubeconfig_md5)
+	}
+
+	return kubeconfig_md5 == x.KubernetesConfig.Hash, fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
 }
 
 // Builds a Kube ClientSet. Depends on setupKubeConfig to build the
 // config file for interacting with K8s
 func (x *Kubernetes) SetupClientset(e transistor.Event) (kubernetes.Interface, error) {
-	kubeconfig, err := x.setupKubeConfig(e)
+	log.Debug("*** BUILDING CLIENTSET ***")
+
+	reuse, kubeconfig, err := x.setupKubeConfig(e)
 	if err != nil {
 		return nil, errors.Wrap(err, 1)
 	}
 
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
+	if reuse == false || x.KubernetesClient == nil {
+		config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+			&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
 
-	if err != nil {
-		log.Error(fmt.Errorf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
-		return nil, errors.New(ErrClientSetup)
+		if err != nil {
+			log.Error(fmt.Errorf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
+			return nil, errors.New(ErrClientSetup)
+		}
+
+		clientset, err := x.K8sNamespacer.NewForConfig(config)
+		if err != nil {
+			log.Error(fmt.Errorf("ERROR: %s; setting NewForConfig", err.Error()))
+			return nil, errors.New(ErrNewForConfig)
+		}
+
+		x.KubernetesClient = clientset
+	} else {
+		log.Debug("Reusing the existing kubernetes client / interface!")
 	}
 
-	clientset, err := x.K8sNamespacer.NewForConfig(config)
-	if err != nil {
-		log.Error(fmt.Errorf("ERROR: %s; setting NewForConfig", err.Error()))
-		return nil, errors.New(ErrNewForConfig)
-	}
-
-	return clientset, nil
+	return x.KubernetesClient, nil
 }
 
 func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
-	kubeconfig, err := x.setupKubeConfig(e)
+	_, kubeconfig, err := x.setupKubeConfig(e)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, errors.Wrap(err, 1)
@@ -283,24 +301,17 @@ func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interfa
 		return x.KubernetesClient, nil
 	}
 
-	config, err := x.getClientConfig(e)
+	_, err := x.SetupClientset(e)
 	if err != nil {
-		return nil, errors.Wrap(err, 1)
+		return nil, err
 	}
 
-	clientset, err := x.K8sNamespacer.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
-		log.Error(failMessage)
-		return nil, errors.Wrap(err, 1)
-	}
-
-	x.KubernetesClient = clientset
 	return x.KubernetesClient, nil
 }
 
 func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
 	if x.ContourClient != nil {
+		log.Error("Missing Contour client")
 		return x.ContourClient, nil
 	}
 

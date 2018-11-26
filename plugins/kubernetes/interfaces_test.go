@@ -3,8 +3,6 @@ package kubernetes_test
 import (
 	"fmt"
 
-	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -48,12 +46,6 @@ func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jo
 type MockCoreService struct{}
 
 func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, serviceName string, getOptions meta_v1.GetOptions) (*corev1.Service, error) {
-	log.Error("LOOKING IN : ", namespace, " ", serviceName)
-
-	list, drr := clientset.Core().Services(namespace).List(meta_v1.ListOptions{})
-	spew.Dump(list)
-	spew.Dump(drr)
-
 	service, err := clientset.Core().Services(namespace).Get(serviceName, getOptions)
 
 	if service != nil {
@@ -65,8 +57,6 @@ func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, s
 		}
 
 		service.Status.LoadBalancer.Ingress = fakeIngressList
-	} else {
-		log.Error("FOUND NIL FOR GET SERVICE: ", namespace, " ", serviceName)
 	}
 
 	return service, err
@@ -77,20 +67,7 @@ func (l MockCoreService) Delete(clientset kubernetes.Interface, namespace string
 }
 
 func (l MockCoreService) Create(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
-	log.Error("CREATING KUBENRETS SERVICE")
-	spew.Dump(service)
-
-	service.GenerateName = service.Name
-
-	res, err := clientset.Core().Services(namespace).Create(service)
-	spew.Dump(res)
-
-	log.Error("FOUND IN : ", namespace, " ", service.Name)
-	get, urr := clientset.Core().Services(namespace).Get(service.Name, meta_v1.GetOptions{})
-	spew.Dump(get)
-	spew.Dump(urr)
-
-	return res, err
+	return clientset.Core().Services(namespace).Create(service)
 }
 
 func (l MockCoreService) Update(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
