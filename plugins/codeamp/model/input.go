@@ -217,6 +217,8 @@ type ServiceSpecInput struct {
 	MemoryLimit string `json:"memoryLimit"`
 	// TerminationGracePeriod
 	TerminationGracePeriod string `json:"terminationGracePeriod"`
+	// IsDefault
+	IsDefault bool `json:"isDefault"`
 }
 
 // UserPermissionsInput
