@@ -65,7 +65,8 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 
 	tx := r.DB.Begin()
 
-	if tx.Where("id = ?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {
+	if err := tx.Where("id = ?", args.ServiceSpec.ID).First(&serviceSpec).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("serviceSpec not found with given argument id")
 	}
 
@@ -117,19 +118,34 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 
 // DeleteServiceSpec
 func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
+	tx := r.DB.Begin()
+
 	serviceSpec := model.ServiceSpec{}
-	if r.DB.Where("id=?", args.ServiceSpec.ID).Find(&serviceSpec).RecordNotFound() {
+	if err := tx.Where("id=?", args.ServiceSpec.ID).First(&serviceSpec).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
 	} else {
 		services := []model.Service{}
-		r.DB.Where("service_spec_id = ?", serviceSpec.Model.ID).Find(&services)
+		if err := tx.Where("service_spec_id = ?", serviceSpec.Model.ID).Find(&services).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 		
 		if serviceSpec.IsDefault {
+			tx.Rollback()
 			return nil, fmt.Errorf("Select another service spec to be a default before deleting this.")
 		}
 		
 		if len(services) == 0 {
-			r.DB.Delete(&serviceSpec)
+			if err := tx.Delete(&serviceSpec).Error; err != nil {
+				tx.Rollback()
+				return nil, err
+			}
+
+			if err := tx.Commit().Error; err != nil {
+				tx.Rollback()
+				return nil, err
+			}
 
 			//r.ServiceSpecDeleted(&serviceSpec)
 
