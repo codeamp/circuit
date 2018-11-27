@@ -19,19 +19,19 @@ func (r *ServiceSpecResolver) Name() string {
 	project := model.Project{}
 	service := model.Service{}
  	if err := r.DB.Where("id = ?", r.ServiceSpec.ServiceID).First(&service).Error; err != nil {
-		log.InfoWithFields("service not found", log.Fields{
+		log.InfoWithFields(err.Error(), log.Fields{
 			"id": r.ServiceSpec.ServiceID,
 		})
 		return r.ServiceSpec.Name
 	}
  	if err := r.DB.Where("id = ?", service.ProjectID).First(&project).Error; err != nil {
-		log.InfoWithFields("project not found", log.Fields{
+		log.InfoWithFields(err.Error(), log.Fields{
 			"id": service.ProjectID,
 		})
 		return r.ServiceSpec.Name
 	}
  	if err := r.DB.Where("id = ?", service.EnvironmentID).First(&env).Error; err != nil {
-		log.InfoWithFields("environment not found", log.Fields{
+		log.InfoWithFields(err.Error(), log.Fields{
 			"id": service.EnvironmentID,
 		})
 		return r.ServiceSpec.Name
