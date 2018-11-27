@@ -515,6 +515,7 @@ func (x *CodeAmp) Migrate() {
 						MemoryLimit:            serviceSpec.MemoryLimit,
 						TerminationGracePeriod: serviceSpec.TerminationGracePeriod,
 						ServiceID:              service.Model.ID,
+						Type: "",
 					}
 
 					tx.FirstOrCreate(&newServiceSpec, model.ServiceSpec{ServiceID: service.Model.ID})
