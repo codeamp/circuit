@@ -87,6 +87,31 @@ func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
 }
 
+func (suite *TestSuiteDeployment) TestDeployFailureNoSecrets() {
+	suite.transistor.Events <- BuildReleaseEvent(BasicReleaseExtensionNoSecrets())
+
+	// Setting this to succeeded. If we pass the secrets test for some (failure) reason
+	// we want to catch it with the assert at the end of this (failed/completed)
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded: 1}
+
+	var e transistor.Event
+	var err error
+	for {
+		e, err = suite.transistor.GetTestEvent("release:kubernetes:deployment", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+}
+
 func TestDeployments(t *testing.T) {
 	suite.Run(t, new(TestSuiteDeployment))
 }
@@ -100,12 +125,12 @@ func BasicFailedReleaseEvent() transistor.Event {
 	extension.Release.Services[0].Command = "/bin/false"
 
 	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("create"), extension)
-	addBasicReleaseExtensionArtifacts(extension, &event)
+	addBasicReleaseExtensionArtifacts(&extension, &event)
 
 	return event
 }
 
-func addBasicReleaseExtensionArtifacts(extension plugins.ReleaseExtension, event *transistor.Event) {
+func addBasicReleaseExtensionArtifacts(extension *plugins.ReleaseExtension, event *transistor.Event) {
 	kubeConfigPath := path.Join("testdata", "kubeconfig")
 	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
 
@@ -129,9 +154,23 @@ func BasicReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtension()
 
 	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("create"), extension)
+	addBasicReleaseExtensionArtifacts(&extension, &event)
+
+	return event
+}
+
+func BuildReleaseEvent(extension *plugins.ReleaseExtension) transistor.Event {
+	event := transistor.NewEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("create"), *extension)
 	addBasicReleaseExtensionArtifacts(extension, &event)
 
 	return event
+}
+
+func BasicReleaseExtensionNoSecrets() *plugins.ReleaseExtension {
+	extension := BasicReleaseExtension()
+
+	extension.Release.Secrets = nil
+	return &extension
 }
 
 func BasicReleaseExtension() plugins.ReleaseExtension {

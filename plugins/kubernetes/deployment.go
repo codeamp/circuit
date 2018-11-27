@@ -474,6 +474,14 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 
 // Create the secrets for the deployment
 func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, secrets []plugins.Secret) (string, error) {
+	if secrets == nil {
+		return "", fmt.Errorf("Secrets in createSecretsForDeploy cannot be null")
+	}
+
+	if len(secrets) == 0 {
+		log.Warn("There were no secrets found for this deploy!", log.Fields{"namespace": namespace, "slug": projectSlug})
+	}
+
 	var secretMap map[string]string
 	secretMap = make(map[string]string)
 
@@ -506,6 +514,10 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 
 // Build the configuration needed for the environment of the deploy
 func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets []plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
+	if secrets == nil {
+		return nil, nil, nil, nil, fmt.Errorf("Secrets in setupEnvironmentForDeploy cannot be null")
+	}
+
 	// This is for building the configuration to use the secrets from inside the deployment
 	// as ENVs
 	var envVars []v1.EnvVar
@@ -1188,7 +1200,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*	Create Secrets for Deploy
 	*
 	*******************************************/
-	var secrets []plugins.Secret
+	secrets := reData.Release.Secrets
 	secretName, err := x.createSecretsForDeploy(clientset, namespace, projectSlug, secrets)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
