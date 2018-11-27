@@ -19,7 +19,7 @@ func (r *ServiceSpecResolver) ID() graphql.ID {
 
 // Name
 func (r *ServiceSpecResolver) Name() string {
-	return r.DBServiceSpecResolver.ServiceSpec.Name
+	return r.DBServiceSpecResolver.Name()
 }
 
 // CpuRequest
