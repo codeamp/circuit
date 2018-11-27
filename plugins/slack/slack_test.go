@@ -2,6 +2,7 @@ package slack_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	_ "github.com/codeamp/circuit/plugins/slack"
@@ -30,6 +31,7 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) TearDownSuite() {
 	suite.transistor.Stop()
+	time.Sleep(1 * time.Second)
 }
 
 func getTestProjectExtensionPayload() plugins.ProjectExtension {

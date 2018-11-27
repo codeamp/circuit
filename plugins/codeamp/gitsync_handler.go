@@ -142,10 +142,10 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 							}
 
 							websocketMsgs := []plugins.WebsocketMsg{
-								plugins.WebsocketMsg{
+								{
 									Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
 								},
-								plugins.WebsocketMsg{
+								{
 									Event: fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
 								},
 							}
