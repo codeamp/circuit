@@ -19,7 +19,7 @@ func (r *ServiceSpecResolver) ID() graphql.ID {
 
 // Name
 func (r *ServiceSpecResolver) Name() string {
-	return r.DBServiceSpecResolver.ServiceSpec.Name
+	return r.DBServiceSpecResolver.Name()
 }
 
 // CpuRequest
@@ -45,6 +45,16 @@ func (r *ServiceSpecResolver) MemoryLimit() string {
 // TerminationGracePeriod
 func (r *ServiceSpecResolver) TerminationGracePeriod() string {
 	return r.DBServiceSpecResolver.ServiceSpec.TerminationGracePeriod
+}
+
+// IsDefault
+func (r *ServiceSpecResolver) IsDefault() bool {
+	return r.DBServiceSpecResolver.ServiceSpec.IsDefault
+}
+
+// Service
+func (r *ServiceSpecResolver) Service() *ServiceResolver {
+	return &ServiceResolver{DBServiceResolver: r.DBServiceSpecResolver.Service()}
 }
 
 // Created
