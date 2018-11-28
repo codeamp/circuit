@@ -421,6 +421,7 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *ServiceSpecResolver {
 		MemoryRequest:          "300",
 		MemoryLimit:            "400",
 		TerminationGracePeriod: "500",
+		IsDefault: false,
 	}
 	serviceSpecResolver, err := helper.Resolver.CreateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	if err != nil {
