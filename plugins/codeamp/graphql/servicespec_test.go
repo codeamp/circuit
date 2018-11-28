@@ -221,10 +221,6 @@ func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 		assert.FailNow(ts.T(), "Created at time is too old")
 	}
 
-	var ctx context.Context
-	_, err = ts.Resolver.ServiceSpecs(ctx)
-	assert.NotNil(ts.T(), err)
-
 	serviceSpecResolvers, err := ts.Resolver.ServiceSpecs(test.ResolverAuthContext())
 	assert.Nil(ts.T(), err)
 	assert.NotEmpty(ts.T(), serviceSpecResolvers)
