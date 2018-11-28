@@ -1,7 +1,6 @@
 package graphql_resolver_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
