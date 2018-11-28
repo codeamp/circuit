@@ -758,8 +758,7 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver :=ts.helper.CreateServiceSpec(ts.T(), true)
-	serviceSpecID := serviceSpecResolver.ID()
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type: plugins.GetType("recreate"),
@@ -781,9 +780,6 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 
 	assert.Equal(ts.T(), "echo \"hello\" && exit 0", serviceResolver.Command())
 	assert.Equal(ts.T(), "TestService", serviceResolver.Name())
-
-	serviceSpecResolver = serviceResolver.ServiceSpec()
-	assert.Equal(ts.T(), serviceSpecID, serviceSpecResolver.ID())
 
 	assert.Equal(ts.T(), int32(1), serviceResolver.Count())
 
