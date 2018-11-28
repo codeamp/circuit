@@ -2,7 +2,6 @@ package graphql_resolver_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -925,8 +924,8 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	projectNames := []string{"foo", "foobar", "boo"}
 
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
-	for _, name := range projectNames {
-		projectResolver, _ := suite.helper.CreateProjectWithRepo(suite.T(), environmentResolver, fmt.Sprintf("https://github.com/test/%s", name))
+	for range projectNames {
+		projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
 		suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
 	}
 

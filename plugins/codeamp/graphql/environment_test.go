@@ -24,6 +24,7 @@ type EnvironmentTestSuite struct {
 func (suite *EnvironmentTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Environment{},
+		&model.Release{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)

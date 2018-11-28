@@ -25,7 +25,14 @@ type ServiceSpecTestSuite struct {
 func (suite *ServiceSpecTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Extension{},
+		&model.Service{},
+		&model.Environment{},
+		&model.Project{},
 		&model.ServiceSpec{},
+		&model.ProjectBookmark{},
+		&model.UserPermission{},
+		&model.ProjectSettings{},
+		&model.ProjectEnvironment{},
 		&model.ServicePort{},
 	}
 

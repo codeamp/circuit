@@ -13,7 +13,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	_ "github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -83,6 +82,7 @@ func (helper *Helper) CreateProject(t *testing.T, envResolver *EnvironmentResolv
 	if err == nil {
 		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
 	}
+
 	return projectResolver, err
 }
 
@@ -95,6 +95,7 @@ func (helper *Helper) CreateProjectWithInput(t *testing.T,
 	if err == nil {
 		helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
 	}
+
 	return projectResolver, err
 }
 
