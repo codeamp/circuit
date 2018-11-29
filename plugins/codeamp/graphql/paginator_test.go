@@ -180,7 +180,7 @@ func (ts *PaginatorTestSuite) TestServiceListPaginator() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -188,7 +188,7 @@ func (ts *PaginatorTestSuite) TestServiceListPaginator() {
 	}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy, nil, nil, nil)
 
 	// Pagination
 	limit := int32(100)
@@ -224,7 +224,7 @@ func (ts *PaginatorTestSuite) TestServiceListPaginatorNoInput() {
 	}
 
 	// Service Spec ID
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -232,7 +232,7 @@ func (ts *PaginatorTestSuite) TestServiceListPaginatorNoInput() {
 	}
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, &deploymentStrategy, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy, nil, nil, nil)
 
 	// Pagination
 	paginator := &graphql_resolver.ServiceListResolver{

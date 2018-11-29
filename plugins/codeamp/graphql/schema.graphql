@@ -332,7 +332,6 @@ input ServiceInput {
   projectID: String!
   command: String!
   name: String!
-  serviceSpecID: String!
   count: Int!
   ports: [ServicePortInput!]
   type: String!

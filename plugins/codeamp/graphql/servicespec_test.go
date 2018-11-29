@@ -1,7 +1,6 @@
 package graphql_resolver_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -26,7 +25,15 @@ type ServiceSpecTestSuite struct {
 func (suite *ServiceSpecTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Extension{},
+		&model.Service{},
+		&model.Environment{},
+		&model.Project{},
 		&model.ServiceSpec{},
+		&model.ProjectBookmark{},
+		&model.UserPermission{},
+		&model.ProjectSettings{},
+		&model.ProjectEnvironment{},
+		&model.ServicePort{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
@@ -41,57 +48,12 @@ func (suite *ServiceSpecTestSuite) SetupTest() {
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
 	// Service Spec
-	ts.helper.CreateServiceSpec(ts.T())
-}
-
-func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultSuccess() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	serviceSpecResolverID := string(serviceSpecResolver.ID())	
-	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
-		Name:                   serviceSpecResolver.Name(),
-		CpuRequest:             serviceSpecResolver.CpuRequest(),
-		CpuLimit:               serviceSpecResolver.CpuLimit(),
-		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
-		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
-		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: serviceSpecResolver.IsDefault(),
-	}	
-
-	_, err := ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	assert.Nil(ts.T(), err)	
-}
-
-func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-
-	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
-	
-	serviceSpecResolverID := string(serviceSpecResolver.ID())
-
-	// update 1st service spec with default true
-	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
-		Name:                   serviceSpecResolver.Name(),
-		CpuRequest:             serviceSpecResolver.CpuRequest(),
-		CpuLimit:               serviceSpecResolver.CpuLimit(),
-		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
-		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
-		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: true,
-	}	
-
-	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
-	assert.Nil(ts.T(), err)
-
-	_, err = ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	assert.NotNil(ts.T(), err)	
+	ts.helper.CreateServiceSpec(ts.T(), true)
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
+	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T(), false)
 
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
 	
@@ -125,22 +87,65 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 		TerminationGracePeriod: serviceSpecResolver2.TerminationGracePeriod(),
 		IsDefault: true,
 	}		
-
 	serviceSpecResolver2, err = ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	
 	// 1st service spec is now default = false
-	firstSS := model.ServiceSpec{}
-	ts.helper.Resolver.DB.Where("id = ?", serviceSpecResolverID).First(&firstSS)
-
-	assert.Equal(ts.T(), false, firstSS.IsDefault)
+	serviceSpec := model.ServiceSpec{}
+	ts.helper.Resolver.DB.Where("id = ?", string(serviceSpecResolver.ID())).First(&serviceSpec)
+	assert.Equal(ts.T(), false, serviceSpec.IsDefault)
 	// 2nd service spec is now default = true
 	assert.Equal(ts.T(), true, serviceSpecResolver2.IsDefault())
 	assert.Nil(ts.T(), err)
 }
 
+func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultSuccess() {
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
+	serviceSpecResolverID := string(serviceSpecResolver.ID())	
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: 					&serviceSpecResolverID,
+		Name:                   serviceSpecResolver.Name(),
+		CpuRequest:             serviceSpecResolver.CpuRequest(),
+		CpuLimit:               serviceSpecResolver.CpuLimit(),
+		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
+		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
+		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
+		IsDefault: serviceSpecResolver.IsDefault(),
+	}	
+
+	_, err := ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	assert.Nil(ts.T(), err)	
+}
+
+func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
+
+	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
+	
+	serviceSpecResolverID := string(serviceSpecResolver.ID())
+
+	// update 1st service spec with default true
+	serviceSpecInput := model.ServiceSpecInput{
+		ID: 					&serviceSpecResolverID,
+		Name:                   serviceSpecResolver.Name(),
+		CpuRequest:             serviceSpecResolver.CpuRequest(),
+		CpuLimit:               serviceSpecResolver.CpuLimit(),
+		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
+		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
+		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
+		IsDefault: true,
+	}	
+
+	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
+	assert.Nil(ts.T(), err)
+
+	_, err = ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
+	assert.NotNil(ts.T(), err)	
+}
+
 func (ts *ServiceSpecTestSuite) TestUpdateServiceSpecSuccess() {
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Update Service Spec
 	serviceSpecID := string(serviceSpecResolver.ID())
@@ -153,7 +158,7 @@ func (ts *ServiceSpecTestSuite) TestUpdateServiceSpecSuccess() {
 
 func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecSuccess() {
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
 
 	// Delete Service Spec
 	serviceSpecID := string(serviceSpecResolver.ID())
@@ -186,10 +191,10 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
 	projectResolver.DBProjectResolver.Environment = environmentResolver.DBEnvironmentResolver.Environment
 
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Services
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Delete Service Spec
 	serviceSpecID := test.ValidUUID
@@ -202,7 +207,7 @@ func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecFailureHasDependencies() {
 
 func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	// Service Spec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
 
 	_ = serviceSpecResolver.ID()
 	assert.Equal(ts.T(), "TestServiceSpec", serviceSpecResolver.Name())
@@ -224,10 +229,6 @@ func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	if created_at_diff.Minutes() > 1 {
 		assert.FailNow(ts.T(), "Created at time is too old")
 	}
-
-	var ctx context.Context
-	_, err = ts.Resolver.ServiceSpecs(ctx)
-	assert.NotNil(ts.T(), err)
 
 	serviceSpecResolvers, err := ts.Resolver.ServiceSpecs(test.ResolverAuthContext())
 	assert.Nil(ts.T(), err)

@@ -138,8 +138,6 @@ type ServiceInput struct {
 	Command string `json:"command"`
 	// Name
 	Name string `json:"name"`
-	// ServiceSpecID
-	ServiceSpecID string `json:"serviceSpecID"`
 	// Count
 	Count int32 `json:"count,string"`
 	// ContainerPorts
