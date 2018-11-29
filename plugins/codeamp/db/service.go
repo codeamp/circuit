@@ -40,7 +40,12 @@ func (r *ServiceResolver) Name() string {
 func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 	var serviceSpec model.ServiceSpec
 
-	r.DB.Where("service_id = ?", r.Service.Model.ID).First(&serviceSpec)
+	if err := r.DB.Where("service_id = ?", r.Service.Model.ID).First(&serviceSpec).Error; err != nil {
+		log.ErrorWithFields(err.Error(), log.Fields{
+			"service_id": r.Service.Model.ID,
+		})
+		return nil
+	}
 
 	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}
 }

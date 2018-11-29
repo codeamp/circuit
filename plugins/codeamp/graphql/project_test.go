@@ -269,20 +269,6 @@ func (suite *ProjectTestSuite) TestCreateProjectFailureSameRepo() {
 	assert.NotNil(suite.T(), err)
 }
 
-func (suite *ProjectTestSuite) TestCreateProjectFailure() {
-	// Project Input
-	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"
-	projectInput := model.ProjectInput{
-		GitUrl:        "git@github.com:foo/goo.git",
-		GitProtocol:   "SSH",
-		EnvironmentID: &envID,
-	}
-
-	// Project
-	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)	
-	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
-}
-
 func (suite *ProjectTestSuite) TestCreateProjectFailureNoAuth() {
 	// Project Input
 	envID := "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx"

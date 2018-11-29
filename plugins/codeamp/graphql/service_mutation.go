@@ -152,7 +152,10 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 	service.Type = plugins.Type(args.Service.Type)
 	service.Count = args.Service.Count
 
-	r.DB.Save(&service)
+	if err := r.DB.Save(&service).Error; err != nil {
+		log.Error(err.Error())
+		return nil, err
+	}
 
 	// delete all previous container ports
 	var servicePorts []model.ServicePort
