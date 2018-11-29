@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
+	log "github.com/codeamp/logger"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
