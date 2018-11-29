@@ -234,7 +234,7 @@ func (r *ProjectResolverMutation) BookmarkProject(ctx context.Context, args *str
 		r.DB.Save(&projectBookmark)
 		return true, nil
 	} else {
-		r.DB.Delete(&projectBookmark)
+		r.DB.Unscoped().Delete(&projectBookmark)
 		return false, nil
 	}
 }
