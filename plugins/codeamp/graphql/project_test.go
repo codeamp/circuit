@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 	"time"
+	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
@@ -12,6 +13,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
+
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -214,7 +216,9 @@ func (suite *ProjectTestSuite) TestCreateProjectSuccess() {
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
 	// Project
-	suite.helper.CreateProject(suite.T(), environmentResolver)
+	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), projectResolver)
 }
 
 func (suite *ProjectTestSuite) TestCreateProjectFailureNoEnvironments() {
@@ -259,9 +263,9 @@ func (suite *ProjectTestSuite) TestCreateProjectFailureSameRepo() {
 	}
 
 	// Project
-	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
-
 	_, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+
+	_, err = suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
 	assert.NotNil(suite.T(), err)
 }
 
@@ -275,6 +279,7 @@ func (suite *ProjectTestSuite) TestCreateProjectFailure() {
 	}
 
 	// Project
+	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)	
 	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
 }
 
@@ -293,6 +298,7 @@ func (suite *ProjectTestSuite) TestCreateProjectFailureNoAuth() {
 	defer suite.helper.SetContext(test.ResolverAuthContext())
 
 	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+
 	assert.NotNil(suite.T(), err)
 	assert.Nil(suite.T(), projectResolver)
 }
@@ -327,7 +333,9 @@ func (suite *ProjectTestSuite) TestCreateProjectWithSSH() {
 	}
 
 	// Project
-	suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	projectResolver, err := suite.helper.CreateProjectWithInput(suite.T(), &projectInput)
+	assert.NotEmpty(suite.T(), projectResolver)
+	assert.Nil(suite.T(), err)
 }
 
 func (suite *ProjectTestSuite) TestQueryProject() {
@@ -923,9 +931,10 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	// init 3 projects into db
 	projectNames := []string{"foo", "foobar", "boo"}
 
-	environmentResolver := suite.helper.CreateEnvironment(suite.T())
-	for range projectNames {
-		projectResolver, _ := suite.helper.CreateProject(suite.T(), environmentResolver)
+	envResolver := suite.helper.CreateEnvironment(suite.T())
+	for _, projectName := range projectNames {
+		projectResolver, err := suite.helper.CreateProjectWithRepo(suite.T(), envResolver, fmt.Sprintf("https://github.com/username/%s.git", projectName))
+		assert.Nil(suite.T(), err)
 		suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
 	}
 
@@ -968,10 +977,12 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
 	assert.Equal(suite.T(), 2, len(entries))
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {
+	fmt.Println("TearDownTest")
 	suite.helper.TearDownTest(suite.T())
 	suite.Resolver.DB.Close()
 }
