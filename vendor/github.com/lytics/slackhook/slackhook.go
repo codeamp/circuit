@@ -36,8 +36,8 @@ type Attachment struct {
 	Fields     []Field `json:"fields,omitempty"`
 	ImageURL   string  `json:"image_url,omitempty"`
 	ThumbURL   string  `json:"thumb_url,omitempty"`
-	FooterIcon string  `json:"footer_icon,omitempty"`
-	Footer     string  `json:"footer,omitempty"`
+	FooterIcon string  `json:"footer,omitempty"`
+	Footer     string  `json:"footer_icon,omitempty"`
 	Timestamp  int     `json:"ts,omitempty"` // Unix timestamp
 }
 
