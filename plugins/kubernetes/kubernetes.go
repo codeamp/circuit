@@ -186,6 +186,9 @@ func (x *Kubernetes) setupKubeConfig(e transistor.Event) (bool, string, error) {
 		return false, "", err
 	}
 
+	// Convert the kubeconfig into a byte for byte representation
+	// so if ANYTHING changes in the file, rebuild the clientset
+	// a string check here is not sufficient to ensure the file has not changed
 	kubeconfig_md5_raw := md5.Sum([]byte(kubeconfig.String()))
 	kubeconfig_md5 := hex.EncodeToString(kubeconfig_md5_raw[:])
 

@@ -1070,14 +1070,14 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 	// Preload list of all replica sets
 	repSets, repErr := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{})
 	if repErr != nil {
-		log.Error(fmt.Sprintf("Error retrieving list of replicasets for %s", namespace))
+		log.Error(fmt.Sprintf("Error retrieving list of replicasets for %s: %s", namespace, repErr.Error()))
 		return errors.New(ErrDeployListingReplicaSets)
 	}
 
 	// Preload list of all pods
 	allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
 	if podErr != nil {
-		log.Error(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
+		log.Error(fmt.Sprintf("Error retrieving list of pods for %s : %s", namespace, podErr.Error()))
 		return errors.New(ErrDeployListingPods)
 	}
 
