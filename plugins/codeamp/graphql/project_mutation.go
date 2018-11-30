@@ -104,8 +104,6 @@ func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struc
 	project.RsaPrivateKey = string(pem.EncodeToMemory(&priv_blk))
 	project.RsaPublicKey = string(ssh.MarshalAuthorizedKey(pub))
 
-	r.DB.Create(&project)
-
 	// Create git branch for env per env
 	environments := []model.Environment{}
 	r.DB.Find(&environments)
@@ -115,6 +113,8 @@ func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struc
 		})
 		return nil, fmt.Errorf("No envs found")
 	}
+
+	r.DB.Create(&project)
 
 	for _, environment := range environments {
 		r.DB.Create(&model.ProjectSettings{
@@ -234,7 +234,7 @@ func (r *ProjectResolverMutation) BookmarkProject(ctx context.Context, args *str
 		r.DB.Save(&projectBookmark)
 		return true, nil
 	} else {
-		r.DB.Delete(&projectBookmark)
+		r.DB.Unscoped().Delete(&projectBookmark)
 		return false, nil
 	}
 }

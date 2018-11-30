@@ -85,16 +85,16 @@
   name = "golang.org/x/crypto"
 
 [[constraint]]
-  branch = "master"
+  revision = "fd83cbc87e7632ccd8bbab63d2b673d4e0c631cc"
   name = "k8s.io/api"
 
 [[constraint]]
-  branch = "master"
+  revision = "6dd46049f39503a1fc8d65de4bd566829e95faff"
   name = "k8s.io/apimachinery"
 
 [[constraint]]
   name = "k8s.io/client-go"
-  version = "v7.0.0"
+  version = "v9.0.0"
 
 [[constraint]]
   name = "github.com/go-redis/redis"
@@ -109,10 +109,6 @@
   name = "gopkg.in/jarcoal/httpmock.v1"
 
 [[constraint]]
-  name = "k8s.io/kubernetes"
-  version = "1.11.3"
-
-[[constraint]]
   name = "github.com/heptio/contour"
   branch = "master"
 
@@ -122,10 +118,31 @@
 #
 #
 #
+#https://github.com/kubernetes/apimachinery/issues/46#issuecomment-436979061
 [[override]]
-  branch = "master"
+  name = "github.com/json-iterator/go"
+  revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
+
+#https://github.com/kubernetes/client-go/blob/v9.0.0/Godeps/Godeps.json
+[[override]]
+  revision = "fd83cbc87e7632ccd8bbab63d2b673d4e0c631cc"
+  name = "k8s.io/api"
+
+#https://github.com/kubernetes/client-go/blob/v9.0.0/Godeps/Godeps.json
+[[override]]
+  revision = "6dd46049f39503a1fc8d65de4bd566829e95faff"
   name = "k8s.io/apimachinery"
 
+#https://github.com/golang/dep/issues/1799
+[[override]]
+  name = "gopkg.in/fsnotify.v1"
+  source = "https://github.com/fsnotify/fsnotify.git"
+
+#https://github.com/kubernetes/client-go/blob/v9.0.0/Godeps/Godeps.json
 [[override]]
   name = "k8s.io/client-go"
-  version = "v7.0.0"
+  version = "v9.0.0"
+
+[[override]]
+  name = "k8s.io/kubernetes"
+  version = "1.12.3"

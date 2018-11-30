@@ -30,7 +30,7 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 			if err := tx.Save(&currentDefault).Error; err != nil {
 				tx.Rollback()
 				return nil, err
-			}				
+			}
 		}
 	}
 
@@ -81,10 +81,10 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 			if err := tx.Save(&currentDefault).Error; err != nil {
 				tx.Rollback()
 				return nil, err
-			}	
+			}
 		}
 
-		isDefault = true		
+		isDefault = true
 	}
 
 	// check if currentDefault is the same as serviceSpec

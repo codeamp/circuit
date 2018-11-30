@@ -39,14 +39,14 @@ func (r *ServiceSpecResolver) Name() string {
  	return fmt.Sprintf("%s/%s/%s", service.Name, project.Slug, env.Key)
 }
 
-func (r *ServiceSpecResolver) Service() *ServiceResolver {
+func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
 	service := model.Service{}
 	if err := r.DB.Where("id = ?", r.ServiceSpec.ServiceID).First(&service).Error; err != nil {
-		return nil
-	}
+		return nil, err
+  }
 	
 	return &ServiceResolver{
 		DB: r.DB,
 		Service: service,
-	}
+	}, nil
 }
