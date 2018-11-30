@@ -67,7 +67,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 
 	// Service
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	portOne := int32(9090)
 	scheme := "http"
@@ -96,7 +96,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
 	livenessProbe := healthProbe
 	preStopHook := "sleep 15"
 
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, &readinessProbe, &livenessProbe, &preStopHook)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, &readinessProbe, &livenessProbe, &preStopHook)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -160,8 +160,8 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
 	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 
 	// Service
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -231,8 +231,8 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
 	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 
 	// Service
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -1117,10 +1117,10 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 
 	// ServiceSpec
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 
 	// Service
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)

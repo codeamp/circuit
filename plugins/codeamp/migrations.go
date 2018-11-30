@@ -511,7 +511,7 @@ func (x *CodeAmp) Migrate() {
 					serviceSpec.IsDefault = false
 					tx.Save(&serviceSpec)
 				}
-
+        
 				defaultServiceSpec := model.ServiceSpec{
 					Name: "default",
 					CpuLimit: "1000",
@@ -523,7 +523,7 @@ func (x *CodeAmp) Migrate() {
 				}
 
 				tx.Create(&defaultServiceSpec)
-
+        
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {

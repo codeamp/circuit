@@ -13,7 +13,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	_ "github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -83,6 +82,7 @@ func (helper *Helper) CreateProject(t *testing.T, envResolver *EnvironmentResolv
 	if err == nil {
 		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
 	}
+
 	return projectResolver, err
 }
 
@@ -95,6 +95,7 @@ func (helper *Helper) CreateProjectWithInput(t *testing.T,
 	if err == nil {
 		helper.cleanupProjectIDs = append(helper.cleanupProjectIDs, projectResolver.DBProjectResolver.Project.Model.ID)
 	}
+
 	return projectResolver, err
 }
 
@@ -412,7 +413,7 @@ func (helper *Helper) CreateReleaseExtension(t *testing.T,
 	return &ReleaseExtensionResolver{DBReleaseExtensionResolver: &db_resolver.ReleaseExtensionResolver{ReleaseExtension: releaseExtension, DB: helper.Resolver.DB}}
 }
 
-func (helper *Helper) CreateServiceSpec(t *testing.T) *ServiceSpecResolver {
+func (helper *Helper) CreateServiceSpec(t *testing.T, isDefault bool) *ServiceSpecResolver {
 	// Service Spec ID
 	serviceSpecInput := model.ServiceSpecInput{
 		Name:                   helper.name,
@@ -421,7 +422,7 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *ServiceSpecResolver {
 		MemoryRequest:          "300",
 		MemoryLimit:            "400",
 		TerminationGracePeriod: "500",
-		IsDefault: false,
+		IsDefault: isDefault,
 	}
 	serviceSpecResolver, err := helper.Resolver.CreateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	if err != nil {
@@ -432,8 +433,8 @@ func (helper *Helper) CreateServiceSpec(t *testing.T) *ServiceSpecResolver {
 	return serviceSpecResolver
 }
 
+
 func (helper *Helper) CreateService(t *testing.T,
-	serviceSpecResolver *ServiceSpecResolver,
 	projectResolver *ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
 	readinessProbe *model.ServiceHealthProbeInput,
@@ -455,7 +456,6 @@ func (helper *Helper) CreateService(t *testing.T,
 		ProjectID:          projectID,
 		Command:            "echo \"hello\" && exit 0",
 		Name:               helper.name,
-		ServiceSpecID:      string(serviceSpecResolver.ID()),
 		Count:              1,
 		Ports:              &servicePortInputs,
 		Type:               "general",
@@ -490,7 +490,6 @@ func (helper *Helper) CreateUser(t *testing.T) *UserResolver {
 }
 
 func (helper *Helper) CreateServiceWithError(t *testing.T,
-	serviceSpecResolver *ServiceSpecResolver,
 	projectResolver *ProjectResolver,
 	deploymentStrategy *model.DeploymentStrategyInput,
 	readinessProbe *model.ServiceHealthProbeInput,
@@ -512,7 +511,6 @@ func (helper *Helper) CreateServiceWithError(t *testing.T,
 		ProjectID:          projectID,
 		Command:            "echo \"hello\" && exit 0",
 		Name:               helper.name,
-		ServiceSpecID:      string(serviceSpecResolver.ID()),
 		Count:              1,
 		Ports:              &servicePortInputs,
 		Type:               "general",
