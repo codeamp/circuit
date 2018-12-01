@@ -18,6 +18,11 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	release := model.Release{}
 	releaseExtensions := []model.ReleaseExtension{}
 
+	/******************************************
+	*
+	*	Ensure valid release ID was received
+	*
+	*******************************************/
 	if x.DB.Where("id = ?", payload.ID).First(&release).RecordNotFound() {
 		log.InfoWithFields("release not found", log.Fields{
 			"id": payload.ID,
@@ -26,9 +31,11 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 	}
 
 	if e.Matches("release:create") {
+		// Find all release extensions for this release
 		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 
 		for _, releaseExtension := range releaseExtensions {
+			// Find associated project extensions
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.InfoWithFields("project extensions not found", log.Fields{
@@ -38,6 +45,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				return fmt.Errorf("project extension %s not found", releaseExtension.ProjectExtensionID)
 			}
 
+			// Find Extensions to match the searched for Project Extensions
 			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.InfoWithFields("extension not found", log.Fields{
@@ -47,6 +55,8 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
 			}
 
+
+			// Mark the workflow extensions as having 'started' now
 			if plugins.Type(extension.Type) == plugins.GetType("workflow") {
 				// check if the last release extension has the same
 				// ServicesSignature and SecretsSignature. If so,
@@ -59,6 +69,9 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				eventStateMessage := ""
 				needsExtract := true
 
+				// If this extension is cacheable and there hasn't been an explicit rebuild,
+				// try to find a previous release and use its extension configuration
+				// e.g. dockerbuilder use the configuration the last release's dockerbuilder used.
 				if !release.ForceRebuild && extension.Cacheable {
 					// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
 					err = x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
@@ -107,6 +120,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				ev.StateMessage = eventStateMessage
 				ev.Artifacts = artifacts
 
+				// Set release extension as 'started' and notify the plugin it has started
 				releaseExtension.Started = time.Now()
 				x.DB.Save(&releaseExtension)
 
@@ -118,6 +132,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
+	// Update DB to reflect release has failed
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
 	release.Finished = time.Now()
@@ -127,6 +142,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 
 	x.DB.Save(release)
 
+	// Mark all release extensions as failed
 	releaseExtensions := []model.ReleaseExtension{}
 	x.DB.Where("release_id = ? AND state <> ?", release.Model.ID, transistor.GetState("complete")).Find(&releaseExtensions)
 	for _, re := range releaseExtensions {
@@ -134,6 +150,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 		x.DB.Save(&re)
 	}
 
+	// Gather environment and project ID to send websocket message
 	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.WarnWithFields("Environment not found", log.Fields{
 			"id": release.EnvironmentID,
@@ -146,6 +163,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 		})
 	}
 
+	// Notify all listeners release has failed
 	x.SendNotifications("FAILED", release, &project)
 
 	payload := plugins.WebsocketMsg{
@@ -153,10 +171,13 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 		Payload: release,
 	}
 
+	// Send event to websocket plugin to forward message to client
+	// Tell the client to refetch its data re: this release
 	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
 	x.Events <- event
 
+	// Continue on and run other releases if they are queued and waiting
 	x.RunQueuedReleases(release)
 }
 
@@ -164,6 +185,7 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	project := model.Project{}
 	environment := model.Environment{}
 
+	// Find project and environment names to build websocket message
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.WarnWithFields("project not found", log.Fields{
 			"release": release,
@@ -198,12 +220,14 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
 	x.Events <- event
 
+	// Try to run any queued releases once this one is handled
 	x.RunQueuedReleases(release)
 }
 
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	var nextQueuedRelease model.Release
 
+	// If there are no queued/waiting releases, no work to be done here. 
 	if x.DB.Where("id != ? and state = ? and project_id = ? and environment_id = ? and created_at > ?", release.Model.ID, "waiting", release.ProjectID, release.EnvironmentID, release.CreatedAt).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
 		log.WarnWithFields("No queued releases found.", log.Fields{
 			"id":             release.Model.ID,
@@ -220,7 +244,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	var secrets []model.Secret
 
 	projectSecrets := []model.Secret{}
-	// get all the env vars related to this release and store
+	// get all the env vars/secrets related to this release and store
 	x.DB.Where("environment_id = ? AND project_id = ? AND scope = ?", nextQueuedRelease.EnvironmentID, nextQueuedRelease.ProjectID, "project").Find(&projectSecrets)
 	for _, secret := range projectSecrets {
 		var secretValue model.SecretValue
