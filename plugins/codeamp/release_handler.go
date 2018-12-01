@@ -12,125 +12,6 @@ import (
 	"github.com/codeamp/transistor"
 )
 
-func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
-	var err error
-	payload := e.Payload.(plugins.Release)
-	release := model.Release{}
-	releaseExtensions := []model.ReleaseExtension{}
-
-	/******************************************
-	*
-	*	Ensure valid release ID was received
-	*
-	*******************************************/
-	if x.DB.Where("id = ?", payload.ID).First(&release).RecordNotFound() {
-		log.InfoWithFields("release not found", log.Fields{
-			"id": payload.ID,
-		})
-		return fmt.Errorf("release %s not found", payload.ID)
-	}
-
-	if e.Matches("release:create") {
-		// Find all release extensions for this release
-		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
-
-		for _, releaseExtension := range releaseExtensions {
-			// Find associated project extensions
-			projectExtension := model.ProjectExtension{}
-			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
-				log.InfoWithFields("project extensions not found", log.Fields{
-					"id": releaseExtension.ProjectExtensionID,
-					"release_extension_id": releaseExtension.Model.ID,
-				})
-				return fmt.Errorf("project extension %s not found", releaseExtension.ProjectExtensionID)
-			}
-
-			// Find Extensions to match the searched for Project Extensions
-			extension := model.Extension{}
-			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
-				log.InfoWithFields("extension not found", log.Fields{
-					"id": projectExtension.Model.ID,
-					"release_extension_id": releaseExtension.Model.ID,
-				})
-				return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
-			}
-
-
-			// Mark the workflow extensions as having 'started' now
-			if plugins.Type(extension.Type) == plugins.GetType("workflow") {
-				// check if the last release extension has the same
-				// ServicesSignature and SecretsSignature. If so,
-				// mark the action as completed before sending the event
-				lastReleaseExtension := model.ReleaseExtension{}
-				artifacts := []transistor.Artifact{}
-
-				eventAction := transistor.GetAction("create")
-				eventState := transistor.GetState("waiting")
-				eventStateMessage := ""
-				needsExtract := true
-
-				// If this extension is cacheable and there hasn't been an explicit rebuild,
-				// try to find a previous release and use its extension configuration
-				// e.g. dockerbuilder use the configuration the last release's dockerbuilder used.
-				if !release.ForceRebuild && extension.Cacheable {
-					// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
-					err = x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
-						projectExtension.Model.ID, releaseExtension.ServicesSignature,
-						releaseExtension.SecretsSignature, releaseExtension.FeatureHash,
-						[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
-					if err != nil {
-						eventAction = transistor.GetAction("status")
-						eventState = lastReleaseExtension.State
-						eventStateMessage = lastReleaseExtension.StateMessage
-
-						err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-						if err != nil {
-							log.Error(err.Error())
-							return nil
-						}
-						eventAction = transistor.GetAction("status")
-						eventState = lastReleaseExtension.State
-						eventStateMessage = lastReleaseExtension.StateMessage
-
-						err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-						if err != nil {
-							log.Error(err.Error())
-							return nil
-						}
-
-						needsExtract = false
-					}
-				}
-
-				if needsExtract {
-					artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
-					if err != nil {
-						log.Error(err.Error())
-						return nil
-					}
-				}
-
-				payload := plugins.ReleaseExtension{
-					ID:      releaseExtension.Model.ID.String(),
-					Release: payload,
-				}
-
-				ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), eventAction, payload)
-				ev.State = eventState
-				ev.StateMessage = eventStateMessage
-				ev.Artifacts = artifacts
-
-				// Set release extension as 'started' and notify the plugin it has started
-				releaseExtension.Started = time.Now()
-				x.DB.Save(&releaseExtension)
-
-				x.Events <- ev
-			}
-		}
-	}
-	return nil
-}
-
 func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	// Update DB to reflect release has failed
 	release.State = transistor.GetState("failed")
@@ -395,6 +276,102 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	nextQueuedRelease.Started = time.Now()
 	x.DB.Save(&nextQueuedRelease)
 
-	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), transistor.GetAction("create"), releasePayload)
+	var err error
+	releaseExtensions := []model.ReleaseExtension{}
+
+	x.DB.Where("release_id = ?", nextQueuedRelease.Model.ID).Find(&releaseExtensions)
+	for _, releaseExtension := range releaseExtensions {
+		// Find associated project extensions
+		projectExtension := model.ProjectExtension{}
+		if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+			log.InfoWithFields("project extensions not found", log.Fields{
+				"id": releaseExtension.ProjectExtensionID,
+				"release_extension_id": releaseExtension.Model.ID,
+			})
+			return fmt.Errorf("project extension %s not found", releaseExtension.ProjectExtensionID)
+		}
+
+		// Find Extensions to match the searched for Project Extensions
+		extension := model.Extension{}
+		if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+			log.InfoWithFields("extension not found", log.Fields{
+				"id": projectExtension.Model.ID,
+				"release_extension_id": releaseExtension.Model.ID,
+			})
+			return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
+		}
+
+		// Mark the workflow extensions as having 'started' now
+		if plugins.Type(extension.Type) == plugins.GetType("workflow") {
+			// check if the last release extension has the same
+			// ServicesSignature and SecretsSignature. If so,
+			// mark the action as completed before sending the event
+			lastReleaseExtension := model.ReleaseExtension{}
+			artifacts := []transistor.Artifact{}
+
+			eventAction := transistor.GetAction("create")
+			eventState := transistor.GetState("waiting")
+			eventStateMessage := ""
+			needsExtract := true
+
+			// If this extension is cacheable and there hasn't been an explicit rebuild,
+			// try to find a previous release and use its extension configuration
+			// e.g. dockerbuilder use the configuration the last release's dockerbuilder used.
+			if !release.ForceRebuild && extension.Cacheable {
+				// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
+				err = x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
+					projectExtension.Model.ID, releaseExtension.ServicesSignature,
+					releaseExtension.SecretsSignature, releaseExtension.FeatureHash,
+					[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
+				if err != nil {
+					eventAction = transistor.GetAction("status")
+					eventState = lastReleaseExtension.State
+					eventStateMessage = lastReleaseExtension.StateMessage
+
+					err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+					if err != nil {
+						log.Error(err.Error())
+						return nil
+					}
+					eventAction = transistor.GetAction("status")
+					eventState = lastReleaseExtension.State
+					eventStateMessage = lastReleaseExtension.StateMessage
+
+					err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
+					if err != nil {
+						log.Error(err.Error())
+						return nil
+					}
+
+					needsExtract = false
+				}
+			}
+
+			if needsExtract {
+				artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
+				if err != nil {
+					log.Error(err.Error())
+					return nil
+				}
+			}
+
+			payload := plugins.ReleaseExtension{
+				ID:      releaseExtension.Model.ID.String(),
+				Release: releasePayload,
+			}
+
+			ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), eventAction, payload)
+			ev.State = eventState
+			ev.StateMessage = eventStateMessage
+			ev.Artifacts = artifacts
+
+			// Set release extension as 'started' and notify the plugin it has started
+			releaseExtension.Started = time.Now()
+			x.DB.Save(&releaseExtension)
+
+			x.Events <- ev
+		}
+	}
+	
 	return nil
 }

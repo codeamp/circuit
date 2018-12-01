@@ -1148,8 +1148,9 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	})
 	e = <-ts.Resolver.Events
 
-	releaseEvent := e.Payload.(plugins.Release)
-	assert.Equal(ts.T(), true, releaseEvent.IsRollback)
+	releaseExtensionEvent := e.Payload.(plugins.ReleaseExtension)
+	release := releaseExtensionEvent.Release
+	assert.Equal(ts.T(), true, release.IsRollback)
 	assert.Equal(ts.T(), true, releaseResolver.IsRollback())
 
 	_, err = ts.Resolver.StopRelease(test.ResolverAuthContext(), &struct{ ID graphql.ID }{releaseResolver.ID()})
