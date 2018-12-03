@@ -53,6 +53,9 @@ func (x *Kubernetes) Stop() {
 
 func (x *Kubernetes) Subscribe() []string {
 	return []string{
+		"project:kubernetes:create",
+		"project:kubernetes:update",
+		"project:kubernetes:delete",
 		"project:kubernetes:deployment:create",
 		"project:kubernetes:deployment:update",
 		"project:kubernetes:deployment:delete",
@@ -71,6 +74,20 @@ func (x *Kubernetes) Subscribe() []string {
 
 func (x *Kubernetes) Process(e transistor.Event) error {
 	log.Debug("Processing kubernetes event")
+
+	if e.Matches("project:kubernetes:(create|update)") == true {
+		if e.Action == transistor.GetAction("create") {
+			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Installation complete.")
+			x.events <- ev
+			return nil
+		}
+
+		if e.Action == transistor.GetAction("update") {
+			ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Update complete.")
+			x.events <- ev
+			return nil
+		}
+	}
 
 	if e.Matches(".*:kubernetes:deployment") == true {
 		x.ProcessDeployment(e)
