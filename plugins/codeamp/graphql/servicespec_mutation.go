@@ -126,7 +126,7 @@ func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpe
 		return nil, fmt.Errorf("ServiceSpec not found with given argument id")
 	} else {
 		services := []model.Service{}
-		if err := tx.Where("service_spec_id = ?", serviceSpec.Model.ID).Find(&services).Error; err != nil {
+		if err := tx.Where("id = ?", serviceSpec.ServiceID).Find(&services).Error; err != nil {
 			tx.Rollback()
 			return nil, err
 		}
