@@ -65,12 +65,8 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 
 	tx := r.DB.Begin()
 
-<<<<<<< HEAD
 	if err := tx.Where("id = ?", args.ServiceSpec.ID).First(&serviceSpec).Error; err != nil {
 		tx.Rollback()
-=======
-	if tx.Where("id = ?", args.ServiceSpec.ID).First(&serviceSpec).RecordNotFound() {
->>>>>>> Fix resolvers
 		return nil, fmt.Errorf("serviceSpec not found with given argument id")
 	}
 

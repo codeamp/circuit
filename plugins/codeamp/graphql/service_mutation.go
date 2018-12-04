@@ -9,7 +9,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
-	log "github.com/codeamp/logger"
 )
 
 // Service Resolver Mutation
@@ -39,12 +38,6 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	if err != nil {
 		return nil, err
 	}
-
-	// Find the default service spec and create ServiceSpec specific for Service
-	defaultServiceSpec := model.ServiceSpec{}
-	if err := r.DB.Where("is_default = ?", true).First(&defaultServiceSpec).Error; err != nil {
-		return nil, fmt.Errorf("no default service spec found")
-	}	
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	if args.Service.DeploymentStrategy != nil {
