@@ -2,11 +2,12 @@ package graphql_resolver
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
-	log "github.com/codeamp/logger"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
@@ -41,7 +42,7 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	defaultServiceSpec := model.ServiceSpec{}
 	if err := r.DB.Where("is_default = ?", true).First(&defaultServiceSpec).Error; err != nil {
 		return nil, fmt.Errorf("no default service spec found")
-	}	
+	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	if args.Service.DeploymentStrategy != nil {
@@ -91,17 +92,17 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 		PreStopHook:        preStopHook,
 	}
 
-	r.DB.Create(&service)	
+	r.DB.Create(&service)
 
 	serviceSpec := model.ServiceSpec{
-		Name: defaultServiceSpec.Name,
-		CpuRequest: defaultServiceSpec.CpuRequest,
-		CpuLimit: defaultServiceSpec.CpuLimit,
-		MemoryRequest: defaultServiceSpec.MemoryRequest,
-		MemoryLimit: defaultServiceSpec.MemoryLimit,
+		Name:                   defaultServiceSpec.Name,
+		CpuRequest:             defaultServiceSpec.CpuRequest,
+		CpuLimit:               defaultServiceSpec.CpuLimit,
+		MemoryRequest:          defaultServiceSpec.MemoryRequest,
+		MemoryLimit:            defaultServiceSpec.MemoryLimit,
 		TerminationGracePeriod: defaultServiceSpec.TerminationGracePeriod,
-		ServiceID: service.Model.ID,
-		IsDefault: false,
+		ServiceID:              service.Model.ID,
+		IsDefault:              false,
 	}
 
 	r.DB.Create(&serviceSpec)
@@ -137,6 +138,9 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 
 // UpdateService Update Service
 func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
+	beginTime := time.Now()
+	r.DB.LogMode(true)
+	defer r.DB.LogMode(false)
 	serviceID := uuid.FromStringOrNil(*args.Service.ID)
 
 	if serviceID == uuid.Nil {
@@ -247,6 +251,8 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 		r.DB.Create(&h)
 	}
 
+	r.DB.LogMode(false)
+	log.Warn("UpdateService Took: ", fmt.Sprintf("%v", time.Since(beginTime)))
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
 
