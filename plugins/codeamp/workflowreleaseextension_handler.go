@@ -84,7 +84,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 		var spec model.ServiceSpec
 		if x.DB.Where("service_id = ?", service.Model.ID).First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
-				"service_id": service.Model.ID.String(),
+				"service_id": service.Model.ID,
 			})
 			return
 		}

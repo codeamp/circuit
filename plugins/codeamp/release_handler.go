@@ -303,9 +303,9 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	var pluginServices []plugins.Service
 	for _, service := range services {
 		var spec model.ServiceSpec
-		if x.DB.Where("id = ?", service.ServiceSpecID).First(&spec).RecordNotFound() {
+		if x.DB.Where("service_id = ?", service.Model.ID).First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
-				"id": service.ServiceSpecID,
+				"service_id": service.Model.ID,
 			})
 			return nil
 		}
