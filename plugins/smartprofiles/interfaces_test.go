@@ -7,18 +7,31 @@ import (
 	smartprofiles "github.com/codeamp/circuit/plugins/smartprofiles"
 )
 
+// MockInfluxClient
 type MockInfluxClient struct{}
 
+// Query method
+func (m *MockInfluxClient) Query(q client.Query) (*client.Response, error) {
+	return &client.Response{}, nil
+}
+
+// MockSmartProfilesClient
 type MockSmartProfilesClient struct {
 	InfluxClient MockInfluxClient
 	InfluxDBName string
 }
 
+// InitInfluxClient
 func (ic *MockSmartProfilesClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
 	spew.Dump("MockInflixClient InitInfluxClient")
+
+	ic.InfluxClient = MockInfluxClient{}
+	ic.InfluxDBName = "telegraf"
+
 	return nil
 }
 
+// GetService
 func (ic *MockSmartProfilesClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *smartprofiles.Service) {
 	spew.Dump("MockInfluxClient GetService")
 	
@@ -64,7 +77,24 @@ func (ic *MockSmartProfilesClient) GetService(id string, name string, namespace 
 	svcChan <- service
 }
 
+// QueryInfluxDB
 func (ic *MockSmartProfilesClient) QueryInfluxDB(cmd string) (res []client.Result, err error) {
 	spew.Dump("MockInflixClient QueryDB")
+
+	q := client.Query{
+		Command:  cmd,
+		Database: ic.InfluxDBName,
+	}
+
+	if response, err := ic.InfluxClient.Query(q); err != nil {
+		return nil, err
+	} else {
+		if response.Error() != nil {
+			return nil, response.Error()
+		} else {
+			return response.Results, nil
+		}
+	}	
+
 	return []client.Result{}, nil
 }
