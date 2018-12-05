@@ -462,36 +462,6 @@ func (x *CodeAmp) Migrate() {
 				return db.Model(&model.Extension{}).DropColumn("cacheable").Error
 			},
 		},
-		// Add service spec for each service
-		{
-			ID: "201811080959",
-			Migrate: func(tx *gorm.DB) error {
-				serviceSpecs := []model.ServiceSpec{}
-				tx.Find(&serviceSpecs)				
-
-				for _, serviceSpec := range serviceSpecs {
-					serviceSpec.IsDefault = false
-					tx.Save(&serviceSpec)
-				}
-        
-				defaultServiceSpec := model.ServiceSpec{
-					Name: "default",
-					CpuLimit: "1000",
-					CpuRequest: "100",
-					MemoryLimit: "1000",
-					MemoryRequest: "100",
-					TerminationGracePeriod: "300",
-					IsDefault: true,
-				}
-
-				tx.Create(&defaultServiceSpec)
-        
-				return nil
-			},
-			Rollback: func(tx *gorm.DB) error {
-				return db.Model(&model.ServiceSpec{}).DropColumn("is_default").Error
-			},
-		},
 		{
 			ID: "201811080959",
 			Migrate: func(tx *gorm.DB) error {

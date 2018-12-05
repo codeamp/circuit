@@ -160,8 +160,8 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
 	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 
 	// Service
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())
@@ -231,13 +231,8 @@ func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
 	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
 
 	// Service
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
 	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
-	ts.helper.CreateService(ts.T(), serviceSpecResolver, projectResolver, nil, nil, nil, nil)
->>>>>>> add spews and create service spec
 
 	// Make Project Secret
 	envID := string(environmentResolver.ID())

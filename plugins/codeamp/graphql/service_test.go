@@ -72,11 +72,7 @@ func (ts *ServiceTestSuite) TestCreateServiceSuccess() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -103,11 +99,7 @@ func (ts *ServiceTestSuite) TestCreateServiceNameTooLong() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Services
 	ts.helper.name = "this-service-name-is-too-long-to-be-accepeted-fooooooooooooooooo"
@@ -127,11 +119,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyDefault() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -157,11 +145,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRecreate() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -187,12 +171,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdate() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
-
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type:           plugins.GetType("rollingUpdate"),
@@ -219,11 +198,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyRollingUpdateFail
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -252,11 +227,7 @@ func (ts *ServiceTestSuite) TestCreateServiceDeploymentStrategyInvalid() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -285,11 +256,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesDefault() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -317,11 +284,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCP() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -352,11 +315,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesTCPInvalid() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -389,11 +348,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTP() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -432,11 +387,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPWIthHeaders() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -487,11 +438,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesHTTPInvalid() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -533,11 +480,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExec() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -571,11 +514,7 @@ func (ts *ServiceTestSuite) TestCreateServiceHealthProbesExecInvalid() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -608,12 +547,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
-
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type: plugins.GetType("recreate"),
@@ -689,11 +623,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Services
 	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
@@ -716,11 +646,7 @@ func (ts *ServiceTestSuite) TestUpdateServiceFailureBadRecordID() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Services
 	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
@@ -743,11 +669,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Deployment Strategy Input
 	deploymentStrategy := model.DeploymentStrategyInput{
@@ -809,11 +731,7 @@ func (ts *ServiceTestSuite) TestDeleteServiceFailure() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	// Services
 	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
@@ -838,11 +756,7 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
-	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
 	defaultServiceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type: plugins.GetType("recreate"),
@@ -854,11 +768,7 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	preHookCommand := "sleep 15"
 
 	// Services
-<<<<<<< HEAD
 	serviceResolver := ts.helper.CreateService(ts.T(), projectResolver, &deploymentStrategy,
-=======
-	serviceResolver := ts.helper.CreateService(ts.T(), defaultServiceSpecResolver, projectResolver, &deploymentStrategy,
->>>>>>> add spews and create service spec
 		&readinessProbe, &livenessProbe, &preHookCommand)
 
 	// Test Service Interface
@@ -869,8 +779,6 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	assert.Equal(ts.T(), "echo \"hello\" && exit 0", serviceResolver.Command())
 	assert.Equal(ts.T(), "TestService", serviceResolver.Name())
 
-<<<<<<< HEAD
-=======
 	// assert that generated service spec was created and
 	// matches the default properties
 	generatedServiceSpec := model.ServiceSpec{}
@@ -884,8 +792,6 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 
 	serviceSpecResolver := serviceResolver.ServiceSpec()
 	assert.Equal(ts.T(), generatedServiceSpec.Model.ID.String(), string(serviceSpecResolver.ID()))
-
->>>>>>> add spews and create service spec
 	assert.Equal(ts.T(), int32(1), serviceResolver.Count())
 
 	servicePorts, err := serviceResolver.Ports()
@@ -930,11 +836,7 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 	}
 
 	// Service Spec ID
-<<<<<<< HEAD
 	ts.helper.CreateServiceSpec(ts.T(), true)
-=======
-	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), true)
->>>>>>> add spews and create service spec
 
 	deploymentStrategy := model.DeploymentStrategyInput{
 		Type: plugins.GetType("recreate"),
