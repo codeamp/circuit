@@ -9,12 +9,12 @@ import (
 
 type MockInfluxClient struct {}
 
-func (ic MockInfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
+func (ic *MockInfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
 	spew.Dump("MockInflixClient InitInfluxClient")
 	return nil
 }
 
-func (ic MockInfluxClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *smartprofiles.Service) {
+func (ic *MockInfluxClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *smartprofiles.Service) {
 	spew.Dump("MockInfluxClient GetService")
 	
 	fmt.Println(fmt.Sprintf("[...] appending %s - %s", name, namespace))
@@ -59,7 +59,7 @@ func (ic MockInfluxClient) GetService(id string, name string, namespace string, 
 	svcChan <- service
 }
 
-func (ic MockInfluxClient) QueryDB(cmd string) (res []client.Result, err error) {
+func (ic *MockInfluxClient) QueryDB(cmd string) (res []client.Result, err error) {
 	spew.Dump("MockInflixClient QueryDB")
 	return []client.Result{}, nil
 }

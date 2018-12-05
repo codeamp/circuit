@@ -7,7 +7,7 @@ import (
 )
 
 type InfluxClienter interface {
-	InitInfluxClient(string, string) (error)
+	InitInfluxClient(string, string) error
 	GetService(string, string, string, string, chan *Service)
 	QueryDB(string) ([]client.Result, error)
 }
@@ -18,7 +18,7 @@ type InfluxClient struct {
 }
 
 
-func (ic InfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
+func (ic *InfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
 	c, err := client.NewHTTPClient(client.HTTPConfig{
 		Addr:    influxHost,
 		Timeout: 3 * time.Second,
@@ -36,7 +36,7 @@ func (ic InfluxClient) InitInfluxClient(influxHost string, influxDBName string) 
 
 
 // Computes Service details for a given request
-func (ic InfluxClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *Service) {
+func (ic *InfluxClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *Service) {
 	fmt.Println(fmt.Sprintf("[...] appending %s - %s", name, namespace))
 	memoryCost, err := GetServiceMemoryCost(ic, name, namespace, timeRange)
 	if err != nil {
@@ -82,7 +82,7 @@ func (ic InfluxClient) GetService(id string, name string, namespace string, time
 }
 
 // QueryDB convenience function to query the database
-func (ic InfluxClient) QueryDB(cmd string) (res []client.Result, err error) {
+func (ic *InfluxClient) QueryDB(cmd string) (res []client.Result, err error) {
 	q := client.Query{
 		Command:  cmd,
 		Database: ic.InfluxDBName,
