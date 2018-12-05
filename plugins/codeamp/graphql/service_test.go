@@ -785,7 +785,7 @@ func (ts *ServiceTestSuite) TestServiceInterface() {
 	err = ts.Resolver.DB.Where("service_id = ?", string(serviceResolver.ID())).First(&generatedServiceSpec).Error
 	assert.Nil(ts.T(), err)
 
-	assert.Equal(ts.T(), defaultServiceSpecResolver.CpuLimit(), generatedServiceSpec.MemoryLimit)
+	assert.Equal(ts.T(), defaultServiceSpecResolver.CpuLimit(), generatedServiceSpec.CpuLimit)
 	assert.Equal(ts.T(), defaultServiceSpecResolver.CpuRequest(), generatedServiceSpec.CpuRequest)
 	assert.Equal(ts.T(), defaultServiceSpecResolver.MemoryLimit(), generatedServiceSpec.MemoryLimit)
 	assert.Equal(ts.T(), defaultServiceSpecResolver.MemoryRequest(), generatedServiceSpec.MemoryRequest)
