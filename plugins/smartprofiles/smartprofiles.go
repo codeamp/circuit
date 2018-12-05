@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	// "github.com/davecgh/go-spew/spew"
 
 	log "github.com/codeamp/logger"
 )
@@ -13,11 +14,14 @@ import (
 //SmartProfiles is a local struct for smartprofiles plugin
 type SmartProfiles struct {
 	events chan transistor.Event
+	InfluxClienter
 }
 
 func init() {
 	transistor.RegisterPlugin("smartprofiles", func() transistor.Plugin {
-		return &SmartProfiles{}
+		return &SmartProfiles{
+			InfluxClienter: &InfluxClient{},
+		}
 	}, plugins.Project{})
 }
 
@@ -51,11 +55,10 @@ func (x *SmartProfiles) Subscribe() []string {
 }
 
 // Process slack webhook events
-func (x *SmartProfiles) Process(e transistor.Event) error {
+func (x *SmartProfiles) Process(e transistor.Event) error {	
 	log.DebugWithFields("Processing SmartProfiles event", log.Fields{
 		"event": e.Event(),
 	})
-	fmt.Println("Processing SmartProfiles event")
 
 	project := e.Payload.(plugins.Project)
 	projectNamespace := fmt.Sprintf("%s-%s", strings.ToLower(project.Environment), strings.ToLower(project.Slug))
@@ -65,12 +68,13 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 	if err != nil {
 		return err
 	}
+
 	influxDBName, err := e.GetArtifact("INFLUX_DB")
 	if err != nil {
 		return err
 	}
 
-	influxClient, err := InitInfluxClient(influxHost.String(), influxDBName.String())
+	err = x.InfluxClienter.InitInfluxClient(influxHost.String(), influxDBName.String())
 	if err != nil {
 		return err
 	}
@@ -78,7 +82,7 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 	ch := make(chan *Service)
 
 	for _, service := range project.Services {
-		go influxClient.GetService(service.ID, service.Name, projectNamespace, "72h", ch)
+		go x.InfluxClienter.GetService(service.ID, service.Name, projectNamespace, "72h", ch)
 	}
 
 	respProject := project
