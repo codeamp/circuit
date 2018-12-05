@@ -40,6 +40,10 @@ func (suite *TestSuite) TearDownSuite() {
 	suite.transistor.Stop()
 }
 
+/* Tests:
+  - length of inputted services = length of outputted services
+  - recommended state is correct
+*/
 func (suite *TestSuite) TestSmartProfilesSuccess() {
 	spew.Dump("TestSmartProfilesSuccess")
 	project := plugins.Project{
@@ -62,12 +66,16 @@ func (suite *TestSuite) TestSmartProfilesSuccess() {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	for _, svc := range evt.Payload.(plugins.Project).Services {
-		spew.Dump(svc.Spec)
+	projectPayload := evt.Payload.(plugins.Project)
+	for _, svc := range projectPayload.Services {
+		assert.NotNil(suite.T(), svc.Spec)
 	}
+
+	assert.Equal(suite.T(), len(projectPayload.Services), 1)
 
 	return
 }
+
 
 func TestSmartProfiles(t *testing.T) {
 	suite.Run(t, new(TestSuite))

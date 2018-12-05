@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-
-	"github.com/davecgh/go-spew/spew"
 	"github.com/influxdata/influxdb/client/v2"
+	"github.com/codeamp/logger"
 )
 
 /*
@@ -104,8 +103,6 @@ func GetServiceMemoryCost(ic InfluxClienter, serviceName string, namespace strin
 		currentCost = resFirstValue.(json.Number)
 	}
 
-	spew.Dump("currentCost", resFirstValue)
-
 	// get min cost
 	res, err = ic.QueryDB(fmt.Sprintf("select mean(gauge)/1000000000 from prom_kube_pod_container_resource_requests_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace ='%s'", serviceName, namespace))
 	if err != nil {
@@ -119,8 +116,6 @@ func GetServiceMemoryCost(ic InfluxClienter, serviceName string, namespace strin
 		minCost = resFirstValue.(json.Number)
 	}
 
-	spew.Dump("minCost", resFirstValue)
-
 	// get max cost
 	res, err = ic.QueryDB(fmt.Sprintf("select mean(gauge)/1000000000 from prom_kube_pod_container_resource_limits_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace = '%s'", serviceName, namespace))
 	if err != nil {
@@ -133,8 +128,6 @@ func GetServiceMemoryCost(ic InfluxClienter, serviceName string, namespace strin
 	} else {
 		maxCost = resFirstValue.(json.Number)
 	}
-
-	spew.Dump("maxCost", resFirstValue)
 
 	// get p90
 	res, err = ic.QueryDB(fmt.Sprintf("select percentile(memory_usage_bytes, 90)/1000000000 from kubernetes_pod_container where time > now() - "+timeRange+" and container_name = '%s' and namespace = '%s'", serviceName, namespace))
@@ -188,7 +181,7 @@ func GetServiceCPUCost(ic InfluxClienter, serviceName string, namespace string, 
 
 	resFirstValue, err := getFirstValue(res)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Info(err.Error())
 	} else {
 		currentCost = resFirstValue.(json.Number)
 	}
@@ -201,7 +194,7 @@ func GetServiceCPUCost(ic InfluxClienter, serviceName string, namespace string, 
 
 	resFirstValue, err = getFirstValue(res)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Info(err.Error())
 	} else {
 		minCost = resFirstValue.(json.Number)
 	}
@@ -214,7 +207,7 @@ func GetServiceCPUCost(ic InfluxClienter, serviceName string, namespace string, 
 
 	resFirstValue, err = getFirstValue(res)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Info(err.Error())
 	} else {
 		maxCost = resFirstValue.(json.Number)
 	}
@@ -227,7 +220,7 @@ func GetServiceCPUCost(ic InfluxClienter, serviceName string, namespace string, 
 
 	resFirstValue, err = getFirstValue(res)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Info(err.Error())
 	} else {
 		p90 = resFirstValue.(json.Number)
 	}

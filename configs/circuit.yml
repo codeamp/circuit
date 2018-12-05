@@ -28,7 +28,7 @@ plugins:
     workers: 1
   smartprofiles:
     influxdb:
-      host: "https://influxdb.checkrhq.net:8086"
+      host: "http://localhost:8086"
       db: "telegraf"
     workers: 1
   githubstatus:

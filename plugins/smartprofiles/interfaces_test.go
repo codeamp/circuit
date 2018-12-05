@@ -38,8 +38,6 @@ func (ic MockInfluxClient) GetService(id string, name string, namespace string, 
 	memDifference := smartprofiles.GetResourceDiff(*memoryCost, *memRecommendation)
 	cpuDifference := smartprofiles.GetResourceDiff(*cpuCost, *cpuRecommendation)
 
-	fmt.Println(memRecommendation, cpuRecommendation)
-
 	service := &smartprofiles.Service{
 		ID:        id,
 		Name:      name,
@@ -63,5 +61,5 @@ func (ic MockInfluxClient) GetService(id string, name string, namespace string, 
 
 func (ic MockInfluxClient) QueryDB(cmd string) (res []client.Result, err error) {
 	spew.Dump("MockInflixClient QueryDB")
-	return []client.Result{}, fmt.Errorf("error")
+	return []client.Result{}, nil
 }
