@@ -128,7 +128,9 @@ func (x *Slack) Process(e transistor.Event) error {
 		Title:     fmt.Sprintf("Release on %s - %s", payload.Environment, strings.ToUpper(messageStatus.String())),
 		TitleLink: fmt.Sprintf("%s/projects/%s/%s/releases", dashboardURL.String(), payload.Project.Slug, payload.Environment),
 		Text:      fmt.Sprintf("<%s|%s> - _%s_", compareUrl, releaseFeatureHash, payload.Release.HeadFeature.Message),
-		Footer:    fmt.Sprintf("%s | %s", payload.Project.Repository, payload.Release.User),
+		// Use "FooterIcon" here instead of "Footer" because there is a serialization bug in the slack webhook lib
+		// that reverses them. "FooterIcon" serializes as "Footer" and vice-versa
+		FooterIcon: fmt.Sprintf("%s | %s", payload.Project.Repository, payload.Release.User),
 	}
 
 	// fmt.Sprintf("https://github.com/%s", payload.Project.Repository)
