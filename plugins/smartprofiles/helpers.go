@@ -48,7 +48,7 @@ type Resource struct {
 	OverProvisioned bool   `json:"overProvisioned"`
 }
 
-func (ic *InfluxClient) getResourceDiff(current Resource, recommended Resource) *Resource {
+func GetResourceDiff(current Resource, recommended Resource) *Resource {
 	r := Resource{}
 
 	// get request diff
@@ -64,7 +64,7 @@ func (ic *InfluxClient) getResourceDiff(current Resource, recommended Resource) 
 	return &r
 }
 
-func (ic *InfluxClient) getResourceRecommendation(cost *Resource) *Resource {
+func GetResourceRecommendation(cost *Resource) *Resource {
 	r := Resource{}
 	// request recommendation - 20% above usage
 	currentFloat, _ := strconv.ParseFloat(cost.Current, 64)
@@ -78,7 +78,7 @@ func (ic *InfluxClient) getResourceRecommendation(cost *Resource) *Resource {
 	return &r
 }
 
-func (ic *InfluxClient) getServiceMemoryCost(serviceName string, namespace string, timeRange string) (*Resource, error) {
+func GetServiceMemoryCost(ic InfluxClienter, serviceName string, namespace string, timeRange string) (*Resource, error) {
 	// memory_current_cost --> telegraf.autogen.kubernetes_pod_container.memory_usage_bytes
 	// memory_min_cost     --> telegraf.autogen.prom_kube_pod_container_resource_requests_memory_bytes.gauge
 	// memory_max_cost     --> telegraf.autogen.prom_kube_pod_container_resource_limits_memory_bytes.gauge
@@ -168,7 +168,7 @@ func (ic *InfluxClient) getServiceMemoryCost(serviceName string, namespace strin
 	}, nil
 }
 
-func (ic *InfluxClient) getServiceCPUCost(serviceName string, namespace string, timeRange string) (*Resource, error) {
+func GetServiceCPUCost(ic InfluxClienter, serviceName string, namespace string, timeRange string) (*Resource, error) {
 	// cpu_current_cost    --> telegraf.autogen.kubernetes_pod_container.cpu_usage_nanocores
 	// cpu_min_cost        --> telegraf.autogen.prom_kube_pod_container_resource_requests_cpu_cores.gauge
 	// cpu_max_cost        --> telegraf.autogen.prom_kube_pod_container_resource_limits_cpu_cores.gauge

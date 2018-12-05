@@ -18,7 +18,7 @@ type InfluxClient struct {
 }
 
 
-func (ic *InfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
+func (ic InfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
 	c, err := client.NewHTTPClient(client.HTTPConfig{
 		Addr:    influxHost,
 		Timeout: 3 * time.Second,
@@ -38,25 +38,25 @@ func (ic *InfluxClient) InitInfluxClient(influxHost string, influxDBName string)
 // Computes Service details for a given request
 func (ic InfluxClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *Service) {
 	fmt.Println(fmt.Sprintf("[...] appending %s - %s", name, namespace))
-	memoryCost, err := ic.getServiceMemoryCost(name, namespace, timeRange)
+	memoryCost, err := GetServiceMemoryCost(ic, name, namespace, timeRange)
 	if err != nil {
 		fmt.Println(err.Error())
 		svcChan <- &Service{}
 		return
 	}
 
-	cpuCost, err := ic.getServiceCPUCost(name, namespace, timeRange)
+	cpuCost, err := GetServiceCPUCost(ic, name, namespace, timeRange)
 	if err != nil {
 		fmt.Println(err.Error())
 		svcChan <- &Service{}
 		return
 	}
 
-	memRecommendation := ic.getResourceRecommendation(memoryCost)
-	cpuRecommendation := ic.getResourceRecommendation(cpuCost)
+	memRecommendation := GetResourceRecommendation(memoryCost)
+	cpuRecommendation := GetResourceRecommendation(cpuCost)
 
-	memDifference := ic.getResourceDiff(*memoryCost, *memRecommendation)
-	cpuDifference := ic.getResourceDiff(*cpuCost, *cpuRecommendation)
+	memDifference := GetResourceDiff(*memoryCost, *memRecommendation)
+	cpuDifference := GetResourceDiff(*cpuCost, *cpuRecommendation)
 
 	fmt.Println(memRecommendation, cpuRecommendation)
 
