@@ -7,14 +7,19 @@ import (
 	smartprofiles "github.com/codeamp/circuit/plugins/smartprofiles"
 )
 
-type MockInfluxClient struct {}
+type MockInfluxClient struct{}
 
-func (ic *MockInfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
+type MockSmartProfilesClient struct {
+	InfluxClient MockInfluxClient
+	InfluxDBName string
+}
+
+func (ic *MockSmartProfilesClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
 	spew.Dump("MockInflixClient InitInfluxClient")
 	return nil
 }
 
-func (ic *MockInfluxClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *smartprofiles.Service) {
+func (ic *MockSmartProfilesClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *smartprofiles.Service) {
 	spew.Dump("MockInfluxClient GetService")
 	
 	fmt.Println(fmt.Sprintf("[...] appending %s - %s", name, namespace))
@@ -59,7 +64,7 @@ func (ic *MockInfluxClient) GetService(id string, name string, namespace string,
 	svcChan <- service
 }
 
-func (ic *MockInfluxClient) QueryDB(cmd string) (res []client.Result, err error) {
+func (ic *MockSmartProfilesClient) QueryInfluxDB(cmd string) (res []client.Result, err error) {
 	spew.Dump("MockInflixClient QueryDB")
 	return []client.Result{}, nil
 }

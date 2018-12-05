@@ -14,13 +14,13 @@ import (
 //SmartProfiles is a local struct for smartprofiles plugin
 type SmartProfiles struct {
 	events chan transistor.Event
-	InfluxClienter
+	SmartProfilesClienter
 }
 
 func init() {
 	transistor.RegisterPlugin("smartprofiles", func() transistor.Plugin {
 		return &SmartProfiles{
-			InfluxClienter: &InfluxClient{},
+			SmartProfilesClienter: &SmartProfilesClient{},
 		}
 	}, plugins.Project{})
 }
@@ -74,7 +74,7 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 		return err
 	}
 
-	err = x.InfluxClienter.InitInfluxClient(influxHost.String(), influxDBName.String())
+	err = x.SmartProfilesClienter.InitInfluxClient(influxHost.String(), influxDBName.String())
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (x *SmartProfiles) Process(e transistor.Event) error {
 	ch := make(chan *Service)
 
 	for _, service := range project.Services {
-		go x.InfluxClienter.GetService(service.ID, service.Name, projectNamespace, "72h", ch)
+		go x.SmartProfilesClienter.GetService(service.ID, service.Name, projectNamespace, "72h", ch)
 	}
 
 	respProject := project

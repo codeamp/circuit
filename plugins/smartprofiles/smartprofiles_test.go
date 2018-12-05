@@ -28,7 +28,7 @@ plugins:
 
 	transistor.RegisterPlugin("smartprofiles", func() transistor.Plugin {
 		return &smartprofiles.SmartProfiles{
-			InfluxClienter: &MockInfluxClient{},
+			SmartProfilesClienter: &MockSmartProfilesClient{},
 		}
 	}, plugins.Project{})	
 

@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-type InfluxClienter interface {
+type SmartProfilesClienter interface {
 	InitInfluxClient(string, string) error
 	GetService(string, string, string, string, chan *Service)
-	QueryDB(string) ([]client.Result, error)
+	QueryInfluxDB(string) ([]client.Result, error)
 }
 
-type InfluxClient struct {
-	Client       client.Client
+type SmartProfilesClient struct {
+	InfluxClient       client.Client
 	InfluxDBName string
 }
 
 
-func (ic *InfluxClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
+func (ic *SmartProfilesClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
 	c, err := client.NewHTTPClient(client.HTTPConfig{
 		Addr:    influxHost,
 		Timeout: 3 * time.Second,
@@ -29,14 +29,14 @@ func (ic *InfluxClient) InitInfluxClient(influxHost string, influxDBName string)
 
 	defer c.Close()
 
-	ic.Client = c
+	ic.InfluxClient = c
 	ic.InfluxDBName = influxDBName
 	return nil
 }
 
 
 // Computes Service details for a given request
-func (ic *InfluxClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *Service) {
+func (ic *SmartProfilesClient) GetService(id string, name string, namespace string, timeRange string, svcChan chan *Service) {
 	fmt.Println(fmt.Sprintf("[...] appending %s - %s", name, namespace))
 	memoryCost, err := GetServiceMemoryCost(ic, name, namespace, timeRange)
 	if err != nil {
@@ -82,13 +82,13 @@ func (ic *InfluxClient) GetService(id string, name string, namespace string, tim
 }
 
 // QueryDB convenience function to query the database
-func (ic *InfluxClient) QueryDB(cmd string) (res []client.Result, err error) {
+func (ic *SmartProfilesClient) QueryInfluxDB(cmd string) (res []client.Result, err error) {
 	q := client.Query{
 		Command:  cmd,
 		Database: ic.InfluxDBName,
 	}
 
-	if response, err := ic.Client.Query(q); err != nil {
+	if response, err := ic.InfluxClient.Query(q); err != nil {
 		return nil, err
 	} else {
 		if response.Error() != nil {
