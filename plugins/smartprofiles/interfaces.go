@@ -3,6 +3,7 @@ package smartprofiles
 import (
 	client "github.com/influxdata/influxdb/client/v2"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"time"
 )
 
@@ -77,6 +78,8 @@ func (ic *SmartProfilesClient) GetService(id string, name string, namespace stri
 			CPU:    *cpuDifference,
 		},
 	}
+
+	spew.Dump(service.Name, service.RecommendedState)
 
 	svcChan <- service
 }
