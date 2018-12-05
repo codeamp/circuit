@@ -8,8 +8,6 @@ import (
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/go-errors/errors"
 )
 
 ///////////////////////////////////////////////////
@@ -22,7 +20,7 @@ type KubernetesNamespace struct {
 
 func (l KubernetesNamespace) NewForConfig(config *rest.Config) (kubernetes.Interface, error) {
 	clientset, err := kubernetes.NewForConfig(config)
-	return clientset, errors.Wrap(err, 1)
+	return clientset, err
 }
 
 ///////////////////////////////////////////////////
@@ -35,7 +33,7 @@ type ContourNamespace struct{}
 
 func (l ContourNamespace) NewForConfig(config *rest.Config) (contour_client.Interface, error) {
 	clientset, err := contour_client.NewForConfig(config)
-	return clientset, errors.Wrap(err, 1)
+	return clientset, err
 }
 
 ///////////////////////////////////////////////////
