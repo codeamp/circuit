@@ -99,13 +99,13 @@ func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
 					return err
 				}
 			}
-
-			if err := tx.Commit().Error; err != nil {
-				tx.Rollback()
-				return nil
-			}
 		}
 	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil
+	}	
 
 	return nil
 }
