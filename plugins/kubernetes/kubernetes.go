@@ -238,12 +238,15 @@ func (x *Kubernetes) setupKubeConfig(e transistor.Event) (bool, string, error) {
 		return false, "", errors.Wrap(err, 1)
 	}
 
+	reuse := true
 	if kubeconfig_md5 != x.KubernetesConfig.Hash {
 		x.KubernetesConfig.Hash = kubeconfig_md5
 		log.Warn("Updated the hash for kubeconfig file ", kubeconfig_md5)
+
+		reuse = false
 	}
 
-	return kubeconfig_md5 == x.KubernetesConfig.Hash, fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
+	return reuse, fmt.Sprintf("%s/kubeconfig", randomDirectory), nil
 }
 
 // Builds a Kube ClientSet. Depends on setupKubeConfig to build the
@@ -257,6 +260,7 @@ func (x *Kubernetes) SetupClientset(e transistor.Event) (kubernetes.Interface, e
 	}
 
 	if reuse == false || x.KubernetesClient == nil {
+		log.Debug("Creating new ClientConfig")
 		config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 			&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
