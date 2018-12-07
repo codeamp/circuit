@@ -303,7 +303,13 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	var pluginServices []plugins.Service
 	for _, service := range services {
 		var spec model.ServiceSpec
-		if x.DB.Where("service_id = ?", service.Model.ID).First(&spec).RecordNotFound() {
+		// Check if service has AutoscaleEnabled or not
+		// if it does, use the suggested service spec
+		query := x.DB.Where("service_id = ?", service.Model.ID.String())
+		if service.AutoscaleEnabled {
+			query = x.DB.Where("service_id = ? and type = ?", service.Model.ID.String(), "suggested")
+		}		
+		if query.First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
 				"service_id": service.Model.ID,
 			})

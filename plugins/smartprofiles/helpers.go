@@ -91,7 +91,7 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 	overProvisioned := false
 
 	// get current cost
-	res, err := ic.QueryInfluxDB(fmt.Sprintf("select mean(memory_usage_bytes)/1000000000 from kubernetes_pod_container where time > now() - "+timeRange+" and container_name = '%s' and namespace = '%s'", serviceName, namespace))
+	res, err := ic.QueryInfluxDB(fmt.Sprintf("select mean(memory_usage_bytes)/1000000 from kubernetes_pod_container where time > now() - "+timeRange+" and container_name = '%s' and namespace = '%s'", serviceName, namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 	}
 
 	// get min cost
-	res, err = ic.QueryInfluxDB(fmt.Sprintf("select mean(gauge)/1000000000 from prom_kube_pod_container_resource_requests_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace ='%s'", serviceName, namespace))
+	res, err = ic.QueryInfluxDB(fmt.Sprintf("select mean(gauge)/1000000 from prom_kube_pod_container_resource_requests_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace ='%s'", serviceName, namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 	}
 
 	// get max cost
-	res, err = ic.QueryInfluxDB(fmt.Sprintf("select mean(gauge)/1000000000 from prom_kube_pod_container_resource_limits_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace = '%s'", serviceName, namespace))
+	res, err = ic.QueryInfluxDB(fmt.Sprintf("select mean(gauge)/1000000 from prom_kube_pod_container_resource_limits_memory_bytes where time > now() - "+timeRange+" and container = '%s' and namespace = '%s'", serviceName, namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 	}
 
 	// get p90
-	res, err = ic.QueryInfluxDB(fmt.Sprintf("select percentile(memory_usage_bytes, 90)/1000000000 from kubernetes_pod_container where time > now() - "+timeRange+" and container_name = '%s' and namespace = '%s'", serviceName, namespace))
+	res, err = ic.QueryInfluxDB(fmt.Sprintf("select percentile(memory_usage_bytes, 90)/1000000 from kubernetes_pod_container where time > now() - "+timeRange+" and container_name = '%s' and namespace = '%s'", serviceName, namespace))
 	if err != nil {
 		return nil, err
 	}

@@ -47,6 +47,9 @@ func (r *ServiceSpecResolver) Name() string {
 func (r *ServiceSpecResolver) Service() (*ServiceResolver, error) {
 	service := model.Service{}
 	if err := r.DB.Where("id = ?", r.ServiceSpec.ServiceID).First(&service).Error; err != nil {
+		log.InfoWithFields(err.Error(), log.Fields{
+			"id": r.ServiceSpec.ServiceID,
+		})
 		return nil, err
 	}
 
