@@ -164,13 +164,13 @@ func (x *Slack) Process(e transistor.Event) error {
 		"event": e.Event(),
 	})
 
-	if e.Matches("project:slack") {
+	if e.Matches("slack:notify") {
+		return x.HandleSendNotification(&e)
+	} else {
 		if e.Action == transistor.GetAction("create") || e.Action == transistor.GetAction("update") {
 			return x.HandleCreateExtension(&e)
 		}
-	} else if e.Matches("slack:notify") {
-		return x.HandleSendNotification(&e)
-	}	
+	}
 
 	return nil
 }
