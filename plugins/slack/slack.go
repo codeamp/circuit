@@ -50,22 +50,34 @@ func (x *Slack) Subscribe() []string {
 		"slack:create",
 		"slack:update",
 		"slack:delete",
-		"slack:status",
 		"slack:notify",
 	}
 }
 
-// Process slack webhook events
-func (x *Slack) Process(e transistor.Event) error {
-	log.DebugWithFields("Processing Slack event", log.Fields{
-		"event": e.Event(),
-	})
-
-	// no-op on slack plugin statuses
-	if e.Name == plugins.GetEventName("slack") && e.Action == transistor.GetAction("status") {
-		return nil
+func (x *Slack) HandleCreateExtension(e *transistor.Event) error {
+	webHookURL, err := e.GetArtifact("webhook_url")
+	if err != nil {
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), "Missing webhook url")
+		return err
 	}
 
+	channel, err := e.GetArtifact("channel")
+	if err != nil {
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), "Missing channel")
+		return err
+	}
+
+	validationErr := validateSlackWebhook(webHookURL.String(), channel.String(), e)
+	if validationErr != nil {
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), validationErr.Error())
+		return validationErr
+	}
+
+	x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "")
+	return nil
+}
+
+func (x *Slack) HandleSendNotification(e *transistor.Event) error {
 	webHookURL, err := e.GetArtifact("webhook_url")
 	if err != nil {
 		return err
@@ -75,28 +87,13 @@ func (x *Slack) Process(e transistor.Event) error {
 	if err != nil {
 		return err
 	}
-
-	if e.Action == transistor.GetAction("create") || e.Action == transistor.GetAction("update") {
-		validationErr := validateSlackWebhook(webHookURL.String(), channel.String(), e)
-		if validationErr != nil {
-			x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), validationErr.Error())
-			return validationErr
-		}
-
-		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "")
-		return nil
-	}
-
-	if e.Name != plugins.GetEventName("slack:notify") {
-		return nil
-	}
-
 	payload := e.Payload.(plugins.NotificationExtension)
 
 	messageStatus, _ := e.GetArtifact("message")
 	if err != nil {
 		return err
 	}
+
 	dashboardURL, err := e.GetArtifact("dashboard_url")
 	if err != nil {
 		return err
@@ -161,7 +158,24 @@ func (x *Slack) Process(e transistor.Event) error {
 	return nil
 }
 
-func validateSlackWebhook(webhook string, channel string, e transistor.Event) error {
+// Process slack webhook events
+func (x *Slack) Process(e transistor.Event) error {
+	log.DebugWithFields("**** PROCESSING SLACK EVENT ****", log.Fields{
+		"event": e.Event(),
+	})
+
+	if e.Matches("project:slack") {
+		if e.Action == transistor.GetAction("create") || e.Action == transistor.GetAction("update") {
+			return x.HandleCreateExtension(&e)
+		}
+	} else if e.Matches("slack:notify") {
+		return x.HandleSendNotification(&e)
+	}	
+
+	return nil
+}
+
+func validateSlackWebhook(webhook string, channel string, e *transistor.Event) error {
 	ePayload := e.Payload.(plugins.ProjectExtension)
 
 	payload := slack.Message{

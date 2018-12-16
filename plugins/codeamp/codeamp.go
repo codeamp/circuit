@@ -25,7 +25,11 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/spf13/viper"
+
+	uuid "github.com/satori/go.uuid"
 )
+
+const ContinuousDeployUUID = "59ee0229-9814-4d9b-be83-7921fe6069c1"
 
 func init() {
 	transistor.RegisterPlugin("codeamp", func() transistor.Plugin {
@@ -193,8 +197,6 @@ func (x *CodeAmp) Subscribe() []string {
 }
 
 func (x *CodeAmp) Process(e transistor.Event) error {
-	log.DebugWithFields("Processing CodeAmp event", log.Fields{"event": e.Event()})
-
 	methodName := fmt.Sprintf("%sEventHandler", strings.Split(e.PayloadModel, ".")[1])
 
 	if _, ok := reflect.TypeOf(x).MethodByName(methodName); ok {
@@ -253,12 +255,17 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *model.Release,
 	}
 
 	user := model.User{}
-	if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
-		log.InfoWithFields("user not found", log.Fields{
-			"id": release.UserID,
-		})
-		return nil
+	if release.UserID != uuid.FromStringOrNil(ContinuousDeployUUID) {
+		if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
+			log.InfoWithFields("NOTIFICATIONS - user not found", log.Fields{
+				"id": release.UserID,
+			})
+			return nil
+		}
+	} else {
+		user.Email = "Automated Deployment"
 	}
+	
 
 	projectModel := plugins.Project{
 		ID:         project.Model.ID.String(),
