@@ -1,5 +1,5 @@
 FROM quay.io/coreos/dex:v2.10.0
-FROM golang:alpine
+FROM golang:1.10-alpine
 
 COPY --from=0 /usr/local/bin/dex /usr/local/bin/dex
 
