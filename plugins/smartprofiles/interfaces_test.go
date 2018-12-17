@@ -23,8 +23,6 @@ type MockSmartProfilesClient struct {
 
 // InitInfluxClient
 func (ic *MockSmartProfilesClient) InitInfluxClient(influxHost string, influxDBName string) (error) {
-	spew.Dump("MockInflixClient InitInfluxClient")
-
 	ic.InfluxClient = MockInfluxClient{}
 	ic.InfluxDBName = "telegraf"
 
@@ -79,8 +77,6 @@ func (ic *MockSmartProfilesClient) GetService(id string, name string, namespace 
 
 // QueryInfluxDB
 func (ic *MockSmartProfilesClient) QueryInfluxDB(cmd string) (res []client.Result, err error) {
-	spew.Dump("MockInflixClient QueryDB")
-
 	q := client.Query{
 		Command:  cmd,
 		Database: ic.InfluxDBName,

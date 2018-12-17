@@ -1,6 +1,7 @@
 package codeamp
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
@@ -55,6 +56,7 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 
 // ProjectEventHandler
 func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
+	spew.Dump("project event handler")
 	tx := x.DB.Begin()
 
 	// For each service's service spec, find + update or create the corresponding suggested service spec
@@ -62,6 +64,7 @@ func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
 	for _, service := range projectPayload.Services {
 		dbService := model.Service{}
 		if err := tx.Where("id = ?", service.ID).First(&dbService).Error; err != nil {
+			spew.Dump(err)
 			tx.Rollback()
 			return err
 		} else {
@@ -69,6 +72,7 @@ func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
 			// non-resource related attributes e.g. TerminationGracePeriod
 			nonSuggestedServiceSpec := model.ServiceSpec{}
 			if err := tx.Where("service_id = ? and type != ?", dbService.Model.ID.String(), "suggested").First(&nonSuggestedServiceSpec).Error; err != nil {
+				spew.Dump(err)
 				tx.Rollback()
 				return err
 			}
@@ -88,10 +92,12 @@ func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
 			}
 
 			if err := tx.Where(suggestedServiceSpec).Order("created_at desc").First(&previousSuggestedServiceSpec).Error; err == nil {
+				spew.Dump(err)
 				tx.Rollback()
 				return nil
 			} else {
 				if err := tx.Create(&suggestedServiceSpec).Error; err != nil {
+					spew.Dump(err)
 					tx.Rollback()
 					return err
 				}
@@ -99,7 +105,9 @@ func (x *CodeAmp) ProjectEventHandler(e transistor.Event) error {
 		}
 	}
 
+	spew.Dump("DONE!")
 	if err := tx.Commit().Error; err != nil {
+		spew.Dump(err)
 		tx.Rollback()
 		return nil
 	}	

@@ -76,6 +76,20 @@ func (suite *TestSuite) TestSmartProfilesSuccess() {
 	return
 }
 
+func (suite *TestSuite) TestComputeSampledQuerySuccess() {
+	spew.Dump("TestComputeSampledQuerySuccess")
+	spClienter := &smartprofiles.SmartProfiles{
+		SmartProfilesClienter: &MockSmartProfilesClient{},
+	}	
+
+	queryRes, err := smartprofiles.ComputeSampledQuery(spClienter, "mean(memory_usage_bytes)/1000000 from kubernetes_pod_container", "container", "namespace", 14)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 
 func TestSmartProfiles(t *testing.T) {
 	suite.Run(t, new(TestSuite))
