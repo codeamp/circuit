@@ -703,7 +703,7 @@ func (r *ReleaseResolverMutation) setupServices(services []model.Service) ([]plu
 		var spec model.ServiceSpec
 		if r.DB.Where("service_id = ?", service.Model.ID).First(&spec).RecordNotFound() {
 			log.WarnWithFields("servicespec not found", log.Fields{
-				"id": service.ServiceSpecID,
+				"service_id": service.Model.ID,
 			})
 			return []plugins.Service{}, fmt.Errorf("ServiceSpec not found")
 		}

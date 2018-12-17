@@ -112,8 +112,6 @@ type Service struct {
 	Model `json:",inline"`
 	// ProjectID
 	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
-	// ServiceSpecID
-	ServiceSpecID uuid.UUID `bson:"serviceSpecID" json:"serviceSpecID" gorm:"type:uuid"`
 	// Command
 	Command string `json:"command"`
 	// Name
