@@ -450,6 +450,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:e263d2bb71de71fb5048d0ac4240ff5d79fff886bc580118c848377cf9f39318"
+  name = "github.com/influxdata/influxdb"
+  packages = ["."]
+  pruneopts = ""
+  revision = "db8f51ff2fdba4f0825a007000a4ad244ae163d1"
+
+[[projects]]
+  branch = "master"
   digest = "1:e19eb20c74cfdd81fdd562e874ed3743586e7eb1be5f67ce72361f39e23a04ce"
   name = "github.com/jinzhu/gorm"
   packages = [
@@ -1087,6 +1095,7 @@
     "github.com/graph-gophers/graphql-go/relay",
     "github.com/heptio/contour/apis/contour/v1beta1",
     "github.com/heptio/contour/apis/generated/clientset/versioned",
+    "github.com/influxdata/influxdb",
     "github.com/jinzhu/gorm",
     "github.com/jinzhu/gorm/dialects/postgres",
     "github.com/lytics/slackhook",
