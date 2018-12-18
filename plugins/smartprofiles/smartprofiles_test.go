@@ -82,7 +82,7 @@ func (suite *TestSuite) TestComputeSampledQuerySuccess() {
 		SmartProfilesClienter: &MockSmartProfilesClient{},
 	}	
 
-	_, err := smartprofiles.ComputeMeanSampledQuery(spClienter, "mean(memory_usage_bytes)/1000000 from kubernetes_pod_container", "container", "namespace", 14)
+	_, err := smartprofiles.ComputeMeanSampledQuery(spClienter, "mean(memory_usage_bytes)/1000000 from kubernetes_pod_container where container = 'container' and namespace ='namespace'", 14)
 	if err != nil {
 		return
 	}
