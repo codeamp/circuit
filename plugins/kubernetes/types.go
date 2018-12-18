@@ -42,6 +42,12 @@ type Kubernetes struct {
 	CoreServicer
 	CoreSecreter
 
+	KubernetesConfig
+}
+
+type KubernetesConfig struct {
+	Hash string
+
 	ContourClient    contour_client.Interface
 	KubernetesClient kubernetes.Interface
 }

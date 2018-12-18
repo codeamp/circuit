@@ -46,12 +46,12 @@ func TestServices(t *testing.T) {
 	suite.Run(t, new(TestSuiteServices))
 }
 
-func (suite *TestSuiteServices) TestCreateService() {
-	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
+func (suite *TestSuiteServices) TestCreateServiceSuccess() {
+	suite.transistor.Events <- LBTCPEvent("", transistor.GetAction("create"), plugins.GetType("office"))
 
 	var e transistor.Event
 	var err error
-	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("update"), 20)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("create"), 20)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
@@ -62,11 +62,13 @@ func (suite *TestSuiteServices) TestCreateService() {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
+
+	suite.T().Log(e.StateMessage)
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
-func (suite *TestSuiteServices) TestDeleteService() {
-	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("update"), plugins.GetType("office"))
+func (suite *TestSuiteServices) TestUpdateServiceSuccess() {
+	suite.transistor.Events <- LBTCPEvent("", transistor.GetAction("update"), plugins.GetType("office"))
 
 	var e transistor.Event
 	var err error
@@ -81,15 +83,54 @@ func (suite *TestSuiteServices) TestDeleteService() {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+}
+
+func (suite *TestSuiteServices) TestDeleteServiceSuccess() {
+	// Create service to delete later
+	suite.transistor.Events <- LBTCPEvent("", transistor.GetAction("create"), plugins.GetType("office"))
+
+	var e transistor.Event
+	var err error
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("create"), 20)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 20)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
-	suite.transistor.Events <- LBTCPEvent(transistor.GetAction("delete"), plugins.GetType("office"))
-
+	// Now send delete message
+	suite.transistor.Events <- LBTCPEvent("", transistor.GetAction("delete"), plugins.GetType("office"))
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.State("complete"), e.State)
+}
+
+func (suite *TestSuiteServices) TestDeleteServiceNotExistFailed() {
+	suite.transistor.Events <- LBTCPEvent("nginx-test-lb-snef-1", transistor.GetAction("delete"), plugins.GetType("office"))
+
+	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), transistor.GetAction("status"), 5)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+	assert.Equal(suite.T(), kubernetes.ErrServiceDeleteNotFound.Error(), e.StateMessage)
 }
 
 func (suite *TestSuiteServices) TearDownSuite() {
@@ -110,15 +151,20 @@ func LBDataForTCP(action transistor.Action, t plugins.Type) plugins.ProjectExten
 	return lbe
 }
 
-func LBTCPEvent(action transistor.Action, t plugins.Type) transistor.Event {
+func LBTCPEvent(name string, action transistor.Action, t plugins.Type) transistor.Event {
 	payload := LBDataForTCP(action, t)
 	event := transistor.NewEvent(plugins.GetEventName("project:kubernetes:loadbalancer"), action, payload)
 
 	kubeConfigPath := path.Join("testdata", "kubeconfig")
 	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
 
-	event.AddArtifact("service", "nginx-test-service-asdf", false)
-	event.AddArtifact("name", "nginx-test-lb-asdf1234", false)
+	event.AddArtifact("service", "test-12345", false)
+
+	if name == "" {
+		event.AddArtifact("name", "nginx-test-lb-asdf1234", false)
+	} else {
+		event.AddArtifact("name", name, false)
+	}
 	event.AddArtifact("ssl_cert_arn", "arn:1234:arnid", false)
 	event.AddArtifact("access_log_s3_bucket", "test-s3-logs-bucket", false)
 	event.AddArtifact("type", fmt.Sprintf("%v", t), false)
