@@ -25,6 +25,10 @@
   branch = "master" 
 
 [[constraint]]
+  name = "github.com/influxdata/platform"
+  branch = "master"   
+
+[[constraint]]
   branch = "master"
   name = "github.com/codeamp/logger"
 
