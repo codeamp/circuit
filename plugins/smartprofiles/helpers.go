@@ -179,7 +179,7 @@ func GetServiceCPUCost(ic SmartProfilesClienter, serviceName string, namespace s
 	overProvisioned := false
 
 	// get current cost
-	currentCostFloat, err := ComputeMeanSampledQuery(ic, "mean(cpu_usage_nanocores)/1000 from kubernetes_pod_container", serviceName, namespace, 14)
+	currentCostFloat, err := ComputeMeanSampledQuery(ic, "mean(cpu_usage_nanocores)/10000 from kubernetes_pod_container", serviceName, namespace, 14)
 	if err != nil {
 		spew.Dump(err)
 		return nil, err
@@ -198,7 +198,7 @@ func GetServiceCPUCost(ic SmartProfilesClienter, serviceName string, namespace s
 	}		
 
 	// get p90
-	p90Float, err := ComputeMeanSampledQuery(ic, "percentile(cpu_usage_nanocores, 90)/1000 from kubernetes_pod_container", serviceName, namespace, 14)
+	p90Float, err := ComputeMeanSampledQuery(ic, "percentile(cpu_usage_nanocores, 90)/10000 from kubernetes_pod_container", serviceName, namespace, 14)
 	if err != nil {
 		spew.Dump(err)
 		return nil, err
