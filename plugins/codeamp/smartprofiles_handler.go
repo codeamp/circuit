@@ -38,7 +38,7 @@ func (x *CodeAmp) SmartProfiles(project *model.Project) error {
 
 		payload := plugins.Project{
 			Slug:        project.Slug,
-			Environment: env.Name,
+			Environment: env.Key,
 			Services:    pluginServices,
 		}
 

@@ -81,11 +81,11 @@ func GetResourceRecommendation(cost *Resource) *Resource {
 ComputeMeanSampledQuery takes in a query and how many days to sample and returns
 an average over those past x number of days. 
 
-E.g. ComputeMeanSampledQuery("select mean(memory_usage_bytes)/100000 from kubernetes_pod_container", "container", "namespace")
+E.g. ComputeMeanSampledQuery("select mean(memory_usage_bytes)/100000 from kubernetes_pod_container where container = bar and namespace = foo", 14)
 
 - day 1, day 2, day 3
 */
-func ComputeMeanSampledQuery(ic SmartProfilesClienter, measurement string, containerName string, namespace string, days int) (*float64, error) {
+func ComputeMeanSampledQuery(ic SmartProfilesClienter, measurement string, days int) (*float64, error) {
 	// queryResults := []float64{}
 
 	minTime := 1
@@ -96,7 +96,7 @@ func ComputeMeanSampledQuery(ic SmartProfilesClienter, measurement string, conta
 	for i := 1; i <= days; i++ {
 		val := 0.0
 
-		influxRes, err := ic.QueryInfluxDB(fmt.Sprintf("select %s where time > now() - %dh and time < now() - %dh", measurement, maxTime, minTime))		
+		influxRes, err := ic.QueryInfluxDB(fmt.Sprintf("select %s and time > now() - %dh and time < now() - %dh", measurement, maxTime, minTime))		
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +110,7 @@ func ComputeMeanSampledQuery(ic SmartProfilesClienter, measurement string, conta
 		}
 
 		sum += val
-		
+
 		minTime += 24
 		maxTime += 24		
 	}
@@ -129,27 +129,32 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 	overProvisioned := false
 
 	// get current cost
-	currentCostFloat, err := ComputeMeanSampledQuery(ic, "mean(memory_usage_bytes)/1000000 from kubernetes_pod_container", serviceName, namespace, 14)
+	currentCostFloat, err := ComputeMeanSampledQuery(ic, fmt.Sprintf("mean(memory_usage_bytes)/1000000 from kubernetes_pod_container where container_name='%s' and namespace='%s'", serviceName, namespace), 14)
 	if err != nil {
 		return nil, err
 	}
 
 	// get min cost
-	minCostFloat, err := ComputeMeanSampledQuery(ic, "mean(gauge)/1000000 from prom_kube_pod_container_resource_requests_memory_bytes", serviceName, namespace, 14)
+	minCostFloat, err := ComputeMeanSampledQuery(ic, fmt.Sprintf("mean(gauge)/1000000 from prom_kube_pod_container_resource_requests_memory_bytes where container = '%s' and namespace = '%s'", serviceName, namespace), 14)
 	if err != nil {
 		return nil, err
 	}
 
 	// get max cost
-	maxCostFloat, err := ComputeMeanSampledQuery(ic, "mean(gauge)/1000000 from prom_kube_pod_container_resource_limits_memory_bytes", serviceName, namespace, 14)
+	maxCostFloat, err := ComputeMeanSampledQuery(ic, fmt.Sprintf("mean(gauge)/1000000 from prom_kube_pod_container_resource_limits_memory_bytes where container = '%s' and namespace = '%s'", serviceName, namespace), 14)
 	if err != nil {
 		return nil, err
 	}
 
-	// get p90
-	p90Float, err := ComputeMeanSampledQuery(ic, "percentile(memory_usage_bytes, 90)/1000000 from kubernetes_pod_container", serviceName, namespace, 14)
-	if err != nil {
-		return nil, err
+	// get burst cost
+	p90Float := 0.0
+	influxRes, err := ic.QueryInfluxDB(fmt.Sprintf("select max(memory_usage_bytes)/1000000 from kubernetes_pod_container where container_name= '%s' and namespace = '%s' and time > now() - 7d", serviceName, namespace))
+	influxResFirstValue, err := getFirstValue(influxRes)
+	if influxResFirstValue != nil {
+		p90Float, err = influxResFirstValue.(json.Number).Float64()
+		if err != nil {
+			return nil, err
+		}	
 	}
 
 	if *minCostFloat*0.8 > *currentCostFloat {
@@ -160,7 +165,7 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 		Limit:           fmt.Sprintf("%.2f", *maxCostFloat),
 		Request:         fmt.Sprintf("%.2f", *minCostFloat),
 		Current:         fmt.Sprintf("%.2f", *currentCostFloat),
-		P90:             fmt.Sprintf("%.2f", *p90Float),
+		P90:             fmt.Sprintf("%.2f", p90Float),
 		OverProvisioned: overProvisioned,
 	}, nil
 }
@@ -174,30 +179,34 @@ func GetServiceCPUCost(ic SmartProfilesClienter, serviceName string, namespace s
 	overProvisioned := false
 
 	// get current cost
-	currentCostFloat, err := ComputeMeanSampledQuery(ic, "mean(cpu_usage_nanocores)/10000 from kubernetes_pod_container", serviceName, namespace, 14)
+	currentCostFloat, err := ComputeMeanSampledQuery(ic, fmt.Sprintf("mean(cpu_usage_nanocores)/1000 from kubernetes_pod_container where container_name='%s' and namespace = '%s'", serviceName, namespace), 14)
 	if err != nil {
 		spew.Dump(err)
 		return nil, err
 	}
 
-	minCostFloat, err := ComputeMeanSampledQuery(ic, "mean(gauge) from prom_kube_pod_container_resource_requests_cpu_cores", serviceName, namespace, 14)
+	minCostFloat, err := ComputeMeanSampledQuery(ic, fmt.Sprintf("mean(gauge) from prom_kube_pod_container_resource_requests_cpu_cores where container='%s' and namespace='%s'", serviceName, namespace), 14)
 	if err != nil {
 		spew.Dump(err)
 		return nil, err
 	}	
 
-	maxCostFloat, err := ComputeMeanSampledQuery(ic, "mean(gauge) from prom_kube_pod_container_resource_limits_cpu_cores", serviceName, namespace, 14)
+	maxCostFloat, err := ComputeMeanSampledQuery(ic, fmt.Sprintf("mean(gauge) from prom_kube_pod_container_resource_limits_cpu_cores where container='%s' and namespace='%s'", serviceName, namespace), 14)
 	if err != nil {
 		spew.Dump(err)
 		return nil, err
 	}		
 
-	// get p90
-	p90Float, err := ComputeMeanSampledQuery(ic, "percentile(cpu_usage_nanocores, 90)/10000 from kubernetes_pod_container", serviceName, namespace, 14)
-	if err != nil {
-		spew.Dump(err)
-		return nil, err
-	}	
+	// get burst cost
+	p90Float := 0.0
+	influxRes, err := ic.QueryInfluxDB(fmt.Sprintf("select percentile(cpu_usage_nanocores, 95)/1000 from kubernetes_pod_container where container_name= '%s' and namespace = '%s' and time > now() - 7d", serviceName, namespace))
+	influxResFirstValue, err := getFirstValue(influxRes)
+	if influxResFirstValue != nil {
+		p90Float, err = influxResFirstValue.(json.Number).Float64()
+		if err != nil {
+			return nil, err
+		}	
+	}
 
 	if *minCostFloat*0.8 > *currentCostFloat {
 		overProvisioned = true
@@ -207,7 +216,7 @@ func GetServiceCPUCost(ic SmartProfilesClienter, serviceName string, namespace s
 		Limit:           fmt.Sprintf("%.2f", *maxCostFloat),
 		Request:         fmt.Sprintf("%.2f", *minCostFloat),
 		Current:         fmt.Sprintf("%.2f", *currentCostFloat),
-		P90:             fmt.Sprintf("%.2f", *p90Float),
+		P90:             fmt.Sprintf("%.2f", p90Float),
 		OverProvisioned: overProvisioned,
 	}, nil
 }
