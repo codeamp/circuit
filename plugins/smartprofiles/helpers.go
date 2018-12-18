@@ -129,31 +129,26 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 	overProvisioned := false
 
 	// get current cost
-	spew.Dump("computing mean")
 	currentCostFloat, err := ComputeMeanSampledQuery(ic, "mean(memory_usage_bytes)/1000000 from kubernetes_pod_container", serviceName, namespace, 14)
 	if err != nil {
-		spew.Dump(err)
 		return nil, err
 	}
 
 	// get min cost
 	minCostFloat, err := ComputeMeanSampledQuery(ic, "mean(gauge)/1000000 from prom_kube_pod_container_resource_requests_memory_bytes", serviceName, namespace, 14)
 	if err != nil {
-		spew.Dump(err)
 		return nil, err
 	}
 
 	// get max cost
 	maxCostFloat, err := ComputeMeanSampledQuery(ic, "mean(gauge)/1000000 from prom_kube_pod_container_resource_limits_memory_bytes", serviceName, namespace, 14)
 	if err != nil {
-		spew.Dump(err)
 		return nil, err
 	}
 
 	// get p90
 	p90Float, err := ComputeMeanSampledQuery(ic, "percentile(memory_usage_bytes, 90)/1000000 from kubernetes_pod_container", serviceName, namespace, 14)
 	if err != nil {
-		spew.Dump(err)
 		return nil, err
 	}
 
