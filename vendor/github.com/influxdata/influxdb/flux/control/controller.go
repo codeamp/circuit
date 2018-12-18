@@ -23,16 +23,9 @@ func NewController(mc MetaClient, reader fstorage.Reader, logger *zap.Logger) *c
 		ConcurrencyQuota:     concurrencyQuota,
 		MemoryBytesQuota:     int64(memoryBytesQuota),
 		Logger:               logger,
-<<<<<<< HEAD
 	}
 
 	err := inputs.InjectFromDependencies(cc.ExecutorDependencies, inputs.Dependencies{Reader: reader, MetaClient: mc})
-=======
-		Verbose:              false,
-	}
-
-	err := inputs.InjectFromDependencies(cc.ExecutorDependencies, inputs.Dependencies{Reader: reader})
->>>>>>> initial push
 	if err != nil {
 		panic(err)
 	}

@@ -34,10 +34,7 @@ import (
 	"github.com/influxdata/influxdb/prometheus/remote"
 	"github.com/influxdata/influxdb/query"
 	"github.com/influxdata/influxdb/services/meta"
-<<<<<<< HEAD
 	"github.com/influxdata/influxdb/services/storage"
-=======
->>>>>>> initial push
 	"github.com/influxdata/influxdb/tsdb"
 	"github.com/influxdata/influxdb/uuid"
 	"github.com/influxdata/influxql"
@@ -1157,7 +1154,6 @@ func (h *Handler) serveFluxQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-<<<<<<< HEAD
 	ctx := r.Context()
 	if val := r.FormValue("node_id"); val != "" {
 		if nodeID, err := strconv.ParseUint(val, 10, 64); err == nil {
@@ -1167,10 +1163,6 @@ func (h *Handler) serveFluxQuery(w http.ResponseWriter, r *http.Request) {
 
 	pr := req.ProxyRequest()
 	q, err := h.Controller.Query(ctx, pr.Compiler)
-=======
-	pr := req.ProxyRequest()
-	q, err := h.Controller.Query(r.Context(), pr.Compiler)
->>>>>>> initial push
 	if err != nil {
 		h.httpError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1180,15 +1172,6 @@ func (h *Handler) serveFluxQuery(w http.ResponseWriter, r *http.Request) {
 		q.Done()
 	}()
 
-<<<<<<< HEAD
-=======
-	// Setup headers
-	//stats, hasStats := results.(flux.Statisticser)
-	//if hasStats {
-	//	w.Header().Set("Trailer", statsTrailer)
-	//}
-
->>>>>>> initial push
 	// NOTE: We do not write out the headers here.
 	// It is possible that if the encoding step fails
 	// that we can write an error header so long as
@@ -1210,30 +1193,13 @@ func (h *Handler) serveFluxQuery(w http.ResponseWriter, r *http.Request) {
 		results := flux.NewResultIteratorFromQuery(q)
 		n, err := encoder.Encode(w, results)
 		if err != nil {
-<<<<<<< HEAD
 			results.Release()
-=======
-			results.Cancel()
->>>>>>> initial push
 			if n == 0 {
 				// If the encoder did not write anything, we can write an error header.
 				h.httpError(w, err.Error(), http.StatusInternalServerError)
 			}
 		}
 	}
-<<<<<<< HEAD
-=======
-
-	//if hasStats {
-	//	data, err := json.Marshal(stats.Statistics())
-	//	if err != nil {
-	//		h.Logger.Info("Failed to encode statistics", zap.Error(err))
-	//		return
-	//	}
-	//	// Write statisitcs trailer
-	//	w.Header().Set(statsTrailer, string(data))
-	//}
->>>>>>> initial push
 }
 
 // serveExpvar serves internal metrics in /debug/vars format over HTTP.

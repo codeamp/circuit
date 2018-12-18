@@ -72,14 +72,9 @@ type intCursor struct {
 	vals []int64
 }
 
-<<<<<<< HEAD
 func (c *intCursor) Close()                  {}
 func (c *intCursor) Err() error              { return nil }
 func (c *intCursor) Stats() tsdb.CursorStats { return tsdb.CursorStats{} }
-=======
-func (c *intCursor) Close()     {}
-func (c *intCursor) Err() error { return nil }
->>>>>>> initial push
 
 func (c *intCursor) Next() *tsdb.IntegerArray {
 	if c.c > len(c.keys) {

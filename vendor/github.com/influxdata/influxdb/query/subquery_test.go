@@ -5,10 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-<<<<<<< HEAD
 	"github.com/influxdata/influxdb/models"
-=======
->>>>>>> initial push
 	"github.com/influxdata/influxdb/query"
 	"github.com/influxdata/influxql"
 )
@@ -255,7 +252,6 @@ func TestSubquery(t *testing.T) {
 		})
 	}
 }
-<<<<<<< HEAD
 
 type openAuthorizer struct{}
 
@@ -324,5 +320,3 @@ func TestSubquery_MaxSeriesN(t *testing.T) {
 	}
 	cur.Close()
 }
-=======
->>>>>>> initial push

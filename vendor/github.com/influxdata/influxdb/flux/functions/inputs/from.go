@@ -39,11 +39,8 @@ func createFromSource(prSpec plan.ProcedureSpec, dsid execute.DatasetID, a execu
 	}
 	currentTime := w.Start + execute.Time(w.Period)
 
-<<<<<<< HEAD
 	deps := a.Dependencies()[inputs.FromKind].(Dependencies)
 
-=======
->>>>>>> initial push
 	var db, rp string
 	if i := strings.IndexByte(spec.Bucket, '/'); i == -1 {
 		db = spec.Bucket
@@ -52,7 +49,6 @@ func createFromSource(prSpec plan.ProcedureSpec, dsid execute.DatasetID, a execu
 		db = spec.Bucket[:i]
 	}
 
-<<<<<<< HEAD
 	// validate and resolve db/rp
 	di := deps.MetaClient.Database(db)
 	if di == nil {
@@ -66,9 +62,6 @@ func createFromSource(prSpec plan.ProcedureSpec, dsid execute.DatasetID, a execu
 	if rpi := di.RetentionPolicy(rp); rpi == nil {
 		return nil, errors.New("invalid retention policy")
 	}
-=======
-	deps := a.Dependencies()[inputs.FromKind].(Dependencies)
->>>>>>> initial push
 
 	return storage.NewSource(
 		dsid,
@@ -82,11 +75,7 @@ func createFromSource(prSpec plan.ProcedureSpec, dsid execute.DatasetID, a execu
 			SeriesOffset:    spec.SeriesOffset,
 			Descending:      spec.Descending,
 			OrderByTime:     spec.OrderByTime,
-<<<<<<< HEAD
 			GroupMode:       storage.ToGroupMode(spec.GroupMode),
-=======
-			GroupMode:       storage.GroupMode(spec.GroupMode),
->>>>>>> initial push
 			GroupKeys:       spec.GroupKeys,
 			AggregateMethod: spec.AggregateMethod,
 		},
@@ -97,12 +86,8 @@ func createFromSource(prSpec plan.ProcedureSpec, dsid execute.DatasetID, a execu
 }
 
 type Dependencies struct {
-<<<<<<< HEAD
 	Reader     storage.Reader
 	MetaClient MetaClient
-=======
-	Reader storage.Reader
->>>>>>> initial push
 }
 
 func (d Dependencies) Validate() error {

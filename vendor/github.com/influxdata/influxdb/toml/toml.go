@@ -158,13 +158,10 @@ func applyEnvOverrides(getenv func(string) string, prefix string, spec reflect.V
 		v := spec.Addr()
 		if u, ok := v.Interface().(encoding.TextUnmarshaler); ok {
 			value := getenv(prefix)
-<<<<<<< HEAD
 			// Skip any fields we don't have a value to set
 			if len(value) == 0 {
 				return nil
 			}
-=======
->>>>>>> initial push
 			return u.UnmarshalText([]byte(value))
 		}
 	}

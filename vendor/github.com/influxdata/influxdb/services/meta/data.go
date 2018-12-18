@@ -34,13 +34,10 @@ const (
 
 	// MinRetentionPolicyDuration represents the minimum duration for a policy.
 	MinRetentionPolicyDuration = time.Hour
-<<<<<<< HEAD
 
 	// MaxNameLen is the maximum length of a database or retention policy name.
 	// InfluxDB uses the name for the directory name on disk.
 	MaxNameLen = 255
-=======
->>>>>>> initial push
 )
 
 // Data represents the top level collection of all metadata.
@@ -86,11 +83,8 @@ func (data *Data) CloneDatabases() []DatabaseInfo {
 func (data *Data) CreateDatabase(name string) error {
 	if name == "" {
 		return ErrDatabaseNameRequired
-<<<<<<< HEAD
 	} else if len(name) > MaxNameLen {
 		return ErrNameTooLong
-=======
->>>>>>> initial push
 	} else if data.Database(name) != nil {
 		return nil
 	}
@@ -141,11 +135,8 @@ func (data *Data) CreateRetentionPolicy(database string, rpi *RetentionPolicyInf
 		return ErrRetentionPolicyRequired
 	} else if rpi.Name == "" {
 		return ErrRetentionPolicyNameRequired
-<<<<<<< HEAD
 	} else if len(rpi.Name) > MaxNameLen {
 		return ErrNameTooLong
-=======
->>>>>>> initial push
 	} else if rpi.ReplicaN < 1 {
 		return ErrReplicationFactorTooLow
 	}

@@ -396,11 +396,7 @@
   version = "v0.3.6"
 
 [[projects]]
-<<<<<<< HEAD
   digest = "1:0b0ea8025758a29d96ab42295b3bdd80039f31f755709c868642f92d779b17e3"
-=======
-  digest = "1:52077b5df7c796b5ee7685b3b3a91b5b9b8b6dd5ce5ed5109f7ff46d67df72af"
->>>>>>> initial push
   name = "github.com/influxdata/flux"
   packages = [
     ".",
@@ -414,7 +410,6 @@
     "functions/outputs",
     "functions/transformations",
     "influxql",
-<<<<<<< HEAD
     "internal/parser",
     "internal/pkg/syncutil",
     "internal/scanner",
@@ -423,12 +418,6 @@
     "iocounter",
     "lang",
     "memory",
-=======
-    "internal/pkg/syncutil",
-    "interpreter",
-    "iocounter",
-    "lang",
->>>>>>> initial push
     "options",
     "parser",
     "plan",
@@ -437,13 +426,8 @@
     "values",
   ]
   pruneopts = "UT"
-<<<<<<< HEAD
   revision = "909b6fc7f5eb885db79026c83ee634ad30530b5e"
   version = "v0.9.0"
-=======
-  revision = "69370f6c35cb0b6a7745a137bca7d76b409a62c1"
-  version = "v0.7.0"
->>>>>>> initial push
 
 [[projects]]
   branch = "master"
@@ -466,18 +450,13 @@
 
 [[projects]]
   branch = "master"
-<<<<<<< HEAD
   digest = "1:ae06251bec697aa7e667b4cc98e4b6d1b68467e8790a4a7be7962e0e162fb11e"
-=======
-  digest = "1:393cd839a950f0cd97ebae7c1c8e3b1e9dc53a4280ebce129ceceec3951ebeb4"
->>>>>>> initial push
   name = "github.com/influxdata/platform"
   packages = [
     ".",
     "logger",
     "models",
     "pkg/binaryutil",
-<<<<<<< HEAD
     "pkg/bloom",
     "pkg/bytesutil",
     "pkg/data/gen",
@@ -492,14 +471,6 @@
     "pkg/slices",
     "pkg/snowflake",
     "query",
-=======
-    "pkg/bytesutil",
-    "pkg/escape",
-    "pkg/limiter",
-    "pkg/mmap",
-    "pkg/rhh",
-    "pkg/snowflake",
->>>>>>> initial push
     "query/functions/inputs/storage",
     "storage/reads",
     "storage/reads/datatypes",
@@ -509,18 +480,11 @@
     "toml",
     "tsdb",
     "tsdb/cursors",
-<<<<<<< HEAD
     "tsdb/tsi1",
     "tsdb/tsm1",
   ]
   pruneopts = "UT"
   revision = "b7a836197710a8ae6732d6fb8d81561711a664b8"
-=======
-    "tsdb/defaults",
-  ]
-  pruneopts = "UT"
-  revision = "e95fb9cc9ace5478a2dd80cbdc3e10256f33f333"
->>>>>>> initial push
 
 [[projects]]
   branch = "master"
@@ -1115,20 +1079,14 @@
     "github.com/influxdata/flux/functions/outputs",
     "github.com/influxdata/flux/functions/transformations",
     "github.com/influxdata/flux/lang",
-<<<<<<< HEAD
     "github.com/influxdata/flux/memory",
-=======
->>>>>>> initial push
     "github.com/influxdata/flux/options",
     "github.com/influxdata/flux/plan",
     "github.com/influxdata/flux/repl",
     "github.com/influxdata/flux/values",
     "github.com/influxdata/influxql",
     "github.com/influxdata/platform/models",
-<<<<<<< HEAD
     "github.com/influxdata/platform/pkg/data/gen",
-=======
->>>>>>> initial push
     "github.com/influxdata/platform/query/functions/inputs/storage",
     "github.com/influxdata/platform/storage/reads",
     "github.com/influxdata/platform/storage/reads/datatypes",

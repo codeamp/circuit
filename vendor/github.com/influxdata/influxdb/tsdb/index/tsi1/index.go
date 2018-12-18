@@ -832,7 +832,6 @@ func (i *Index) DropSeriesGlobal(key []byte) error { return nil }
 
 // DropMeasurementIfSeriesNotExist drops a measurement only if there are no more
 // series for the measurment.
-<<<<<<< HEAD
 func (i *Index) DropMeasurementIfSeriesNotExist(name []byte) (bool, error) {
 	// Check if that was the last series for the measurement in the entire index.
 	if ok, err := i.MeasurementHasSeries(name); err != nil {
@@ -843,18 +842,6 @@ func (i *Index) DropMeasurementIfSeriesNotExist(name []byte) (bool, error) {
 
 	// If no more series exist in the measurement then delete the measurement.
 	return true, i.DropMeasurement(name)
-=======
-func (i *Index) DropMeasurementIfSeriesNotExist(name []byte) error {
-	// Check if that was the last series for the measurement in the entire index.
-	if ok, err := i.MeasurementHasSeries(name); err != nil {
-		return err
-	} else if ok {
-		return nil
-	}
-
-	// If no more series exist in the measurement then delete the measurement.
-	return i.DropMeasurement(name)
->>>>>>> initial push
 }
 
 // MeasurementsSketches returns the two measurement sketches for the index.

@@ -47,13 +47,9 @@ type StatementExecutor struct {
 	Monitor *monitor.Monitor
 
 	// Used for rewriting points back into system for SELECT INTO statements.
-<<<<<<< HEAD
 	PointsWriter interface {
 		WritePointsInto(*IntoWriteRequest) error
 	}
-=======
-	PointsWriter pointsWriter
->>>>>>> initial push
 
 	// Select statement limits
 	MaxSelectPointN   int
@@ -577,18 +573,11 @@ func (e *StatementExecutor) executeSelectStatement(stmt *influxql.SelectStatemen
 
 		// Write points back into system for INTO statements.
 		if stmt.Target != nil {
-<<<<<<< HEAD
 			n, err := e.writeInto(pointsWriter, stmt, row)
 			if err != nil {
 				return err
 			}
 			writeN += n
-=======
-			if err := e.writeInto(pointsWriter, stmt, row); err != nil {
-				return err
-			}
-			writeN += int64(len(row.Values))
->>>>>>> initial push
 			continue
 		}
 
@@ -1199,15 +1188,9 @@ func (w *BufferedPointsWriter) Len() int { return len(w.buf) }
 // Cap returns the capacity (in points) of the buffer.
 func (w *BufferedPointsWriter) Cap() int { return cap(w.buf) }
 
-<<<<<<< HEAD
 func (e *StatementExecutor) writeInto(w pointsWriter, stmt *influxql.SelectStatement, row *models.Row) (n int64, err error) {
 	if stmt.Target.Measurement.Database == "" {
 		return 0, errNoDatabaseInTarget
-=======
-func (e *StatementExecutor) writeInto(w pointsWriter, stmt *influxql.SelectStatement, row *models.Row) error {
-	if stmt.Target.Measurement.Database == "" {
-		return errNoDatabaseInTarget
->>>>>>> initial push
 	}
 
 	// It might seem a bit weird that this is where we do this, since we will have to
@@ -1224,11 +1207,7 @@ func (e *StatementExecutor) writeInto(w pointsWriter, stmt *influxql.SelectState
 
 	points, err := convertRowToPoints(name, row)
 	if err != nil {
-<<<<<<< HEAD
 		return 0, err
-=======
-		return err
->>>>>>> initial push
 	}
 
 	if err := w.WritePointsInto(&IntoWriteRequest{
@@ -1236,17 +1215,10 @@ func (e *StatementExecutor) writeInto(w pointsWriter, stmt *influxql.SelectState
 		RetentionPolicy: stmt.Target.Measurement.RetentionPolicy,
 		Points:          points,
 	}); err != nil {
-<<<<<<< HEAD
 		return 0, err
 	}
 
 	return int64(len(points)), nil
-=======
-		return err
-	}
-
-	return nil
->>>>>>> initial push
 }
 
 var errNoDatabaseInTarget = errors.New("no database in target")
@@ -1273,15 +1245,11 @@ func convertRowToPoints(measurementName string, row *models.Row) ([]models.Point
 		vals := make(map[string]interface{})
 		for fieldName, fieldIndex := range fieldIndexes {
 			val := v[fieldIndex]
-<<<<<<< HEAD
 			// Check specifically for nil or a NullFloat. This is because
 			// the NullFloat represents float numbers that don't have an internal representation
 			// (like NaN) that cannot be written back, but will not equal nil so there will be
 			// an attempt to write them if we do not check for it.
 			if val != nil && val != query.NullFloat {
-=======
-			if val != nil {
->>>>>>> initial push
 				vals[fieldName] = v[fieldIndex]
 			}
 		}

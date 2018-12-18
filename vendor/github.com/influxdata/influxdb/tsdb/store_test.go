@@ -14,10 +14,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-<<<<<<< HEAD
 	"sync"
-=======
->>>>>>> initial push
 	"testing"
 	"time"
 
@@ -147,7 +144,6 @@ func TestStore_CreateShard(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
 func TestStore_CreateMixedShards(t *testing.T) {
 	t.Parallel()
 
@@ -384,8 +380,6 @@ func TestStore_WriteMixedShards(t *testing.T) {
 	}
 }
 
-=======
->>>>>>> initial push
 // Ensure the store does not return an error when delete from a non-existent db.
 func TestStore_DeleteSeries_NonExistentDB(t *testing.T) {
 	t.Parallel()

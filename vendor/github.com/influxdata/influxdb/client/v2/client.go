@@ -3,10 +3,7 @@ package client // import "github.com/influxdata/influxdb/client/v2"
 
 import (
 	"bytes"
-<<<<<<< HEAD
 	"context"
-=======
->>>>>>> initial push
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -14,10 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mime"
-<<<<<<< HEAD
 	"net"
-=======
->>>>>>> initial push
 	"net/http"
 	"net/url"
 	"path"
@@ -56,13 +50,10 @@ type HTTPConfig struct {
 
 	// Proxy configures the Proxy function on the HTTP client.
 	Proxy func(req *http.Request) (*url.URL, error)
-<<<<<<< HEAD
 
 	// DialContext specifies the dial function for creating unencrypted TCP connections.
 	// If DialContext is nil then the transport dials using package net.
 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
-=======
->>>>>>> initial push
 }
 
 // BatchPointsConfig is the config data needed to create an instance of the BatchPoints struct.
@@ -121,12 +112,8 @@ func NewHTTPClient(conf HTTPConfig) (Client, error) {
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: conf.InsecureSkipVerify,
 		},
-<<<<<<< HEAD
 		Proxy:       conf.Proxy,
 		DialContext: conf.DialContext,
-=======
-		Proxy: conf.Proxy,
->>>>>>> initial push
 	}
 	if conf.TLSConfig != nil {
 		tr.TLSClientConfig = conf.TLSConfig
