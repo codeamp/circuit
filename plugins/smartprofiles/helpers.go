@@ -148,7 +148,7 @@ func GetServiceMemoryCost(ic SmartProfilesClienter, serviceName string, namespac
 
 	// get burst cost
 	p90Float := 0.0
-	influxRes, err := ic.QueryInfluxDB(fmt.Sprintf("select max(memory_usage_bytes)/1000000 from kubernetes_pod_container where container_name= '%s' and namespace = '%s' and time > now() - 7d", serviceName, namespace))
+	influxRes, err := ic.QueryInfluxDB(fmt.Sprintf("select percentile(memory_usage_bytes, 95)/1000000 from kubernetes_pod_container where container_name= '%s' and namespace = '%s' and time > now() - 7d", serviceName, namespace))
 	influxResFirstValue, err := getFirstValue(influxRes)
 	if influxResFirstValue != nil {
 		p90Float, err = influxResFirstValue.(json.Number).Float64()
