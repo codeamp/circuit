@@ -42,19 +42,16 @@ func (x *SmartProfiles) Start(e chan transistor.Event) error {
 	return nil
 }
 
-// Stop spins slack down
 func (x *SmartProfiles) Stop() {
 	log.Info("Stopping Smart Profiles")
 }
 
-// Subscribe to events
 func (x *SmartProfiles) Subscribe() []string {
 	return []string{
 		"smartprofiles:update",
 	}
 }
 
-// Process slack webhook events
 func (x *SmartProfiles) Process(e transistor.Event) error {	
 	log.DebugWithFields("Processing SmartProfiles event", log.Fields{
 		"event": e.Event(),
