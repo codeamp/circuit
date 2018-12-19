@@ -6,7 +6,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	slack "github.com/lytics/slackhook"
 
 	log "github.com/codeamp/logger"
@@ -130,8 +129,6 @@ func (x *Slack) HandleSendNotification(e *transistor.Event) error {
 		// that reverses them. "FooterIcon" serializes as "Footer" and vice-versa
 		FooterIcon: fmt.Sprintf("%s | %s", payload.Project.Repository, payload.Release.User),
 	}
-
-	spew.Dump(resultAttachments)
 
 	// fmt.Sprintf("https://github.com/%s", payload.Project.Repository)
 
