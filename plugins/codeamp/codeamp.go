@@ -29,6 +29,11 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// This UUID is utilized by the release process and the slack notifier plugin
+// this will handle the case when a deployment is automated and there is
+// no explicit user assigned to the release. Anywhere there is a check
+// involving the user, we check to see if it's this one first.
+// If it is, we proceed as if it was an automated deployment
 const ContinuousDeployUUID = "59ee0229-9814-4d9b-be83-7921fe6069c1"
 
 func init() {
@@ -265,7 +270,6 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *model.Release,
 	} else {
 		user.Email = "Automated Deployment"
 	}
-	
 
 	projectModel := plugins.Project{
 		ID:         project.Model.ID.String(),

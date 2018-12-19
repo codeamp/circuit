@@ -175,7 +175,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 	if err != nil {
 		log.Error(err)
-		return nil, err 
+		return nil, err
 	}
 
 	var commits []plugins.GitCommit
