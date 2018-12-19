@@ -123,7 +123,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	secrets and services signatures
 	*
 	*************************************/
-	if r.isReleasePending(args.Release.ProjectID, args.Release.EnvironmentID) {
+	if r.isReleasePending(args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID) {
 		// same release so return
 		log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
 		// , log.Fields{
@@ -148,15 +148,15 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		return nil, errors.New("Environment not found")
 	}
 
-	// var headFeature model.Feature
-	// if r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&headFeature).RecordNotFound() {
-	// 	log.InfoWithFields("head feature not found", log.Fields{
-	// 		"id": args.Release.HeadFeatureID,
-	// 	})
-	// 	return nil, errors.New("head feature not found")
-	// }
+	var headFeature model.Feature
+	if r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+		log.InfoWithFields("head feature not found", log.Fields{
+			"id": args.Release.HeadFeatureID,
+		})
+		return nil, errors.New("head feature not found")
+	}
 
-	// var tailFeature model.Feature
+	var tailFeature model.Feature
 	// if r.DB.Where("id = ?", args.Release.TailFeatureID).First(&tailFeature).RecordNotFound() {
 	// 	log.InfoWithFields("tail feature not found", log.Fields{
 	// 		"id": args.Release.TailFeatureID,
@@ -204,7 +204,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	// if not then reuse the old one on a previous release
 	// This is a new release because no previous release ID was provided
 	if args.Release.ID != nil {
-		r.createRollback()
+		r.createRollback(*args.Release.ID)
 	}
 
 	/******************************************
@@ -230,17 +230,18 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: *release}}, nil
 }
 
-func (r *ReleaseResolverMutation) makeUUIDFromString(source string) (uuid.UUID, error) {
+func (r *ReleaseResolverMutation) makeUUIDFromString(source string) uuid.UUID {
 	uuid_res, err := uuid.FromString(source)
 	if err != nil {
 		log.Error("Couldn't parse field in makeUUIDFromString")
-		return uuid.UUID{}, fmt.Errorf("Couldn't parse headFeatureID")
+		return uuid.FromStringOrEmpty("0")
 	}
 
-	return uuid_res, err
+	return uuid_res
 }
 
-func (r *ReleaseResolverMutation) createRelease(userID string, projectID string, environmentID string, headFeatureID string, forceRebuild bool) (*model.Release, error) {
+func (r *ReleaseResolverMutation) createRelease(userID string, projectID string, environmentID string,
+	headFeatureID string, forceRebuild bool) (*model.Release, error) {
 	// the tail feature id is the current release's head feature id
 	// this is incorrect when the same commit is deployed multiple times
 	// or when there is a rollback condition
@@ -261,31 +262,6 @@ func (r *ReleaseResolverMutation) createRelease(userID string, projectID string,
 		branch = projectSettings.GitBranch
 	}
 
-	// Parse out ProjectID, HeadFeatureID, and EnvironmentID from the Release
-	projectUUID, err := uuid.FromString(projectID)
-	if err != nil {
-		log.Error("Couldn't parse projectID")
-		return nil, fmt.Errorf("Couldn't parse projectID")
-	}
-
-	headFeatureUUID, err := uuid.FromString(headFeatureID)
-	if err != nil {
-		log.Error("Couldn't parse headFeatureID")
-		return nil, fmt.Errorf("Couldn't parse headFeatureID")
-	}
-
-	tailFeatureUUID, err := uuid.FromString(tailFeatureID)
-	if err != nil {
-		log.Error("Couldn't parse tailFeatureID")
-		return nil, fmt.Errorf("Couldn't parse tailFeatureID")
-	}
-
-	environmentUUID, err := uuid.FromString(environmentID)
-	if err != nil {
-		log.Error("Couldn't parse environmentID")
-		return nil, fmt.Errorf("Couldn't parse environmentID")
-	}
-
 	/******************************************
 	*
 	*	Gather Secrets & Configure
@@ -302,11 +278,11 @@ func (r *ReleaseResolverMutation) createRelease(userID string, projectID string,
 	release := model.Release{
 		State:             transistor.GetState("waiting"),
 		StateMessage:      "Release created",
-		ProjectID:         projectUUID,
-		EnvironmentID:     environmentUUID,
+		ProjectID:         r.makeUUIDFromString(projectID),
+		EnvironmentID:     r.makeUUIDFromString(environmentID),
 		UserID:            uuid.FromStringOrNil(userID),
-		HeadFeatureID:     headFeatureUUID,
-		TailFeatureID:     tailFeatureUUID,
+		HeadFeatureID:     r.makeUUIDFromString(headFeatureID),
+		TailFeatureID:     r.makeUUIDFromString(tailFeatureID),
 		Secrets:           r.makeJsonb(secrets),
 		Services:          r.makeJsonb(services),
 		ProjectExtensions: r.makeJsonb(projectExtensions),
@@ -456,14 +432,14 @@ func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release) *plu
 	return &releaseEvent
 }
 
-func (r *ReleaseResolverMutation) createRollback() {
+func (r *ReleaseResolverMutation) createRollback(releaseID string) {
 	/******************************************
 	*
 	*	Existing Release, ReleaseID Provided
 	*	Rollback to this Release
 	*
 	*******************************************/
-	log.Info(fmt.Sprintf("Existing Release. Rolling back %d", args.Release.ID))
+	log.Info(fmt.Sprintf("Existing Release. Rolling back %d", releaseID))
 	// // Rollback
 	// isRollback = true
 	// existingRelease := model.Release{}
@@ -489,7 +465,7 @@ func (r *ReleaseResolverMutation) createRollback() {
 	// }
 }
 
-func (r *ReleaseResolverMutation) isReleasePending(projectID string, environmentID string) bool {
+func (r *ReleaseResolverMutation) isReleasePending(projectID string, environmentID string, headFeatureID string) bool {
 	// check if there's a previous release in waiting state that
 	// has the same secrets and services signatures
 	secretsSha1 := sha1.New()
@@ -504,7 +480,7 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	currentReleaseHeadFeature := model.Feature{}
 
 	// Gather HeadFeature
-	r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&currentReleaseHeadFeature)
+	r.DB.Where("id = ?", headFeatureID).First(&currentReleaseHeadFeature)
 
 	waitingRelease := model.Release{}
 
@@ -534,6 +510,7 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	log.Warn(bytes.Equal(secretsSig, waitingReleaseSecretsSig))
 	log.Warn(bytes.Equal(servicesSig, waitingReleaseServicesSig))
 	log.Warn(strings.Compare(currentReleaseHeadFeature.Hash, waitingReleaseHeadFeature.Hash))
+
 	if bytes.Equal(secretsSig, waitingReleaseSecretsSig) &&
 		bytes.Equal(servicesSig, waitingReleaseServicesSig) &&
 		strings.Compare(currentReleaseHeadFeature.Hash, waitingReleaseHeadFeature.Hash) == 0 {
@@ -551,8 +528,8 @@ func (r *ReleaseResolverMutation) isAuthorizedReleaseForEnvironment(projectID st
 	return false
 }
 
-func (r *ReleaseResolverMutation) getProjectExtensions(projectID string, environmentID string) ([]model.Project, error) {
-	var projectExtensions []model.ProjectExtensions
+func (r *ReleaseResolverMutation) getProjectExtensions(projectID string, environmentID string) ([]model.ProjectExtension, error) {
+	var projectExtensions []model.ProjectExtension
 	if err := r.DB.Where("project_id = ? AND environment_id = ? AND state = ?", projectID, environmentID, transistor.GetState("complete")).Find(&projectExtensions).Error; err != nil {
 		return nil, err
 	}
