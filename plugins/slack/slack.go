@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	slack "github.com/lytics/slackhook"
 
 	log "github.com/codeamp/logger"
@@ -99,13 +100,13 @@ func (x *Slack) HandleSendNotification(e *transistor.Event) error {
 		return err
 	}
 
-	tail := payload.Release.TailFeature.Hash
-	head := payload.Release.HeadFeature.Hash
+	tail := payload.Release.TailFeature.Hash[:7]
+	head := payload.Release.HeadFeature.Hash[:7]
 
-	compareUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, head)
-	releaseFeatureHash := fmt.Sprintf("%s ... %s", tail[:7], head[:7])
-	if tail == head {
-		releaseFeatureHash = head[:7]
+	releaseFeatureHash := head
+	compareUrl := fmt.Sprintf("https://github.com/%s/commit/%s", payload.Project.Repository, releaseFeatureHash)
+	if tail != head {
+		releaseFeatureHash = fmt.Sprintf("%s...%s", tail, head)
 		compareUrl = fmt.Sprintf("https://github.com/%s/compare/%s...%s", payload.Project.Repository, tail, head)
 	}
 
@@ -129,6 +130,8 @@ func (x *Slack) HandleSendNotification(e *transistor.Event) error {
 		// that reverses them. "FooterIcon" serializes as "Footer" and vice-versa
 		FooterIcon: fmt.Sprintf("%s | %s", payload.Project.Repository, payload.Release.User),
 	}
+
+	spew.Dump(resultAttachments)
 
 	// fmt.Sprintf("https://github.com/%s", payload.Project.Repository)
 
