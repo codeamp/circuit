@@ -105,10 +105,65 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	x.RunQueuedReleases(release)
 }
 
+func (x *CodeAmp) injectReleaseEnvVars(pluginSecrets []plugins.Secret, project *model.Project, headFeature model.Feature, tailFeature model.Feature) []plugins.Secret {
+	// insert CodeAmp envs
+	slugSecret := plugins.Secret{
+		Key:   "CODEAMP_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, slugSecret)
+
+	hashSecret := plugins.Secret{
+		Key:   "CODEAMP_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, hashSecret)
+
+	timeSecret := plugins.Secret{
+		Key:   "CODEAMP_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, timeSecret)
+
+	// insert Codeflow envs - remove later
+	_slugSecret := plugins.Secret{
+		Key:   "CODEFLOW_SLUG",
+		Value: project.Slug,
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _slugSecret)
+
+	_hashSecret := plugins.Secret{
+		Key:   "CODEFLOW_HASH",
+		Value: headFeature.Hash[0:7],
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _hashSecret)
+
+	_timeSecret := plugins.Secret{
+		Key:   "CODEFLOW_CREATED_AT",
+		Value: time.Now().Format(time.RFC3339),
+		Type:  plugins.GetType("env"),
+	}
+	pluginSecrets = append(pluginSecrets, _timeSecret)
+
+	return pluginSecrets
+}
+
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	var nextQueuedRelease model.Release
 
-	// If there are no queued/waiting releases, no work to be done here. 
+	/******************************************
+	*
+	*	Check for waiting/queued releases
+	*
+	*******************************************/
+	// If there are no queued/waiting releases, no work to be done here.
+	x.DB.LogMode(true)
+	defer x.DB.LogMode(false)
 	if x.DB.Where("id != ? and state = ? and project_id = ? and environment_id = ? and created_at > ?", release.Model.ID, "waiting", release.ProjectID, release.EnvironmentID, release.CreatedAt).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
 		log.WarnWithFields("No queued releases found.", log.Fields{
 			"id":             release.Model.ID,
@@ -119,6 +174,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		})
 		return nil
 	}
+	x.DB.LogMode(false)
 
 	var project model.Project
 	var services []model.Service
@@ -171,6 +227,12 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		return nil
 	}
 
+	/******************************************
+	*
+	*	Gather ProjectSettings, Environment,
+	*	Head/Tail Features, and all Services
+	*
+	*******************************************/
 	// get all branches relevant for the project
 	var branch string
 	var projectSettings model.ProjectSettings
@@ -218,6 +280,11 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		pluginServices = graphql_resolver.AppendPluginService(pluginServices, service, spec)
 	}
 
+	/******************************************
+	*
+	*	Insert Environment Variables
+	*
+	*******************************************/
 	var pluginSecrets []plugins.Secret
 	for _, secret := range secrets {
 		pluginSecrets = append(pluginSecrets, plugins.Secret{
@@ -227,50 +294,13 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		})
 	}
 
-	// insert CodeAmp envs
-	slugSecret := plugins.Secret{
-		Key:   "CODEAMP_SLUG",
-		Value: project.Slug,
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, slugSecret)
+	pluginSecrets = x.injectReleaseEnvVars(pluginSecrets, &project, headFeature, tailFeature)
 
-	hashSecret := plugins.Secret{
-		Key:   "CODEAMP_HASH",
-		Value: headFeature.Hash[0:7],
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, hashSecret)
-
-	timeSecret := plugins.Secret{
-		Key:   "CODEAMP_CREATED_AT",
-		Value: time.Now().Format(time.RFC3339),
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, timeSecret)
-
-	// insert Codeflow envs - remove later
-	_slugSecret := plugins.Secret{
-		Key:   "CODEFLOW_SLUG",
-		Value: project.Slug,
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _slugSecret)
-
-	_hashSecret := plugins.Secret{
-		Key:   "CODEFLOW_HASH",
-		Value: headFeature.Hash[0:7],
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _hashSecret)
-
-	_timeSecret := plugins.Secret{
-		Key:   "CODEFLOW_CREATED_AT",
-		Value: time.Now().Format(time.RFC3339),
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _timeSecret)
-
+	/******************************************
+	*
+	*	Build Release Payload
+	*
+	*******************************************/
 	releasePayload := graphql_resolver.BuildReleasePayload(nextQueuedRelease, project, environment, branch, headFeature, tailFeature, pluginServices, pluginSecrets)
 
 	nextQueuedRelease.Started = time.Now()
@@ -372,6 +402,6 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 			x.Events <- ev
 		}
 	}
-	
+
 	return nil
 }
