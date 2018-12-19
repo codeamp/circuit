@@ -85,6 +85,7 @@ func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
 
 	suite.T().Log(e.StateMessage)
 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+	assert.Equal(suite.T(), kubernetes.ErrDeployJobStarting.Error(), e.StateMessage)
 }
 
 func (suite *TestSuiteDeployment) TestDeployFailureNoSecrets() {
@@ -110,6 +111,7 @@ func (suite *TestSuiteDeployment) TestDeployFailureNoSecrets() {
 
 	suite.T().Log(e.StateMessage)
 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+	assert.Equal(suite.T(), kubernetes.ErrDeployNoSecrets.Error(), e.StateMessage)
 }
 
 func TestDeployments(t *testing.T) {

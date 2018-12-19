@@ -1,14 +1,13 @@
 package kubernetes
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/go-errors/errors"
 	"k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -39,7 +38,7 @@ func (x *Kubernetes) ProcessLoadBalancer(e transistor.Event) {
 }
 
 func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
-	log.Info("doLoadBalancer")
+	log.Debug("Received LoadBalancer Event")
 
 	/********************************************
 	*
@@ -49,11 +48,15 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
-		log.Warn("missing service")
 		return err
 	}
 
 	lbName, err := e.GetArtifact("name")
+
+	projectSlug := plugins.GetSlug(payload.Project.Repository)
+	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
+
+	log.Debug(fmt.Sprintf("Working on LoadBalancer: '%s' for service '%s' in '%s'", lbName.String(), svcName.String(), namespace))
 	if err != nil {
 		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
 		e.AddArtifact("name", name, false)
@@ -85,7 +88,16 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	}
 
 	lbType := plugins.GetType(_lbType.String())
-	projectSlug := plugins.GetSlug(payload.Project.Repository)
+
+	/********************************************
+	*
+	*	Setup Kube Config & Clientset
+	*
+	*********************************************/
+	clientset, err := x.SetupClientset(e)
+	if err != nil {
+		return err
+	}
 
 	/********************************************
 	*
@@ -94,6 +106,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*********************************************/
 	// Delete old LB if service was changed and update the name
 	if !strings.HasPrefix(lbName.String(), fmt.Sprintf("%s-", svcName.String())) {
+		log.Debug(fmt.Sprintf("Deleting old service with previous name: '%s'. Replacing with '%s'.", svcName.String(), fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])))
 		err := deleteLoadBalancer(e, x)
 		// The load balancer might fail to delete because it does not exist in the first place
 		// The point is to make sure it's not there when we try to create it later.
@@ -104,48 +117,19 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
 		e.AddArtifact("name", name, false)
 
-		lbName, err = e.GetArtifact("name")
-		if err != nil {
+		// Ensure it was added
+		lbName, err := e.GetArtifact("name")
+		if err != nil || lbName.String() != name {
 			return err
 		}
 	}
 
-	/********************************************
-	*
-	*	Setup Kube Config & Clientset
-	*
-	*********************************************/
-	kubeconfig, err := x.SetupKubeConfig(e)
-	if err != nil {
-		log.Error(err.Error())
-		return err
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error())
-		log.Error(failMessage)
-		return err
-	}
-
-	clientset, err := x.K8sNamespacer.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error())
-		log.Error(failMessage)
-		return err
-	}
-
-	coreInterface := clientset.Core()
 	deploymentName := x.GenDeploymentName(projectSlug, svcName.String())
 
 	var serviceType v1.ServiceType
 	var servicePorts []v1.ServicePort
 	serviceAnnotations := make(map[string]string)
-	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
-	createNamespaceErr := x.CreateNamespaceIfNotExists(namespace, coreInterface)
+	createNamespaceErr := x.CreateNamespaceIfNotExists(namespace, clientset.Core())
 	if createNamespaceErr != nil {
 		return createNamespaceErr
 	}
@@ -215,7 +199,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 		intPort, err := strconv.Atoi(p.(map[string]interface{})["port"].(string))
 		if err != nil {
-			return err
+			return errors.Wrap(err, 1)
 		}
 
 		intContainerPort := int(p.(map[string]interface{})["containerPort"].(float64))
@@ -276,8 +260,9 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 	// Implement service update-or-create semantics.
 	log.Debug("Implement service update-or-create semantics.")
-	service := coreInterface.Services(namespace)
-	svc, err := service.Get(lbName.String(), meta_v1.GetOptions{})
+	log.Debug(fmt.Sprintf("Namespace = '%s'", namespace))
+
+	svc, err := x.CoreServicer.Get(clientset, namespace, lbName.String(), meta_v1.GetOptions{})
 	switch {
 	case err == nil:
 		// Preserve the NodePorts for PATCH service.
@@ -293,19 +278,22 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 		serviceParams.ObjectMeta.ResourceVersion = svc.ObjectMeta.ResourceVersion
 		serviceParams.Spec.ClusterIP = svc.Spec.ClusterIP
-		_, err = service.Update(&serviceParams)
+		_, err = x.CoreServicer.Update(clientset, namespace, &serviceParams)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error: failed to update service: %s", err.Error()))
+			log.Error(fmt.Errorf("Error: failed to update service: %s", err.Error()))
+			return errors.New(ErrServiceUpdateFailed)
 		}
 		log.Debug(fmt.Sprintf("Service updated: %s", lbName.String()))
 	case k8s_errors.IsNotFound(err):
-		_, err = service.Create(&serviceParams)
+		_, err = x.CoreServicer.Create(clientset, namespace, &serviceParams)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error: failed to create service: %s", err.Error()))
+			log.Error(fmt.Errorf("Error: failed to create service: %s", err.Error()))
+			return errors.New(ErrServiceCreateFailed)
 		}
 		log.Debug(fmt.Sprintf("Service created: %s", lbName.String()))
 	default:
-		return errors.New(fmt.Sprintf("Unexpected error: %s", err.Error()))
+		log.Error(fmt.Errorf("Unexpected error: %s", err.Error()))
+		return errors.New(ErrServiceUnexpectedError)
 	}
 
 	/********************************************
@@ -330,10 +318,12 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 				if len(ingressList) > 0 {
 					ELBDNS = ingressList[0].Hostname
+					log.Error(ELBDNS)
 					break
 				}
 				if timeout <= 0 {
-					return errors.New(fmt.Sprintf("Error: timeout waiting for ELB DNS name for: %s", lbName.String()))
+					log.Error(fmt.Errorf("Error: timeout waiting for ELB DNS name for: %s", lbName.String()))
+					return errors.New(ErrServiceDNSTimeout)
 				}
 			}
 			time.Sleep(time.Second * 5)
@@ -361,9 +351,9 @@ func (x *Kubernetes) doDeleteLoadBalancer(e transistor.Event) error {
 	err := deleteLoadBalancer(e, x)
 
 	if err != nil {
+		log.Error(err.Error())
 		x.sendErrorResponse(e, err.Error())
 	} else {
-		log.Warn("sending success deleted")
 		x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 	}
 
@@ -374,34 +364,32 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	kubeconfig, err := x.SetupKubeConfig(e)
+	/********************************************
+	*
+	*	Setup Kube Config & Clientset
+	*
+	*********************************************/
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
 
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{Timeout: "60"}).ClientConfig()
-
-	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: %s; you must set the environment variable CF_PLUGINS_KUBEDEPLOY_KUBECONFIG=/path/to/kubeconfig", err.Error()))
-	}
-
-	clientset, err := x.K8sNamespacer.NewForConfig(config)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: %s; setting NewForConfig in doLoadBalancer", err.Error()))
-	}
-
+	// Extract Artifacts
 	svcName, err := e.GetArtifact("service")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
 	lbName, err := e.GetArtifact("name")
 	if err != nil {
-		return err
+		return errors.Wrap(err, 1)
 	}
 
+	/********************************************
+	*
+	*	Cleanup Service/LB
+	*
+	*********************************************/
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
 
@@ -410,11 +398,13 @@ func deleteLoadBalancer(e transistor.Event, x *Kubernetes) error {
 		// Service was found, ready to delete
 		svcDeleteErr := x.CoreServicer.Delete(clientset, namespace, lbName.String(), &meta_v1.DeleteOptions{})
 		if svcDeleteErr != nil {
-			return errors.New(fmt.Sprintf("Error managing loadbalancer '%s' deleting service %s. %s.", svcDeleteErr, lbName.String(), svcName.String()))
+			log.Error(fmt.Errorf("Error managing loadbalancer '%s' deleting service %s. %s.", svcDeleteErr, lbName.String(), svcName.String()))
+			return errors.New(ErrServiceDeleteFailed)
 		}
 	} else {
 		// Send failure message that we couldn't find the service to delete
-		return errors.New(fmt.Sprintf("Error managing loadbalancer finding %s service: '%s'. '%s'", lbName.String(), svcGetErr, svcName.String()))
+		log.Error(fmt.Errorf("Error managing loadbalancer finding %s service: '%s'. '%s'", lbName.String(), svcGetErr.Error(), svcName.String()))
+		return errors.New(ErrServiceDeleteNotFound)
 	}
 
 	return nil

@@ -21,6 +21,14 @@
 #  version = "2.4.0"
 
 [[constraint]]
+  name = "github.com/influxdata/influxdb"
+  branch = "master" 
+
+[[constraint]]
+  name = "github.com/influxdata/platform"
+  branch = "master"   
+
+[[constraint]]
   branch = "master"
   name = "github.com/codeamp/logger"
 
