@@ -117,13 +117,27 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		return nil, errors.New("No project extensions found")
 	}
 
+	/******************************************
+	*
+	*	Prepare Services
+	*
+	*******************************************/
+	services, _ := r.gatherAndBuildServices(args.Release.ProjectID, args.Release.EnvironmentID)
+
+	/******************************************
+	*
+	*	Prepare Secrets
+	*
+	******************************************/
+	secrets, _ := r.gatherAndBuildSecrets(args.Release.ProjectID, args.Release.EnvironmentID)
+
 	/************************************
 	*
 	* 	6. Ensure no other waiting releases with same
 	*	secrets and services signatures
 	*
 	*************************************/
-	if r.isReleasePending(args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID) {
+	if r.isReleasePending(args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, secrets, services) {
 		// same release so return
 		log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
 		// , log.Fields{
@@ -156,33 +170,13 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		return nil, errors.New("head feature not found")
 	}
 
-	var tailFeature model.Feature
+	// var tailFeature model.Feature
 	// if r.DB.Where("id = ?", args.Release.TailFeatureID).First(&tailFeature).RecordNotFound() {
 	// 	log.InfoWithFields("tail feature not found", log.Fields{
 	// 		"id": args.Release.TailFeatureID,
 	// 	})
 	// 	return nil, errors.New("Tail feature not found")
 	// }
-
-	/******************************************
-	*
-	*	Prepare Services
-	*
-	*******************************************/
-	services, err := r.gatherAndBuildServices(args.Release.ProjectID, args.Release.EnvironmentID)
-
-	var pluginServices []plugins.Service
-	pluginServices, err = r.setupServices(services)
-	if err != nil {
-		return nil, err
-	}
-
-	/******************************************
-	*
-	*	Prepare Secrets
-	*
-	******************************************/
-	secrets, err := r.gatherAndBuildSecrets(args.Release.ProjectID, args.Release.EnvironmentID)
 
 	/******************************************
 	*
@@ -213,7 +207,8 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*
 	*******************************************/
 	forceRebuild := false
-	release, err := r.createRelease(userID, args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, forceRebuild)
+	release, err := r.createRelease(userID, args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, forceRebuild,
+		secrets, services, projectExtensions)
 	if err != nil {
 		return nil, err
 	}
@@ -234,14 +229,14 @@ func (r *ReleaseResolverMutation) makeUUIDFromString(source string) uuid.UUID {
 	uuid_res, err := uuid.FromString(source)
 	if err != nil {
 		log.Error("Couldn't parse field in makeUUIDFromString")
-		return uuid.FromStringOrEmpty("0")
+		return uuid.FromStringOrNil("0")
 	}
 
 	return uuid_res
 }
 
 func (r *ReleaseResolverMutation) createRelease(userID string, projectID string, environmentID string,
-	headFeatureID string, forceRebuild bool) (*model.Release, error) {
+	headFeatureID string, forceRebuild bool, secrets []model.Secret, services []model.Service, projectExtensions []model.ProjectExtension) (*model.Release, error) {
 	// the tail feature id is the current release's head feature id
 	// this is incorrect when the same commit is deployed multiple times
 	// or when there is a rollback condition
@@ -262,11 +257,14 @@ func (r *ReleaseResolverMutation) createRelease(userID string, projectID string,
 		branch = projectSettings.GitBranch
 	}
 
-	/******************************************
-	*
-	*	Gather Secrets & Configure
-	*
-	*******************************************/
+	log.Warn("Branch = ", branch)
+
+	// Convert model.Services to plugin.Services
+	// Why? Serialized later?
+	pluginServices, err := r.setupServices(services)
+	if err != nil {
+		return nil, err
+	}
 
 	/******************************************
 	*
@@ -284,7 +282,7 @@ func (r *ReleaseResolverMutation) createRelease(userID string, projectID string,
 		HeadFeatureID:     r.makeUUIDFromString(headFeatureID),
 		TailFeatureID:     r.makeUUIDFromString(tailFeatureID),
 		Secrets:           r.makeJsonb(secrets),
-		Services:          r.makeJsonb(services),
+		Services:          r.makeJsonb(pluginServices),
 		ProjectExtensions: r.makeJsonb(projectExtensions),
 		ForceRebuild:      forceRebuild,
 		IsRollback:        isRollback,
@@ -465,7 +463,10 @@ func (r *ReleaseResolverMutation) createRollback(releaseID string) {
 	// }
 }
 
-func (r *ReleaseResolverMutation) isReleasePending(projectID string, environmentID string, headFeatureID string) bool {
+func (r *ReleaseResolverMutation) isReleasePending(projectID string, environmentID string, headFeatureID string, secrets []model.Secret, services []model.Service) bool {
+	secretsJsonb := r.makeJsonb(secrets)
+	servicesJsonb := r.makeJsonb(services)
+
 	// check if there's a previous release in waiting state that
 	// has the same secrets and services signatures
 	secretsSha1 := sha1.New()
