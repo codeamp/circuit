@@ -73,13 +73,7 @@ func (x *GitSync) Subscribe() []string {
 func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 
-	log.DebugWithFields("executing command", log.Fields{
-		"path": cmd.Path,
-		"args": strings.Join(cmd.Args, " "),
-	})
-
 	cmd.Env = env
-
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if ee, ok := err.(*exec.Error); ok {
@@ -146,13 +140,11 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 			"path": repoPath,
 		})
 
-		output, err := x.git(env, "clone", git.Url, repoPath)
+		_, err := x.git(env, "clone", git.Url, repoPath)
 		if err != nil {
 			log.Error(err)
 			return nil, err
 		}
-
-		log.Debug(string(output))
 	}
 
 	output, err = x.git(env, "-C", repoPath, "reset", "--hard", fmt.Sprintf("origin/%s", git.Branch))
@@ -161,15 +153,11 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		return nil, err
 	}
 
-	log.Debug(string(output))
-
 	output, err = x.git(env, "-C", repoPath, "clean", "-fd")
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-
-	log.Debug(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "pull", "origin", git.Branch)
 	if err != nil {
@@ -177,15 +165,11 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 		return nil, err
 	}
 
-	log.Debug(string(output))
-
 	output, err = x.git(env, "-C", repoPath, "checkout", git.Branch)
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-
-	log.Debug(string(output))
 
 	output, err = x.git(env, "-C", repoPath, "log", "--first-parent", "--date=iso-strict", "-n", "50", "--pretty=format:%H#@#%P#@#%s#@#%cN#@#%cd", git.Branch)
 
@@ -195,7 +179,6 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	}
 
 	var commits []plugins.GitCommit
-
 	for i, line := range strings.Split(strings.TrimSuffix(string(output), "\n"), "\n") {
 		head := false
 		if i == 0 {
@@ -214,10 +197,6 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 }
 
 func (x *GitSync) Process(e transistor.Event) error {
-	log.DebugWithFields("Process GitSync event", log.Fields{
-		"event": e.Event(),
-	})
-
 	if e.Event() == "gitsync:create" {
 		payload := e.Payload.(plugins.GitSync)
 		event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), "Fetching resource")
@@ -255,7 +234,7 @@ func (x *GitSync) Process(e transistor.Event) error {
 	}
 
 	if e.Event() == "gitsync:update" {
-		log.WarnWithFields("Event received by githubsync yet unhandled!", log.Fields{"event": e})
+		log.ErrorWithFields("Event received by githubsync yet unhandled!", log.Fields{"event": e})
 	}
 
 	return nil

@@ -17,7 +17,7 @@ type SecretResolverQuery struct {
 func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
 	Params *model.PaginatorInput
 }) (*SecretListResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
@@ -33,7 +33,7 @@ func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
 func (r *SecretResolverQuery) Secret(ctx context.Context, args *struct {
 	ID *string
 }) (*SecretResolver, error) {
-	if _, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
+	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 

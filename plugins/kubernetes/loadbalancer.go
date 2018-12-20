@@ -55,8 +55,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 
 	projectSlug := plugins.GetSlug(payload.Project.Repository)
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
-
-	log.Debug(fmt.Sprintf("Working on LoadBalancer: '%s' for service '%s' in '%s'", lbName.String(), svcName.String(), namespace))
 	if err != nil {
 		name := fmt.Sprintf("%s-%s", svcName.String(), payload.ID[0:5])
 		e.AddArtifact("name", name, false)
@@ -66,6 +64,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 			return err
 		}
 	}
+	log.Debug(fmt.Sprintf("Working on LoadBalancer: '%s' for service '%s' in '%s'", lbName.String(), svcName.String(), namespace))
 
 	sslARN, err := e.GetArtifact("ssl_cert_arn")
 	if err != nil {

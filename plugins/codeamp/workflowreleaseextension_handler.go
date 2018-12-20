@@ -10,6 +10,8 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
@@ -47,12 +49,16 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 
 	user := model.User{}
 	email := ""
-	if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
-		log.InfoWithFields("user not found", log.Fields{
-			"id": release.UserID,
-		})
+	if release.UserID == uuid.FromStringOrNil(ContinuousDeployUUID) {
+		email = "Automated Deployment"
 	} else {
-		email = user.Email
+		if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
+			log.InfoWithFields("user not found", log.Fields{
+				"id": release.UserID,
+			})
+		} else {
+			email = user.Email
+		}
 	}
 
 	// get all branches relevant for the projec

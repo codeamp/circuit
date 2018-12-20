@@ -3,6 +3,7 @@ package codeamp
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
@@ -29,6 +30,8 @@ func (x *CodeAmp) Migrate() {
 
 	db.LogMode(false)
 	db.Set("gorm:auto_preload", true)
+
+	timeMigrationBegins := time.Now()
 
 	db.AutoMigrate(
 		&model.User{},
@@ -493,6 +496,8 @@ func (x *CodeAmp) Migrate() {
 		},	
 	})
 
+	timeTaskDuration := time.Since(timeMigrationBegins)
+	log.Info(fmt.Sprintf("Migration Task Took %v to Complete", timeTaskDuration))
 	if err = m.Migrate(); err != nil {
 		log.Fatal(fmt.Sprintf("Could not migrate: %v", err))
 	}
