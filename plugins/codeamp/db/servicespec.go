@@ -40,7 +40,7 @@ func (r *ServiceSpecResolver) Name() string {
 		return r.ServiceSpec.Name
 	}
 
-	return fmt.Sprintf("%s/%s/%s", service.Name, project.Slug, env.Key)
+	return fmt.Sprintf("%s/%s/%s", env.Key, project.Slug, service.Name)
 }
 
 // Service

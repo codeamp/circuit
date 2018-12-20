@@ -47,7 +47,7 @@ func (suite *TestSuite) TearDownSuite() {
 func (suite *TestSuite) TestSmartProfilesSuccess() {
 	spew.Dump("TestSmartProfilesSuccess")
 	project := plugins.Project{
-		Slug:        "checkr-deploy-test",
+		Slug:        "foobar",
 		Environment: "development",
 		Services: []plugins.Service{
 			plugins.Service{
