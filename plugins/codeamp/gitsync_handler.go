@@ -9,6 +9,8 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/jinzhu/gorm"
 )
 
 func (x *CodeAmp) GitSync(project *model.Project) error {
@@ -78,7 +80,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 	payload := e.Payload.(plugins.GitSync)
 
 	var project model.Project
-	var environment model.Environment
 	var projectSettings []model.ProjectSettings
 
 	if e.State == transistor.GetState("complete") {
@@ -89,6 +90,10 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 			return nil
 		}
 
+		releaseNotificationWebsocketEvents := make([]string, 0, 10)
+
+		foundFeatures := len(payload.Commits)
+		newFeatures := 0
 		for _, commit := range payload.Commits {
 			var feature model.Feature
 			if x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
@@ -102,68 +107,75 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 					Created:    commit.Created,
 				}
 
-				x.DB.Save(&feature)
+				if err := x.DB.Save(&feature).Error; err != nil {
+					log.Error(err.Error())
+				}
 
-				event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
-				event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key), false)
-				x.Events <- event
+				newFeatures = newFeatures + 1
 
 				if commit.Head {
-					if x.DB.Where("continuous_deploy = ? and project_id = ?", true, project.Model.ID).Find(&projectSettings).RecordNotFound() {
-						log.ErrorWithFields("No continuous deploys found", log.Fields{
-							"continuous_deploy": true,
-							"project_id":        project.Model.ID,
-						})
+					if err := x.DB.Where("project_id = ?", project.Model.ID).Find(&projectSettings).Error; err != nil {
+						if gorm.IsRecordNotFoundError(err) {
+							log.ErrorWithFields("No project settings found", log.Fields{
+								"project_id": project.Model.ID,
+							})	
+						} else {
+							log.Error(err.Error())
+						}						
 					} else {
+						// Create an automated release if specified by the projects configuration/settings
 						// call CreateRelease for each env that has cd turned on
 						for _, setting := range projectSettings {
-							if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
-								adminContext := context.WithValue(context.Background(), "jwt", model.Claims{
-									UserID:      uuid.FromStringOrNil("codeamp").String(),
-									Email:       "codeamp@codeamp.com",
-									Permissions: []string{"admin"},
-								})
-
-								x.Resolver.CreateRelease(adminContext, &struct {
-									Release *model.ReleaseInput
-								}{
-									Release: &model.ReleaseInput{
-										HeadFeatureID: feature.Model.ID.String(),
-										ProjectID:     setting.ProjectID.String(),
-										EnvironmentID: setting.EnvironmentID.String(),
-									},
-								})
-							}
-
+							var environment model.Environment
 							if x.DB.Where("id = ?", setting.EnvironmentID).First(&environment).RecordNotFound() {
 								log.ErrorWithFields("Environment not found", log.Fields{
 									"id": setting.EnvironmentID,
 								})
+								continue
 							}
 
-							websocketMsgs := []plugins.WebsocketMsg{
-								{
-									Event: fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key),
-								},
-								{
-									Event: fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
-								},
+							// Notify listeners there are new features found, but only for envs with this branch set
+							if newFeatures > 0 && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
+								releaseNotificationWebsocketEvents = append(releaseNotificationWebsocketEvents, fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key))
 							}
 
-							for _, msg := range websocketMsgs {
-								event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
-								event.AddArtifact("event", msg.Event, false)
-								x.Events <- event
+							if setting.ContinuousDeploy == true {
+								if setting.ContinuousDeploy && fmt.Sprintf("refs/heads/%s", setting.GitBranch) == feature.Ref {
+									adminContext := context.WithValue(context.Background(), "jwt", model.Claims{
+										UserID:      uuid.FromStringOrNil(ContinuousDeployUUID).String(),
+										Email:       "codeamp@codeamp.com",
+										Permissions: []string{"admin"},
+									})								
+
+									x.Resolver.CreateRelease(adminContext, &struct {
+										Release *model.ReleaseInput
+									}{
+										Release: &model.ReleaseInput{
+											HeadFeatureID: feature.Model.ID.String(),
+											ProjectID:     setting.ProjectID.String(),
+											EnvironmentID: setting.EnvironmentID.String(),
+										},
+									})
+
+									releaseNotificationWebsocketEvents = append(releaseNotificationWebsocketEvents, fmt.Sprintf("projects/%s/%s/features", project.Slug, environment.Key))
+									releaseNotificationWebsocketEvents = append(releaseNotificationWebsocketEvents, fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key))
+								}
 							}
 						}
 					}
 				}
-			} else {
-				log.DebugWithFields("feature already exists", log.Fields{
-					"repository": commit.Repository,
-					"hash":       commit.Hash,
-				})
 			}
+		}
+
+		log.Debug(fmt.Sprintf("Sync: [%s] - Found %d features. %d were new.", project.GitUrl, foundFeatures, newFeatures))
+		for _, msg := range releaseNotificationWebsocketEvents {
+			payload := plugins.WebsocketMsg{
+				Event: msg,
+			}
+
+			event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+			event.AddArtifact("event", msg, false)
+			x.Events <- event
 		}
 	}
 
