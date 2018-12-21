@@ -52,7 +52,7 @@ func (x *SmartProfiles) Subscribe() []string {
 	}
 }
 
-func (x *SmartProfiles) Process(e transistor.Event) error {	
+func (x *SmartProfiles) Process(e transistor.Event) error {
 	log.DebugWithFields("Processing SmartProfiles event", log.Fields{
 		"event": e.Event(),
 	})

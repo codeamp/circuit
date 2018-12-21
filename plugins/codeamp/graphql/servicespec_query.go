@@ -6,6 +6,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 )
 
@@ -16,14 +17,20 @@ type ServiceSpecResolverQuery struct {
 
 func (r *ServiceSpecResolverQuery) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
+		log.Error(err.Error())
 		return nil, err
 	}
 
 	var rows []model.ServiceSpec
 	var results []*ServiceSpecResolver
 
-	r.DB.Where("type != ?", "suggested").Order("name desc").Find(&rows)
-  
+	if err := r.DB.Where("type != ?", "suggested").Order("name desc").Find(&rows).Error; err != nil {
+		log.ErrorWithFields(err.Error(), log.Fields{
+			"type": "suggested",
+		})
+		return nil, err
+	}
+
 	for _, serviceSpec := range rows {
 		results = append(results, &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}})
 	}

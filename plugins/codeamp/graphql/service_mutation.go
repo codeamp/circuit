@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	log "github.com/codeamp/logger"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
@@ -25,17 +25,23 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	tx := r.DB.Begin()
 
 	// Check if project can create service in environment
-	if tx.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
+	if err := tx.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
+		log.ErrorWithFields(err.Error(), log.Fields{
+			"environment_id": args.Service.EnvironmentID,
+			"project_id":     args.Service.ProjectID,
+		})
 		return nil, fmt.Errorf("Project not allowed to create service in given environment")
 	}
 
 	projectID, err := uuid.FromString(args.Service.ProjectID)
 	if err != nil {
+		log.Error(err.Error())
 		return nil, err
 	}
 
 	environmentID, err := uuid.FromString(args.Service.EnvironmentID)
 	if err != nil {
+		log.Error(err.Error())
 		return nil, err
 	}
 
@@ -43,6 +49,7 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	if args.Service.DeploymentStrategy != nil {
 		deploymentStrategy, err = validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
 		if err != nil {
+			log.Error(err.Error())
 			return nil, err
 		}
 	}
@@ -98,14 +105,14 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	}
 
 	serviceSpec := model.ServiceSpec{
-		Name: "",
-		CpuRequest: defaultServiceSpec.CpuRequest,
-		CpuLimit: defaultServiceSpec.CpuLimit,
-		MemoryRequest: defaultServiceSpec.MemoryRequest,
-		MemoryLimit: defaultServiceSpec.MemoryLimit,
+		Name:                   "",
+		CpuRequest:             defaultServiceSpec.CpuRequest,
+		CpuLimit:               defaultServiceSpec.CpuLimit,
+		MemoryRequest:          defaultServiceSpec.MemoryRequest,
+		MemoryLimit:            defaultServiceSpec.MemoryLimit,
 		TerminationGracePeriod: defaultServiceSpec.TerminationGracePeriod,
-		ServiceID: service.Model.ID,
-		IsDefault: false,
+		ServiceID:              service.Model.ID,
+		IsDefault:              false,
 	}
 
 	if err := tx.Create(&serviceSpec).Error; err != nil {
@@ -136,6 +143,7 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 				Protocol:  cp.Protocol,
 			}
 			if err := tx.Create(&servicePort).Error; err != nil {
+				log.Error(err.Error())
 				tx.Rollback()
 				return nil, err
 			}
@@ -143,6 +151,7 @@ func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.Ser
 	}
 
 	if err := tx.Commit().Error; err != nil {
+		log.Error(err.Error())
 		tx.Rollback()
 		return nil, err
 	}
@@ -159,8 +168,11 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 	}
 
 	var service model.Service
-	if r.DB.Where("id = ?", serviceID).Find(&service).RecordNotFound() {
-		return nil, fmt.Errorf("Record not found with given argument id")
+	if err := r.DB.Where("id = ?", serviceID).Find(&service).Error; err != nil {
+		log.ErrorWithFields(err.Error(), log.Fields{
+			"id": serviceID,
+		})
+		return nil, err
 	}
 
 	service.Command = args.Service.Command

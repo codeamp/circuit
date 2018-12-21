@@ -1,8 +1,9 @@
 package graphql_resolver
 
 import (
-	"github.com/jinzhu/gorm"
 	"fmt"
+	log "github.com/codeamp/logger"
+	"github.com/jinzhu/gorm"
 
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -23,11 +24,12 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 	/*
 	* Find existing default; if input.default = true,
 	* set existing default spec = false.
-	*/
+	 */
 	if args.ServiceSpec.IsDefault {
 		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
-			currentDefault.IsDefault = false			
+			currentDefault.IsDefault = false
 			if err := tx.Save(&currentDefault).Error; err != nil {
+				log.Error(err.Error())
 				tx.Rollback()
 				return nil, err
 			}
@@ -41,15 +43,17 @@ func (r *ServiceSpecResolverMutation) CreateServiceSpec(args *struct{ ServiceSpe
 		MemoryRequest:          args.ServiceSpec.MemoryRequest,
 		MemoryLimit:            args.ServiceSpec.MemoryLimit,
 		TerminationGracePeriod: args.ServiceSpec.TerminationGracePeriod,
-		IsDefault: 				args.ServiceSpec.IsDefault,
+		IsDefault:              args.ServiceSpec.IsDefault,
 	}
 
 	if err := tx.Create(&serviceSpec).Error; err != nil {
+		log.Error(err.Error())
 		tx.Rollback()
 		return nil, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
+		log.Error(err.Error())
 		tx.Rollback()
 		return nil, err
 	}
@@ -66,6 +70,7 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	tx := r.DB.Begin()
 
 	if err := tx.Where("id = ?", args.ServiceSpec.ID).First(&serviceSpec).Error; err != nil {
+		log.Error(err.Error())
 		tx.Rollback()
 		return nil, fmt.Errorf("serviceSpec not found with given argument id")
 	}
@@ -74,11 +79,12 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	* Find existing default; if input.default = true,
 	* set existing default spec = false.
 	* Condition: service spec cannot have a service mapped to it in order to be a default.
-	*/
+	 */
 	if args.ServiceSpec.IsDefault && uuid.Equal(serviceSpec.ServiceID, uuid.Nil) {
 		if err := tx.Where("is_default = ?", true).First(&currentDefault).Error; err == nil {
-			currentDefault.IsDefault = false			
+			currentDefault.IsDefault = false
 			if err := tx.Save(&currentDefault).Error; err != nil {
+				log.Error(err.Error())
 				tx.Rollback()
 				return nil, err
 			}
@@ -102,11 +108,13 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	serviceSpec.IsDefault = isDefault
 
 	if err := tx.Save(&serviceSpec).Error; err != nil {
+		log.Error(err.Error())
 		tx.Rollback()
 		return nil, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
+		log.Error(err.Error())
 		tx.Rollback()
 		return nil, err
 	}
@@ -114,32 +122,37 @@ func (r *ServiceSpecResolverMutation) UpdateServiceSpec(args *struct{ ServiceSpe
 	return &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}}, nil
 }
 
-
 // DeleteServiceSpec
-func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {	
+func (r *ServiceSpecResolverMutation) DeleteServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	tx := r.DB.Begin()
 
 	serviceSpec := model.ServiceSpec{}
 	service := model.Service{}
+	var err error
 
 	if err := tx.Where("id = ?", args.ServiceSpec.ID).First(&serviceSpec).Error; err != nil {
-		tx.Rollback()		
+		log.Error(err.Error())
+		tx.Rollback()
 		return nil, err
 	}
-	
+
 	if serviceSpec.IsDefault {
+		err = fmt.Errorf("Select another service spec to be a default before deleting this.")
+		log.Error(err.Error())
 		tx.Rollback()
-		return nil, fmt.Errorf("Select another service spec to be a default before deleting this.")
-	}	
+		return nil, err
+	}
 
 	if err := tx.Where("id = ?", serviceSpec.ServiceID).First(&service).Error; gorm.IsRecordNotFoundError(err) {
 		if err := tx.Delete(&serviceSpec).Error; err != nil {
-			tx.Rollback()			
+			log.Error(err.Error())
+			tx.Rollback()
 			return nil, err
 		}
-		
+
 		if err := tx.Commit().Error; err != nil {
-			tx.Rollback()			
+			log.Error(err.Error())
+			tx.Rollback()
 			return nil, err
 		}
 

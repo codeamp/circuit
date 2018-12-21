@@ -59,7 +59,13 @@ func (r *ServiceResolver) ServiceSpec() *ServiceSpecResolver {
 func (r *ServiceResolver) SuggestedServiceSpec() *ServiceSpecResolver {
 	var serviceSpec model.ServiceSpec
 
-	r.DB.Where("service_id = ? and type = ?", r.Service.Model.ID, "suggested").Order("created_at desc").First(&serviceSpec)
+	if err := r.DB.Where("service_id = ? and type = ?", r.Service.Model.ID, "suggested").Order("created_at desc").First(&serviceSpec).Error; err != nil {
+		log.ErrorWithFields(err.Error(), log.Fields{
+			"service_id": r.Service.Model.ID,
+			"type":       "suggested",
+		})
+		return nil
+	}
 
 	return &ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}
 }
