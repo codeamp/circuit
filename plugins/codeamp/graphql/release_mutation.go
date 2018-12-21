@@ -554,8 +554,6 @@ func (r *ReleaseResolverMutation) getProjectExtensions(projectID string, environ
 	}
 
 	return projectExtensions, nil
-		release.State = transistor.GetState("running")
-		release.StateMessage = "Running Release"
 }
 
 func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{ ID graphql.ID }) (*ReleaseResolver, error) {
