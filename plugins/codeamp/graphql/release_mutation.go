@@ -84,7 +84,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*
 	*******************************************/
 	var rollbackRelease model.Release
-	if *args.Release.ID != "" && r.DB.Where("id = ?", string(*args.Release.ID)).First(&rollbackRelease).RecordNotFound() {
+	if args.Release.ID != nil && *args.Release.ID != "" && r.DB.Where("id = ?", string(*args.Release.ID)).First(&rollbackRelease).RecordNotFound() {
 		log.ErrorWithFields("Could not find existing release", log.Fields{
 			"id": *args.Release.ID,
 		})
@@ -437,7 +437,7 @@ func (r *ReleaseResolverMutation) createRollback(releaseID string) {
 	*	Rollback to this Release
 	*
 	*******************************************/
-	log.Info(fmt.Sprintf("Existing Release. Rolling back %d", releaseID))
+	log.Info(fmt.Sprintf("Existing Release. Rolling back %s", releaseID))
 	// // Rollback
 	// isRollback = true
 	// existingRelease := model.Release{}
