@@ -521,12 +521,13 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	return false
 }
 
+// Checks to see if Project has permission to create a Release for the given Environment
 func (r *ReleaseResolverMutation) isAuthorizedReleaseForEnvironment(projectID string, environmentID string) bool {
 	if r.DB.Where("environment_id = ? and project_id = ?", environmentID, projectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func (r *ReleaseResolverMutation) getProjectExtensions(projectID string, environmentID string) ([]model.ProjectExtension, error) {
