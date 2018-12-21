@@ -467,6 +467,8 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		log.Info(fmt.Sprintf("Release is already running, queueing %s", release.Model.ID.String()))
 		return &ReleaseResolver{}, fmt.Errorf("Release is already running, queuing %s", release.Model.ID.String())
 	} else {
+		release.State = transistor.GetState("running")
+		release.StateMessage = "Running Release"
 		release.Started = time.Now()
 		r.DB.Save(&release)
 

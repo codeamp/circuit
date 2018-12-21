@@ -375,6 +375,8 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	releasePayload := graphql_resolver.BuildReleasePayload(nextQueuedRelease, project, environment, branch, headFeature, tailFeature, pluginServices, pluginSecrets)
 
 	nextQueuedRelease.Started = time.Now()
+	nextQueuedRelease.State = transistor.GetState("running")
+	nextQueuedRelease.StateMessage = "Running Release"
 	x.DB.Save(&nextQueuedRelease)
 
 	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), transistor.GetAction("create"), releasePayload)
