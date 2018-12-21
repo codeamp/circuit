@@ -22,7 +22,7 @@ func (r *ServiceSpecResolverQuery) ServiceSpecs(ctx context.Context) ([]*Service
 	var rows []model.ServiceSpec
 	var results []*ServiceSpecResolver
 
-	r.DB.Order("created_at desc").Find(&rows)
+	r.DB.Order("name desc").Find(&rows)
 	for _, serviceSpec := range rows {
 		results = append(results, &ServiceSpecResolver{DBServiceSpecResolver: &db_resolver.ServiceSpecResolver{DB: r.DB, ServiceSpec: serviceSpec}})
 	}
