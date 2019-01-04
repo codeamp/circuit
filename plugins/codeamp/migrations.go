@@ -69,19 +69,26 @@ func (x *CodeAmp) Migrate() {
 					user := model.User{
 						Email: email,
 					}
-					db.Save(&user)
+
+					if err := db.Save(&user).Error; err != nil {
+						return err
+					}
 
 					userPermission := model.UserPermission{
 						UserID: user.Model.ID,
 						Value:  "admin",
 					}
-					db.Save(&userPermission)
+
+					if err := db.Save(&userPermission).Error; err != nil {
+						return err
+					}
 				}
 
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Delete(&model.Environment{}).Error
+				log.Error("Migration 201803021521 Rollback")
+				return nil
 			},
 		},
 		// create environments
@@ -98,13 +105,16 @@ func (x *CodeAmp) Migrate() {
 						Name:  name,
 						Color: "red",
 					}
-					db.Save(&environment)
+					if err := db.Save(&environment).Error; err != nil {
+						return err
+					}
 				}
 
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return db.Delete(&model.Environment{}).Error
+				log.Error("Migration 201803021522 Rollback")
+				return nil
 			},
 		},
 		// create extension secrets
@@ -135,9 +145,13 @@ func (x *CodeAmp) Migrate() {
 				var user model.User
 				var environments []model.Environment
 
-				db.First(&user)
+				if err := db.First(&user).Error; err != nil {
+					return err
+				}
 
-				db.Find(&environments)
+				if err := db.Find(&environments).Error; err != nil {
+					return err
+				}
 				for _, environment := range environments {
 					// ENV
 					for _, name := range envSecrets {
@@ -147,14 +161,18 @@ func (x *CodeAmp) Migrate() {
 							Scope:         graphql_resolver.GetSecretScope("extension"),
 							EnvironmentID: environment.Model.ID,
 						}
-						db.Save(&secret)
+						if err := db.Save(&secret).Error; err != nil {
+							return err
+						}
 
 						secretValue := model.SecretValue{
 							SecretID: secret.Model.ID,
 							UserID:   user.Model.ID,
 							Value:    "",
 						}
-						db.Save(&secretValue)
+						if err := db.Save(&secretValue).Error; err != nil {
+							return err
+						}
 					}
 					// FILE
 					for _, name := range fileSecrets {
@@ -164,13 +182,16 @@ func (x *CodeAmp) Migrate() {
 							Scope:         graphql_resolver.GetSecretScope("extension"),
 							EnvironmentID: environment.Model.ID,
 						}
-						db.Save(&secret)
+						if err := db.Save(&secret).Error; err != nil {
+							return err
+						}
 					}
 				}
 
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201803021530 Rollback")
 				return db.Delete(&model.Secret{}).Error
 			},
 		},
@@ -186,11 +207,14 @@ func (x *CodeAmp) Migrate() {
 					MemoryLimit:            "500",
 					TerminationGracePeriod: "300",
 				}
-				db.Save(&serviceSpec)
+				if err := db.Save(&serviceSpec).Error; err != nil {
+					return err
+				}
 
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201803031530 Rollback")
 				return db.Delete(&model.ServiceSpec{}).Error
 			},
 		},
@@ -203,23 +227,35 @@ func (x *CodeAmp) Migrate() {
 				var marshalledConfig []byte
 				var extension model.Extension
 
-				db.Find(&environments)
+				if err := db.Find(&environments).Error; err != nil {
+					return err
+				}
 				for _, environment := range environments {
 					// dockerbuilder
 					var dockerOrg model.Secret
-					db.Where("key = ? AND environment_id = ?", "DOCKER_ORG", environment.Model.ID).FirstOrInit(&dockerOrg)
+					if err := db.Where("key = ? AND environment_id = ?", "DOCKER_ORG", environment.Model.ID).FirstOrInit(&dockerOrg).Error; err != nil {
+						return err
+					}
 
 					var dockerHost model.Secret
-					db.Where("key = ? AND environment_id = ?", "DOCKER_HOST", environment.Model.ID).FirstOrInit(&dockerHost)
+					if err := db.Where("key = ? AND environment_id = ?", "DOCKER_HOST", environment.Model.ID).FirstOrInit(&dockerHost).Error; err != nil {
+						return err
+					}
 
 					var dockerUser model.Secret
-					db.Where("key = ? AND environment_id = ?", "DOCKER_USER", environment.Model.ID).FirstOrInit(&dockerUser)
+					if err := db.Where("key = ? AND environment_id = ?", "DOCKER_USER", environment.Model.ID).FirstOrInit(&dockerUser).Error; err != nil {
+						return err
+					}
 
 					var dockerEmail model.Secret
-					db.Where("key = ? AND environment_id = ?", "DOCKER_EMAIL", environment.Model.ID).FirstOrInit(&dockerEmail)
+					if err := db.Where("key = ? AND environment_id = ?", "DOCKER_EMAIL", environment.Model.ID).FirstOrInit(&dockerEmail).Error; err != nil {
+						return err
+					}
 
 					var dockerPass model.Secret
-					db.Where("key = ? AND environment_id = ?", "DOCKER_PASS", environment.Model.ID).FirstOrInit(&dockerPass)
+					if err := db.Where("key = ? AND environment_id = ?", "DOCKER_PASS", environment.Model.ID).FirstOrInit(&dockerPass).Error; err != nil {
+						return err
+					}
 
 					config = []map[string]interface{}{
 						{"key": "ORG", "value": dockerOrg.Model.ID.String()},
@@ -232,6 +268,7 @@ func (x *CodeAmp) Migrate() {
 					marshalledConfig, err = json.Marshal(config)
 					if err != nil {
 						log.Error("could not marshal config")
+						return err
 					}
 
 					extension = model.Extension{
@@ -243,35 +280,55 @@ func (x *CodeAmp) Migrate() {
 						Config:        postgres.Jsonb{marshalledConfig},
 					}
 
-					db.Save(&extension)
+					if err := db.Save(&extension).Error; err != nil {
+						return err
+					}
 
 					// loadbalancer
 					var sslArn model.Secret
-					db.Where("key = ? AND environment_id = ?", "SSL_CERT_ARN", environment.Model.ID).FirstOrInit(&sslArn)
+					if err := db.Where("key = ? AND environment_id = ?", "SSL_CERT_ARN", environment.Model.ID).FirstOrInit(&sslArn).Error; err != nil {
+						return err
+					}
 
 					var s3Bucket model.Secret
-					db.Where("key = ? AND environment_id = ?", "ACCESS_LOG_S3_BUCKET", environment.Model.ID).FirstOrInit(&s3Bucket)
+					if err := db.Where("key = ? AND environment_id = ?", "ACCESS_LOG_S3_BUCKET", environment.Model.ID).FirstOrInit(&s3Bucket).Error; err != nil {
+						return err
+					}
 
 					var hostedZoneID model.Secret
-					db.Where("key = ? AND environment_id = ?", "HOSTED_ZONE_ID", environment.Model.ID).FirstOrInit(&hostedZoneID)
+					if err := db.Where("key = ? AND environment_id = ?", "HOSTED_ZONE_ID", environment.Model.ID).FirstOrInit(&hostedZoneID).Error; err != nil {
+						return err
+					}
 
 					var hostedZoneName model.Secret
-					db.Where("key = ? AND environment_id = ?", "HOSTED_ZONE_NAME", environment.Model.ID).FirstOrInit(&hostedZoneName)
+					if err := db.Where("key = ? AND environment_id = ?", "HOSTED_ZONE_NAME", environment.Model.ID).FirstOrInit(&hostedZoneName).Error; err != nil {
+						return err
+					}
 
 					var awsAccessKeyID model.Secret
-					db.Where("key = ? AND environment_id = ?", "AWS_ACCESS_KEY_ID", environment.Model.ID).FirstOrInit(&awsAccessKeyID)
+					if err := db.Where("key = ? AND environment_id = ?", "AWS_ACCESS_KEY_ID", environment.Model.ID).FirstOrInit(&awsAccessKeyID).Error; err != nil {
+						return err
+					}
 
 					var awsSecretKey model.Secret
-					db.Where("key = ? AND environment_id = ?", "AWS_SECRET_KEY", environment.Model.ID).FirstOrInit(&awsSecretKey)
+					if err := db.Where("key = ? AND environment_id = ?", "AWS_SECRET_KEY", environment.Model.ID).FirstOrInit(&awsSecretKey).Error; err != nil {
+						return err
+					}
 
 					var clientCert model.Secret
-					db.Where("key = ? AND environment_id = ?", "CLIENT_CERTIFICATE", environment.Model.ID).FirstOrInit(&clientCert)
+					if err := db.Where("key = ? AND environment_id = ?", "CLIENT_CERTIFICATE", environment.Model.ID).FirstOrInit(&clientCert).Error; err != nil {
+						return err
+					}
 
 					var clientKey model.Secret
-					db.Where("key = ? AND environment_id = ?", "CLIENT_KEY", environment.Model.ID).FirstOrInit(&clientKey)
+					if err := db.Where("key = ? AND environment_id = ?", "CLIENT_KEY", environment.Model.ID).FirstOrInit(&clientKey).Error; err != nil {
+						return err
+					}
 
 					var certificateAuthority model.Secret
-					db.Where("key = ? AND environment_id = ?", "CERTIFICATE_AUTHORITY", environment.Model.ID).FirstOrInit(&certificateAuthority)
+					if err := db.Where("key = ? AND environment_id = ?", "CERTIFICATE_AUTHORITY", environment.Model.ID).FirstOrInit(&certificateAuthority).Error; err != nil {
+						return err
+					}
 
 					config = []map[string]interface{}{
 						{"key": "SSL_CERT_ARN", "value": sslArn.Model.ID.String()},
@@ -288,6 +345,7 @@ func (x *CodeAmp) Migrate() {
 					marshalledConfig, err = json.Marshal(config)
 					if err != nil {
 						log.Error("could not marshal config")
+						return err
 					}
 
 					extension = model.Extension{
@@ -299,17 +357,27 @@ func (x *CodeAmp) Migrate() {
 						Config:        postgres.Jsonb{marshalledConfig},
 					}
 
-					db.Save(&extension)
+					if err := db.Save(&extension).Error; err != nil {
+						return err
+					}
 
 					// kubernetes
 					var kubeConfig model.Secret
-					db.Where("key = ? AND environment_id = ?", "KUBECONFIG", environment.Model.ID).FirstOrInit(&kubeConfig)
+					if err := db.Where("key = ? AND environment_id = ?", "KUBECONFIG", environment.Model.ID).FirstOrInit(&kubeConfig).Error; err != nil {
+						return err
+					}
 
-					db.Where("key = ? AND environment_id = ?", "CLIENT_CERTIFICATE", environment.Model.ID).FirstOrInit(&clientCert)
+					if err := db.Where("key = ? AND environment_id = ?", "CLIENT_CERTIFICATE", environment.Model.ID).FirstOrInit(&clientCert).Error; err != nil {
+						return err
+					}
 
-					db.Where("key = ? AND environment_id = ?", "CLIENT_KEY", environment.Model.ID).FirstOrInit(&clientKey)
+					if err := db.Where("key = ? AND environment_id = ?", "CLIENT_KEY", environment.Model.ID).FirstOrInit(&clientKey).Error; err != nil {
+						return err
+					}
 
-					db.Where("key = ? AND environment_id = ?", "CERTIFICATE_AUTHORITY", environment.Model.ID).FirstOrInit(&certificateAuthority)
+					if err := db.Where("key = ? AND environment_id = ?", "CERTIFICATE_AUTHORITY", environment.Model.ID).FirstOrInit(&certificateAuthority).Error; err != nil {
+						return err
+					}
 
 					config = []map[string]interface{}{
 						{"key": "KUBECONFIG", "value": kubeConfig.Model.ID.String()},
@@ -321,6 +389,7 @@ func (x *CodeAmp) Migrate() {
 					marshalledConfig, err = json.Marshal(config)
 					if err != nil {
 						log.Error("could not marshal config")
+						return err
 					}
 
 					extension = model.Extension{
@@ -332,12 +401,15 @@ func (x *CodeAmp) Migrate() {
 						Config:        postgres.Jsonb{marshalledConfig},
 					}
 
-					db.Save(&extension)
+					if err := db.Save(&extension).Error; err != nil {
+						return err
+					}
 				}
 
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201803021531 Rollback")
 				return db.Delete(&model.Extension{}).Error
 			},
 		},
@@ -349,25 +421,32 @@ func (x *CodeAmp) Migrate() {
 				// create default project permission for projects that don't have it
 				projects := []model.Project{}
 
-				db.Find(&projects)
+				if err := db.Find(&projects).Error; err != nil {
+					return err
+				}
 
 				// give permission to all environments
 				// for each project
 				envs := []model.Environment{}
 
-				db.Find(&envs)
+				if err := db.Find(&envs).Error; err != nil {
+					return err
+				}
 
 				for _, env := range envs {
 					for _, project := range projects {
-						db.FirstOrCreate(&model.ProjectEnvironment{
+						if err := db.FirstOrCreate(&model.ProjectEnvironment{
 							EnvironmentID: env.Model.ID,
 							ProjectID:     project.Model.ID,
-						})
+						}).Error; err != nil {
+							return err
+						}
 					}
 				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201803081647 Rollback")
 				return db.DropTable(&model.ProjectEnvironment{}).Error
 			},
 		},
@@ -376,16 +455,21 @@ func (x *CodeAmp) Migrate() {
 			ID: "201803081103",
 			Migrate: func(tx *gorm.DB) error {
 				var environments []model.Environment
-				db.Find(&environments)
+				if err := db.Find(&environments).Error; err != nil {
+					return err
+				}
 				for _, env := range environments {
 					if env.Key == "" {
 						env.Key = env.Name
 					}
-					db.Save(&env)
+					if err := db.Save(&env).Error; err != nil {
+						return err
+					}
 				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201803081103 Rollback")
 				return db.Model(&model.Environment{}).DropColumn("key").Error
 			},
 		},
@@ -394,14 +478,19 @@ func (x *CodeAmp) Migrate() {
 			ID: "201803191507",
 			Migrate: func(tx *gorm.DB) error {
 				var environments []model.Environment
-				db.Find(&environments)
+				if err := db.Find(&environments).Error; err != nil {
+					return err
+				}
 				for _, env := range environments {
 					env.IsDefault = true
-					db.Save(&env)
+					if err := db.Save(&env).Error; err != nil {
+						return err
+					}
 				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201803191507 Rollback")
 				return db.Model(&model.Environment{}).DropColumn("is_default").Error
 			},
 		},
@@ -411,19 +500,23 @@ func (x *CodeAmp) Migrate() {
 			Migrate: func(tx *gorm.DB) error {
 
 				var projectExtensions []model.ProjectExtension
-				db.Find(&projectExtensions)
+				if err := db.Find(&projectExtensions).Error; err != nil {
+					return err
+				}
 
 				for _, projectExtension := range projectExtensions {
 					config := make(map[string]interface{})
 					err = json.Unmarshal(projectExtension.Config.RawMessage, &config)
 					if err != nil {
 						log.Error(err.Error())
+						return err
 					}
 
 					if config["config"] != nil {
 						configMarshaled, err := json.Marshal(config["config"].([]interface{}))
 						if err != nil {
 							log.Error(err)
+							return err
 						}
 
 						projectExtension.Config = postgres.Jsonb{configMarshaled}
@@ -433,16 +526,20 @@ func (x *CodeAmp) Migrate() {
 						customConfigMarshaled, err := json.Marshal(config["custom"].(interface{}))
 						if err != nil {
 							log.Error(err)
+							return err
 						}
 						projectExtension.CustomConfig = postgres.Jsonb{customConfigMarshaled}
 					}
 
-					db.Save(&projectExtension)
+					if err := db.Save(&projectExtension).Error; err != nil {
+						return err
+					}
 				}
 
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201803271507 Rollback")
 				return nil
 			},
 		},
@@ -456,12 +553,15 @@ func (x *CodeAmp) Migrate() {
 
 				for _, ext := range extensions {
 					ext.Cacheable = false
-					tx.Save(&ext)
+					if err := tx.Save(&ext).Error; err != nil {
+						return err
+					}
 				}
 
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201810181637 Rollback")
 				return db.Model(&model.Extension{}).DropColumn("cacheable").Error
 			},
 		},
@@ -469,40 +569,43 @@ func (x *CodeAmp) Migrate() {
 			ID: "201811080959",
 			Migrate: func(tx *gorm.DB) error {
 				serviceSpecs := []model.ServiceSpec{}
-				tx.Find(&serviceSpecs)				
+				tx.Find(&serviceSpecs)
 
 				for _, serviceSpec := range serviceSpecs {
 					serviceSpec.IsDefault = false
-					tx.Save(&serviceSpec)
-				}
-        
-				defaultServiceSpec := model.ServiceSpec{
-					Name: "default",
-					CpuLimit: "1000",
-					CpuRequest: "100",
-					MemoryLimit: "1000",
-					MemoryRequest: "100",
-					TerminationGracePeriod: "300",
-					IsDefault: true,
+					if err := tx.Save(&serviceSpec).Error; err != nil {
+						return err
+					}
 				}
 
-				tx.Create(&defaultServiceSpec)
-        
+				defaultServiceSpec := model.ServiceSpec{
+					Name:                   "default",
+					CpuLimit:               "1000",
+					CpuRequest:             "100",
+					MemoryLimit:            "1000",
+					MemoryRequest:          "100",
+					TerminationGracePeriod: "300",
+					IsDefault:              true,
+				}
+
+				if err := tx.Create(&defaultServiceSpec).Error; err != nil {
+					return err
+				}
+
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
+				log.Error("Migration 201811080959 Rollback")
 				return db.Model(&model.ServiceSpec{}).DropColumn("is_default").Error
 			},
-		},	
+		},
 	})
 
-	timeTaskDuration := time.Since(timeMigrationBegins)
-	log.Info(fmt.Sprintf("Migration Task Took %v to Complete", timeTaskDuration))
 	if err = m.Migrate(); err != nil {
 		log.Fatal(fmt.Sprintf("Could not migrate: %v", err))
 	}
 
-	log.Info("Migration did run successfully")
-
+	timeTaskDuration := time.Since(timeMigrationBegins)
+	log.Info(fmt.Sprintf("Migration Completed Successfully in %v", timeTaskDuration))
 	defer db.Close()
 }
