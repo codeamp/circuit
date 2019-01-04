@@ -588,11 +588,7 @@ func (x *CodeAmp) Migrate() {
 					IsDefault:              true,
 				}
 
-				if err := tx.Create(&defaultServiceSpec).Error; err != nil {
-					return err
-				}
-
-				return nil
+				return tx.Create(&defaultServiceSpec).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
 				log.Error("Migration 201811080959 Rollback")
