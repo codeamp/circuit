@@ -15,7 +15,7 @@ plugins:
       host: "postgres"
       port: "5432"
       user: "postgres"
-      dbname: "codeamp_test"
+      dbname: "codeamp"
       sslmode: "disable"
       password: ""
     service_address: ":3011"
