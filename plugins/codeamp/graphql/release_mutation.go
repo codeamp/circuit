@@ -16,7 +16,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -42,18 +41,20 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	// Exit Early Under the following conditions:
 	// 1. User is not authed
 	// 2. The project does not exist
-	// 3. The release ID to rollback to exists
-	// 4. Project does not have permission to create a release for an environment
-	// 5. Project does not have any extensions
+	// 3. The environment does not exist
+	// 4. The release ID to rollback to exists
+	// 5. Project does not have permission to create a release for an environment
+	// 6. Project does not have any extensions
 	// X. Project does not have any workflow extensions
-	// 6. No other waiting releases with exact same configuration
-	// 7. Environment, TailFeature, and HeadFeature are all valid
+	// 7. No other waiting releases with exact same configuration
+	// 8. Environment, TailFeature, and HeadFeature are all valid
 
 	/******************************************
 	*
 	*	1. Check User Auth for Endpoint
 	*
 	*******************************************/
+	log.Warn("Create RelEase 1")
 	userID, err := auth.CheckAuth(ctx, []string{})
 	if err != nil {
 		log.Error("User not allowed to utilize endpoint")
@@ -65,6 +66,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	2. Verify Project Existence
 	*
 	*******************************************/
+	log.Warn("Create RelEase 2")
 	var project model.Project
 	if err := r.DB.Where("id = ?", args.Release.ProjectID).First(&project).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
@@ -83,6 +85,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	3. Rollback release exists, if requested
 	*
 	*******************************************/
+	log.Warn("Create RelEase 3")
 	var rollbackRelease model.Release
 	if args.Release.ID != nil && *args.Release.ID != "" && r.DB.Where("id = ?", string(*args.Release.ID)).First(&rollbackRelease).RecordNotFound() {
 		log.ErrorWithFields("Could not find existing release", log.Fields{
@@ -96,6 +99,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	4. Check Project Auth for Release Permissions
 	*
 	*******************************************/
+	log.Warn("Create RelEase 4")
 	// Check if project can create release in environment
 	if r.isAuthorizedReleaseForEnvironment(args.Release.ProjectID, args.Release.EnvironmentID) == false {
 		log.Error("Project not allowed to create release in given environment")
@@ -107,6 +111,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	5. Ensure Project has Extensions
 	*
 	*******************************************/
+	log.Warn("Create RelEase 5")
 	projectExtensions, err := r.getProjectExtensions(args.Release.ProjectID, args.Release.EnvironmentID)
 	if err != nil {
 		log.Error(err.Error())
@@ -137,6 +142,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	secrets and services signatures
 	*
 	*************************************/
+	log.Warn("Create RelEase 6")
 	if r.isReleasePending(args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, secrets, services) {
 		// same release so return
 		log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
@@ -153,9 +159,10 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	* 	7. Validate Environment, HeadFeature, TailFeature
 	*
 	*************************************/
+	log.Warn("Create RelEase 7")
 	// Ensure Environment, HeadFeature, and TailFeature all exist
 	var environment model.Environment
-	if r.DB.Where("id = ?", args.Release.EnvironmentID).Find(&environment).RecordNotFound() {
+	if err := r.DB.Where("id = ?", args.Release.EnvironmentID).Find(&environment).Error; err != nil {
 		log.InfoWithFields("no env found", log.Fields{
 			"id": args.Release.EnvironmentID,
 		})
@@ -163,7 +170,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	}
 
 	var headFeature model.Feature
-	if r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+	if err := r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&headFeature).Error; err != nil {
 		log.InfoWithFields("head feature not found", log.Fields{
 			"id": args.Release.HeadFeatureID,
 		})
@@ -183,6 +190,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	Insert Environment Variables
 	*
 	*******************************************/
+	log.Warn("Create RelEase 8")
 	// secrets = r.injectReleaseEnvVars(secrets, &project, headFeature, tailFeature)
 
 	// var pluginSecrets []plugins.Secret
@@ -196,9 +204,15 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 
 	// If this is a new release, then generate a new secrets and services config
 	// if not then reuse the old one on a previous release
-	// This is a new release because no previous release ID was provided
 	if args.Release.ID != nil {
-		r.createRollback(*args.Release.ID)
+		_secrets, _services, _projectExtensions, err := r.getReleaseConfiguration(*args.Release.ID)
+		if err != nil {
+			log.Error(err)
+		} else {
+			services = _services
+			secrets = _secrets
+			projectExtensions = _projectExtensions
+		}
 	}
 
 	/******************************************
@@ -206,6 +220,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	Create the Release
 	*
 	*******************************************/
+	log.Warn("Create RelEase 9")
 	forceRebuild := false
 	release, err := r.createRelease(userID, args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, forceRebuild,
 		secrets, services, projectExtensions)
@@ -218,8 +233,9 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	Dispatch Release event
 	*
 	*******************************************/
-	releaseEvent := r.buildReleaseEvent(release)
-	spew.Dump(releaseEvent)
+	_ = r.buildReleaseEvent(release)
+	// spew.Dump(releaseEvent)
+	log.Warn("Create RelEase 10")
 
 	// All releases should be queued
 	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: *release}}, nil
@@ -385,7 +401,7 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 		livenessProbe.HttpHeaders = livenessHeaders
 		services[i].LivenessProbe = livenessProbe
 
-		spew.Dump(service)
+		// spew.Dump(service)
 	}
 
 	return services, nil
@@ -430,37 +446,41 @@ func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release) *plu
 	return &releaseEvent
 }
 
-func (r *ReleaseResolverMutation) createRollback(releaseID string) {
-	/******************************************
-	*
-	*	Existing Release, ReleaseID Provided
-	*	Rollback to this Release
-	*
-	*******************************************/
+func (r *ReleaseResolverMutation) getReleaseConfiguration(releaseID string) ([]model.Secret, []model.Service, []model.ProjectExtension, error) {
 	log.Info(fmt.Sprintf("Existing Release. Rolling back %s", releaseID))
-	// // Rollback
-	// isRollback = true
-	// existingRelease := model.Release{}
 
-	// secretsJsonb := existingRelease.Secrets
-	// servicesJsonb := existingRelease.Services
-	// projectExtensionsJsonb := existingRelease.ProjectExtensions
+	var existingRelease model.Release
+	if err := r.DB.Find(&existingRelease).Where("id = ?", releaseID).Error; err != nil {
+		log.Error(err)
+		return nil, nil, nil, err
+	} else {
+		var projectExtensions []model.ProjectExtension
+		var secrets []model.Secret
+		var services []model.Service
 
-	// // unmarshal projectExtensionsJsonb and servicesJsonb into project extensions
-	// err := json.Unmarshal(projectExtensionsJsonb.RawMessage, &projectExtensions)
-	// if err != nil {
-	// 	return nil, errors.New("Could not unmarshal project extensions")
-	// }
+		// Rollback
+		secretsJsonb := existingRelease.Secrets
+		servicesJsonb := existingRelease.Services
+		projectExtensionsJsonb := existingRelease.ProjectExtensions
 
-	// err = json.Unmarshal(servicesJsonb.RawMessage, &services)
-	// if err != nil {
-	// 	return nil, errors.New("Could not unmarshal services")
-	// }
+		// unmarshal projectExtensionsJsonb and servicesJsonb into project extensions
+		err := json.Unmarshal(projectExtensionsJsonb.RawMessage, &projectExtensions)
+		if err != nil {
+			return nil, nil, nil, errors.New("Could not unmarshal project extensions")
+		}
 
-	// err = json.Unmarshal(secretsJsonb.RawMessage, &secrets)
-	// if err != nil {
-	// 	return nil, errors.New("Could not unmarshal secrets")
-	// }
+		err = json.Unmarshal(servicesJsonb.RawMessage, &services)
+		if err != nil {
+			return nil, nil, nil, errors.New("Could not unmarshal services")
+		}
+
+		err = json.Unmarshal(secretsJsonb.RawMessage, &secrets)
+		if err != nil {
+			return nil, nil, nil, errors.New("Could not unmarshal secrets")
+		}
+
+		return secrets, services, projectExtensions, nil
+	}
 }
 
 func (r *ReleaseResolverMutation) isReleasePending(projectID string, environmentID string, headFeatureID string, secrets []model.Secret, services []model.Service) bool {
@@ -488,7 +508,7 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	// Gather a release in waiting state for same project and environment
 	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("waiting")),
 		string(transistor.GetState("running"))}, projectID, environmentID).Order("created_at desc").First(&waitingRelease)
-	spew.Dump(waitingRelease)
+	// spew.Dump(waitingRelease)
 
 	// Convert sercrets and services into sha for comparison
 	wrSecretsSha1 := sha1.New()
@@ -515,9 +535,11 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	if bytes.Equal(secretsSig, waitingReleaseSecretsSig) &&
 		bytes.Equal(servicesSig, waitingReleaseServicesSig) &&
 		strings.Compare(currentReleaseHeadFeature.Hash, waitingReleaseHeadFeature.Hash) == 0 {
+		log.Warn("There IS a release pending")
 		return true
 	}
 
+	log.Warn("there is NO release pending")
 	return false
 }
 
@@ -578,9 +600,10 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 	// Warn if no release extensions are found
 	r.DB.Where("release_id = ?", args.ID).Find(&releaseExtensions)
 	if len(releaseExtensions) < 1 {
-		log.WarnWithFields("No release extensions found for release: %s", log.Fields{
+		log.WarnWithFields("No release extensions found for release", log.Fields{
 			"id": args.ID,
 		})
+		return nil, errors.New("No release extensions found for release")
 	}
 
 	// Error if the release we're stopping cannot be found

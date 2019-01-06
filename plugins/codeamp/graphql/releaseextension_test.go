@@ -95,8 +95,8 @@ func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {
 	assert.Equal(ts.T(), "42941a0900e952f7f78994d53b699aea23926804", string(releaseResolver.HeadFeature().Hash()))
 
 	_ = releaseResolver.TailFeature()
-	assert.Equal(ts.T(), "running", releaseResolver.State())
-	assert.Equal(ts.T(), "Running Release", releaseResolver.StateMessage())
+	assert.Equal(ts.T(), "waiting", releaseResolver.State())
+	assert.Equal(ts.T(), "Release created", releaseResolver.StateMessage())
 
 	environment, err := releaseResolver.Environment()
 	assert.Nil(ts.T(), err)

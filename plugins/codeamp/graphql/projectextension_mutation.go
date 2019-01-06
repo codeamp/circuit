@@ -96,6 +96,7 @@ func (r *ProjectExtensionResolverMutation) CreateProjectExtension(ctx context.Co
 			},
 			Environment: env.Key,
 		}
+		log.Warn("emitting event for project creation ", fmt.Sprintf("project:%s", extension.Key))
 		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("project:%s", extension.Key)), transistor.GetAction("create"), projectExtensionEvent)
 		ev.Artifacts = artifacts
 		r.Events <- ev
