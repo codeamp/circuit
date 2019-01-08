@@ -33,6 +33,7 @@ services:
     environment:
       DOCKER_COMPOSE_POSTGRES_PORT: ${DOCKER_COMPOSE_POSTGRES_PORT}
       CODEAMP_LOG_FORMAT: "standard"
+      CODEAMP_LOG_LEVEL: "debug"
     ports:
       - "${DOCKER_COMPOSE_CIRCUIT_PORT}:3011"
       - "${DOCKER_COMPOSE_DEX_PORT}:5556"

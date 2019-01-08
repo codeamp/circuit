@@ -143,6 +143,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*
 	*************************************/
 	log.Warn("Create RelEase 6")
+	// ADB This is currently broken.
 	if r.isReleasePending(args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, secrets, services) {
 		// same release so return
 		log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
@@ -177,7 +178,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		return nil, errors.New("head feature not found")
 	}
 
-	// var tailFeature model.Feature
+	var tailFeature model.Feature
 	// if r.DB.Where("id = ?", args.Release.TailFeatureID).First(&tailFeature).RecordNotFound() {
 	// 	log.InfoWithFields("tail feature not found", log.Fields{
 	// 		"id": args.Release.TailFeatureID,
@@ -191,16 +192,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*
 	*******************************************/
 	log.Warn("Create RelEase 8")
-	// secrets = r.injectReleaseEnvVars(secrets, &project, headFeature, tailFeature)
-
-	// var pluginSecrets []plugins.Secret
-	// for _, secret := range secrets {
-	// 	pluginSecrets = append(pluginSecrets, plugins.Secret{
-	// 		Key:   secret.Key,
-	// 		Value: secret.Value.Value,
-	// 		Type:  secret.Type,
-	// 	})
-	// }
+	secrets = r.injectReleaseEnvVars(secrets, &project, &headFeature)
 
 	// If this is a new release, then generate a new secrets and services config
 	// if not then reuse the old one on a previous release
@@ -233,8 +225,9 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	Dispatch Release event
 	*
 	*******************************************/
-	_ = r.buildReleaseEvent(release)
-	// spew.Dump(releaseEvent)
+	releaseEvent, _ := r.buildReleaseEvent(release, &project, secrets, services, &headFeature, &tailFeature)
+	r.Events <- *releaseEvent
+
 	log.Warn("Create RelEase 10")
 
 	// All releases should be queued
@@ -262,21 +255,7 @@ func (r *ReleaseResolverMutation) createRelease(userID string, projectID string,
 		tailFeatureID = currentRelease.HeadFeatureID.String()
 	}
 
-	// get the branch set for this environment and project from project settings
-	// var branch string
-	var projectSettings model.ProjectSettings
-	var branch string
-	if r.DB.Where("environment_id = ? and project_id = ?", environmentID, projectID).First(&projectSettings).RecordNotFound() {
-		log.ErrorWithFields("no env project branch found", log.Fields{})
-		return nil, fmt.Errorf("no env project branch found")
-	} else {
-		branch = projectSettings.GitBranch
-	}
-
-	log.Warn("Branch = ", branch)
-
 	// Convert model.Services to plugin.Services
-	// Why? Serialized later?
 	pluginServices, err := r.setupServices(services)
 	if err != nil {
 		return nil, err
@@ -287,7 +266,6 @@ func (r *ReleaseResolverMutation) createRelease(userID string, projectID string,
 	*	Gather Services & Configure
 	*
 	*******************************************/
-	// check if any project extensions that are not 'once' exists
 	isRollback := false
 	release := model.Release{
 		State:             transistor.GetState("waiting"),
@@ -315,23 +293,17 @@ func (r *ReleaseResolverMutation) gatherAndBuildSecrets(projectID string, enviro
 	// Gather all env vars / "secrets" for this service
 	secrets := []model.Secret{}
 
-	projectSecrets := []model.Secret{}
-	r.DB.Where("environment_id = ? AND project_id = ? AND scope = ?", environmentID, projectID, "project").Find(&projectSecrets)
-	for _, secret := range projectSecrets {
-		var secretValue model.SecretValue
-		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		secret.Value = secretValue
-		secrets = append(secrets, secret)
+	err := r.DB.Where("environment_id = ? AND ((project_id = ? AND scope = ?) OR (scope = ?))", environmentID, projectID, "project", "global").Find(&secrets).Error
+	if err != nil {
+		log.Error(err)
 	}
 
-	globalSecrets := []model.Secret{}
-	r.DB.Where("environment_id = ? AND scope = ?", environmentID, "global").Find(&globalSecrets)
-	for _, secret := range globalSecrets {
-		var secretValue model.SecretValue
-		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		secret.Value = secretValue
-		secrets = append(secrets, secret)
+	r.DB.LogMode(true)
+	defer r.DB.LogMode(false)
+	for _, secret := range secrets {
+		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secret.Value)
 	}
+	r.DB.LogMode(false)
 
 	return secrets, nil
 }
@@ -407,43 +379,68 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 	return services, nil
 }
 
-func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release) *plugins.Release {
-	releaseEvent := plugins.Release{}
-	// 	IsRollback:  isRollback,
-	// 	ID:          release.Model.ID.String(),
-	// 	Environment: environment.Key,
-	// 	HeadFeature: plugins.Feature{
-	// 		ID:         headFeature.Model.ID.String(),
-	// 		Hash:       headFeature.Hash,
-	// 		ParentHash: headFeature.ParentHash,
-	// 		User:       headFeature.User,
-	// 		Message:    headFeature.Message,
-	// 		Created:    headFeature.Created,
-	// 	},
-	// 	TailFeature: plugins.Feature{
-	// 		ID:         tailFeature.Model.ID.String(),
-	// 		Hash:       tailFeature.Hash,
-	// 		ParentHash: tailFeature.ParentHash,
-	// 		User:       tailFeature.User,
-	// 		Message:    tailFeature.Message,
-	// 		Created:    tailFeature.Created,
-	// 	},
-	// 	User: release.User.Email,
-	// 	Project: plugins.Project{
-	// 		ID:         project.Model.ID.String(),
-	// 		Slug:       project.Slug,
-	// 		Repository: project.Repository,
-	// 	},
-	// 	Git: plugins.Git{
-	// 		Url:           project.GitUrl,
-	// 		Branch:        branch,
-	// 		RsaPrivateKey: project.RsaPrivateKey,
-	// 	},
-	// 	Secrets:  pluginSecrets,
-	// 	Services: pluginServices,
-	// }
+func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release, project *model.Project, secrets []model.Secret, services []model.Service, headFeature *model.Feature, tailFeature *model.Feature) (*transistor.Event, error) {
+	// get the branch set for this environment and project from project settings
+	// var branch string
+	var projectSettings model.ProjectSettings
+	var branch string
+	if err := r.DB.Where("environment_id = ? and project_id = ?", release.EnvironmentID.String(), project.Model.ID.String()).First(&projectSettings).Error; err != nil {
+		log.ErrorWithFields("no env project branch found", log.Fields{})
+		return nil, fmt.Errorf("no env project branch found")
+	} else {
+		branch = projectSettings.GitBranch
+	}
 
-	return &releaseEvent
+	var pluginSecrets []plugins.Secret
+	for _, secret := range secrets {
+		pluginSecrets = append(pluginSecrets, plugins.Secret{
+			Key:   secret.Key,
+			Value: secret.Value.Value,
+			Type:  secret.Type,
+		})
+	}
+
+	pluginServices, err := r.setupServices(services)
+	if err != nil {
+		return nil, err
+	}
+
+	releaseEventPayload := plugins.Release{
+		ID:          release.Model.ID.String(),
+		Environment: release.EnvironmentID.String(),
+		HeadFeature: plugins.Feature{
+			ID:         headFeature.Model.ID.String(),
+			Hash:       headFeature.Hash,
+			ParentHash: headFeature.ParentHash,
+			User:       headFeature.User,
+			Message:    headFeature.Message,
+			Created:    headFeature.Created,
+		},
+		TailFeature: plugins.Feature{
+			ID:         tailFeature.Model.ID.String(),
+			Hash:       tailFeature.Hash,
+			ParentHash: tailFeature.ParentHash,
+			User:       tailFeature.User,
+			Message:    tailFeature.Message,
+			Created:    tailFeature.Created,
+		},
+		User: release.User.Email,
+		Project: plugins.Project{
+			ID:         project.Model.ID.String(),
+			Slug:       project.Slug,
+			Repository: project.Repository,
+		},
+		Git: plugins.Git{
+			Url:           project.GitUrl,
+			Branch:        branch,
+			RsaPrivateKey: project.RsaPrivateKey,
+		},
+		Secrets:  pluginSecrets,
+		Services: pluginServices,
+	}
+
+	event := transistor.NewEvent(transistor.EventName("release"), transistor.GetAction("create"), releaseEventPayload)
+	return &event, nil
 }
 
 func (r *ReleaseResolverMutation) getReleaseConfiguration(releaseID string) ([]model.Secret, []model.Service, []model.ProjectExtension, error) {
@@ -487,6 +484,10 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	secretsJsonb := r.makeJsonb(secrets)
 	servicesJsonb := r.makeJsonb(services)
 
+	type Comparator struct {
+		test int
+	}
+
 	// check if there's a previous release in waiting state that
 	// has the same secrets and services signatures
 	secretsSha1 := sha1.New()
@@ -508,11 +509,12 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	// Gather a release in waiting state for same project and environment
 	r.DB.Where("state in (?) and project_id = ? and environment_id = ?", []string{string(transistor.GetState("waiting")),
 		string(transistor.GetState("running"))}, projectID, environmentID).Order("created_at desc").First(&waitingRelease)
-	// spew.Dump(waitingRelease)
 
 	// Convert sercrets and services into sha for comparison
 	wrSecretsSha1 := sha1.New()
 	log.Warn(string(waitingRelease.Services.RawMessage[:]))
+	log.Warn(string(servicesJsonb.RawMessage[:]))
+
 	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
 	waitingReleaseSecretsSig := wrSecretsSha1.Sum(nil)
 
@@ -667,52 +669,51 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 	return &ReleaseResolver{DBReleaseResolver: &db_resolver.ReleaseResolver{DB: r.DB, Release: release}}, nil
 }
 
-func (r *ReleaseResolverMutation) injectReleaseEnvVars(pluginSecrets []plugins.Secret, project *model.Project, headFeature model.Feature, tailFeature model.Feature) []plugins.Secret {
-	// insert CodeAmp envs
-	slugSecret := plugins.Secret{
-		Key:   "CODEAMP_SLUG",
-		Value: project.Slug,
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, slugSecret)
-
-	hashSecret := plugins.Secret{
-		Key:   "CODEAMP_HASH",
-		Value: headFeature.Hash[0:7],
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, hashSecret)
-
-	timeSecret := plugins.Secret{
-		Key:   "CODEAMP_CREATED_AT",
-		Value: time.Now().Format(time.RFC3339),
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, timeSecret)
-
-	// insert Codeflow envs - remove later
-	_slugSecret := plugins.Secret{
-		Key:   "CODEFLOW_SLUG",
-		Value: project.Slug,
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _slugSecret)
-
-	_hashSecret := plugins.Secret{
-		Key:   "CODEFLOW_HASH",
-		Value: headFeature.Hash[0:7],
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _hashSecret)
-
-	_timeSecret := plugins.Secret{
-		Key:   "CODEFLOW_CREATED_AT",
-		Value: time.Now().Format(time.RFC3339),
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _timeSecret)
-
-	return pluginSecrets
+func (r *ReleaseResolverMutation) injectReleaseEnvVars(secrets []model.Secret, project *model.Project, headFeature *model.Feature) []model.Secret {
+	return append(secrets, []model.Secret{
+		{
+			Key: "CODEAMP_SLUG",
+			Value: model.SecretValue{
+				Value: project.Slug,
+			},
+			Type: plugins.GetType("env"),
+		},
+		{
+			Key: "CODEAMP_HASH",
+			Value: model.SecretValue{
+				Value: headFeature.Hash[0:7],
+			},
+			Type: plugins.GetType("env"),
+		},
+		{
+			Key: "CODEAMP_CREATED_AT",
+			Value: model.SecretValue{
+				Value: time.Now().Format(time.RFC3339),
+			},
+			Type: plugins.GetType("env"),
+		},
+		{
+			Key: "CODEFLOW_SLUG",
+			Value: model.SecretValue{
+				Value: project.Slug,
+			},
+			Type: plugins.GetType("env"),
+		},
+		{
+			Key: "CODEFLOW_HASH",
+			Value: model.SecretValue{
+				Value: headFeature.Hash[0:7],
+			},
+			Type: plugins.GetType("env"),
+		},
+		{
+			Key: "CODEFLOW_CREATED_AT",
+			Value: model.SecretValue{
+				Value: time.Now().Format(time.RFC3339),
+			},
+			Type: plugins.GetType("env"),
+		},
+	}...)
 }
 
 func (r *ReleaseResolverMutation) setupServices(services []model.Service) ([]plugins.Service, error) {

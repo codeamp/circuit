@@ -23,4 +23,5 @@ type RunningPlugin struct {
 	Enabled       bool
 	Workers       int
 	WorkerRetries int
+	Started       bool
 }

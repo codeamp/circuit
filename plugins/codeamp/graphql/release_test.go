@@ -1153,7 +1153,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 		EnvironmentID: string(environmentResolver.ID()),
 	})
 	log.Warn("Waiting for event")
-	// e = <-ts.Resolver.Events
+	e = <-ts.Resolver.Events
 
 	// Release Extension
 	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)

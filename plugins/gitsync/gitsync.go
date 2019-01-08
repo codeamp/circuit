@@ -73,6 +73,10 @@ func (x *GitSync) Subscribe() []string {
 func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 
+	log.DebugWithFields(strings.Join(cmd.Args, " "), log.Fields{
+		"path": cmd.Path,
+	})
+
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -130,7 +134,7 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 
 		err := ioutil.WriteFile(idRsaPath, []byte(git.RsaPrivateKey), 0600)
 		if err != nil {
-			log.Error(err)
+			log.ErrorWithFields(err, log.Fields{"repo": project.Repository, "branch": git.Branch})
 			return nil, err
 		}
 	}
@@ -204,7 +208,7 @@ func (x *GitSync) Process(e transistor.Event) error {
 
 		commits, err := x.commits(payload.Project, payload.Git)
 		if err != nil {
-			log.Error(err)
+			log.ErrorWithFields(err, log.Fields{"repo": payload.Project.Repository, "branch": payload.Git.Branch})
 
 			errEvent := e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v)", err.Error(), "failed"))
 			x.events <- errEvent
