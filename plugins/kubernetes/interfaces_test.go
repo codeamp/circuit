@@ -66,6 +66,14 @@ func (l MockCoreService) Delete(clientset kubernetes.Interface, namespace string
 	return clientset.Core().Services(namespace).Delete(serviceName, deleteOptions)
 }
 
+func (l MockCoreService) Create(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
+	return clientset.Core().Services(namespace).Create(service)
+}
+
+func (l MockCoreService) Update(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
+	return clientset.Core().Services(namespace).Update(service)
+}
+
 /////////////////////////////////////////////////////////////////////////
 
 type MockCoreSecret struct{}
