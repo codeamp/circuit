@@ -174,8 +174,13 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_, _ = projectResolver.CurrentRelease()
 
 	emptyPaginatorInput := &struct {
-		Params *model.PaginatorInput
+		Params *model.PaginatorInput	
 	}{nil}
+
+	emptySecretsPaginatorInput := &struct {
+		Params *model.PaginatorInput
+		SearchKey *string
+	}{nil, nil}
 
 	releasesList = projectResolver.Releases(emptyPaginatorInput)
 	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
@@ -200,7 +205,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	servicePaginator := projectResolver.Services(emptyPaginatorInput)
 	assert.NotNil(suite.T(), servicePaginator)
 
-	secretPaginator, err := projectResolver.Secrets(test.ResolverAuthContext(), emptyPaginatorInput)
+	secretPaginator, err := projectResolver.Secrets(test.ResolverAuthContext(), emptySecretsPaginatorInput)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), secretPaginator)
 
