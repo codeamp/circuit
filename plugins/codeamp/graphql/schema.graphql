@@ -242,7 +242,7 @@ type Project {
   currentRelease: Release
   releases(params: PaginatorInput): ReleaseList!
   services(params: PaginatorInput): ServiceList!
-  secrets(params: PaginatorInput): SecretList!
+  secrets(params: PaginatorInput, searchKey: String): SecretList!
   extensions: [ProjectExtension]!
   gitBranch: String!
   continuousDeploy: Boolean!
