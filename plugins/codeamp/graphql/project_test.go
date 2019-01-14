@@ -2,9 +2,9 @@ package graphql_resolver_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
-	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
@@ -174,11 +174,11 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_, _ = projectResolver.CurrentRelease()
 
 	emptyPaginatorInput := &struct {
-		Params *model.PaginatorInput	
+		Params *model.PaginatorInput
 	}{nil}
 
 	emptySecretsPaginatorInput := &struct {
-		Params *model.PaginatorInput
+		Params    *model.PaginatorInput
 		SearchKey *string
 	}{nil, nil}
 

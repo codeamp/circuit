@@ -93,7 +93,7 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 	db := u.DB
 	if args.ProjectSearch != nil {
 		if args.ProjectSearch.Repository != nil && *args.ProjectSearch.Repository != "" {
-			db = db.Where("repository like ?", fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''" ).Replace(*args.ProjectSearch.Repository)))
+			db = db.Where("repository like ?", fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''").Replace(*args.ProjectSearch.Repository)))
 		}
 
 		if args.ProjectSearch.Bookmarked == true {

@@ -90,7 +90,7 @@ func (r *ProjectResolver) Services(args *struct {
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
-	Params *model.PaginatorInput
+	Params    *model.PaginatorInput
 	SearchKey *string
 }) (*SecretListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
@@ -98,9 +98,9 @@ func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
 	}
 
 	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key asc")
-	if args.SearchKey != nil  && *args.SearchKey != "" {
+	if args.SearchKey != nil && *args.SearchKey != "" {
 		// Sanitize incoming queries by replacing cases of "'" with "''"
-		sanitizedSearch := fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''" ).Replace(*args.SearchKey))
+		sanitizedSearch := fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''").Replace(*args.SearchKey))
 		db = db.Where("LOWER(key) LIKE LOWER(?)", sanitizedSearch)
 	}
 
