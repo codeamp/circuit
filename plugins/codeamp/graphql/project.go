@@ -89,7 +89,8 @@ func (r *ProjectResolver) Releases(args *struct {
 
 // Services
 func (r *ProjectResolver) Services(args *struct {
-	Params *model.PaginatorInput
+	Params    *model.PaginatorInput
+	SearchKey *string
 }) *ServiceListResolver {
 	db_resolver := r.DBProjectResolver.Services(args)
 
