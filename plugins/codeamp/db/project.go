@@ -84,7 +84,7 @@ func (r *ProjectResolver) Services(args *struct {
 
 	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("name asc")
 	if args.SearchKey != nil && *args.SearchKey != "" {
-		db = db.Where("LOWER(command) LIKE LOWER(?)", fmt.Sprintf("%%%s%%", *args.SearchKey))
+		db = db.Where("LOWER(command) LIKE LOWER(?)", fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''").Replace(*args.SearchKey)))
 	}
 
 	return &ServiceListResolver{
