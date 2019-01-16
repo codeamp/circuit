@@ -177,10 +177,11 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		Params *model.PaginatorInput
 	}{nil}
 
+	searchKey := "test"
 	searchKeyPaginatorInput := &struct {
 		Params    *model.PaginatorInput
 		SearchKey *string
-	}{nil, "test"}
+	}{nil, &searchKey}
 
 	releasesList = projectResolver.Releases(emptyPaginatorInput)
 	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
