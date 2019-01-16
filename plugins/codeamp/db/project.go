@@ -78,10 +78,15 @@ func (r *ProjectResolver) Releases(args *struct {
 
 // Services
 func (r *ProjectResolver) Services(args *struct {
-	Params *model.PaginatorInput
+	Params    *model.PaginatorInput
+	SearchKey *string
 }) *ServiceListResolver {
 
 	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("name asc")
+	if args.SearchKey != nil && *args.SearchKey != "" {
+		db = db.Where("LOWER(command) LIKE LOWER(?)", fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''").Replace(*args.SearchKey)))
+	}
+
 	return &ServiceListResolver{
 		DB:             db,
 		PaginatorInput: args.Params,
