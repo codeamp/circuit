@@ -177,7 +177,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		Params *model.PaginatorInput
 	}{nil}
 
-	emptySecretsPaginatorInput := &struct {
+	emptySearchKeyPaginatorInput := &struct {
 		Params    *model.PaginatorInput
 		SearchKey *string
 	}{nil, nil}
@@ -202,10 +202,10 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		assert.FailNow(suite.T(), "Created at time is too old")
 	}
 
-	servicePaginator := projectResolver.Services(emptyPaginatorInput)
+	servicePaginator := projectResolver.Services(emptySearchKeyPaginatorInput)
 	assert.NotNil(suite.T(), servicePaginator)
 
-	secretPaginator, err := projectResolver.Secrets(test.ResolverAuthContext(), emptySecretsPaginatorInput)
+	secretPaginator, err := projectResolver.Secrets(test.ResolverAuthContext(), emptySearchKeyPaginatorInput)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), secretPaginator)
 
