@@ -241,8 +241,8 @@ type Project {
   features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
   currentRelease: Release
   releases(params: PaginatorInput): ReleaseList!
-  services(params: PaginatorInput): ServiceList!
-  secrets(params: PaginatorInput): SecretList!
+  services(params: PaginatorInput, searchKey: String): ServiceList!
+  secrets(params: PaginatorInput, searchKey: String): SecretList!
   extensions: [ProjectExtension]!
   gitBranch: String!
   continuousDeploy: Boolean!

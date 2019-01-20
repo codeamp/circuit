@@ -3,6 +3,7 @@ package db_resolver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -77,10 +78,15 @@ func (r *ProjectResolver) Releases(args *struct {
 
 // Services
 func (r *ProjectResolver) Services(args *struct {
-	Params *model.PaginatorInput
+	Params    *model.PaginatorInput
+	SearchKey *string
 }) *ServiceListResolver {
 
 	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("name asc")
+	if args.SearchKey != nil && *args.SearchKey != "" {
+		db = db.Where("LOWER(command) LIKE LOWER(?)", fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''").Replace(*args.SearchKey)))
+	}
+
 	return &ServiceListResolver{
 		DB:             db,
 		PaginatorInput: args.Params,
@@ -89,13 +95,20 @@ func (r *ProjectResolver) Services(args *struct {
 
 // Secrets
 func (r *ProjectResolver) Secrets(ctx context.Context, args *struct {
-	Params *model.PaginatorInput
+	Params    *model.PaginatorInput
+	SearchKey *string
 }) (*SecretListResolver, error) {
 	if _, err := auth.CheckAuth(ctx, []string{}); err != nil {
 		return nil, err
 	}
 
 	db := r.DB.Where("project_id = ? and environment_id = ?", r.Project.Model.ID, r.Environment.Model.ID).Order("key asc")
+	if args.SearchKey != nil && *args.SearchKey != "" {
+		// Sanitize incoming queries by replacing cases of "'" with "''"
+		sanitizedSearch := fmt.Sprintf("%%%s%%", strings.NewReplacer("'", "''").Replace(*args.SearchKey))
+		db = db.Where("LOWER(key) LIKE LOWER(?)", sanitizedSearch)
+	}
+
 	return &SecretListResolver{
 		DB:             db,
 		PaginatorInput: args.Params,

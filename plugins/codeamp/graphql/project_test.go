@@ -2,9 +2,9 @@ package graphql_resolver_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
-	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
@@ -177,6 +177,12 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		Params *model.PaginatorInput
 	}{nil}
 
+	searchKey := "test"
+	searchKeyPaginatorInput := &struct {
+		Params    *model.PaginatorInput
+		SearchKey *string
+	}{nil, &searchKey}
+
 	releasesList = projectResolver.Releases(emptyPaginatorInput)
 	assert.NotEmpty(suite.T(), releasesList, "Releases List Empty")
 
@@ -197,10 +203,10 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 		assert.FailNow(suite.T(), "Created at time is too old")
 	}
 
-	servicePaginator := projectResolver.Services(emptyPaginatorInput)
+	servicePaginator := projectResolver.Services(searchKeyPaginatorInput)
 	assert.NotNil(suite.T(), servicePaginator)
 
-	secretPaginator, err := projectResolver.Secrets(test.ResolverAuthContext(), emptyPaginatorInput)
+	secretPaginator, err := projectResolver.Secrets(test.ResolverAuthContext(), searchKeyPaginatorInput)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), secretPaginator)
 

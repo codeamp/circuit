@@ -144,7 +144,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 		log.Info(string(output))
 	}
 
-	output, err = x.git(env, "fetch")
+	output, err = x.git(env, "-C", repoPath, "fetch")
 	if err != nil {
 		log.Error(err)
 		return err
