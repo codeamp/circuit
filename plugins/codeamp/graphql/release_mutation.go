@@ -42,10 +42,10 @@ type ReleaseComponents struct {
 
 // CreateRelease
 // Workflows to support:
-// 1. A fresh Release
+// 1. A fresh Release   					✓
 // 2. A redeploy
 // 3. A redeploy AND rebuild
-// 4. A queued release
+// 4. A queued release   					✓
 // 5. A rollback to an existing release
 func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struct{ Release *model.ReleaseInput }) (*ReleaseResolver, error) {
 	// Exit Early Under the following conditions:
@@ -329,12 +329,11 @@ func (r *ReleaseResolverMutation) gatherAndBuildSecrets(projectID string, enviro
 		log.Error(err)
 	}
 
-	r.DB.LogMode(true)
-	defer r.DB.LogMode(false)
 	for _, secret := range secrets {
-		r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secret.Value)
+		if err := r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secret.Value).Error; err != nil {
+			log.Error(err)
+		}
 	}
-	r.DB.LogMode(false)
 
 	return secrets, nil
 }
@@ -367,12 +366,17 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 	for i, service := range services {
 		// Ports
 		ports := []model.ServicePort{}
-		r.DB.Where("service_id = ?", service.Model.ID).Find(&ports)
+		if err := r.DB.Where("service_id = ?", service.Model.ID).Find(&ports).Error; err != nil {
+			log.Error(err)
+		}
 		services[i].Ports = ports
 
 		// Deployment Strategy
 		deploymentStrategy := model.ServiceDeploymentStrategy{}
-		r.DB.Where("service_id = ?", service.Model.ID).Find(&deploymentStrategy)
+		if err := r.DB.Where("service_id = ?", service.Model.ID).Find(&deploymentStrategy).Error; err != nil {
+			log.Error(err)
+			return nil, err
+		}
 		services[i].DeploymentStrategy = deploymentStrategy
 
 		// Readiness
@@ -533,7 +537,9 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	currentReleaseHeadFeature := model.Feature{}
 
 	// Gather HeadFeature
-	r.DB.Where("id = ?", headFeatureID).First(&currentReleaseHeadFeature)
+	if err := r.DB.Where("id = ?", headFeatureID).First(&currentReleaseHeadFeature).Error; err != nil {
+		log.Error(err)
+	}
 
 	waitingRelease := model.Release{}
 
@@ -625,7 +631,9 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 
 	// Find User from Auth ID
 	var user model.User
-	r.DB.Where("id = ?", userID).Find(&user)
+	if err := r.DB.Where("id = ?", userID).Find(&user).Error; err != nil {
+		log.Error(err)
+	}
 
 	var release model.Release
 	var releaseExtensions []model.ReleaseExtension
@@ -651,7 +659,9 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 	// Mark release as 'canceled' state
 	release.State = transistor.GetState("canceled")
 	release.StateMessage = fmt.Sprintf("Release canceled by %s", user.Email)
-	r.DB.Save(&release)
+	if err := r.DB.Save(&release).Error; err != nil {
+		log.Error(err)
+	}
 
 	// Iterate thorugh release extensions
 	// Send 'canceled' messages out to the extensions

@@ -44,31 +44,29 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 }
 
 func (x *CodeAmp) GetStartableRelease(release *model.Release, releaseEvent *plugins.Release) (*model.Release, *plugins.Release, error) {
-	var queuedReleases []model.Release
+	var queuedRelease model.Release
 	if err := x.DB.
 		Where("project_id = ? and environment_id = ? and state IN ('running', 'waiting')", release.ProjectID, release.EnvironmentID).
 		Order("created_at asc").
-		Limit(1).
-		Find(&queuedReleases).
+		First(&queuedRelease).
 		Error; err != nil {
 		log.Error(err)
 		return nil, nil, err
 	}
-	if len(queuedReleases) > 0 &&
-		queuedReleases[0].State == transistor.GetState("waiting") {
-		if release == nil || queuedReleases[0].ID != release.ID {
+	if queuedRelease.State == transistor.GetState("waiting") {
+		if release == nil || queuedRelease.ID != release.ID {
 			log.Warn("Forced to rebuild release event!")
 
 			releaseMutation := graphql_resolver.ReleaseResolverMutation{DB: x.DB}
 
-			releaseID := queuedReleases[0].Model.ID.String()
-			releaseComponents, err := releaseMutation.PrepRelease(queuedReleases[0].ProjectID.String(), queuedReleases[0].EnvironmentID.String(),
-				queuedReleases[0].HeadFeatureID.String(), &releaseID)			
+			releaseID := queuedRelease.Model.ID.String()
+			releaseComponents, err := releaseMutation.PrepRelease(queuedRelease.ProjectID.String(), queuedRelease.EnvironmentID.String(),
+				queuedRelease.HeadFeatureID.String(), &releaseID)			
 			if err != nil {
 				return nil, nil, err
 			}
 
-			_releaseEvent, err := releaseMutation.BuildReleaseEvent(&queuedReleases[0], releaseComponents)
+			_releaseEvent, err := releaseMutation.BuildReleaseEvent(&queuedRelease, releaseComponents)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -76,7 +74,7 @@ func (x *CodeAmp) GetStartableRelease(release *model.Release, releaseEvent *plug
 			releaseEvent = &pluginReleaseEvent
 		}
 
-		return &queuedReleases[0], releaseEvent, nil
+		return &queuedRelease, releaseEvent, nil
 	}
 	return nil, nil, errors.New("No releases startable")
 }
@@ -96,8 +94,8 @@ func (x *CodeAmp) StartRelease(release *model.Release, releaseEvent *plugins.Rel
 	release.State = transistor.GetState("running")
 	release.StateMessage = "Running Release"
 
-	err = x.DB.Save(&release).Error
-	if err != nil {
+	if err := x.DB.Save(&release).Error; err != nil {
+		log.Error(err)
 		return err
 	}
 
@@ -121,6 +119,7 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 	if err := x.DB.
 		Where("release_id = ? and type = 'workflow'", release.Model.ID).
 		Find(&releaseExtensions).Error; err != nil {
+		log.Error(err)
 		return err
 	}
 
@@ -146,13 +145,11 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 		re.Started = time.Now()
 		re.State = "running"
 		re.StateMessage = "Release Extension Started"
-		err := x.DB.Save(&re).Error
-		if err != nil {
+		if err := x.DB.Save(&re).Error; err != nil {
 			return err
 		}
 
-		var artifacts []transistor.Artifact
-		artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
+		artifacts, err := graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
 		if err != nil {
 			log.Error(err.Error())
 			return nil
@@ -219,6 +216,7 @@ func (x *CodeAmp) CreateReleaseExtensionsForRelease(release *model.Release, rele
 			}
 
 			if err := x.DB.Create(&releaseExtension).Error; err != nil {
+				log.Error(err)
 				return err
 			}
 		}
@@ -237,14 +235,18 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	project := model.Project{}
 	environment := model.Environment{}
 
-	x.DB.Save(release)
+	if err := x.DB.Save(release).Error; err != nil {
+		log.Error(err)
+	}
 
 	// Mark all release extensions as failed
 	releaseExtensions := []model.ReleaseExtension{}
 	x.DB.Where("release_id = ? AND state <> ?", release.Model.ID, transistor.GetState("complete")).Find(&releaseExtensions)
 	for _, re := range releaseExtensions {
 		re.State = transistor.GetState("failed")
-		x.DB.Save(&re)
+		if err := x.DB.Save(&re).Error; err != nil {
+			log.Error(err)
+		}
 	}
 
 	// Gather environment and project ID to send websocket message
@@ -303,7 +305,9 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 		release.StateMessage = "Completed"
 		release.Finished = time.Now()
 
-		x.DB.Save(release)
+		if err := x.DB.Save(release).Error; err != nil {
+			log.Error(err)
+		}
 
 		x.SendNotifications("SUCCESS", release, &project)
 	} else {
