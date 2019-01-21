@@ -11,11 +11,10 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
+	log.Error("RELEASE EVENT HANDLER")
 	releaseEvent := e.Payload.(plugins.Release)
 
 	if e.Matches("release:create") {
@@ -28,28 +27,58 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 			return fmt.Errorf("release %s not found", releaseEvent.ID)
 		}
 
-		if x.IsReleaseStartable(&release) == true {
-			err := x.StartRelease(&release, &releaseEvent)
+		startableRelease, startableReleaseEvent, err := x.GetStartableRelease(&release, &releaseEvent)
+		if err == nil {
+			err := x.StartRelease(startableRelease, startableReleaseEvent)
 			if err != nil {
 				log.Error(err)
+				return err
 			}
+		} else {
+			log.Error(err)
+			return err
 		}
 	}
 
 	return nil
 }
 
-func (x *CodeAmp) IsReleaseStartable(release *model.Release) bool {
-	var releases []model.Release
+func (x *CodeAmp) GetStartableRelease(release *model.Release, releaseEvent *plugins.Release) (*model.Release, *plugins.Release, error) {
+	var queuedReleases []model.Release
 	if err := x.DB.
 		Where("project_id = ? and environment_id = ? and state IN ('running', 'waiting')", release.ProjectID, release.EnvironmentID).
 		Order("created_at asc").
 		Limit(1).
-		Find(&releases).
+		Find(&queuedReleases).
 		Error; err != nil {
 		log.Error(err)
+		return nil, nil, err
 	}
-	return (releases[0].ID == release.ID && release.State == transistor.GetState("waiting"))
+	if len(queuedReleases) > 0 &&
+		queuedReleases[0].State == transistor.GetState("waiting") {
+		if queuedReleases[0].ID != release.ID {
+			log.Warn("Forced to rebuild release event!")
+
+			releaseMutation := graphql_resolver.ReleaseResolverMutation{DB: x.DB}
+
+			releaseID := queuedReleases[0].Model.ID.String()
+			releaseComponents, err := releaseMutation.PrepRelease(queuedReleases[0].ProjectID.String(), queuedReleases[0].EnvironmentID.String(),
+				queuedReleases[0].HeadFeatureID.String(), &releaseID)			
+			if err != nil {
+				return nil, nil, err
+			}
+
+			_releaseEvent, err := releaseMutation.BuildReleaseEvent(&queuedReleases[0], releaseComponents)
+			if err != nil {
+				return nil, nil, err
+			}
+			pluginReleaseEvent := _releaseEvent.Payload.(plugins.Release)
+			releaseEvent = &pluginReleaseEvent
+		}
+
+		return &queuedReleases[0], releaseEvent, nil
+	}
+	return nil, nil, errors.New("No releases startable")
 }
 
 func (x *CodeAmp) StartRelease(release *model.Release, releaseEvent *plugins.Release) error {
@@ -76,8 +105,6 @@ func (x *CodeAmp) StartRelease(release *model.Release, releaseEvent *plugins.Rel
 		Event:   fmt.Sprintf("projects/%s/%s/releases", releaseEvent.Project.Slug, releaseEvent.Environment),
 		Payload: release,
 	}
-
-	spew.Dump(payload)
 
 	// Send event to websocket plugin to forward message to client
 	// Tell the client to refetch its data re: this release
@@ -129,9 +156,7 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 		if err != nil {
 			log.Error(err.Error())
 			return nil
-		}	
-
-		spew.Dump(artifacts)
+		}
 
 		payload := plugins.ReleaseExtension{
 			ID:      re.Model.ID.String(),
@@ -295,12 +320,12 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	x.Events <- event
 
 	// Try to run any queued releases once this one is handled
-	x.RunQueuedReleases(release)
+	// x.RunQueuedReleases(release)
 }
 
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	log.Warn("RunQueuedReleases")
-	
+
 	var nextQueuedRelease model.Release
 
 	/******************************************
@@ -322,6 +347,8 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 		return nil
 	}
 	x.DB.LogMode(false)
+
+	log.Warn("FOUND QUEUED RELEASE")
 
 	var project model.Project
 	var services []model.Service

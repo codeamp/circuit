@@ -30,6 +30,16 @@ type ReleaseResolverMutation struct {
 	Events chan transistor.Event
 }
 
+type ReleaseComponents struct {
+	Project           *model.Project
+	Environment       *model.Environment
+	Services          []model.Service
+	Secrets           []model.Secret
+	ProjectExtensions []model.ProjectExtension
+	HeadFeature       model.Feature
+	TailFeature       model.Feature
+}
+
 // CreateRelease
 // Workflows to support:
 // 1. A fresh Release
@@ -48,7 +58,6 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	// X. Project does not have any workflow extensions
 	// 7. No other waiting releases with exact same configuration
 	// 8. Environment, TailFeature, and HeadFeature are all valid
-
 	/******************************************
 	*
 	*	1. Check User Auth for Endpoint
@@ -61,150 +70,9 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 		return nil, err
 	}
 
-	/******************************************
-	*
-	*	2. Verify Project Existence
-	*
-	*******************************************/
-	log.Warn("Create RelEase 2")
-	var project model.Project
-	if err := r.DB.Where("id = ?", args.Release.ProjectID).First(&project).Error; err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			log.ErrorWithFields("Project not found", log.Fields{
-				"id": args.Release.ProjectID,
-			})
-		} else {
-			err = errors.New("Project not found")
-		}
-
-		return nil, err
-	}
-
-	/******************************************
-	*
-	*	3. Rollback release exists, if requested
-	*
-	*******************************************/
-	log.Warn("Create RelEase 3")
-	var rollbackRelease model.Release
-	if args.Release.ID != nil && *args.Release.ID != "" && r.DB.Where("id = ?", string(*args.Release.ID)).First(&rollbackRelease).RecordNotFound() {
-		log.ErrorWithFields("Could not find existing release", log.Fields{
-			"id": *args.Release.ID,
-		})
-		return nil, errors.New("Release not found")
-	}
-
-	/******************************************
-	*
-	*	4. Check Project Auth for Release Permissions
-	*
-	*******************************************/
-	log.Warn("Create RelEase 4")
-	// Check if project can create release in environment
-	if r.isAuthorizedReleaseForEnvironment(args.Release.ProjectID, args.Release.EnvironmentID) == false {
-		log.Error("Project not allowed to create release in given environment")
-		return nil, errors.New("Project not allowed to create release in given environment")
-	}
-
-	/******************************************
-	*
-	*	5. Ensure Project has Extensions
-	*
-	*******************************************/
-	log.Warn("Create RelEase 5")
-	projectExtensions, err := r.getProjectExtensions(args.Release.ProjectID, args.Release.EnvironmentID)
+	releaseComponents, err := r.PrepRelease(args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, args.Release.ID)
 	if err != nil {
-		log.Error(err.Error())
-		return nil, errors.New(err.Error())
-	}
-	if len(projectExtensions) == 0 {
-		log.Error("No project extensions found for release")
-		return nil, errors.New("No project extensions found")
-	}
-
-	/******************************************
-	*
-	*	Prepare Services
-	*
-	*******************************************/
-	services, _ := r.gatherAndBuildServices(args.Release.ProjectID, args.Release.EnvironmentID)
-
-	/******************************************
-	*
-	*	Prepare Secrets
-	*
-	******************************************/
-	secrets, _ := r.gatherAndBuildSecrets(args.Release.ProjectID, args.Release.EnvironmentID)
-
-	/************************************
-	*
-	* 	6. Ensure no other waiting releases with same
-	*	secrets and services signatures
-	*
-	*************************************/
-	log.Warn("Create RelEase 6")
-	// ADB This is currently broken.
-	if r.isReleasePending(args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, secrets, services) {
-		// same release so return
-		log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
-		// , log.Fields{
-		// 	"services_sig":      servicesSig,
-		// 	"secrets_sig":       secretsSig,
-		// 	"head_feature_hash": waitingReleaseHeadFeature.Hash,
-		// })
-		return nil, errors.New("Found a waiting release with the same properties. Aborting.")
-	}
-
-	/************************************
-	*
-	* 	7. Validate Environment, HeadFeature, TailFeature
-	*
-	*************************************/
-	log.Warn("Create RelEase 7")
-	// Ensure Environment, HeadFeature, and TailFeature all exist
-	var environment model.Environment
-	if err := r.DB.Where("id = ?", args.Release.EnvironmentID).Find(&environment).Error; err != nil {
-		log.InfoWithFields("no env found", log.Fields{
-			"id": args.Release.EnvironmentID,
-		})
-		return nil, errors.New("Environment not found")
-	}
-
-	var headFeature model.Feature
-	if err := r.DB.Where("id = ?", args.Release.HeadFeatureID).First(&headFeature).Error; err != nil {
-		log.InfoWithFields("head feature not found", log.Fields{
-			"id": args.Release.HeadFeatureID,
-		})
-		return nil, errors.New("head feature not found")
-	}
-
-	var tailFeature model.Feature
-	// if r.DB.Where("id = ?", args.Release.TailFeatureID).First(&tailFeature).RecordNotFound() {
-	// 	log.InfoWithFields("tail feature not found", log.Fields{
-	// 		"id": args.Release.TailFeatureID,
-	// 	})
-	// 	return nil, errors.New("Tail feature not found")
-	// }
-
-	/******************************************
-	*
-	*	Insert Environment Variables
-	*
-	*******************************************/
-	log.Warn("Create RelEase 8")
-	secrets = r.injectReleaseEnvVars(secrets, &project, &headFeature)
-
-	// If this is a new release, then generate a new secrets and services config
-	// if not then reuse the old one on a previous release
-	if args.Release.ID != nil {
-		_secrets, _services, _projectExtensions, err := r.getReleaseConfiguration(*args.Release.ID)
-		if err != nil {
-			log.Error(err)
-		} else {
-			services = _services
-			secrets = _secrets
-			projectExtensions = _projectExtensions
-		}
+		return nil, err
 	}
 
 	/******************************************
@@ -215,7 +83,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	log.Warn("Create RelEase 9")
 	forceRebuild := false
 	release, err := r.createRelease(userID, args.Release.ProjectID, args.Release.EnvironmentID, args.Release.HeadFeatureID, forceRebuild,
-		secrets, services, projectExtensions)
+		releaseComponents.Secrets, releaseComponents.Services, releaseComponents.ProjectExtensions)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +93,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	Dispatch Release event
 	*
 	*******************************************/
-	releaseEvent, _ := r.buildReleaseEvent(release, &environment, &project, secrets, services, &headFeature, &tailFeature)
+	releaseEvent, _ := r.BuildReleaseEvent(release,	releaseComponents)
 	r.Events <- *releaseEvent
 
 	log.Warn("Create RelEase 10")
@@ -244,7 +112,158 @@ func (r *ReleaseResolverMutation) makeUUIDFromString(source string) uuid.UUID {
 	return uuid_res
 }
 
-func (r *ReleaseResolverMutation) createRelease(userID string, projectID string, environmentID string,
+func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID string,
+	headFeatureID string, releaseID *string) (*ReleaseComponents, error) {
+	/******************************************
+	*
+	*	2. Verify Project Existence
+	*
+	*******************************************/
+	log.Warn("Create PrepRelease 2")
+	var project model.Project
+	if err := r.DB.Where("id = ?", projectID).First(&project).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			log.ErrorWithFields("Project not found", log.Fields{
+				"id": projectID,
+			})
+		} else {
+			err = errors.New("Project not found")
+		}
+
+		return nil, err
+	}
+
+	/******************************************
+	*
+	*	3. Rollback release exists, if requested
+	*
+	*******************************************/
+	log.Warn("Create PrepRelease 3")
+	var rollbackRelease model.Release
+	if releaseID != nil && *releaseID != "" && r.DB.Where("id = ?", string(*releaseID)).First(&rollbackRelease).RecordNotFound() {
+		log.ErrorWithFields("Could not find existing release", log.Fields{
+			"id": *releaseID,
+		})
+		return nil, errors.New("Release not found")
+	}
+
+	/******************************************
+	*
+	*	4. Check Project Auth for Release Permissions
+	*
+	*******************************************/
+	log.Warn("Create PrepRelease 4")
+	// Check if project can create release in environment
+	if r.isAuthorizedReleaseForEnvironment(projectID, environmentID) == false {
+		log.Error("Project not allowed to create release in given environment")
+		return nil, errors.New("Project not allowed to create release in given environment")
+	}
+
+	/******************************************
+	*
+	*	5. Ensure Project has Extensions
+	*
+	*******************************************/
+	log.Warn("Create PrepRelease 5")
+	projectExtensions, err := r.getProjectExtensions(projectID, environmentID)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, errors.New(err.Error())
+	}
+	if len(projectExtensions) == 0 {
+		log.Error("No project extensions found for release")
+		return nil, errors.New("No project extensions found")
+	}
+
+	/******************************************
+	*
+	*	Prepare Services
+	*
+	*******************************************/
+	services, _ := r.gatherAndBuildServices(projectID, environmentID)
+
+	/******************************************
+	*
+	*	Prepare Secrets
+	*
+	******************************************/
+	secrets, _ := r.gatherAndBuildSecrets(projectID, environmentID)
+
+	/************************************
+	*
+	* 	6. Ensure no other waiting releases with same
+	*	secrets and services signatures
+	*
+	*************************************/
+	log.Warn("Create RelEase 6")
+	// ADB This is currently broken.
+	if r.isReleasePending(projectID, environmentID, headFeatureID, secrets, services) {
+		// same release so return
+		log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
+		// , log.Fields{
+		// 	"services_sig":      servicesSig,
+		// 	"secrets_sig":       secretsSig,
+		// 	"head_feature_hash": waitingReleaseHeadFeature.Hash,
+		// })
+		return nil, errors.New("Found a waiting release with the same properties. Aborting.")
+	}
+
+	/************************************
+	*
+	* 	7. Validate Environment, HeadFeature, TailFeature
+	*
+	*************************************/
+	log.Warn("Create RelEase 7")
+	// Ensure Environment, HeadFeature, and TailFeature all exist
+	var environment model.Environment
+	if err := r.DB.Where("id = ?", environmentID).Find(&environment).Error; err != nil {
+		log.InfoWithFields("no env found", log.Fields{
+			"id": environmentID,
+		})
+		return nil, errors.New("Environment not found")
+	}
+
+	var headFeature model.Feature
+	if err := r.DB.Where("id = ?", headFeatureID).First(&headFeature).Error; err != nil {
+		log.InfoWithFields("head feature not found", log.Fields{
+			"id": headFeatureID,
+		})
+		return nil, errors.New("head feature not found")
+	}
+
+	var tailFeature model.Feature
+	// if r.DB.Where("id = ?", args.Release.TailFeatureID).First(&tailFeature).RecordNotFound() {
+	// 	log.InfoWithFields("tail feature not found", log.Fields{
+	// 		"id": args.Release.TailFeatureID,
+	// 	})
+	// 	return nil, errors.New("Tail feature not found")
+	// }
+
+	/******************************************
+	*
+	*	Insert Environment Variables
+	*
+	*******************************************/
+	log.Warn("Create PrepRelease 8")
+	secrets = r.injectReleaseEnvVars(secrets, &project, &headFeature)
+
+	// If this is a new release, then generate a new secrets and services config
+	// if not then reuse the old one on a previous release
+	if releaseID != nil {
+		_secrets, _services, _projectExtensions, err := r.getReleaseConfiguration(*releaseID)
+		if err != nil {
+			log.Error(err)
+		} else {
+			services = _services
+			secrets = _secrets
+			projectExtensions = _projectExtensions
+		}
+	}
+
+	return &ReleaseComponents{&project, &environment, services, secrets, projectExtensions, headFeature, tailFeature}, nil
+}
+
+func (r *ReleaseResolverMutation) BuildRelease(userID string, projectID string, environmentID string,
 	headFeatureID string, forceRebuild bool, secrets []model.Secret, services []model.Service, projectExtensions []model.ProjectExtension) (*model.Release, error) {
 	// the tail feature id is the current release's head feature id
 	// this is incorrect when the same commit is deployed multiple times
@@ -282,11 +301,23 @@ func (r *ReleaseResolverMutation) createRelease(userID string, projectID string,
 		IsRollback:        isRollback,
 	}
 
+	return &release, nil
+}
+
+func (r *ReleaseResolverMutation) createRelease(userID string, projectID string, environmentID string,
+	headFeatureID string, forceRebuild bool, secrets []model.Secret, services []model.Service, projectExtensions []model.ProjectExtension) (*model.Release, error) {
+
+	release, err := r.BuildRelease(userID, projectID, environmentID,
+		headFeatureID, forceRebuild, secrets, services, projectExtensions)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := r.DB.Create(&release).Error; err != nil {
 		return nil, err
 	}
 
-	return &release, nil
+	return release, nil
 }
 
 func (r *ReleaseResolverMutation) gatherAndBuildSecrets(projectID string, environmentID string) ([]model.Secret, error) {
@@ -379,12 +410,12 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 	return services, nil
 }
 
-func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release, environment *model.Environment, project *model.Project, secrets []model.Secret, services []model.Service, headFeature *model.Feature, tailFeature *model.Feature) (*transistor.Event, error) {
+func (r *ReleaseResolverMutation) BuildReleaseEvent(release *model.Release,	releaseComponents *ReleaseComponents) (*transistor.Event, error) {
 	// get the branch set for this environment and project from project settings
 	// var branch string
 	var projectSettings model.ProjectSettings
 	var branch string
-	if err := r.DB.Where("environment_id = ? and project_id = ?", release.EnvironmentID.String(), project.Model.ID.String()).First(&projectSettings).Error; err != nil {
+	if err := r.DB.Where("environment_id = ? and project_id = ?", release.EnvironmentID.String(), release.ProjectID.String()).First(&projectSettings).Error; err != nil {
 		log.ErrorWithFields("no env project branch found", log.Fields{})
 		return nil, fmt.Errorf("no env project branch found")
 	} else {
@@ -392,7 +423,7 @@ func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release, envi
 	}
 
 	var pluginSecrets []plugins.Secret
-	for _, secret := range secrets {
+	for _, secret := range releaseComponents.Secrets {
 		pluginSecrets = append(pluginSecrets, plugins.Secret{
 			Key:   secret.Key,
 			Value: secret.Value.Value,
@@ -400,40 +431,40 @@ func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release, envi
 		})
 	}
 
-	pluginServices, err := r.setupServices(services)
+	pluginServices, err := r.setupServices(releaseComponents.Services)
 	if err != nil {
 		return nil, err
 	}
 
 	releaseEventPayload := plugins.Release{
 		ID:          release.Model.ID.String(),
-		Environment: environment.Name,
+		Environment: releaseComponents.Environment.Name,
 		HeadFeature: plugins.Feature{
-			ID:         headFeature.Model.ID.String(),
-			Hash:       headFeature.Hash,
-			ParentHash: headFeature.ParentHash,
-			User:       headFeature.User,
-			Message:    headFeature.Message,
-			Created:    headFeature.Created,
+			ID:         releaseComponents.HeadFeature.Model.ID.String(),
+			Hash:       releaseComponents.HeadFeature.Hash,
+			ParentHash: releaseComponents.HeadFeature.ParentHash,
+			User:       releaseComponents.HeadFeature.User,
+			Message:    releaseComponents.HeadFeature.Message,
+			Created:    releaseComponents.HeadFeature.Created,
 		},
 		TailFeature: plugins.Feature{
-			ID:         tailFeature.Model.ID.String(),
-			Hash:       tailFeature.Hash,
-			ParentHash: tailFeature.ParentHash,
-			User:       tailFeature.User,
-			Message:    tailFeature.Message,
-			Created:    tailFeature.Created,
+			ID:         releaseComponents.TailFeature.Model.ID.String(),
+			Hash:       releaseComponents.TailFeature.Hash,
+			ParentHash: releaseComponents.TailFeature.ParentHash,
+			User:       releaseComponents.TailFeature.User,
+			Message:    releaseComponents.TailFeature.Message,
+			Created:    releaseComponents.TailFeature.Created,
 		},
 		User: release.User.Email,
 		Project: plugins.Project{
-			ID:         project.Model.ID.String(),
-			Slug:       project.Slug,
-			Repository: project.Repository,
+			ID:         releaseComponents.Project.Model.ID.String(),
+			Slug:       releaseComponents.Project.Slug,
+			Repository: releaseComponents.Project.Repository,
 		},
 		Git: plugins.Git{
-			Url:           project.GitUrl,
+			Url:           releaseComponents.Project.GitUrl,
 			Branch:        branch,
-			RsaPrivateKey: project.RsaPrivateKey,
+			RsaPrivateKey: releaseComponents.Project.RsaPrivateKey,
 		},
 		Secrets:  pluginSecrets,
 		Services: pluginServices,

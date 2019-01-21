@@ -51,14 +51,14 @@ func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
 		}
 
 		switch e.State {
-			case transistor.GetState("complete"):
-				x.ReleaseExtensionCompleted(&payload, &releaseExtension)
-			case transistor.GetState("failed"):
-				x.ReleaseFailed(&release, e.StateMessage)
-			case transistor.GetState("running"):
-				break
-			default:
-				log.Error("RELEASE IN ERROR STATE: ", e.State)
+		case transistor.GetState("complete"):
+			x.ReleaseExtensionCompleted(&payload, &releaseExtension)
+		case transistor.GetState("failed"):
+			x.ReleaseFailed(&release, e.StateMessage)
+		case transistor.GetState("running"):
+			break
+		default:
+			log.Error("RELEASE IN ERROR STATE: ", e.State)
 		}
 	}
 
@@ -79,7 +79,7 @@ func (x *CodeAmp) ReleaseExtensionCompleted(payload *plugins.ReleaseExtension, r
 	// Notify clientside a release extension has completed
 	{
 		wssPayload := plugins.WebsocketMsg{
-			Event:   fmt.Sprintf("projects/%s/%s/releases/reCompleted", payload.Release.Project.Slug, payload.Release.Environment),
+			Event: fmt.Sprintf("projects/%s/%s/releases/reCompleted", payload.Release.Project.Slug, payload.Release.Environment),
 		}
 		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), wssPayload)
 		event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases/reCompleted", payload.Release.Project.Slug, payload.Release.Environment), false)
@@ -88,10 +88,9 @@ func (x *CodeAmp) ReleaseExtensionCompleted(payload *plugins.ReleaseExtension, r
 	}
 
 	// loop through and check if all same-type release extensions are completed
-	done := true
 	for _, releaseExtension := range releaseExtensions {
 		if releaseExtension.Type == re.Type && releaseExtension.State != transistor.GetState("complete") {
-			done = false
+			return
 		}
 	}
 
@@ -103,20 +102,18 @@ func (x *CodeAmp) ReleaseExtensionCompleted(payload *plugins.ReleaseExtension, r
 		return
 	}
 
-	if done {
-		switch re.Type {
-		case plugins.GetType("workflow"):
-			x.WorkflowReleaseExtensionsCompleted(payload, &release)
-		case plugins.GetType("deployment"):
-			log.Warn("Releases completed")
-			x.ReleaseCompleted(&release)
-		}
+	switch re.Type {
+	case plugins.GetType("workflow"):
+		x.WorkflowReleaseExtensionsCompleted(payload, &release)
+	case plugins.GetType("deployment"):
+		log.Warn("Releases completed")
+		x.ReleaseCompleted(&release)
 	}
 }
 
 func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExtension, release *model.Release) {
 	log.Debug("WorkflowReleaseExtensionsCompleted")
-	
+
 	releaseExtensionDeploymentsCount := 0
 	/**************************************
 	*
@@ -128,7 +125,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 
 	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 	for _, releaseExtension := range releaseExtensions {
-		
 		if releaseExtension.Type == plugins.GetType("workflow") {
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
@@ -179,6 +175,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 				releaseExtension.StateMessage = release.StateMessage
 
 				x.DB.Save(&releaseExtension)
+				log.Error("RELEASE IN FAILED STATE")
 				continue
 			}
 
@@ -213,7 +210,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 			x.DB.Save(&releaseExtension)
 
 			releaseExtensionEvent := plugins.ReleaseExtension{
-				ID: releaseExtension.Model.ID.String(),
+				ID:      releaseExtension.Model.ID.String(),
 				Release: payload.Release,
 			}
 
