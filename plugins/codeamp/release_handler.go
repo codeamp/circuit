@@ -36,10 +36,6 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 		}
 	}
 
-	// event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
-	// event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
-	// x.Events <- event
-
 	return nil
 }
 
@@ -53,7 +49,7 @@ func (x *CodeAmp) IsReleaseStartable(release *model.Release) bool {
 		Error; err != nil {
 		log.Error(err)
 	}
-	return (releases[0].ID == release.ID)
+	return (releases[0].ID == release.ID && release.State == transistor.GetState("waiting"))
 }
 
 func (x *CodeAmp) StartRelease(release *model.Release, releaseEvent *plugins.Release) error {
@@ -76,16 +72,18 @@ func (x *CodeAmp) StartRelease(release *model.Release, releaseEvent *plugins.Rel
 		return err
 	}
 
-	// payload := plugins.WebsocketMsg{
-	// 	Event:   fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key),
-	// 	Payload: release,
-	// }
+	payload := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/%s/releases", releaseEvent.Project.Slug, releaseEvent.Environment),
+		Payload: release,
+	}
+
+	spew.Dump(payload)
 
 	// Send event to websocket plugin to forward message to client
 	// Tell the client to refetch its data re: this release
-	// event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
-	// event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
-	// x.Events <- event
+	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", releaseEvent.Project.Slug, releaseEvent.Environment), false)
+	x.Events <- event
 
 	return nil
 }
@@ -297,7 +295,7 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	x.Events <- event
 
 	// Try to run any queued releases once this one is handled
-	// x.RunQueuedReleases(release)
+	x.RunQueuedReleases(release)
 }
 
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
