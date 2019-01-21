@@ -225,7 +225,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	Dispatch Release event
 	*
 	*******************************************/
-	releaseEvent, _ := r.buildReleaseEvent(release, &project, secrets, services, &headFeature, &tailFeature)
+	releaseEvent, _ := r.buildReleaseEvent(release, &environment, &project, secrets, services, &headFeature, &tailFeature)
 	r.Events <- *releaseEvent
 
 	log.Warn("Create RelEase 10")
@@ -379,7 +379,7 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 	return services, nil
 }
 
-func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release, project *model.Project, secrets []model.Secret, services []model.Service, headFeature *model.Feature, tailFeature *model.Feature) (*transistor.Event, error) {
+func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release, environment *model.Environment, project *model.Project, secrets []model.Secret, services []model.Service, headFeature *model.Feature, tailFeature *model.Feature) (*transistor.Event, error) {
 	// get the branch set for this environment and project from project settings
 	// var branch string
 	var projectSettings model.ProjectSettings
@@ -407,7 +407,7 @@ func (r *ReleaseResolverMutation) buildReleaseEvent(release *model.Release, proj
 
 	releaseEventPayload := plugins.Release{
 		ID:          release.Model.ID.String(),
-		Environment: release.EnvironmentID.String(),
+		Environment: environment.Name,
 		HeadFeature: plugins.Feature{
 			ID:         headFeature.Model.ID.String(),
 			Hash:       headFeature.Hash,

@@ -1149,6 +1149,10 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	projectSlug := plugins.GetSlug(reData.Release.Project.Repository)
 	namespace := x.GenNamespaceName(reData.Release.Environment, projectSlug)
 
+	log.Warn("ProjectSlug ", projectSlug)
+	log.Warn("reData.Release.Environment", reData.Release.Environment)
+	log.Warn("Namespace ", namespace)
+
 	// TODO: get timeout from formValues
 	//timeout := e.Payload.(plugins.ReleaseExtension).Release.Timeout
 

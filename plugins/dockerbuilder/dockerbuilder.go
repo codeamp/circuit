@@ -413,7 +413,7 @@ func (x *DockerBuilder) Process(e transistor.Event) error {
 
 		repoPath := fmt.Sprintf("%s", payload.Release.Project.Repository)
 		buildlogBuf := bytes.NewBuffer(nil)
-		buildlog := io.MultiWriter(buildlogBuf, os.Stdout)
+		buildlog := io.MultiWriter(buildlogBuf)
 
 		var err error
 		err = x.bootstrap(repoPath, e)

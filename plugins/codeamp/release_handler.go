@@ -257,6 +257,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	log.Warn("Release Completed")
+
 	project := model.Project{}
 	environment := model.Environment{}
 
@@ -300,6 +301,8 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 }
 
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
+	log.Warn("RunQueuedReleases")
+	
 	var nextQueuedRelease model.Release
 
 	/******************************************
