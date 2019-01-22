@@ -123,7 +123,9 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 	releaseExtensions := []model.ReleaseExtension{}
 	artifacts := []transistor.Artifact{}
 
-	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+	if err := x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions).Error; err != nil {
+		log.Error(err)
+	}
 	for _, releaseExtension := range releaseExtensions {
 		if releaseExtension.Type == plugins.GetType("workflow") {
 			projectExtension := model.ProjectExtension{}
@@ -174,7 +176,9 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 				releaseExtension.State = transistor.GetState("failed")
 				releaseExtension.StateMessage = release.StateMessage
 
-				x.DB.Save(&releaseExtension)
+				if err := x.DB.Save(&releaseExtension); err != nil {
+					log.Error(err)
+				}
 				log.Error("RELEASE IN FAILED STATE")
 				continue
 			}
@@ -207,7 +211,9 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 			}
 
 			releaseExtension.Started = time.Now()
-			x.DB.Save(&releaseExtension)
+			if err := x.DB.Save(&releaseExtension).Error; err != nil {
+				log.Error(err)
+			}
 
 			releaseExtensionEvent := plugins.ReleaseExtension{
 				ID:      releaseExtension.Model.ID.String(),

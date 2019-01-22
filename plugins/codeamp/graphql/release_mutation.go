@@ -281,14 +281,10 @@ func (r *ReleaseResolverMutation) BuildRelease(userID string, projectID string, 
 	}
 
 	// Convert model.Services to plugin.Services
-	log.Warn("Build Release")
-	log.Error("THE COUNT 1:", services[0].Count)
 	pluginServices, err := r.setupServices(services)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Error("THE COUNT: ", pluginServices[0].Replicas)
 
 	/******************************************
 	*
@@ -422,7 +418,6 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 		
 	}
 
-	log.Warn("Service Count: ", services[0].Count)
 	return services, nil
 }
 
@@ -447,13 +442,10 @@ func (r *ReleaseResolverMutation) BuildReleaseEvent(release *model.Release,	rele
 		})
 	}
 
-	log.Warn("Build Release Event")
-	log.Warn("THE COUNT 2: ", releaseComponents.Services[0].Count)
 	pluginServices, err := r.setupServices(releaseComponents.Services)
 	if err != nil {
 		return nil, err
 	}
-	log.Warn("THE COUNT 2a: ", pluginServices[0].Replicas)
 
 	releaseEventPayload := plugins.Release{
 		ID:          release.Model.ID.String(),
