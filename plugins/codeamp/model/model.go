@@ -119,7 +119,7 @@ type Service struct {
 	// Type
 	Type plugins.Type `json:"type"`
 	// Count
-	Count int32 `json:"count,string"`
+	Count int32 `json:"count"`
 	// Ports
 	Ports []ServicePort `json:"servicePorts"`
 	// EnvironmentID

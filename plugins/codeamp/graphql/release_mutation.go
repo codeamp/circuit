@@ -20,6 +20,8 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
+
+	_ "github.com/davecgh/go-spew/spew"
 )
 
 // Secret Resolver Mutation
@@ -140,6 +142,7 @@ func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID st
 	*******************************************/
 	log.Warn("Create PrepRelease 3")
 	var rollbackRelease model.Release
+	log.Warn("RELEASE ID PROVIDED TO PREP RELEASE: ", releaseID)
 	if releaseID != nil && *releaseID != "" && r.DB.Where("id = ?", string(*releaseID)).First(&rollbackRelease).RecordNotFound() {
 		log.ErrorWithFields("Could not find existing release", log.Fields{
 			"id": *releaseID,
@@ -197,16 +200,17 @@ func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID st
 	*************************************/
 	log.Warn("Create RelEase 6")
 	// ADB This is currently broken.
-	if r.isReleasePending(projectID, environmentID, headFeatureID, secrets, services) {
-		// same release so return
-		log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
-		// , log.Fields{
-		// 	"services_sig":      servicesSig,
-		// 	"secrets_sig":       secretsSig,
-		// 	"head_feature_hash": waitingReleaseHeadFeature.Hash,
-		// })
-		return nil, errors.New("Found a waiting release with the same properties. Aborting.")
-	}
+	// if r.isReleasePending(projectID, environmentID, headFeatureID, secrets, services) {
+	// 	// same release so return
+	// 	log.Warn("Found a waiting release with the same services signature, secrets signature and head feature hash. Aborting.")
+	// 	// , log.Fields{
+	// 	// 	"services_sig":      servicesSig,
+	// 	// 	"secrets_sig":       secretsSig,
+	// 	// 	"head_feature_hash": waitingReleaseHeadFeature.Hash,
+	// 	// })
+	// 	return nil, errors.New("Found a waiting release with the same properties. Aborting.")
+	// }
+	log.Warn("Mid Prep: ", services[0].Count)
 
 	/************************************
 	*
@@ -248,8 +252,9 @@ func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID st
 	secrets = r.injectReleaseEnvVars(secrets, &project, &headFeature)
 
 	// If this is a new release, then generate a new secrets and services config
-	// if not then reuse the old one on a previous release
+	// if not then reuse the old one on a previous RelEase
 	if releaseID != nil {
+		log.Warn("GETTING RELEASE CONFIGURATION FROM OLD RELEASE")
 		_secrets, _services, _projectExtensions, err := r.getReleaseConfiguration(*releaseID)
 		if err != nil {
 			log.Error(err)
@@ -260,6 +265,7 @@ func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID st
 		}
 	}
 
+	log.Warn("End Prep: ", services[0].Count)
 	return &ReleaseComponents{&project, &environment, services, secrets, projectExtensions, headFeature, tailFeature}, nil
 }
 
@@ -275,10 +281,14 @@ func (r *ReleaseResolverMutation) BuildRelease(userID string, projectID string, 
 	}
 
 	// Convert model.Services to plugin.Services
+	log.Warn("Build Release")
+	log.Error("THE COUNT 1:", services[0].Count)
 	pluginServices, err := r.setupServices(services)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Error("THE COUNT: ", pluginServices[0].Replicas)
 
 	/******************************************
 	*
@@ -351,9 +361,11 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 	var services []model.Service
 
 	// Find all services
+	r.DB.LogMode(true)
 	if err := r.DB.Where("project_id = ? and environment_id = ?", projectID, environmentID).Find(&services).Error; err != nil {
 		return nil, err
 	}
+	r.DB.LogMode(false)
 
 	if len(services) == 0 {
 		log.ErrorWithFields("No services found", log.Fields{
@@ -407,10 +419,10 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 		}
 		livenessProbe.HttpHeaders = livenessHeaders
 		services[i].LivenessProbe = livenessProbe
-
-		// spew.Dump(service)
+		
 	}
 
+	log.Warn("Service Count: ", services[0].Count)
 	return services, nil
 }
 
@@ -435,10 +447,13 @@ func (r *ReleaseResolverMutation) BuildReleaseEvent(release *model.Release,	rele
 		})
 	}
 
+	log.Warn("Build Release Event")
+	log.Warn("THE COUNT 2: ", releaseComponents.Services[0].Count)
 	pluginServices, err := r.setupServices(releaseComponents.Services)
 	if err != nil {
 		return nil, err
 	}
+	log.Warn("THE COUNT 2a: ", pluginServices[0].Replicas)
 
 	releaseEventPayload := plugins.Release{
 		ID:          release.Model.ID.String(),
@@ -479,7 +494,7 @@ func (r *ReleaseResolverMutation) BuildReleaseEvent(release *model.Release,	rele
 }
 
 func (r *ReleaseResolverMutation) getReleaseConfiguration(releaseID string) ([]model.Secret, []model.Service, []model.ProjectExtension, error) {
-	log.Info(fmt.Sprintf("Existing Release. Rolling back %s", releaseID))
+	log.Warn(fmt.Sprintf("Existing Release. Rolling back %s", releaseID))
 
 	var existingRelease model.Release
 	if err := r.DB.Find(&existingRelease).Where("id = ?", releaseID).Error; err != nil {
@@ -526,7 +541,7 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 	// check if there's a previous release in waiting state that
 	// has the same secrets and services signatures
 	secretsSha1 := sha1.New()
-	log.Warn(string(secretsJsonb.RawMessage[:]))
+	// log.Warn(string(secretsJsonb.RawMessage[:]))
 	secretsSha1.Write(secretsJsonb.RawMessage)
 	secretsSig := secretsSha1.Sum(nil)
 
@@ -549,8 +564,8 @@ func (r *ReleaseResolverMutation) isReleasePending(projectID string, environment
 
 	// Convert sercrets and services into sha for comparison
 	wrSecretsSha1 := sha1.New()
-	log.Warn(string(waitingRelease.Services.RawMessage[:]))
-	log.Warn(string(servicesJsonb.RawMessage[:]))
+	// log.Warn(string(waitingRelease.Services.RawMessage[:]))
+	// log.Warn(string(servicesJsonb.RawMessage[:]))
 
 	wrSecretsSha1.Write(waitingRelease.Services.RawMessage)
 	waitingReleaseSecretsSig := wrSecretsSha1.Sum(nil)
@@ -765,7 +780,7 @@ func (r *ReleaseResolverMutation) setupServices(services []model.Service) ([]plu
 			log.ErrorWithFields("servicespec not found", log.Fields{
 				"service_id": service.Model.ID,
 			})
-			return []plugins.Service{}, fmt.Errorf("ServiceSpec not found")
+			return nil, fmt.Errorf("ServiceSpec not found")
 		}
 
 		pluginServices = AppendPluginService(pluginServices, service, spec)

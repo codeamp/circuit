@@ -18,8 +18,6 @@ import (
 	"github.com/extemporalgenome/slug"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/spf13/viper"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 type DockerBuilder struct {
@@ -185,8 +183,6 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 
 func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBuildOut io.Writer) error {
 	payload := event.Payload.(plugins.ReleaseExtension)
-
-	spew.Dump(payload)
 
 	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), payload.Release.Project.Repository, payload.Release.Git.Branch)
 	gitArchive := exec.Command("git", "archive", payload.Release.HeadFeature.Hash)

@@ -11,6 +11,8 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+
+	_ "github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -59,12 +61,14 @@ func (x *CodeAmp) GetStartableRelease(release *model.Release, releaseEvent *plug
 
 			releaseMutation := graphql_resolver.ReleaseResolverMutation{DB: x.DB}
 
-			releaseID := queuedRelease.Model.ID.String()
+			// Do not provide a releaseID here unless this is a redeploy (it's not, just queued release)
 			releaseComponents, err := releaseMutation.PrepRelease(queuedRelease.ProjectID.String(), queuedRelease.EnvironmentID.String(),
-				queuedRelease.HeadFeatureID.String(), &releaseID)			
+				queuedRelease.HeadFeatureID.String(), nil)			
 			if err != nil {
 				return nil, nil, err
 			}
+
+			log.Warn("GetStartableRelease: ", releaseComponents.Services[0].Count)
 
 			_releaseEvent, err := releaseMutation.BuildReleaseEvent(&queuedRelease, releaseComponents)
 			if err != nil {
@@ -332,6 +336,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 
 	startableRelease, startableReleaseEvent, err := x.GetStartableRelease(release, nil)
 	if err == nil {
+		// spew.Dump(startableReleaseEvent)
 		err := x.StartRelease(startableRelease, startableReleaseEvent)
 		if err != nil {
 			log.Error(err)

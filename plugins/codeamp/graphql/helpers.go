@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
+	log "github.com/codeamp/logger"
 )
 
 func AppendPluginService(pluginServices []plugins.Service, service model.Service, spec model.ServiceSpec) []plugins.Service {
@@ -40,6 +41,9 @@ func AppendPluginService(pluginServices []plugins.Service, service model.Service
 		livenessHeaders = append(livenessHeaders, header)
 	}
 
+	log.Error("APPEND PLUGIN SERVICE")
+	log.Error(service.Count)
+	log.Error("ReplicaS")
 	return append(pluginServices, plugins.Service{
 		ID:        service.Model.ID.String(),
 		Action:    transistor.GetAction("create"),
