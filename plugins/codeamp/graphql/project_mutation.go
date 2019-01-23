@@ -187,6 +187,7 @@ func (r *ProjectResolverMutation) UpdateProject(ctx context.Context, args *struc
 			return nil, fmt.Errorf("Couldn't parse environment ID")
 		}
 
+		oldBranchName := ""
 		var projectSettings model.ProjectSettings
 		if r.DB.Where("environment_id = ? and project_id = ?", environmentID, projectID).First(&projectSettings).RecordNotFound() {
 			projectSettings.EnvironmentID = environmentID
@@ -194,6 +195,7 @@ func (r *ProjectResolverMutation) UpdateProject(ctx context.Context, args *struc
 			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
 		} else {
+			oldBranchName = projectSettings.GitBranch
 			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
 		}
@@ -211,6 +213,7 @@ func (r *ProjectResolverMutation) UpdateProject(ctx context.Context, args *struc
 		log.WarnWithFields("[AUDIT] Updated Project Branch", log.Fields{
 			"project":     project.Slug,
 			"branch":      *args.Project.GitBranch,
+			"oldBranch":   oldBranchName,
 			"user":        userID,
 			"environment": environmentID},
 		)
