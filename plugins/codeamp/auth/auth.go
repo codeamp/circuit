@@ -16,7 +16,7 @@ func getJWTToken(ctx context.Context) (*model.Claims, error) {
 	}
 	claims := ctx.Value("jwt").(model.Claims)
 	if claims.UserID == "" {
-		return nil, errors.New(claims.TokenError)
+		return nil, errors.New(fmt.Sprintf("%s %v", "Missing UserID", claims.TokenError))
 	}
 
 	return &claims, nil
