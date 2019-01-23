@@ -143,7 +143,7 @@ func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struc
 }
 
 // UpdateProject Update project
-func (r *ProjectResolverMutation) UpdateProject(args *struct {
+func (r *ProjectResolverMutation) UpdateProject(ctx context.Context, args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
 	var project model.Project
@@ -193,17 +193,39 @@ func (r *ProjectResolverMutation) UpdateProject(args *struct {
 			projectSettings.ProjectID = projectID
 			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
-
-			r.DB.Save(&projectSettings)
 		} else {
 			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
+		}
 
-			r.DB.Save(&projectSettings)
+		_userID, err := auth.CheckAuth(ctx, []string{})
+		if err != nil {
+			return nil, err
+		}
+
+		userID, err := uuid.FromString(_userID)
+		if err != nil {
+			return nil, err
+		}
+
+		log.WarnWithFields("[AUDIT] Updated Project Branch", log.Fields{
+			"project":     project.Slug,
+			"branch":      *args.Project.GitBranch,
+			"user":        userID,
+			"environment": environmentID},
+		)
+
+		// Save after all error conditions have passed
+		if err = r.DB.Save(&projectSettings).Error; err != nil {
+			log.Error(err)
+			return nil, err
 		}
 	}
 
-	r.DB.Save(&project)
+	if err := r.DB.Save(&project).Error; err != nil {
+		log.Error(err)
+		return nil, err
+	}
 
 	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
 }
