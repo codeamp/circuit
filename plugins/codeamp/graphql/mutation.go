@@ -22,11 +22,11 @@ func (r *Resolver) CreateProject(ctx context.Context, args *struct {
 }
 
 // UpdateProject Update project
-func (r *Resolver) UpdateProject(args *struct {
+func (r *Resolver) UpdateProject(ctx context.Context, args *struct {
 	Project *model.ProjectInput
 }) (*ProjectResolver, error) {
 	mut := ProjectResolverMutation{r.DB}
-	return mut.UpdateProject(args)
+	return mut.UpdateProject(ctx, args)
 }
 
 // StopRelease

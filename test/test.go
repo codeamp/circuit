@@ -63,7 +63,7 @@ func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 // Generates a fake JWT token for testing purposes
 // Use for testing graphql resolvers
 func ResolverAuthContext() context.Context {
-	return BuildAuthContext("11075553-5309-494B-9085-2D79A6ED1EB3", "foo@gmail.com", []string{"admin"})
+	return BuildAuthContext("11075553-5309-494B-9085-2D79A6ED1EB3", "foo@example.com", []string{"admin"})
 }
 
 // Generates a fake JWT token for testing purposes
