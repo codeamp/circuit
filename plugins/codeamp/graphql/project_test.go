@@ -522,7 +522,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSSuccess() {
 		EnvironmentID: &envID,
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updatedProjectInput})
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), updatedProjectResolver)
 
@@ -555,7 +556,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSMismatchSuccess() {
 		EnvironmentID: &envID,
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updatedProjectInput})
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), updatedProjectResolver)
 
@@ -592,7 +594,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
 		ContinuousDeploy: &continuousDeploy,
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updatedProjectInput})
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), updatedProjectResolver)
 
@@ -601,6 +604,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
 }
 
 func (suite *ProjectTestSuite) TestUpdateProjectSSHMismatchSuccess() {
+	var err error
 	// Environment
 	environmentResolver := suite.helper.CreateEnvironment(suite.T())
 
@@ -629,9 +633,14 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHMismatchSuccess() {
 		ContinuousDeploy: &continuousDeploy,
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
-	assert.Nil(suite.T(), err)
-	assert.NotNil(suite.T(), updatedProjectResolver)
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+	if updatedProjectResolver == nil {
+		assert.FailNow(suite.T(), "Project Resolver is nil")
+	}
 
 	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
 	assert.Equal(suite.T(), "https://github.com/foo/goo.git", updatedProjectResolver.GitUrl())
@@ -678,7 +687,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccessNoEnvironment() {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updatedProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updatedProjectInput})
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), updatedProjectResolver)
 
@@ -695,7 +705,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureNoID() {
 
 	updateProjectInput := model.ProjectInput{}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updateProjectInput})
 	assert.NotNil(suite.T(), err)
 	assert.Nil(suite.T(), updatedProjectResolver)
 }
@@ -717,7 +728,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureWrongProjectID() {
 		ContinuousDeploy: &continuousDeploy,
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updateProjectInput})
 	assert.NotNil(suite.T(), err)
 	assert.Nil(suite.T(), updatedProjectResolver)
 }
@@ -739,7 +751,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidProjectID() {
 		ContinuousDeploy: &continuousDeploy,
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updateProjectInput})
 	assert.NotNil(suite.T(), err)
 	assert.Nil(suite.T(), updatedProjectResolver)
 }
@@ -769,7 +782,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectFailureInvalidEnvironmentID() {
 		ContinuousDeploy: &continuousDeploy,
 	}
 
-	updatedProjectResolver, err := suite.Resolver.UpdateProject(&struct{ Project *model.ProjectInput }{&updateProjectInput})
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
+	updatedProjectResolver, err := suite.Resolver.UpdateProject(ctx, &struct{ Project *model.ProjectInput }{&updateProjectInput})
 	assert.NotNil(suite.T(), err)
 	assert.Nil(suite.T(), updatedProjectResolver)
 }
@@ -895,7 +909,7 @@ func (suite *ProjectTestSuite) TestBookmarkProjectFailureNoAuth() {
 func (suite *ProjectTestSuite) TestBookmarkProjectFailureBadProjectID() {
 	projectID := test.InvalidUUID
 
-	var ctx context.Context
+	ctx := test.BuildAuthContext("ba16258e-2b27-43c4-82c1-228279049529", "test@example.com", []string{})
 	_, err := suite.Resolver.BookmarkProject(ctx, &struct{ ID graphql.ID }{graphql.ID(projectID)})
 	assert.NotNil(suite.T(), err)
 }
