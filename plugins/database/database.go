@@ -74,21 +74,25 @@ func (x *Database) Process(e transistor.Event) error {
 	instanceEndpoint, err := e.GetArtifact("SHARED_DATABASE_ENDPOINT")
 	if err != nil {
 		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
 	instanceUsername, err := e.GetArtifact("SHARED_DATABASE_ADMIN_USERNAME")
 	if err != nil {
 		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
 	instancePassword, err := e.GetArtifact("SHARED_DATABASE_ADMIN_PASSWORD")
 	if err != nil {
 		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
-	instancePort, err := e.GetArtifact("SHARED_DATABASE_ADMIN_PORT")
+	instancePort, err := e.GetArtifact("SHARED_DATABASE_PORT")
 	if err != nil {
 		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
 	psql := Postgres{
@@ -126,11 +130,13 @@ func (x *Database) Process(e transistor.Event) error {
 }
 
 func genDBName(pe *plugins.ProjectExtension) (*string, error) {
-	return nil, nil
+	dbName := "db"
+	return &dbName, nil
 }
 
 func genDBUser(pe *plugins.ProjectExtension) (*string, error) {
-	return nil, nil
+	user := "user"
+	return &user, nil
 }
 
 // DBInfo for the databases within the instance itself
@@ -157,7 +163,12 @@ type Postgres struct {
 
 // CreateDatabase
 func (p *Postgres) CreateDatabase(dbName string, user string) (*DBInfo, error) {
-	return nil, nil
+	return &DBInfo{
+		Endpoint: "",
+		Username: "",
+		Password: "",
+		DBName:   "",
+	}, nil
 }
 
 // DeleteDatabase
