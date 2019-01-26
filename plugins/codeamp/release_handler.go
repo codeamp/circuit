@@ -32,7 +32,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.InfoWithFields("project extensions not found", log.Fields{
-					"id": releaseExtension.ProjectExtensionID,
+					"id":                   releaseExtension.ProjectExtensionID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return fmt.Errorf("project extension %s not found", releaseExtension.ProjectExtensionID)
@@ -41,7 +41,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.InfoWithFields("extension not found", log.Fields{
-					"id": projectExtension.Model.ID,
+					"id":                   projectExtension.Model.ID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
@@ -66,9 +66,11 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 						releaseExtension.SecretsSignature, releaseExtension.FeatureHash,
 						[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
 					if err != nil {
+						log.Error(err.Error())
+					} else {
 						eventAction = transistor.GetAction("status")
 						eventState = lastReleaseExtension.State
-						eventStateMessage = lastReleaseExtension.StateMessage
+						eventStateMessage = fmt.Sprintf("Using cache from previous release: %s", lastReleaseExtension.StateMessage)
 
 						err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
 						if err != nil {
@@ -109,7 +111,6 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 
 				releaseExtension.Started = time.Now()
 				x.DB.Save(&releaseExtension)
-
 				x.Events <- ev
 			}
 		}

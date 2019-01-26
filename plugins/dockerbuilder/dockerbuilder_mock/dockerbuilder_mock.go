@@ -1,4 +1,4 @@
-package dockerbuilder_test
+package dockerbuilder_mock
 
 import (
 	"github.com/codeamp/circuit/plugins/dockerbuilder"

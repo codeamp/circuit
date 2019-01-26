@@ -2,15 +2,22 @@ package graphql_resolver_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	"github.com/codeamp/circuit/plugins/dockerbuilder"
+	"github.com/codeamp/circuit/plugins/dockerbuilder/dockerbuilder_mock"
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 
+	"github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -20,19 +27,67 @@ import (
 
 type ReleaseTestSuite struct {
 	suite.Suite
-	Resolver *graphql_resolver.Resolver
-	helper   Helper
+	Resolver   *graphql_resolver.Resolver
+	helper     Helper
+	transistor *transistor.Transistor
 }
+
+var viperConfig = []byte(`
+redis:
+  username:
+  password:
+  server: "redis:6379"
+  database: "0"
+  pool: "30"
+  process: "1"
+plugins:
+  codeamp:
+    workers: 1
+    oidc_uri: http://0.0.0.0:5556/dex
+    oidc_client_id: example-app
+    postgres:
+      host: "postgres"
+      port: "5432"
+      user: "postgres"
+      dbname: "codeamp"
+      sslmode: "disable"
+      password: ""
+    service_address: ":3012"
+  dockerbuilder:
+    workers: 1
+    workdir: "/tmp/dockerbuilder"  
+`)
 
 func (suite *ReleaseTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Extension{},
+		&model.SecretValue{},
+		&model.Release{},
+		&model.User{},
+		&model.ServiceDeploymentStrategy{},
+		&model.ServiceHealthProbe{},
+		&model.ServicePort{},
+		&model.ServiceHealthProbeHttpHeader{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	suite.transistor, _ = test.SetupPluginTest(viperConfig)
+	transistor.RegisterPlugin("dockerbuilder", func() transistor.Plugin {
+		return &dockerbuilder.DockerBuilder{
+			Socket:   "unix:///var/run/docker.sock",
+			Dockerer: dockerbuilder_mock.MockedDocker{},
+		}
+	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
+	transistor.RegisterPlugin("codeamp", func() transistor.Plugin {
+		return &codeamp.CodeAmp{
+			Events: suite.transistor.Events,
+		}
+	}, plugins.ReleaseExtension{}, plugins.Release{})
+	go suite.transistor.Run()
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestRelease")
@@ -203,7 +258,166 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 }
 
+func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_FullFlow() {
+	log.Info("TestCreateReleaseSuccess_FullFlow")
+
+	// REQUIRED INPUTS INITIALIZATION
+
+	// Environment
+	environmentResolver := ts.helper.CreateEnvironment(ts.T())
+	envID := string(environmentResolver.ID())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), environmentResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Secrets for dockerbuilder config
+	dockerUser, err := ts.helper.CreateSecretWithInput(&model.SecretInput{
+		Key:           "USER",
+		Value:         "test",
+		Scope:         "extension",
+		EnvironmentID: envID,
+		IsSecret:      false,
+		Type:          "env",
+	})
+	assert.Nil(ts.T(), err)
+
+	dockerOrg, err := ts.helper.CreateSecretWithInput(&model.SecretInput{
+		Key:           "PASSWORD",
+		Value:         "test",
+		Scope:         "extension",
+		EnvironmentID: envID,
+		IsSecret:      false,
+		Type:          "env",
+	})
+	assert.Nil(ts.T(), err)
+
+	dockerPassword, err := ts.helper.CreateSecretWithInput(&model.SecretInput{
+		Key:           "EMAIL",
+		Value:         "test@checkr.com",
+		Scope:         "extension",
+		EnvironmentID: envID,
+		IsSecret:      false,
+		Type:          "env",
+	})
+	assert.Nil(ts.T(), err)
+
+	dockerEmail, err := ts.helper.CreateSecretWithInput(&model.SecretInput{
+		Key:           "HOST",
+		Value:         "0.0.0.0:5000",
+		Scope:         "extension",
+		EnvironmentID: envID,
+		IsSecret:      false,
+		Type:          "env",
+	})
+	assert.Nil(ts.T(), err)
+
+	dockerHost, err := ts.helper.CreateSecretWithInput(&model.SecretInput{
+		Key:           "ORG",
+		Value:         "testorg",
+		Scope:         "extension",
+		EnvironmentID: envID,
+		IsSecret:      false,
+		Type:          "env",
+	})
+	assert.Nil(ts.T(), err)
+
+	// Extension - dockerbuilder
+	config := postgres.Jsonb{[]byte(fmt.Sprintf(`[
+		{"key": "USER", "value": "%s", "allowOverride": false}, 
+		{"key": "ORG", "value": "%s", "allowOverride": false}, 
+		{"key": "PASSWORD", "value": "%s", "allowOverride": false}, 
+		{"key": "EMAIL", "value": "%s", "allowOverride": false}, 
+		{"key": "HOST", "value": "%s", "allowOverride": false}
+	]`, string(dockerUser.ID()), string(dockerOrg.ID()), string(dockerPassword.ID()), string(dockerEmail.ID()), string(dockerHost.ID())))}
+
+	extensionResolver := ts.helper.CreateExtensionWithInput(ts.T(), &model.ExtensionInput{
+		Name:          "dockerbuilder",
+		Key:           "dockerbuilder",
+		Component:     "",
+		EnvironmentID: envID,
+		Cacheable:     true,
+		Config:        model.JSON{config.RawMessage},
+		Type:          "workflow",
+	})
+
+	// ProjectExtensions
+	projectExtensionResolver, err := ts.helper.CreateProjectExtensionWithConfig(ts.T(), extensionResolver, projectResolver, &[]model.ExtConfig{}, nil)
+	assert.Nil(ts.T(), err)
+
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// Feature
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+
+	// Service
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateService(ts.T(), projectResolver, nil, nil, nil, nil)
+
+	featureID := string(featureResolver.ID())
+	projectID := string(projectResolver.ID())
+	releaseInput := &model.ReleaseInput{
+		HeadFeatureID: featureID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		ForceRebuild:  false,
+	}
+	releaseResolver := ts.helper.CreateReleaseWithInput(ts.T(), projectResolver, releaseInput)
+
+	pluginServices := []plugins.Service{}
+	pluginSecrets := []plugins.Secret{}
+
+	releaseEvent := plugins.Release{
+		IsRollback:  false,
+		ID:          string(releaseResolver.ID()),
+		Environment: environmentResolver.Key(),
+		HeadFeature: plugins.Feature{
+			ID:         string(featureResolver.ID()),
+			Hash:       featureResolver.Hash(),
+			ParentHash: featureResolver.ParentHash(),
+			User:       featureResolver.User(),
+			Message:    featureResolver.Message(),
+			Created:    featureResolver.Created().Time,
+		},
+		TailFeature: plugins.Feature{
+			ID:         string(featureResolver.ID()),
+			Hash:       featureResolver.Hash(),
+			ParentHash: featureResolver.ParentHash(),
+			User:       featureResolver.User(),
+			Message:    featureResolver.Message(),
+			Created:    featureResolver.Created().Time,
+		},
+		User: releaseResolver.User().Email(),
+		Project: plugins.Project{
+			ID:         string(projectResolver.ID()),
+			Slug:       projectResolver.Slug(),
+			Repository: projectResolver.Repository(),
+		},
+		Git: plugins.Git{
+			Url:           projectResolver.GitUrl(),
+			Branch:        "master",
+			RsaPrivateKey: projectResolver.RsaPrivateKey(),
+		},
+		Secrets:  pluginSecrets,
+		Services: pluginServices,
+	}
+
+	ts.transistor.Events <- transistor.NewEvent("release", "create", releaseEvent)
+
+	// e, err := ts.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("status"), 60)
+	// if err != nil {
+	// 	assert.FailNow(ts.T(), err.Error())
+	// }
+	// assert.Equal(ts.T(), transistor.GetAction("status"), e.Action)
+	// assert.Equal(ts.T(), transistor.GetState("running"), e.State)
+}
+
 func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
+	spew.Dump("TestCreateReleaseFailureDuplicateRelease")
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -1159,6 +1373,8 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 }
 
 func (ts *ReleaseTestSuite) TearDownTest() {
+	ts.transistor.Stop()
+	time.Sleep(1 * time.Second)
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
 }

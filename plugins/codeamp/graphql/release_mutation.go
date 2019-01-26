@@ -513,7 +513,7 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 		var projectExtension model.ProjectExtension
 		if r.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.WarnWithFields("Associated project extension not found", log.Fields{
-				"id": args.ID,
+				"id":                   args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 			})
@@ -525,7 +525,7 @@ func (r *ReleaseResolverMutation) StopRelease(ctx context.Context, args *struct{
 		var extension model.Extension
 		if r.DB.Where("id = ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.WarnWithFields("Associated extension not found", log.Fields{
-				"id": args.ID,
+				"id":                   args.ID,
 				"release_extension_id": releaseExtension.ID,
 				"project_extension_id": releaseExtension.ProjectExtensionID,
 				"extension_id":         projectExtension.ExtensionID,
