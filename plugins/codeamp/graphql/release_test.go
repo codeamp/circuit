@@ -49,6 +49,16 @@ plugins:
     service_address: ":3011"
 `)
 
+func (suite *ReleaseTestSuite) SetupSuite() {
+	suite.transistor, _ = test.SetupPluginTest(viperConfig)
+	transistor.RegisterPlugin("codeamp", func() transistor.Plugin {
+		return &codeamp.CodeAmp{
+			Events: suite.transistor.TestEvents,
+		}
+	}, plugins.ReleaseExtension{}, plugins.Release{})
+	go suite.transistor.Run()
+}
+
 func (suite *ReleaseTestSuite) SetupTest() {
 	migrators := []interface{}{
 		&model.Extension{},
@@ -65,14 +75,6 @@ func (suite *ReleaseTestSuite) SetupTest() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	suite.transistor, _ = test.SetupPluginTest(viperConfig)
-	transistor.RegisterPlugin("codeamp", func() transistor.Plugin {
-		return &codeamp.CodeAmp{
-			Events: suite.transistor.TestEvents,
-		}
-	}, plugins.ReleaseExtension{}, plugins.Release{})
-	go suite.transistor.Run()
 
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestRelease")
@@ -1340,10 +1342,12 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 }
 
 func (ts *ReleaseTestSuite) TearDownTest() {
-	ts.transistor.Stop()
-	time.Sleep(1 * time.Second)
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
+}
+
+func (ts *ReleaseTestSuite) TearDownSuite() {
+	ts.transistor.Stop()
 }
 
 func TestSuiteReleaseResolver(t *testing.T) {
