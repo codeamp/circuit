@@ -47,7 +47,7 @@ plugins:
       dbname: "codeamp"
       sslmode: "disable"
       password: ""
-    service_address: ":3012"
+    service_address: ":3011"
 `)
 
 func (suite *ReleaseTestSuite) SetupTest() {
