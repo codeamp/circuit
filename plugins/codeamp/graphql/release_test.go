@@ -245,7 +245,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccessNoTailFeature() {
 	ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 }
 
-func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_SecondReleaseUsesCachedReleaseExtension() {
+func (ts *ReleaseTestSuite) TestCreateRelease_CacheableUsed() {
 	log.Info("TestCreateReleaseSuccess_SecondReleaseUsesCachedReleaseExtension")
 
 	// pre-requisites for a release with one release extension
@@ -362,7 +362,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_SecondReleaseUsesCachedRele
 		Services:    []plugins.Service{},
 		Secrets:     []plugins.Secret{},
 		Environment: envResolver.Key(),
-		IsRollback:  false,
+		IsRollback:  releaseThatUsesCacheable.IsRollback,
 	}
 
 	// send release:create event with payload
@@ -386,7 +386,540 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_SecondReleaseUsesCachedRele
 	assert.Equal(ts.T(), "val1", cachedArtifact.String())
 }
 
-func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_CacheableIsTurnedOff() {
+func (ts *ReleaseTestSuite) TestCreateRelease_CacheableNotUsed_DifferentServicesSignature() {
+	// pre-requisites for a release with one release extension
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	extensionResolver := ts.helper.CreateExtension(ts.T(), envResolver)
+	extension := extensionResolver.DBExtensionResolver.Extension
+	extension.Cacheable = true
+	extension.Key = "dockerbuilder"
+
+	ts.Resolver.DB.Save(&extension)
+
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	userResolver := ts.helper.CreateUser(ts.T())
+
+	// manually create release object and corresponding release extension
+	// since we don't want to trigger events from the CreateRelease mutation
+	release := model.Release{
+		State:             transistor.GetState("complete"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{},
+		Secrets:           postgres.Jsonb{},
+		ProjectExtensions: postgres.Jsonb{},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		Finished:          time.Now(),
+		ForceRebuild:      false,
+		IsRollback:        false,
+	}
+
+	ts.Resolver.DB.Save(&release)
+
+	releaseExtension := model.ReleaseExtension{
+		ReleaseID:          release.Model.ID,
+		FeatureHash:        "featurehash",
+		ServicesSignature:  "signature",
+		SecretsSignature:   "signature",
+		State:              transistor.GetState("complete"),
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts: postgres.Jsonb{[]byte(`[{
+			"key": "key1",
+			"value": "val1",
+			"secret": false,
+			"allowOverride": false
+		}]`)},
+		Started: time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtension)
+
+	releaseThatUsesCacheable := model.Release{
+		State:             transistor.GetState("waiting"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{[]byte(`[]`)},
+		Secrets:           postgres.Jsonb{[]byte(`[]`)},
+		ProjectExtensions: postgres.Jsonb{[]byte(`[]`)},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		ForceRebuild:      false,
+		IsRollback:        false,
+	}
+
+	ts.Resolver.DB.Save(&releaseThatUsesCacheable)
+
+	releaseExtensionThatUsesCacheable := model.ReleaseExtension{
+		ReleaseID:   releaseThatUsesCacheable.Model.ID,
+		FeatureHash: "featurehash",
+		// different services signature so cached release extension should not be used
+		ServicesSignature:  "differentsignature",
+		SecretsSignature:   "signature",
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		State:              transistor.GetState("waiting"),
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts:          postgres.Jsonb{[]byte(`[]`)},
+		Started:            time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtensionThatUsesCacheable)
+
+	eventPayload := plugins.Release{
+		ID:      releaseThatUsesCacheable.Model.ID.String(),
+		Project: plugins.Project{},
+		Git:     plugins.Git{},
+		HeadFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		User: userResolver.DBUserResolver.Email,
+		TailFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		Services:    []plugins.Service{},
+		Secrets:     []plugins.Secret{},
+		Environment: envResolver.Key(),
+		IsRollback:  releaseThatUsesCacheable.IsRollback,
+	}
+
+	// send release:create event with payload
+	ev := transistor.NewEvent("release", "create", eventPayload)
+
+	ts.transistor.Events <- ev
+
+	// get the dockerbuilder:status event in TestEvents and confirm the State is complete
+	e, err := ts.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("create"), 60)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), transistor.GetState("waiting"), e.State)
+}
+
+func (ts *ReleaseTestSuite) TestCreateRelease_CacheableNotUsed_DifferentSecretsSignature() {
+	// pre-requisites for a release with one release extension
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	extensionResolver := ts.helper.CreateExtension(ts.T(), envResolver)
+	extension := extensionResolver.DBExtensionResolver.Extension
+	extension.Cacheable = true
+	extension.Key = "dockerbuilder"
+
+	ts.Resolver.DB.Save(&extension)
+
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	userResolver := ts.helper.CreateUser(ts.T())
+
+	// manually create release object and corresponding release extension
+	// since we don't want to trigger events from the CreateRelease mutation
+	release := model.Release{
+		State:             transistor.GetState("complete"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{},
+		Secrets:           postgres.Jsonb{},
+		ProjectExtensions: postgres.Jsonb{},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		Finished:          time.Now(),
+		ForceRebuild:      false,
+		IsRollback:        false,
+	}
+
+	ts.Resolver.DB.Save(&release)
+
+	releaseExtension := model.ReleaseExtension{
+		ReleaseID:          release.Model.ID,
+		FeatureHash:        "featurehash",
+		ServicesSignature:  "signature",
+		SecretsSignature:   "signature",
+		State:              transistor.GetState("complete"),
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts: postgres.Jsonb{[]byte(`[{
+			"key": "key1",
+			"value": "val1",
+			"secret": false,
+			"allowOverride": false
+		}]`)},
+		Started: time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtension)
+
+	releaseThatUsesCacheable := model.Release{
+		State:             transistor.GetState("waiting"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{[]byte(`[]`)},
+		Secrets:           postgres.Jsonb{[]byte(`[]`)},
+		ProjectExtensions: postgres.Jsonb{[]byte(`[]`)},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		ForceRebuild:      false,
+		IsRollback:        false,
+	}
+
+	ts.Resolver.DB.Save(&releaseThatUsesCacheable)
+
+	releaseExtensionThatUsesCacheable := model.ReleaseExtension{
+		ReleaseID:   releaseThatUsesCacheable.Model.ID,
+		FeatureHash: "featurehash",
+		// different services signature so cached release extension should not be used
+		ServicesSignature:  "signature",
+		SecretsSignature:   "differentsignature",
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		State:              transistor.GetState("waiting"),
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts:          postgres.Jsonb{[]byte(`[]`)},
+		Started:            time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtensionThatUsesCacheable)
+
+	eventPayload := plugins.Release{
+		ID:      releaseThatUsesCacheable.Model.ID.String(),
+		Project: plugins.Project{},
+		Git:     plugins.Git{},
+		HeadFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		User: userResolver.DBUserResolver.Email,
+		TailFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		Services:    []plugins.Service{},
+		Secrets:     []plugins.Secret{},
+		Environment: envResolver.Key(),
+		IsRollback:  releaseThatUsesCacheable.IsRollback,
+	}
+
+	// send release:create event with payload
+	ev := transistor.NewEvent("release", "create", eventPayload)
+
+	ts.transistor.Events <- ev
+
+	// get the dockerbuilder:status event in TestEvents and confirm the State is complete
+	e, err := ts.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("create"), 60)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), transistor.GetState("waiting"), e.State)
+}
+
+func (ts *ReleaseTestSuite) TestCreateRelease_CacheableNotUsed_DifferentFeatureHash() {
+	// pre-requisites for a release with one release extension
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	extensionResolver := ts.helper.CreateExtension(ts.T(), envResolver)
+	extension := extensionResolver.DBExtensionResolver.Extension
+	extension.Cacheable = true
+	extension.Key = "dockerbuilder"
+
+	ts.Resolver.DB.Save(&extension)
+
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	userResolver := ts.helper.CreateUser(ts.T())
+
+	// manually create release object and corresponding release extension
+	// since we don't want to trigger events from the CreateRelease mutation
+	release := model.Release{
+		State:             transistor.GetState("complete"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{},
+		Secrets:           postgres.Jsonb{},
+		ProjectExtensions: postgres.Jsonb{},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		Finished:          time.Now(),
+		ForceRebuild:      false,
+		IsRollback:        false,
+	}
+
+	ts.Resolver.DB.Save(&release)
+
+	releaseExtension := model.ReleaseExtension{
+		ReleaseID:          release.Model.ID,
+		FeatureHash:        "featurehash",
+		ServicesSignature:  "signature",
+		SecretsSignature:   "signature",
+		State:              transistor.GetState("complete"),
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts: postgres.Jsonb{[]byte(`[{
+			"key": "key1",
+			"value": "val1",
+			"secret": false,
+			"allowOverride": false
+		}]`)},
+		Started: time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtension)
+
+	releaseThatUsesCacheable := model.Release{
+		State:             transistor.GetState("waiting"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{[]byte(`[]`)},
+		Secrets:           postgres.Jsonb{[]byte(`[]`)},
+		ProjectExtensions: postgres.Jsonb{[]byte(`[]`)},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		ForceRebuild:      false,
+		IsRollback:        false,
+	}
+
+	ts.Resolver.DB.Save(&releaseThatUsesCacheable)
+
+	releaseExtensionThatUsesCacheable := model.ReleaseExtension{
+		ReleaseID:   releaseThatUsesCacheable.Model.ID,
+		FeatureHash: "differentfeaturehash",
+		// different services signature so cached release extension should not be used
+		ServicesSignature:  "signature",
+		SecretsSignature:   "signature",
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		State:              transistor.GetState("waiting"),
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts:          postgres.Jsonb{[]byte(`[]`)},
+		Started:            time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtensionThatUsesCacheable)
+
+	eventPayload := plugins.Release{
+		ID:      releaseThatUsesCacheable.Model.ID.String(),
+		Project: plugins.Project{},
+		Git:     plugins.Git{},
+		HeadFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		User: userResolver.DBUserResolver.Email,
+		TailFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		Services:    []plugins.Service{},
+		Secrets:     []plugins.Secret{},
+		Environment: envResolver.Key(),
+		IsRollback:  releaseThatUsesCacheable.IsRollback,
+	}
+
+	// send release:create event with payload
+	ev := transistor.NewEvent("release", "create", eventPayload)
+
+	ts.transistor.Events <- ev
+
+	// get the dockerbuilder:status event in TestEvents and confirm the State is complete
+	e, err := ts.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("create"), 60)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), transistor.GetState("waiting"), e.State)
+}
+
+func (ts *ReleaseTestSuite) TestCreateRelease_CacheableNotUsed_ForceRebuildIsTrue() {
+	// pre-requisites for a release with one release extension
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	extensionResolver := ts.helper.CreateExtension(ts.T(), envResolver)
+	extension := extensionResolver.DBExtensionResolver.Extension
+	extension.Cacheable = true
+	extension.Key = "dockerbuilder"
+
+	ts.Resolver.DB.Save(&extension)
+
+	projectExtensionResolver := ts.helper.CreateProjectExtension(ts.T(), extensionResolver, projectResolver)
+	featureResolver := ts.helper.CreateFeature(ts.T(), projectResolver)
+	userResolver := ts.helper.CreateUser(ts.T())
+
+	// manually create release object and corresponding release extension
+	// since we don't want to trigger events from the CreateRelease mutation
+	release := model.Release{
+		State:             transistor.GetState("complete"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{},
+		Secrets:           postgres.Jsonb{},
+		ProjectExtensions: postgres.Jsonb{},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		Finished:          time.Now(),
+		ForceRebuild:      false,
+		IsRollback:        false,
+	}
+
+	ts.Resolver.DB.Save(&release)
+
+	releaseExtension := model.ReleaseExtension{
+		ReleaseID:          release.Model.ID,
+		FeatureHash:        "featurehash",
+		ServicesSignature:  "signature",
+		SecretsSignature:   "signature",
+		State:              transistor.GetState("complete"),
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts: postgres.Jsonb{[]byte(`[{
+			"key": "key1",
+			"value": "val1",
+			"secret": false,
+			"allowOverride": false
+		}]`)},
+		Started: time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtension)
+
+	releaseThatUsesCacheable := model.Release{
+		State:             transistor.GetState("waiting"),
+		StateMessage:      "",
+		ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID,
+		UserID:            userResolver.DBUserResolver.User.Model.ID,
+		HeadFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		TailFeatureID:     featureResolver.DBFeatureResolver.Feature.Model.ID,
+		Services:          postgres.Jsonb{[]byte(`[]`)},
+		Secrets:           postgres.Jsonb{[]byte(`[]`)},
+		ProjectExtensions: postgres.Jsonb{[]byte(`[]`)},
+		EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		// ForceRebuild is true, so cacheable should not be used
+		ForceRebuild: true,
+		IsRollback:   false,
+	}
+
+	ts.Resolver.DB.Save(&releaseThatUsesCacheable)
+
+	releaseExtensionThatUsesCacheable := model.ReleaseExtension{
+		ReleaseID:   releaseThatUsesCacheable.Model.ID,
+		FeatureHash: "featurehash",
+		// different services signature so cached release extension should not be used
+		ServicesSignature:  "signature",
+		SecretsSignature:   "signature",
+		ProjectExtensionID: projectExtensionResolver.DBProjectExtensionResolver.Model.ID,
+		State:              transistor.GetState("waiting"),
+		StateMessage:       "",
+		Type:               plugins.GetType("workflow"),
+		Artifacts:          postgres.Jsonb{[]byte(`[]`)},
+		Started:            time.Now(),
+	}
+
+	ts.Resolver.DB.Save(&releaseExtensionThatUsesCacheable)
+
+	eventPayload := plugins.Release{
+		ID:      releaseThatUsesCacheable.Model.ID.String(),
+		Project: plugins.Project{},
+		Git:     plugins.Git{},
+		HeadFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		User: userResolver.DBUserResolver.Email,
+		TailFeature: plugins.Feature{
+			ID:         featureResolver.DBFeatureResolver.Feature.Model.ID.String(),
+			Hash:       featureResolver.DBFeatureResolver.Feature.Hash,
+			ParentHash: featureResolver.DBFeatureResolver.Feature.ParentHash,
+			User:       userResolver.DBUserResolver.Email,
+			Message:    featureResolver.DBFeatureResolver.Feature.Message,
+			Created:    releaseThatUsesCacheable.CreatedAt,
+		},
+		Services:    []plugins.Service{},
+		Secrets:     []plugins.Secret{},
+		Environment: envResolver.Key(),
+		IsRollback:  releaseThatUsesCacheable.IsRollback,
+	}
+
+	// send release:create event with payload
+	ev := transistor.NewEvent("release", "create", eventPayload)
+
+	ts.transistor.Events <- ev
+
+	// get the dockerbuilder:status event in TestEvents and confirm the State is complete
+	e, err := ts.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("create"), 60)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), transistor.GetState("waiting"), e.State)
+}
+
+func (ts *ReleaseTestSuite) TestCreateRelease_CacheableNotUsed_IsTurnedOff() {
 	// pre-requisites for a release with one release extension
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
@@ -502,7 +1035,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_CacheableIsTurnedOff() {
 		Services:    []plugins.Service{},
 		Secrets:     []plugins.Secret{},
 		Environment: envResolver.Key(),
-		IsRollback:  false,
+		IsRollback:  releaseThatUsesCacheable.IsRollback,
 	}
 
 	// send release:create event with payload
