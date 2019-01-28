@@ -33,7 +33,7 @@ var viperConfig = []byte(`
 redis:
   username:
   password:
-  server: "0.0.0.0:6379"
+  server: "redis:6379"
   database: "0"
   pool: "30"
   process: "1"
@@ -41,7 +41,7 @@ plugins:
   codeamp:
     workers: 1
     postgres:
-      host: "0.0.0.0"
+      host: "postgres"
       port: "5432"
       user: "postgres"
       dbname: "codeamp"
@@ -370,9 +370,7 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_SecondReleaseUsesCachedRele
 	// send release:create event with payload
 	ev := transistor.NewEvent("release", "create", eventPayload)
 
-	spew.Dump("sending event")
 	ts.transistor.Events <- ev
-	spew.Dump("sent event")
 
 	// get the dockerbuilder:status event in TestEvents and confirm the State is complete
 	e, err := ts.transistor.GetTestEvent(plugins.GetEventName("release:dockerbuilder"), transistor.GetAction("status"), 60)
