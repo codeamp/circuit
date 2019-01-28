@@ -111,6 +111,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 
 				releaseExtension.Started = time.Now()
 				x.DB.Save(&releaseExtension)
+
 				x.Events <- ev
 			}
 		}

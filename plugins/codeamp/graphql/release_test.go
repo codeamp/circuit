@@ -12,7 +12,6 @@ import (
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm/dialects/postgres"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -66,9 +65,6 @@ func (suite *ReleaseTestSuite) SetupTest() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	db.Delete(&model.Environment{})
-	db.Delete(&model.Project{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	transistor.RegisterPlugin("codeamp", func() transistor.Plugin {
@@ -389,7 +385,6 @@ func (ts *ReleaseTestSuite) TestCreateReleaseSuccess_SecondReleaseUsesCachedRele
 }
 
 func (ts *ReleaseTestSuite) TestCreateReleaseFailureDuplicateRelease() {
-	spew.Dump("TestCreateReleaseFailureDuplicateRelease")
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
