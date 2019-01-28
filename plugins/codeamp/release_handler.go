@@ -77,15 +77,6 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 							log.Error(err.Error())
 							return nil
 						}
-						eventAction = transistor.GetAction("status")
-						eventState = lastReleaseExtension.State
-						eventStateMessage = lastReleaseExtension.StateMessage
-
-						err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-						if err != nil {
-							log.Error(err.Error())
-							return nil
-						}
 
 						needsExtract = false
 					}
