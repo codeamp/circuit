@@ -139,7 +139,7 @@ func (r *SecretResolverMutation) DeleteSecret(ctx context.Context, args *struct{
 }
 
 func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) ([]*SecretResolver, error) {
-	importedSecrets := []model.ImportedSecret{}
+	importedSecrets := []model.YAMLSecret{}
 	createdSecrets := []*SecretResolver{}
 
 	err := yaml.Unmarshal([]byte(args.Secrets.SecretsYAMLString), &importedSecrets)

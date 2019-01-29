@@ -227,7 +227,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success() {
   type: "build"
   isSecret: false
 `
-	secrets := []model.ImportedSecret{}
+	secrets := []model.YAMLSecret{}
 	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
@@ -331,7 +331,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidProjectID() {
   type: "build"
   isSecret: false
 `
-	secrets := []model.ImportedSecret{}
+	secrets := []model.YAMLSecret{}
 	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
@@ -371,7 +371,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidUserID() {
   type: "build"
   isSecret: false
 `
-	secrets := []model.ImportedSecret{}
+	secrets := []model.YAMLSecret{}
 	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
@@ -414,7 +414,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidEnvironmentID() {
   type: "build"
   isSecret: false
 `
-	secrets := []model.ImportedSecret{}
+	secrets := []model.YAMLSecret{}
 	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
@@ -459,7 +459,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
   type: "build"
   isSecret: false
 `
-	secrets := []model.ImportedSecret{}
+	secrets := []model.YAMLSecret{}
 	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
@@ -504,7 +504,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
   type: "build"
   isSecret: false
 `
-	secrets := []model.ImportedSecret{}
+	secrets := []model.YAMLSecret{}
 	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())

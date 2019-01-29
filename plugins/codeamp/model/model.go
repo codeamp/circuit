@@ -217,8 +217,8 @@ type Secret struct {
 	IsSecret bool `json:"isSecret"`
 }
 
-// ImportedSecret
-type ImportedSecret struct {
+// YAMLSecret
+type YAMLSecret struct {
 	Key      string `yaml:"key"`
 	Value    string `yaml:"value"`
 	IsSecret string `yaml:"isSecret"`
