@@ -42,3 +42,10 @@ func (r *SecretResolverQuery) Secret(ctx context.Context, args *struct {
 	r.DB.Where("id = ?", args.ID).First(&resolver.DBSecretResolver.Secret)
 	return &resolver, nil
 }
+
+// ExportSecrets returns a list of all secrets for a given project and environment in a YAML string format
+func (r *SecretResolverQuery) ExportSecrets(ctx context.Context, args *struct{ Params *model.ExportSecretsInput }) (*string, error) {
+	out := ""
+
+	return &out, nil
+}

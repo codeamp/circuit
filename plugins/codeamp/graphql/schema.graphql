@@ -414,6 +414,10 @@ input ImportSecretsInput {
   secretsYAMLString: String!
   projectID: String!
   userID: String!
+
+# Environment variable export input
+input ExportSecretsInput {
+  projectID: String!
   environmentID: String!
 }
 
