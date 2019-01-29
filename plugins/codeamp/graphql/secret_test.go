@@ -400,7 +400,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidUserID() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidEnvironmentID() {
-	log.Info("TestSecretsImport_Fail_InvalidEnvironmentID")
+	ts.T().Log("TestSecretsImport_Fail_InvalidEnvironmentID")
 	// provide inputs
 
 	// YAML string of secrets
@@ -445,7 +445,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidEnvironmentID() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
-	log.Info("TestSecretsImport_Fail_InvalidSecretsType")
+	ts.T().Log("TestSecretsImport_Fail_InvalidSecretsType")
 	// provide inputs
 
 	// YAML string of secrets with invalid secrets type
@@ -490,7 +490,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
-	log.Info("TestSecretsImport_Fail_InvalidSecretsType")
+	ts.T().Log("TestSecretsImport_Fail_InvalidSecretsType")
 	// provide inputs
 
 	// YAML string of secrets with invalid secrets type
