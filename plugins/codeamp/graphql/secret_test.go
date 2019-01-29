@@ -685,7 +685,7 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidProjectID() {
 		model.SecretInput{
 			Key:           "KEY_1",
 			Value:         "val_1",
-			Type:          "protected-env",
+			Type:          "env",
 			IsSecret:      true,
 			ProjectID:     &projectID,
 			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
@@ -752,7 +752,7 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidEnvironmentID() {
 		model.SecretInput{
 			Key:           "KEY_1",
 			Value:         "val_1",
-			Type:          "protected-env",
+			Type:          "env",
 			IsSecret:      true,
 			ProjectID:     &projectID,
 			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
