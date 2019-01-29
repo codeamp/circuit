@@ -490,7 +490,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
-	ts.T().Log("TestSecretsImport_Fail_InvalidSecretsType")
+	ts.T().Log("TestSecretsImport_Success_ProtectedSecretCreated")
 	// provide inputs
 
 	// YAML string of secrets with invalid secrets type
