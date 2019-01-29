@@ -184,9 +184,12 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 			return nil, fmt.Errorf("Invalid type for secret key %s", importedSecret.Key)
 		}
 
-		if err := tx.Where("project_id = ? and environment_id = ? and key = ?", args.Secrets.ProjectID, args.Secrets.EnvironmentID, importedSecret.Key).First(&existing).Error; err == nil {
-			// secret exists so mark create as false
-			log.Info("Secret already exists")
+		if err := tx.Where("project_id = ? and environment_id = ? and key = ?", project.Model.ID, env.Model.ID, importedSecret.Key).First(&existing).Error; err == nil {
+			log.InfoWithFields("Secret already exists", log.Fields{
+				"key":        importedSecret.Key,
+				"project_id": project.Model.ID,
+				"secret_id":  env.Model.ID,
+			})
 		} else {
 			if err := tx.Create(&newSecret).Error; err != nil {
 				return nil, err
