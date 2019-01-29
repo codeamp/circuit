@@ -497,7 +497,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	secretsYAMLString := `
 - key: SECRET_KEY
   value: "secret_value"
-  type: "protected-env"
+  type: "env"
   isSecret: false
 - key: SECRET_KEY_2
   value: "secret_value_2"
@@ -649,7 +649,7 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidProjectID() {
 		model.SecretInput{
 			Key:           "KEY_1",
 			Value:         "val_1",
-			Type:          "protected-env",
+			Type:          "env",
 			IsSecret:      true,
 			ProjectID:     &projectID,
 			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
@@ -716,7 +716,7 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidEnvironmentID() {
 		model.SecretInput{
 			Key:           "KEY_1",
 			Value:         "val_1",
-			Type:          "protected-env",
+			Type:          "env",
 			IsSecret:      true,
 			ProjectID:     &projectID,
 			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
