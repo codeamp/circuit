@@ -213,7 +213,7 @@ func (ts *SecretTestSuite) TestSecretScopes() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Success() {
-	log.Info("TestSecretsImport_Success")
+	ts.T().Log("TestSecretsImport_Success")
 	// provide inputs
 
 	// YAML string of secrets
@@ -278,7 +278,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidYAMLFileFormat() {
-	log.Info("TestSecretsImport_Fail_InvalidYAMLFileFormat")
+	ts.T().Log("TestSecretsImport_Fail_InvalidYAMLFileFormat")
 	// provide inputs
 
 	// invalid YAML string of secrets
@@ -317,9 +317,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidYAMLFileFormat() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidProjectID() {
-	log.Info("TestSecretsImport_Fail_InvalidProjectID")
-	log.Info("TestSecretsImport_Fail_InvalidYAMLFileFormat")
-	log.Info("TestSecretsImport_Success")
+	ts.T().Log("TestSecretsImport_Fail_InvalidProjectID")
 	// provide inputs
 
 	// YAML string of secrets
@@ -359,9 +357,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidProjectID() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidUserID() {
-	log.Info("TestSecretsImport_Fail_InvalidUserID")
-	log.Info("TestSecretsImport_Fail_InvalidYAMLFileFormat")
-	log.Info("TestSecretsImport_Success")
+	ts.T().Log("TestSecretsImport_Fail_InvalidUserID")
 	// provide inputs
 
 	// YAML string of secrets
@@ -485,12 +481,70 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
 		Secrets: &model.ImportSecretsInput{
 			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
 			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
-			EnvironmentID:     "invalid-environment-id",
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
 			SecretsYAMLString: secretsYAMLString,
 		},
 	})
 	assert.Nil(ts.T(), secretsResolver)
 	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
+	log.Info("TestSecretsImport_Fail_InvalidSecretsType")
+	// provide inputs
+
+	// YAML string of secrets with invalid secrets type
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "secret_value"
+  type: "protected-env"
+  isSecret: false
+- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	secrets := []model.ImportedSecret{}
+	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// user
+	userResolver := ts.helper.CreateUser(ts.T())
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	// project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call importer function
+	ctx := context.Background()
+	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
+			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 2, len(secretsResolver))
+
+	// check that protected was created
+	protectedSecrets := []model.Secret{}
+	err = ts.Resolver.DB.Where("project_id = ? and environment_id = ? and is_secret = ?",
+		projectResolver.DBProjectResolver.Project.Model.ID.String(), envResolver.DBEnvironmentResolver.Environment.Model.ID.String(), true).Find(&protectedSecrets).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 1, len(protectedSecrets))
 }
 
 func (ts *SecretTestSuite) TearDownTest() {
