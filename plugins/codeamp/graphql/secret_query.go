@@ -44,8 +44,8 @@ func (r *SecretResolverQuery) Secret(ctx context.Context, args *struct {
 }
 
 // ExportSecrets returns a list of all secrets for a given project and environment in a YAML string format
-func (r *SecretResolverQuery) ExportSecrets(ctx context.Context, args *struct{ Params *model.ExportSecretsInput }) (*string, error) {
+func (r *SecretResolverQuery) ExportSecrets(ctx context.Context, args *struct{ Params *model.ExportSecretsInput }) (string, error) {
 	out := ""
 
-	return &out, nil
+	return out, nil
 }

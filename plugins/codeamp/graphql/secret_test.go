@@ -297,16 +297,6 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidYAMLFileFormat() {
 	// env
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	// project
-/*
-
-test cases:
-  - success - valid input
-  - fail - invalid input (3 test cases)
-
-*/
-
-func (ts *SecretTestSuite) TestSecretsExporter_Success() {
-	envResolver := ts.helper.CreateEnvironment(ts.T())
 	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
@@ -555,6 +545,54 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	}
 
 	assert.Equal(ts.T(), 1, len(protectedSecrets))
+}
+
+func (ts *SecretTestSuite) TestSecretsExport_Success() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	projectID := projectResolver.DBProjectResolver.Project.Model.ID.String()
+	environmentID := envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
+
+	secrets := []model.SecretInput{
+		model.SecretInput{
+			Key:           "KEY_1",
+			Value:         "val_1",
+			Type:          "protected-env",
+			IsSecret:      true,
+			ProjectID:     &projectID,
+			EnvironmentID: &environmentID,
+			Scope:         graphql_resolver.GetSecretScope("project"),
+		},
+		model.SecretInput{
+			Key:           "KEY_2",
+			Value:         "val_2",
+			Type:          "env",
+			IsSecret:      true,
+			ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         graphql_resolver.GetSecretScope("project"),
+		},
+		model.SecretInput{
+			Key:           "KEY_3",
+			Value:         "val_3",
+			Type:          "file",
+			IsSecret:      true,
+			ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         plugins.GetSecretScope("project"),
+		},
+	}
+
+	for _, secret := range secrets {
+		ts.Resolver.CreateSecret(ctx, secret)
+	}
+
+	return
 }
 
 func (ts *SecretTestSuite) TearDownTest() {

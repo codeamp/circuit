@@ -76,6 +76,8 @@ type Mutation {
   deleteSecret(secret: SecretInput): Secret
   # Import many environment variables at once
   importSecrets(secrets: ImportSecretsInput): [Secret!]!
+  # Export all environment variables within given projectID and environmentID
+  exportSecrets(params: ExportSecretsInput): String
   # Create extension spec
   createExtension(extension: ExtensionInput): Extension
   # Update extension spec
