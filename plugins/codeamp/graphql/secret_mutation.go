@@ -138,9 +138,9 @@ func (r *SecretResolverMutation) DeleteSecret(ctx context.Context, args *struct{
 	}
 }
 
-func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) (*[]SecretResolver, error) {
+func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) ([]*SecretResolver, error) {
 	importedSecrets := []model.YAMLSecret{}
-	createdSecrets := []SecretResolver{}
+	createdSecrets := []*SecretResolver{}
 
 	err := yaml.Unmarshal([]byte(args.Secrets.SecretsYAMLString), &importedSecrets)
 	if err != nil {
@@ -168,6 +168,7 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 		// check if key already exists in this project, environment
 		existing := model.Secret{}
 		importedSecretType := plugins.GetType(importedSecret.Type)
+
 		newSecret := model.Secret{
 			Key:           importedSecret.Key,
 			Type:          importedSecretType,
