@@ -138,9 +138,15 @@ func (r *SecretResolverMutation) DeleteSecret(ctx context.Context, args *struct{
 	}
 }
 
+<<<<<<< HEAD
 func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) ([]*SecretResolver, error) {
 	importedSecrets := []model.YAMLSecret{}
 	createdSecrets := []*SecretResolver{}
+=======
+func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) (*[]SecretResolver, error) {
+	importedSecrets := []model.ImportedSecret{}
+	createdSecrets := []SecretResolver{}
+>>>>>>> Add secrets importer
 
 	err := yaml.Unmarshal([]byte(args.Secrets.SecretsYAMLString), &importedSecrets)
 	if err != nil {
@@ -173,7 +179,11 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 			Type:          importedSecretType,
 			ProjectID:     project.Model.ID,
 			EnvironmentID: env.Model.ID,
+<<<<<<< HEAD
 			IsSecret:      importedSecret.IsSecret,
+=======
+			IsSecret:      false,
+>>>>>>> Add secrets importer
 		}
 		newSecretValue := model.SecretValue{
 			Value:  importedSecret.Value,
@@ -184,12 +194,18 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 			return nil, fmt.Errorf("Invalid type for secret key %s", importedSecret.Key)
 		}
 
+<<<<<<< HEAD
 		if err := tx.Where("project_id = ? and environment_id = ? and key = ?", project.Model.ID, env.Model.ID, importedSecret.Key).First(&existing).Error; err == nil {
 			log.InfoWithFields("Secret already exists", log.Fields{
 				"key":        importedSecret.Key,
 				"project_id": project.Model.ID,
 				"secret_id":  env.Model.ID,
 			})
+=======
+		if err := tx.Where("project_id = ? and environment_id = ? and key = ?", args.Secrets.ProjectID, args.Secrets.EnvironmentID, importedSecret.Key).First(&existing).Error; err == nil {
+			// secret exists so mark create as false
+			log.Info("Secret already exists")
+>>>>>>> Add secrets importer
 		} else {
 			if err := tx.Create(&newSecret).Error; err != nil {
 				return nil, err
@@ -200,7 +216,11 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 				return nil, err
 			}
 
+<<<<<<< HEAD
 			createdSecrets = append(createdSecrets, &SecretResolver{
+=======
+			createdSecrets = append(createdSecrets, SecretResolver{
+>>>>>>> Add secrets importer
 				DBSecretResolver: &db_resolver.SecretResolver{
 					Secret:      newSecret,
 					SecretValue: newSecretValue,
@@ -216,5 +236,9 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	return createdSecrets, nil
+=======
+	return &createdSecrets, nil
+>>>>>>> Add secrets importer
 }
