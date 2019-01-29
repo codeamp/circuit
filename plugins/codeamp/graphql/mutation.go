@@ -89,6 +89,11 @@ func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environm
 	return mut.DeleteEnvironment(ctx, args)
 }
 
+func (r *Resolver) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) (*[]SecretResolver, error) {
+	mut := SecretResolverMutation{r.DB}
+	return mut.ImportSecrets(ctx, args)
+}
+
 func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
 	mut := SecretResolverMutation{r.DB}
 	return mut.CreateSecret(ctx, args)

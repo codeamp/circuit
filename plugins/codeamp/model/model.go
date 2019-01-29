@@ -217,6 +217,14 @@ type Secret struct {
 	IsSecret bool `json:"isSecret"`
 }
 
+// ImportedSecret
+type ImportedSecret struct {
+	Key      string `yaml:"key"`
+	Value    string `yaml:"value"`
+	IsSecret string `yaml:"isSecret"`
+	Type     string `yaml:"type"`
+}
+
 type SecretValue struct {
 	Model `json:",inline"`
 	// SecretID

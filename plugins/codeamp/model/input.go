@@ -44,6 +44,15 @@ type SecretInput struct {
 	IsSecret bool `json:"isSecret"`
 }
 
+// ImportSecretsInput
+type ImportSecretsInput struct {
+	// Secrets YAML
+	SecretsYAMLString string `json:"secretsYAMLString`
+	ProjectID         string `json:"projectID"`
+	UserID            string `json:"userID"`
+	EnvironmentID     string `json:"environmentID"`
+}
+
 // ProjectExtensionInput
 type ProjectExtensionInput struct {
 	// ID
