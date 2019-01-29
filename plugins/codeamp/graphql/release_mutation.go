@@ -95,7 +95,7 @@ func (r *ReleaseResolverMutation) CreateRelease(ctx context.Context, args *struc
 	*	Dispatch Release event
 	*
 	*******************************************/
-	releaseEvent, _ := r.BuildReleaseEvent(release,	releaseComponents)
+	releaseEvent, _ := r.BuildReleaseEvent(release, releaseComponents)
 	r.Events <- *releaseEvent
 
 	log.Warn("Create RelEase 10")
@@ -114,7 +114,7 @@ func (r *ReleaseResolverMutation) makeUUIDFromString(source string) uuid.UUID {
 	return uuid_res
 }
 
-func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID string,
+func (r *ReleaseResolverMutation) PrepRelease(projectID string, environmentID string,
 	headFeatureID string, releaseID *string) (*ReleaseComponents, error) {
 	/******************************************
 	*
@@ -210,7 +210,11 @@ func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID st
 	// 	// })
 	// 	return nil, errors.New("Found a waiting release with the same properties. Aborting.")
 	// }
-	log.Warn("Mid Prep: ", services[0].Count)
+	if len(services) > 0 {
+		log.Warn("Mid Prep: ", services[0].Count)
+	} else {
+		log.Warn(services)
+	}
 
 	/************************************
 	*
@@ -265,7 +269,11 @@ func (r *ReleaseResolverMutation) PrepRelease(projectID string,	environmentID st
 		}
 	}
 
-	log.Warn("End Prep: ", services[0].Count)
+	if len(services) > 0 {
+		log.Warn("End Prep: ", services[0].Count)
+	} else {
+		log.Warn(services)
+	}
 	return &ReleaseComponents{&project, &environment, services, secrets, projectExtensions, headFeature, tailFeature}, nil
 }
 
@@ -415,13 +423,13 @@ func (r *ReleaseResolverMutation) gatherAndBuildServices(projectID string, envir
 		}
 		livenessProbe.HttpHeaders = livenessHeaders
 		services[i].LivenessProbe = livenessProbe
-		
+
 	}
 
 	return services, nil
 }
 
-func (r *ReleaseResolverMutation) BuildReleaseEvent(release *model.Release,	releaseComponents *ReleaseComponents) (*transistor.Event, error) {
+func (r *ReleaseResolverMutation) BuildReleaseEvent(release *model.Release, releaseComponents *ReleaseComponents) (*transistor.Event, error) {
 	// get the branch set for this environment and project from project settings
 	// var branch string
 	var projectSettings model.ProjectSettings
