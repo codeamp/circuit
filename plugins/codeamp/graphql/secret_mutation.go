@@ -168,7 +168,6 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 		// check if key already exists in this project, environment
 		existing := model.Secret{}
 		importedSecretType := plugins.GetType(importedSecret.Type)
-
 		newSecret := model.Secret{
 			Key:           importedSecret.Key,
 			Type:          importedSecretType,
