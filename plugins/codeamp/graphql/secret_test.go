@@ -297,6 +297,16 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidYAMLFileFormat() {
 	// env
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	// project
+/*
+
+test cases:
+  - success - valid input
+  - fail - invalid input (3 test cases)
+
+*/
+
+func (ts *SecretTestSuite) TestSecretsExporter_Success() {
+	envResolver := ts.helper.CreateEnvironment(ts.T())
 	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
