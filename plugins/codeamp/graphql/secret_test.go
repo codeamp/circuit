@@ -261,7 +261,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success() {
 
 	// check that all new keys in yaml file were created
 	count := 0
-	for _, inputKey := range *secretsResolver {
+	for _, inputKey := range secretsResolver {
 		for _, resolverKey := range secrets {
 			if inputKey.Key() == resolverKey.Key {
 				count += 1

@@ -78,10 +78,14 @@ type Mutation {
   deleteSecret(secret: SecretInput): Secret
   # Import many environment variables at once
 <<<<<<< HEAD
+<<<<<<< HEAD
   importSecrets(secrets: ImportSecretsInput): [Secret!]!
 =======
   importSecrets(secrets: ImportSecretsInput): Secrets
 >>>>>>> Add secrets importer
+=======
+  importSecrets(secrets: ImportSecretsInput): [Secret!]!
+>>>>>>> fix schema issues
   # Create extension spec
   createExtension(extension: ExtensionInput): Extension
   # Update extension spec

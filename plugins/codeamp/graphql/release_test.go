@@ -32,7 +32,7 @@ var viperConfig = []byte(`
 redis:
   username:
   password:
-  server: "redis:6379"
+  server: "0.0.0.0:6379"
   database: "0"
   pool: "30"
   process: "1"
@@ -40,7 +40,7 @@ plugins:
   codeamp:
     workers: 1
     postgres:
-      host: "postgres"
+      host: "0.0.0.0"
       port: "5432"
       user: "postgres"
       dbname: "codeamp"

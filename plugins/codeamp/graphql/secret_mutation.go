@@ -200,7 +200,7 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 				return nil, err
 			}
 
-			createdSecrets = append(createdSecrets, SecretResolver{
+			createdSecrets = append(createdSecrets, &SecretResolver{
 				DBSecretResolver: &db_resolver.SecretResolver{
 					Secret:      newSecret,
 					SecretValue: newSecretValue,
@@ -216,5 +216,5 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 		return nil, err
 	}
 
-	return &createdSecrets, nil
+	return createdSecrets, nil
 }
