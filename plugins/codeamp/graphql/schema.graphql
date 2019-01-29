@@ -75,7 +75,7 @@ type Mutation {
   # Delete environment variable 
   deleteSecret(secret: SecretInput): Secret
   # Import many environment variables at once
-  importSecrets(secrets: ImportSecretsInput): Secrets
+  importSecrets(secrets: ImportSecretsInput): [Secret!]!
   # Create extension spec
   createExtension(extension: ExtensionInput): Extension
   # Update extension spec
