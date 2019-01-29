@@ -221,7 +221,7 @@ type Secret struct {
 type YAMLSecret struct {
 	Key      string `yaml:"key"`
 	Value    string `yaml:"value"`
-	IsSecret string `yaml:"isSecret"`
+	IsSecret bool   `yaml:"isSecret"`
 	Type     string `yaml:"type"`
 }
 

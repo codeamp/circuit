@@ -496,9 +496,9 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	// YAML string of secrets with invalid secrets type
 	secretsYAMLString := `
 - key: SECRET_KEY
-  value: "secret_value"
-  type: "protected-env"
-  isSecret: false
+  value: "protected_secret_value"
+  type: "env"
+  isSecret: true
 - key: SECRET_KEY_2
   value: "secret_value_2"
   type: "build"
