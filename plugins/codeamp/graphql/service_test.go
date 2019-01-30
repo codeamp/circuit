@@ -114,6 +114,56 @@ var validYAMLServicesString = `
   preStopHook: service_name_2_prestophook
 `
 
+var invalidValueInYAMLSpecString = `
+- name: service_name_1
+  command: npm start
+  type: invalid-type-of-service
+  count: 2
+  ports:
+    - protocol: TCP
+      port: 8000
+  deploymentStrategy:
+    type: recreate
+    maxUnavailable: 70
+    maxSurge: 30
+  readinessProbe:
+    type: readinessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  livenessProbe:
+    type: livenessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10    
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  preStopHook: service_name_1
+`
+
 type ServiceTestSuite struct {
 	suite.Suite
 	Resolver        *graphql_resolver.Resolver
@@ -1125,55 +1175,6 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidYAMLFileFormat() {
 }
 
 func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidValueInYAMLSpec() {
-	var invalidValueInYAMLSpecString = `
-- name: service_name_1
-  command: npm start
-  type: invalid-value-type
-  count: 2
-  ports:
-    - protocol: TCP
-      port: 8000
-  deploymentStrategy:
-    type: recreate
-    maxUnavailable: 70
-    maxSurge: 30
-  readinessProbe:
-    type: readinessProbe # should this be omitted since we already specify it one layer up?
-    method: exec
-    command: exec
-    port: 8080
-    scheme: http
-    path: /
-    httpHeaders:
-      - name: foo  
-        value: val
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 10
-    successThreshold: 10
-    failureThreshold: 10
-  livenessProbe:
-    type: livenessProbe # should this be omitted since we already specify it one layer up?
-    method: exec
-    command: exec
-    port: 8080
-    scheme: http
-    path: /
-    httpHeaders:
-      - name: foo  
-        value: val
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 10
-    successThreshold: 10
-    failureThreshold: 10    
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 10
-    successThreshold: 10
-    failureThreshold: 10
-  preStopHook: service_name_1	
-	`
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	ts.helper.CreateServiceSpec(ts.T(), true)
@@ -1184,7 +1185,7 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidValueInYAMLSpec() {
 
 	// validate input yaml string
 	yamlServices := []model.ServiceInput{}
-	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	err = yaml.Unmarshal([]byte(invalidValueInYAMLSpecString), &yamlServices)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
