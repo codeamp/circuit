@@ -1034,7 +1034,7 @@ func (ts *ServiceTestSuite) TestImportServices_Success() {
 		}
 	}
 
-	assert.Equal(ts.T(), count, len(yamlServices))
+	assert.Equal(ts.T(), len(yamlServices), count)
 
 	// check side-effects
 	createdServices := []model.Service{}
@@ -1046,6 +1046,72 @@ func (ts *ServiceTestSuite) TestImportServices_Success() {
 	}
 
 	assert.Equal(ts.T(), len(yamlServices), len(createdServices))
+}
+
+func (ts *ServiceTestSuite) TestImportServices_Success_OnlyImportNewService() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	// create 1st service in yamlServices (this one will be ignored in ImportServices)
+	serviceInput := yamlServices[0]
+	serviceInput.ProjectID = projectResolver.DBProjectResolver.Project.Model.ID.String()
+	serviceInput.EnvironmentID = envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
+	_, err = serviceResolverMutation.CreateService(&struct{ Service *model.ServiceInput }{
+		Service: &serviceInput,
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	timeAfter1stServiceCreated := time.Now()
+
+	serviceResolvers, err := serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+
+	// check outputs
+	count := 0
+	for _, inputService := range yamlServices {
+		for _, createdServiceResolver := range serviceResolvers {
+			if inputService.Name == createdServiceResolver.DBServiceResolver.Service.Name {
+				count += 1
+			}
+		}
+	}
+
+	assert.Equal(ts.T(), len(yamlServices)-1, count)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ? and created_at > ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID, timeAfter1stServiceCreated).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), len(yamlServices)-1, len(createdServices))
 }
 
 func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidProjectID() {

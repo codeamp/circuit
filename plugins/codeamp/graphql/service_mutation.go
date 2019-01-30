@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/constants"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
@@ -286,16 +287,18 @@ func (r *ServiceResolverMutation) ImportServices(args *struct{ Services *model.I
 		service.EnvironmentID = args.Services.EnvironmentID
 
 		service, err := r.createServiceInDB(tx, &service)
-		if err != nil {
+		if err == nil {
+			serviceResolvers = append(serviceResolvers, &ServiceResolver{
+				DBServiceResolver: &db_resolver.ServiceResolver{
+					Service: *service,
+					DB:      r.DB,
+				},
+			})
+			// check if it's just a service already created error. We can
+			// continue creation if so
+		} else if err != nil && err.Error() != constants.ServiceAlreadyExistsErrMsg {
 			return []*ServiceResolver{}, err
 		}
-
-		serviceResolvers = append(serviceResolvers, &ServiceResolver{
-			DBServiceResolver: &db_resolver.ServiceResolver{
-				Service: *service,
-				DB:      r.DB,
-			},
-		})
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -345,7 +348,7 @@ func (r *ServiceResolverMutation) createServiceInDB(tx *gorm.DB, serviceInput *m
 	// Check if service name already exists in environment and project
 	if err := r.DB.Where("environment_id = ? and project_id = ? and name = ?",
 		serviceInput.EnvironmentID, serviceInput.ProjectID, serviceInput.Name).First(&model.Service{}).Error; err == nil {
-		return nil, fmt.Errorf("Service %s already exists in project. Service names are unique per project environment.", serviceInput.Name)
+		return nil, fmt.Errorf(constants.ServiceAlreadyExistsErrMsg)
 	}
 
 	// Check if service type exists
