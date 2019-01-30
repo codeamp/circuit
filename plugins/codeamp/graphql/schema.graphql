@@ -414,6 +414,7 @@ input ImportSecretsInput {
   secretsYAMLString: String!
   projectID: String!
   userID: String!
+  environmentID: String!
 }
 
 # Extension spec input
