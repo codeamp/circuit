@@ -9,7 +9,9 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/davecgh/go-spew/spew"
 	_ "github.com/satori/go.uuid"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -598,8 +600,8 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 		},
 	}
 	serviceInput := &model.ServiceInput{
-		ID:            &serviceID,
-		ProjectID:     string(projectResolver.ID()),
+		ID:        &serviceID,
+		ProjectID: string(projectResolver.ID()),
 		DeploymentStrategy: &model.DeploymentStrategyInput{
 			Type:           plugins.GetType("rollingUpdate"),
 			MaxUnavailable: 30,
@@ -713,8 +715,8 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 	projectID := string(projectResolver.ID())
 
 	serviceInput := &model.ServiceInput{
-		ID:            &serviceID,
-		ProjectID:     projectID,
+		ID:        &serviceID,
+		ProjectID: projectID,
 	}
 	_, err = ts.Resolver.DeleteService(&struct{ Service *model.ServiceInput }{serviceInput})
 	if err != nil {
@@ -847,6 +849,180 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), serviceResolvers)
 	assert.NotEmpty(ts.T(), serviceResolvers, "Service Resolvers was empty")
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Success() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	userResolver := ts.helper.CreateUser(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	spew.Dump(userResolver.DBUserResolver.User.Email, projectResolver.DBProjectResolver.Project.Name)
+
+	yamlServicesString := `
+--- 
+- 
+  command: "npm start"
+  count: 2
+  deploymentStrategy: 
+    maxSurge: 30
+    maxUnavailable: 70
+    type: deploystrategy
+  livenessProbe: 
+    command: exec
+    failureThreshold: 10
+    httpHeaders: 
+      - 
+        name: foo
+        value: val
+    initialDelaySeconds: 10
+    method: exec
+    path: /
+    periodSeconds: 10
+    port: 8080
+    scheme: http
+    successThreshold: 10
+    timeoutSeconds: 10
+    type: livenessProbe
+  name: service_name
+  ports: 
+    - 
+      port: 8000
+      protocol: TCP
+  preStopHook: 
+    command: exec
+    failureThreshold: 10
+    httpHeaders: 
+      - 
+        name: foo
+        value: val
+    initialDelaySeconds: 10
+    method: exec
+    path: /
+    periodSeconds: 10
+    port: 8080
+    scheme: http
+    successThreshold: 10
+    timeoutSeconds: 10
+    type: preStopHook
+  readinessProbe: 
+    command: exec
+    failureThreshold: 10
+    httpHeaders: 
+      - 
+        name: foo
+        value: val
+    initialDelaySeconds: 10
+    method: exec
+    path: /
+    periodSeconds: 10
+    port: 8080
+    scheme: http
+    successThreshold: 10
+    timeoutSeconds: 10
+    type: readinessProbe
+  type: general
+- 
+  command: "python app.py"
+  count: 2
+  deploymentStrategy: 
+    maxSurge: 30
+    maxUnavailable: 70
+    type: deploystrategy
+  livenessProbe: 
+    command: exec
+    failureThreshold: 10
+    httpHeaders: 
+      - 
+        name: foo
+        value: val
+    initialDelaySeconds: 10
+    method: exec
+    path: /
+    periodSeconds: 10
+    port: 8080
+    scheme: http
+    successThreshold: 10
+    timeoutSeconds: 10
+    type: livenessProbe
+  name: service_name
+  ports: 
+    - 
+      port: 8000
+      protocol: TCP
+  preStopHook: 
+    command: exec
+    failureThreshold: 10
+    httpHeaders: 
+      - 
+        name: foo
+        value: val
+    initialDelaySeconds: 10
+    method: exec
+    path: /
+    periodSeconds: 10
+    port: 8080
+    scheme: http
+    successThreshold: 10
+    timeoutSeconds: 10
+    type: preStopHook
+  readinessProbe: 
+    command: exec
+    failureThreshold: 10
+    httpHeaders: 
+      - 
+        name: foo
+        value: val
+    initialDelaySeconds: 10
+    method: exec
+    path: /
+    periodSeconds: 10
+    port: 8080
+    scheme: http
+    successThreshold: 10
+    timeoutSeconds: 10
+    type: readinessProbe
+  type: general
+`
+
+	yamlServices := []model.Service{}
+	err = yaml.Unmarshal([]byte(yamlServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+
+	// check outputs
+
+	// check side-effects
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidProjectID() {
+	return
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidUserID() {
+	return
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidEnvironmentID() {
+	return
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Fail_InvlidYAMLFileFormat() {
+	return
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Fail_ServiceDoesNotExist() {
+	return
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidServiceType() {
+	return
 }
 
 func (ts *ServiceTestSuite) TearDownTest() {
