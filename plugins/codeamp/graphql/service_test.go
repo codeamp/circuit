@@ -992,7 +992,7 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 	assert.NotEmpty(ts.T(), serviceResolvers, "Service Resolvers was empty")
 }
 
-func (ts *ServiceTestSuite) TestServiceImport_Success() {
+func (ts *ServiceTestSuite) TestImportServices_Success() {
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	ts.helper.CreateServiceSpec(ts.T(), true)
@@ -1048,7 +1048,7 @@ func (ts *ServiceTestSuite) TestServiceImport_Success() {
 	assert.Equal(ts.T(), len(yamlServices), len(createdServices))
 }
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidProjectID() {
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidProjectID() {
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	ts.helper.CreateServiceSpec(ts.T(), true)
@@ -1090,7 +1090,7 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidProjectID() {
 	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidEnvironmentID() {
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidEnvironmentID() {
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	ts.helper.CreateServiceSpec(ts.T(), true)
@@ -1132,7 +1132,7 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidEnvironmentID() {
 	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidYAMLFileFormat() {
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidYAMLFileFormat() {
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	ts.helper.CreateServiceSpec(ts.T(), true)
@@ -1174,7 +1174,7 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidYAMLFileFormat() {
 	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidValueInYAMLSpec() {
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidValueInYAMLSpec() {
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	ts.helper.CreateServiceSpec(ts.T(), true)
