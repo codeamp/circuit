@@ -83,13 +83,6 @@ func (r *Resolver) Secrets(ctx context.Context, args *struct {
 	return initializer.Secrets(ctx, args)
 }
 
-func (r *Resolver) ExportSecrets(ctx context.Context, args *struct {
-	Params *model.ExportSecretsInput
-}) (string, error) {
-	initializer := SecretResolverQuery{DB: r.DB}
-	return initializer.ExportSecrets(ctx, args)
-}
-
 func (r *Resolver) Secret(ctx context.Context, args *struct {
 	ID *string
 }) (*SecretResolver, error) {

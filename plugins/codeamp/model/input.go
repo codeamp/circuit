@@ -53,12 +53,6 @@ type ImportSecretsInput struct {
 	EnvironmentID     string `json:"environmentID"`
 }
 
-// ExportSecretsInput
-type ExportSecretsInput struct {
-	ProjectID     string `json:"projectID"`
-	EnvironmentID string `json:"environmentID"`
-}
-
 // ProjectExtensionInput
 type ProjectExtensionInput struct {
 	// ID
