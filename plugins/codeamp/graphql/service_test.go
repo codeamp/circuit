@@ -9,7 +9,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	"github.com/davecgh/go-spew/spew"
 	_ "github.com/satori/go.uuid"
 	yaml "gopkg.in/yaml.v2"
 
@@ -22,6 +21,98 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
+
+var validYAMLServicesString = `
+- name: service_name_1
+  command: npm start
+  type: general
+  count: 2
+  ports:
+    - protocol: TCP
+      port: 8000
+  deploymentStrategy:
+    type: deploystrategy
+    maxUnavailable: 70
+    maxSurge: 30
+  readinessProbe:
+    type: readinessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  livenessProbe:
+    type: livenessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10    
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  preStopHook: service_name_1
+- name: service_name_2
+  command: python app.py
+  type: general
+  count: 2
+  ports:
+    - protocol: TCP
+      port: 8000
+  deploymentStrategy:
+    type: deploystrategy
+    maxUnavailable: 70
+    maxSurge: 30
+  readinessProbe:
+    type: readinessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  livenessProbe:
+    type: livenessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  preStopHook: service_name_2_prestophook
+`
 
 type ServiceTestSuite struct {
 	suite.Suite
@@ -854,151 +945,57 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 func (ts *ServiceTestSuite) TestServiceImport_Success() {
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
-	userResolver := ts.helper.CreateUser(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
 	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	spew.Dump(userResolver.DBUserResolver.User.Email, projectResolver.DBProjectResolver.Project.Name)
-
-	yamlServicesString := `
---- 
-- 
-  command: "npm start"
-  count: 2
-  deploymentStrategy: 
-    maxSurge: 30
-    maxUnavailable: 70
-    type: deploystrategy
-  livenessProbe: 
-    command: exec
-    failureThreshold: 10
-    httpHeaders: 
-      - 
-        name: foo
-        value: val
-    initialDelaySeconds: 10
-    method: exec
-    path: /
-    periodSeconds: 10
-    port: 8080
-    scheme: http
-    successThreshold: 10
-    timeoutSeconds: 10
-    type: livenessProbe
-  name: service_name
-  ports: 
-    - 
-      port: 8000
-      protocol: TCP
-  preStopHook: 
-    command: exec
-    failureThreshold: 10
-    httpHeaders: 
-      - 
-        name: foo
-        value: val
-    initialDelaySeconds: 10
-    method: exec
-    path: /
-    periodSeconds: 10
-    port: 8080
-    scheme: http
-    successThreshold: 10
-    timeoutSeconds: 10
-    type: preStopHook
-  readinessProbe: 
-    command: exec
-    failureThreshold: 10
-    httpHeaders: 
-      - 
-        name: foo
-        value: val
-    initialDelaySeconds: 10
-    method: exec
-    path: /
-    periodSeconds: 10
-    port: 8080
-    scheme: http
-    successThreshold: 10
-    timeoutSeconds: 10
-    type: readinessProbe
-  type: general
-- 
-  command: "python app.py"
-  count: 2
-  deploymentStrategy: 
-    maxSurge: 30
-    maxUnavailable: 70
-    type: deploystrategy
-  livenessProbe: 
-    command: exec
-    failureThreshold: 10
-    httpHeaders: 
-      - 
-        name: foo
-        value: val
-    initialDelaySeconds: 10
-    method: exec
-    path: /
-    periodSeconds: 10
-    port: 8080
-    scheme: http
-    successThreshold: 10
-    timeoutSeconds: 10
-    type: livenessProbe
-  name: service_name
-  ports: 
-    - 
-      port: 8000
-      protocol: TCP
-  preStopHook: 
-    command: exec
-    failureThreshold: 10
-    httpHeaders: 
-      - 
-        name: foo
-        value: val
-    initialDelaySeconds: 10
-    method: exec
-    path: /
-    periodSeconds: 10
-    port: 8080
-    scheme: http
-    successThreshold: 10
-    timeoutSeconds: 10
-    type: preStopHook
-  readinessProbe: 
-    command: exec
-    failureThreshold: 10
-    httpHeaders: 
-      - 
-        name: foo
-        value: val
-    initialDelaySeconds: 10
-    method: exec
-    path: /
-    periodSeconds: 10
-    port: 8080
-    scheme: http
-    successThreshold: 10
-    timeoutSeconds: 10
-    type: readinessProbe
-  type: general
-`
-
-	yamlServices := []model.Service{}
-	err = yaml.Unmarshal([]byte(yamlServicesString), &yamlServices)
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
 	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	serviceResolvers, err := serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
 
 	// check outputs
+	count := 0
+	for _, inputService := range yamlServices {
+		for _, createdServiceResolver := range serviceResolvers {
+			if inputService.Name == createdServiceResolver.DBServiceResolver.Service.Name {
+				count += 1
+			}
+		}
+	}
+
+	assert.Equal(ts.T(), count, len(yamlServices))
 
 	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), len(yamlServices), len(createdServices))
 }
 
 func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidProjectID() {

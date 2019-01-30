@@ -144,15 +144,15 @@ type ServiceInput struct {
 	// ProjectID
 	ProjectID string `json:"projectID"`
 	// Command
-	Command string `json:"command"`
+	Command string `json:"command" yaml:"command"`
 	// Name
-	Name string `json:"name"`
+	Name string `json:"name" yaml:"name"`
 	// Count
-	Count int32 `json:"count,string"`
+	Count int32 `json:"count,string" yaml:"count"`
 	// ContainerPorts
-	Ports *[]ServicePortInput `json:"ports"`
+	Ports *[]ServicePortInput `json:"ports" yaml:"ports"`
 	// Type
-	Type string `json:"type"`
+	Type string `json:"type" yaml:"type"`
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
 	// DeploymentStrategy
@@ -163,6 +163,13 @@ type ServiceInput struct {
 	LivenessProbe *ServiceHealthProbeInput `json:"livenessProbe"`
 	// PreStopHook
 	PreStopHook *string `json"preStopHook"`
+}
+
+// ImportServicesInput
+type ImportServicesInput struct {
+	ServicesYAMLString string `json:"servicesYAMLString"`
+	ProjectID          string `json:"projectID"`
+	EnvironmentID      string `json:"environmentID"`
 }
 
 type DeploymentStrategyInput struct {
