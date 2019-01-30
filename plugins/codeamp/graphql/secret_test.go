@@ -521,8 +521,12 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	}
 
 	// call importer function
-	ctx := context.Background()
-	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+	userContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      userResolver.DBUserResolver.Model.ID.String(),
+		Email:       userResolver.DBUserResolver.User.Email,
+		Permissions: []string{""},
+	})
+	secretsResolver, err := ts.Resolver.ImportSecrets(userContext, &struct{ Secrets *model.ImportSecretsInput }{
 		Secrets: &model.ImportSecretsInput{
 			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
 			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
@@ -537,14 +541,42 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	assert.Equal(ts.T(), 2, len(secretsResolver))
 
 	// check that protected was created
-	protectedSecrets := []model.Secret{}
-	err = ts.Resolver.DB.Where("project_id = ? and environment_id = ? and is_secret = ?",
-		projectResolver.DBProjectResolver.Project.Model.ID.String(), envResolver.DBEnvironmentResolver.Environment.Model.ID.String(), true).Find(&protectedSecrets).Error
+	page := int32(1)
+	limit := int32(10)
+
+	// just in case, we want to set the environment context before querying project secrets
+	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+	projectSecretsResolver, err := projectResolver.Secrets(userContext, &struct {
+		Params    *model.PaginatorInput
+		SearchKey *string
+	}{
+		Params: &model.PaginatorInput{
+			Page:  &page,
+			Limit: &limit,
+		},
+		SearchKey: nil,
+	})
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	assert.Equal(ts.T(), 1, len(protectedSecrets))
+	count, err := projectSecretsResolver.Count()
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 2, int(count))
+
+	secretsCreated, err := projectSecretsResolver.Entries()
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	for _, secret := range secretsCreated {
+		if secret.IsSecret() {
+			assert.Equal(ts.T(), "", secret.Value())
+		}
+	}
 }
 
 func (ts *SecretTestSuite) TearDownTest() {
