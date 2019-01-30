@@ -541,8 +541,8 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	assert.Equal(ts.T(), 2, len(secretsResolver))
 
 	// check that protected was created
-	page := int32(1)
-	limit := int32(10)
+	page := int32(0)
+	limit := int32(1)
 
 	// just in case, we want to set the environment context before querying project secrets
 	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
@@ -572,11 +572,15 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
+	protectedCount := 0
 	for _, secret := range secretsCreated {
 		if secret.IsSecret() {
-			assert.Equal(ts.T(), "", secret.Value())
+			protectedCount += 1
+			assert.Equal(ts.T(), "******", secret.Value())
 		}
 	}
+
+	assert.Equal(ts.T(), 1, protectedCount)
 }
 
 func (ts *SecretTestSuite) TearDownTest() {
