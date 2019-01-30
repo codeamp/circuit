@@ -5,9 +5,9 @@ import "github.com/codeamp/circuit/plugins"
 // ServicePortInput
 type ServicePortInput struct {
 	// Port
-	Port int32 `json:"port,string"`
+	Port int32 `json:"port,string" yaml:"port"`
 	// Protocol
-	Protocol string `json:"protocol"`
+	Protocol string `json:"protocol" yaml:"protocol"`
 }
 
 // EnvironmentInput
@@ -156,13 +156,13 @@ type ServiceInput struct {
 	// EnvironmentID
 	EnvironmentID string `json:"environmentID"`
 	// DeploymentStrategy
-	DeploymentStrategy *DeploymentStrategyInput `json:"deploymentStrategy"`
+	DeploymentStrategy *DeploymentStrategyInput `json:"deploymentStrategy" yaml:"deploymentStrategy"`
 	// ReadinessProbe
-	ReadinessProbe *ServiceHealthProbeInput `json:"readinessProbe"`
+	ReadinessProbe *ServiceHealthProbeInput `json:"readinessProbe" yaml:"readinessProbe"`
 	// LivenessProbe
-	LivenessProbe *ServiceHealthProbeInput `json:"livenessProbe"`
+	LivenessProbe *ServiceHealthProbeInput `json:"livenessProbe" yaml:"livenessProbe"`
 	// PreStopHook
-	PreStopHook *string `json"preStopHook"`
+	PreStopHook *string `json"preStopHook" yaml:"preStopHook"`
 }
 
 // ImportServicesInput
@@ -174,45 +174,45 @@ type ImportServicesInput struct {
 
 type DeploymentStrategyInput struct {
 	// Type
-	Type plugins.Type `json:"type"`
+	Type plugins.Type `json:"type" yaml:"type"`
 	// MaxUnavailable
-	MaxUnavailable int32 `json:"maxUnavailable,string"`
+	MaxUnavailable int32 `json:"maxUnavailable,string" yaml:"maxUnavailable"`
 	// MaxSurge
-	MaxSurge int32 `json:"maxSurge,string"`
+	MaxSurge int32 `json:"maxSurge,string" yaml:"maxSurge"`
 }
 
 // ServiceHealthProbe is used for readiness/liveness health checks for services
 // Further documentation can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
 type ServiceHealthProbeInput struct {
 	// Type currently supports ReadinessProbe and LivenessProbe
-	Type *plugins.Type `json:"type"`
+	Type *plugins.Type `json:"type" yaml:"type"`
 	//Method supports `exec`, `http`, and `tcp`
-	Method string `json:"method"`
+	Method string `json:"method" yaml:"method"`
 	// Command is only evaluated if Method is `exec`
-	Command *string `json:"command"`
+	Command *string `json:"command" yaml:"command"`
 	// Port is only evaluated if Method is either `http` or `tcp`
-	Port *int32 `json:"port,string"`
+	Port *int32 `json:"port,string" yaml:"port"`
 	// Scheme accepts `http` or `https` - it is only evaluated if Method is `http`
-	Scheme *string `json:"scheme"`
+	Scheme *string `json:"scheme" yaml:"scheme"`
 	// Path is only evaluated if Method is `http`
-	Path *string `json:"path"`
+	Path *string `json:"path" yaml:"path"`
 	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
-	InitialDelaySeconds *int32 `json:"initialDelaySeconds,string"`
+	InitialDelaySeconds *int32 `json:"initialDelaySeconds,string" yaml:"initialDelaySeconds"`
 	// PeriodSeconds is how frequently the probe is executed
-	PeriodSeconds *int32 `json:"periodSeconds,string"`
+	PeriodSeconds *int32 `json:"periodSeconds,string" yaml:"periodSeconds"`
 	// TimeoutSeconds is the number of seconds before the probe times out
-	TimeoutSeconds *int32 `json:"timeoutSeconds,string"`
+	TimeoutSeconds *int32 `json:"timeoutSeconds,string" yaml:"timeoutSeconds"`
 	// SuccessThreshold minimum consecutive success before the probe is considered successfull
-	SuccessThreshold *int32 `json:"successThreshold,string"`
+	SuccessThreshold *int32 `json:"successThreshold,string" yaml:"successThreshold"`
 	// FailureThreshold is the number of attempts before a probe is considered failed
-	FailureThreshold *int32 `json:"failureThreshold,string"`
+	FailureThreshold *int32 `json:"failureThreshold,string" yaml:"failureThreshold"`
 	// HealthProbeHttpHeaders
-	HttpHeaders *[]HealthProbeHttpHeaderInput `json:"httpHeaders"`
+	HttpHeaders *[]HealthProbeHttpHeaderInput `json:"httpHeaders" yaml:"httpHeaders"`
 }
 
 type HealthProbeHttpHeaderInput struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name  string `json:"name" yaml:"name"`
+	Value string `json:"value" yaml:"value"`
 }
 
 // ServiceSpecInput

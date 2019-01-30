@@ -31,7 +31,7 @@ var validYAMLServicesString = `
     - protocol: TCP
       port: 8000
   deploymentStrategy:
-    type: deploystrategy
+    type: recreate
     maxUnavailable: 70
     maxSurge: 30
   readinessProbe:
@@ -78,7 +78,7 @@ var validYAMLServicesString = `
     - protocol: TCP
       port: 8000
   deploymentStrategy:
-    type: deploystrategy
+    type: recreate
     maxUnavailable: 70
     maxSurge: 30
   readinessProbe:
