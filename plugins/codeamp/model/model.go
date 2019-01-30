@@ -217,6 +217,14 @@ type Secret struct {
 	IsSecret bool `json:"isSecret"`
 }
 
+// YAMLSecret
+type YAMLSecret struct {
+	Key      string `yaml:"key"`
+	Value    string `yaml:"value"`
+	IsSecret bool   `yaml:"isSecret"`
+	Type     string `yaml:"type"`
+}
+
 type SecretValue struct {
 	Model `json:",inline"`
 	// SecretID

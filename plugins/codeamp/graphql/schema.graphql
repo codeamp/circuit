@@ -74,6 +74,8 @@ type Mutation {
   updateSecret(secret: SecretInput): Secret
   # Delete environment variable 
   deleteSecret(secret: SecretInput): Secret
+  # Import many environment variables at once
+  importSecrets(secrets: ImportSecretsInput): [Secret!]!
   # Create extension spec
   createExtension(extension: ExtensionInput): Extension
   # Update extension spec
@@ -405,6 +407,14 @@ input SecretInput {
   projectID: String
   environmentID: String!
   isSecret: Boolean!
+}
+
+# Environment variable import input
+input ImportSecretsInput {
+  secretsYAMLString: String!
+  projectID: String!
+  userID: String!
+  environmentID: String!
 }
 
 # Extension spec input
