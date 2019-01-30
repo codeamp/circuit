@@ -564,7 +564,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-
+  
 	assert.Equal(ts.T(), 2, int(count))
 
 	secretsCreated, err := projectSecretsResolver.Entries()
