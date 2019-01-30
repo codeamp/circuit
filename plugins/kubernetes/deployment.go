@@ -909,7 +909,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 
 // Blocks the main thread while waiting for a succesful deployment
 func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
-	namespace string, projectSlug string, deploymentServices []plugins.Service) error {
+	namespace string, projectSlug string, deploymentServices []plugins.Service) ([]plugins.Service, []plugins.Service, []error) {
 
 	coreInterface := clientset.Core()
 	depInterface := clientset.Extensions()
@@ -918,93 +918,119 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 		deploymentServices[i].State = transistor.GetState("waiting")
 	}
 	successfulDeploys := 0
+	failedDeploys := 0
+
+	errorsReported := make([]error, 0, 0)
+
 	curTime := 0
 
+	servicesDeployed := make([]plugins.Service, 0, len(deploymentServices))
+	servicesFailed := make([]plugins.Service, 0, 0)
 	if len(deploymentServices) > 0 {
 		// Check status of all deployments till the succeed or timeout.
-		replicaFailures := 0
-		for {
-			for index, service := range deploymentServices {
-				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
-				deployment, err := depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
+		for index, service := range deploymentServices {
+			deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
+			// Tight loop while we wait to see if a service has been deployed
+			var err error
+			var deployment *v1beta1.Deployment
+
+		Waiter:
+			for {
+				deployment, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Error '%s' fetching deployment status for %s", err, deploymentName))
 					continue
 				}
+
 				log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d", deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas, deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
-				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation && deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas && deployment.Status.AvailableReplicas >= deployment.Status.UpdatedReplicas && deployment.Status.UnavailableReplicas == 0 {
+				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation &&
+					deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas &&
+					deployment.Status.AvailableReplicas >= deployment.Status.UpdatedReplicas &&
+					deployment.Status.UnavailableReplicas == 0 {
+
 					// deployment success
 					deploymentServices[index].State = transistor.GetState("complete")
 					successfulDeploys = 0
 					for _, d := range deploymentServices {
 						if d.State == transistor.GetState("complete") {
 							successfulDeploys++
+							servicesDeployed = append(servicesDeployed, service)
+							break Waiter
 						}
 					}
 					log.Info(fmt.Sprintf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices)))
+				}
 
-					if successfulDeploys == len(deploymentServices) {
-						break
+				// Failure case
+				{
+					latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
+
+					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
+					matchLabel := make(map[string]string)
+					matchLabel["app"] = deploymentName
+					replicaSetList, err := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{
+						LabelSelector: "app=" + deploymentName,
+					})
+					log.Error(err)
+
+					var currentReplica v1beta1.ReplicaSet
+
+					for _, r := range replicaSetList.Items {
+						if r.Annotations["deployment.kubernetes.io/revision"] == latestRevision {
+							currentReplica = r
+							break
+						}
 					}
-					// If this deployment has succeeded then we can skip the failure checks below.
-					continue
-				}
 
-				latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
-
-				// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
-				matchLabel := make(map[string]string)
-				matchLabel["app"] = deploymentName
-				replicaSetList, err := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{
-					LabelSelector: "app=" + deploymentName,
-				})
-
-				var currentReplica v1beta1.ReplicaSet
-
-				for _, r := range replicaSetList.Items {
-					if r.Annotations["deployment.kubernetes.io/revision"] == latestRevision {
-						currentReplica = r
-						break
+					allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
+					if podErr != nil {
+						log.Error(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
+						continue
 					}
-				}
 
-				allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
-				if podErr != nil {
-					log.Error(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
-					continue
-				}
-
-				for _, pod := range allPods.Items {
-					for _, ref := range pod.ObjectMeta.OwnerReferences {
-						if ref.Kind == "ReplicaSet" {
-							if ref.Name == currentReplica.Name {
-								// This is a pod we want to check status for
-								if message, result := detectPodFailure(pod); result {
-									// Pod is waiting forever, fail the deployment.
-									log.Error(fmt.Errorf(message))
-									return errors.New(ErrDeployPodWaitingForever)
+					for _, pod := range allPods.Items {
+						for _, ref := range pod.ObjectMeta.OwnerReferences {
+							if ref.Kind == "ReplicaSet" {
+								if ref.Name == currentReplica.Name {
+									// This is a pod we want to check status for
+									if message, result := detectPodFailure(pod); result {
+										// Pod is waiting forever, fail the deployment.
+										log.Error(fmt.Errorf(message))
+										// return errors.New(ErrDeployPodWaitingForever)
+										failedDeploys++
+										servicesFailed = append(servicesFailed, service)
+										errorsReported = append(errorsReported, errors.New(ErrDeployPodWaitingForever))
+										break Waiter
+									}
 								}
 							}
 						}
 					}
 				}
+
+				if curTime >= timeout {
+					errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
+					log.Error(fmt.Sprintf(errMsg))
+					errorsReported = append(errorsReported, errors.New(ErrDeployTimeout))
+
+					break
+				} else {
+					time.Sleep(deploySleepTime)
+					curTime += int(deploySleepTime / time.Second)
+				}
 			}
 
-			if successfulDeploys == len(deploymentServices) {
+			if curTime >= timeout {
+				log.Error("TIMED OUT")
 				break
 			}
-
-			if curTime >= timeout || replicaFailures > 1 {
-				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
-				log.Error(fmt.Sprintf(errMsg))
-				return errors.New(ErrDeployTimeout)
-			}
-			time.Sleep(deploySleepTime)
-			curTime += int(deploySleepTime / time.Second)
 		}
 	}
 
-	return nil
+	log.Warn("Succeeded: ", successfulDeploys)
+	log.Warn("Failed: ", failedDeploys)
+
+	return servicesDeployed, servicesFailed, errorsReported
 }
 
 // Cleans up any resources leftover from a previous or inactive deployment
@@ -1271,7 +1297,13 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*
 	*******************************************/
 	log.Info(fmt.Sprintf("Waiting %d seconds for deployment to succeed.", timeout))
-	if err := x.waitForDeploymentSuccess(clientset, namespace, projectSlug, deploymentServices); err != nil {
+	if deploysSuccesful, deploysFailed, errors := x.waitForDeploymentSuccess(clientset, namespace, projectSlug, deploymentServices); errors != nil && len(errors) > 0 {
+		// x.rollbackSuccesfulDeployments(clientset, namespace, projectSlug)
+		log.Warn(deploysSuccesful)
+		log.Warn(deploysFailed)
+		log.Warn(errors)
+
+		err := errors[0]
 		x.sendErrorResponse(e, err.Error())
 		return err
 	}
@@ -1291,6 +1323,9 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 
 	return nil
 }
+
+// func (x *Kubernetes) rollbackSuccesfulDeployments(myEnvVars []v1.EnvVar) []v1.EnvVar {
+// }
 
 func (x *Kubernetes) exposePodInfoViaEnvVariable(myEnvVars []v1.EnvVar) []v1.EnvVar {
 	// TODO rename to KUBE_POD_IP for consistency when all consumers get updated
