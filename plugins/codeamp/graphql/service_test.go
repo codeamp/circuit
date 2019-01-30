@@ -1082,7 +1082,7 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidEnvironmentID() {
 	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_InvlidYAMLFileFormat() {
+func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidYAMLFileFormat() {
 	// pre-reqs
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	ts.helper.CreateServiceSpec(ts.T(), true)
@@ -1108,6 +1108,97 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvlidYAMLFileFormat() {
 			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
 			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
 			ServicesYAMLString: `invalidyaml`,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
+}
+
+func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidValueInYAMLSpec() {
+	var invalidValueInYAMLSpecString = `
+- name: service_name_1
+  command: npm start
+  type: invalid-value-type
+  count: 2
+  ports:
+    - protocol: TCP
+      port: 8000
+  deploymentStrategy:
+    type: recreate
+    maxUnavailable: 70
+    maxSurge: 30
+  readinessProbe:
+    type: readinessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  livenessProbe:
+    type: livenessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10    
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  preStopHook: service_name_1	
+	`
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: invalidValueInYAMLSpecString,
 		},
 	})
 	assert.NotNil(ts.T(), err)
