@@ -1216,6 +1216,11 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidValueInYAMLSpec() {
 	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
+// ExportServices test cases
+func (ts *ServiceTestSuite) TestExportServices_Success() {
+	return
+}
+
 func (ts *ServiceTestSuite) TearDownTest() {
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()

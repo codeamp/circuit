@@ -172,6 +172,12 @@ type ImportServicesInput struct {
 	EnvironmentID      string `json:"environmentID"`
 }
 
+// ExportServicesInput
+type ExportServicesInput struct {
+	ProjectID     string `json:"projectID"`
+	EnvironmentID string `json:"environmentID"`
+}
+
 type DeploymentStrategyInput struct {
 	// Type
 	Type plugins.Type `json:"type" yaml:"type"`

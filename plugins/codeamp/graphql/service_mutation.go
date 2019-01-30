@@ -267,6 +267,11 @@ func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHeal
 	return healthProbe, nil
 }
 
+// ExportServices returns the set of all services in a YAML formatted string
+func (r *ServiceResolverMutation) ExportServices(args *struct{ Services *model.ExportServicesInput }) (string, error) {
+	return "", nil
+}
+
 // ImportServices takes in a YAML string of services as input
 // and batch creates new services in the specified environment and project
 func (r *ServiceResolverMutation) ImportServices(args *struct{ Services *model.ImportServicesInput }) ([]*ServiceResolver, error) {
