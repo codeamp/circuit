@@ -9,8 +9,10 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Secret Resolver Mutation
@@ -134,4 +136,85 @@ func (r *SecretResolverMutation) DeleteSecret(ctx context.Context, args *struct{
 			return nil, fmt.Errorf("Remove Config values from Extensions where Secret is used before deleting.")
 		}
 	}
+}
+
+func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) ([]*SecretResolver, error) {
+	importedSecrets := []model.YAMLSecret{}
+	createdSecrets := []*SecretResolver{}
+
+	err := yaml.Unmarshal([]byte(args.Secrets.SecretsYAMLString), &importedSecrets)
+	if err != nil {
+		return nil, err
+	}
+
+	project := model.Project{}
+	if err := r.DB.Where("id = ?", args.Secrets.ProjectID).First(&project).Error; err != nil {
+		return nil, err
+	}
+
+	env := model.Environment{}
+	if err := r.DB.Where("id = ?", args.Secrets.EnvironmentID).First(&env).Error; err != nil {
+		return nil, err
+	}
+
+	user := model.User{}
+	if err := r.DB.Where("id = ?", args.Secrets.UserID).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	tx := r.DB.Begin()
+	// create secrets only if they're new
+	for _, importedSecret := range importedSecrets {
+		// check if key already exists in this project, environment
+		existing := model.Secret{}
+		importedSecretType := plugins.GetType(importedSecret.Type)
+		newSecret := model.Secret{
+			Key:           importedSecret.Key,
+			Type:          importedSecretType,
+			ProjectID:     project.Model.ID,
+			EnvironmentID: env.Model.ID,
+			IsSecret:      importedSecret.IsSecret,
+		}
+		newSecretValue := model.SecretValue{
+			Value:  importedSecret.Value,
+			UserID: user.Model.ID,
+		}
+
+		if importedSecretType == plugins.Type("unknown") {
+			return nil, fmt.Errorf("Invalid type for secret key %s", importedSecret.Key)
+		}
+
+		if err := tx.Where("project_id = ? and environment_id = ? and key = ?", project.Model.ID, env.Model.ID, importedSecret.Key).First(&existing).Error; err == nil {
+			log.InfoWithFields("Secret already exists", log.Fields{
+				"key":        importedSecret.Key,
+				"project_id": project.Model.ID,
+				"secret_id":  env.Model.ID,
+			})
+		} else {
+			if err := tx.Create(&newSecret).Error; err != nil {
+				return nil, err
+			}
+
+			newSecretValue.SecretID = newSecret.Model.ID
+			if err := tx.Create(&newSecretValue).Error; err != nil {
+				return nil, err
+			}
+
+			createdSecrets = append(createdSecrets, &SecretResolver{
+				DBSecretResolver: &db_resolver.SecretResolver{
+					Secret:      newSecret,
+					SecretValue: newSecretValue,
+					DB:          r.DB,
+				},
+			})
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		log.Error(err.Error())
+		return nil, err
+	}
+
+	return createdSecrets, nil
 }
