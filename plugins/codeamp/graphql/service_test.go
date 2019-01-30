@@ -999,27 +999,129 @@ func (ts *ServiceTestSuite) TestServiceImport_Success() {
 }
 
 func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidProjectID() {
-	return
-}
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidUserID() {
-	return
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          "invalid-project-id",
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
 func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidEnvironmentID() {
-	return
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      "invalid-environment-id",
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
 func (ts *ServiceTestSuite) TestServiceImport_Fail_InvlidYAMLFileFormat() {
-	return
-}
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_ServiceDoesNotExist() {
-	return
-}
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
 
-func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidServiceType() {
-	return
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: `invalidyaml`,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
 func (ts *ServiceTestSuite) TearDownTest() {
