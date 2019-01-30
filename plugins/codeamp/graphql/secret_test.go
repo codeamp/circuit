@@ -521,8 +521,12 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	}
 
 	// call importer function
-	ctx := context.Background()
-	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+	userContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      userResolver.DBUserResolver.Model.ID.String(),
+		Email:       userResolver.DBUserResolver.User.Email,
+		Permissions: []string{""},
+	})
+	secretsResolver, err := ts.Resolver.ImportSecrets(userContext, &struct{ Secrets *model.ImportSecretsInput }{
 		Secrets: &model.ImportSecretsInput{
 			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
 			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
@@ -613,10 +617,25 @@ func (ts *SecretTestSuite) TestSecretsExport_Success() {
 	// unmarshal and make sure secrets are there
 	yamlSecrets := []model.YAMLSecret{}
 	err = yaml.Unmarshal([]byte(exportedSecretYAMLString), &yamlSecrets)
+	page := int32(1)
+	limit := int32(10)
+
+	// just in case, we want to set the environment context before querying project secrets
+	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+	projectSecretsResolver, err := projectResolver.Secrets(userContext, &struct {
+		Params    *model.PaginatorInput
+		SearchKey *string
+	}{
+		Params: &model.PaginatorInput{
+			Page:  &page,
+			Limit: &limit,
+		},
+		SearchKey: nil,
+	})
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-
+  
 	assert.Equal(ts.T(), len(secrets), len(yamlSecrets))
 
 	count := 0
@@ -639,10 +658,11 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidProjectID() {
 	userResolver := ts.helper.CreateUser(ts.T())
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	count, err := projectSecretsResolver.Count()
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-
+  
 	projectID := projectResolver.DBProjectResolver.Project.Model.ID.String()
 
 	secrets := []model.SecretInput{
@@ -706,6 +726,9 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidEnvironmentID() {
 	userResolver := ts.helper.CreateUser(ts.T())
 	envResolver := ts.helper.CreateEnvironment(ts.T())
 	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	assert.Equal(ts.T(), 2, int(count))
+
+	secretsCreated, err := projectSecretsResolver.Entries()
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
@@ -766,6 +789,12 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidEnvironmentID() {
 
 	assert.NotNil(ts.T(), err)
 	assert.Equal(ts.T(), "", exportedSecretYAMLString)
+  
+	for _, secret := range secretsCreated {
+		if secret.IsSecret() {
+			assert.Equal(ts.T(), "", secret.Value())
+		}
+	}
 }
 
 func (ts *SecretTestSuite) TearDownTest() {

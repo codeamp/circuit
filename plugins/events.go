@@ -85,7 +85,7 @@ func GetType(s string) Type {
 		errMsg += fmt.Sprintf("%s : ln %d", file, line)
 	}
 
-	log.Warn(errMsg)
+	log.Error(errMsg)
 	return Type("unknown")
 }
 
