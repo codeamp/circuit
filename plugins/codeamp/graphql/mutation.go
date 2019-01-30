@@ -59,6 +59,12 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	return mut.DeleteService(args)
 }
 
+// ImportServices Import services
+func (r *Resolver) ImportServices(args *struct{ Services *model.ImportServicesInput }) ([]*ServiceResolver, error) {
+	mut := ServiceResolverMutation{r.DB}
+	return mut.ImportServices(args)
+}
+
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	mut := ServiceSpecResolverMutation{r.DB}
 	return mut.CreateServiceSpec(args)
