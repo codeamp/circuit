@@ -542,7 +542,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 
 	// check that protected was created
 	page := int32(0)
-	limit := int32(100)
+	limit := int32(1)
 
 	// just in case, we want to set the environment context before querying project secrets
 	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
@@ -564,7 +564,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	if err != nil {
 		assert.FailNow(ts.T(), err.Error())
 	}
-  
+
 	assert.Equal(ts.T(), 2, int(count))
 
 	secretsCreated, err := projectSecretsResolver.Entries()
