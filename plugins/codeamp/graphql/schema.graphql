@@ -56,6 +56,8 @@ type Mutation {
   updateService(service: ServiceInput): Service
   # Delete service
   deleteService(service: ServiceInput): Service
+  # Import many services at once
+  importServices(services: ImportServicesInput): [Service!]!
   # Create service spec
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
   # Update service spec
@@ -342,6 +344,13 @@ input ServiceInput {
   livenessProbe: HealthProbeInput
   readinessProbe: HealthProbeInput
   preStopHook: String
+}
+
+# Services import input
+input ImportServicesInput {
+  servicesYAMLString: String!
+  projectID: String!
+  environmentID: String!
 }
 
 # Container port input
