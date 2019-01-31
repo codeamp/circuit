@@ -923,9 +923,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 	curTime := 0
 
-	// var servicesDeployed []plugins.Service
-	// var servicesFailed []plugins.Service
-
 	servicesDeployed := make([]plugins.Service, 0, len(deploymentServices))
 	servicesFailed := make([]plugins.Service, 0, 0)
 
@@ -941,6 +938,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 			for index, service := range deploymentServices {
 				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
+
 				var err error
 				var deployment *v1beta1.Deployment
 				deployment, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
@@ -960,13 +958,13 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 					// deployment success
 					deploymentServices[index].State = transistor.GetState("complete")
-					log.Warn("WAS SUCCESFUL DEPLOY FOR: ", deploymentName)
+					log.Debug("SUCCESFUL DEPLOY FOR: ", deploymentName)
 					successfulDeploys++
 					servicesDeployed = append(servicesDeployed, service)
 
 					log.Info(fmt.Sprintf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices)))
 				} else {
-					log.Warn("WAITING FOR DEPLOY FOR: ", deploymentName)
+					log.Debug("WAITING FOR DEPLOY FOR: ", deploymentName)
 					latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
 
 					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
@@ -977,10 +975,10 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					})
 					if err != nil {
 						log.Error(err)
+						continue
 					}
 
 					var currentReplica v1beta1.ReplicaSet
-
 					for _, r := range replicaSetList.Items {
 						if r.Annotations["deployment.kubernetes.io/revision"] == latestRevision {
 							currentReplica = r
@@ -1003,7 +1001,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 									if message, result := detectPodFailure(pod); result {
 										// Pod is waiting forever, fail the deployment.
 										log.Error(fmt.Errorf(message))
-										// return errors.New(ErrDeployPodWaitingForever)
+
 										failedDeploys++
 										servicesFailed = append(servicesFailed, service)
 										errorsReported = append(errorsReported, errors.New(ErrDeployPodWaitingForever))
@@ -1016,9 +1014,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 				}
 			}
 
-			log.Warn("")
-			log.Warn("")
-
 			if curTime >= timeout {
 				errMsg := fmt.Sprintf("Error, timeout reached waiting for all deployments to succeed.")
 				log.Error(fmt.Sprintf(errMsg))
@@ -1027,7 +1022,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 				break
 			} else {
 				if successfulDeploys+failedDeploys == len(deploymentServices) {
-					log.Warn("All services failed or deployed")
+					log.Debug("All services failed or deployed")
 					break
 				}
 
@@ -1037,8 +1032,8 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 		}
 	}
 
-	log.Warn("Succeeded: ", successfulDeploys)
-	log.Warn("Failed: ", failedDeploys)
+	log.Debug("Succeeded: ", successfulDeploys)
+	log.Debug("Failed: ", failedDeploys)
 
 	return servicesDeployed, servicesFailed, errorsReported
 }
@@ -1312,19 +1307,19 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*******************************************/
 	log.Info(fmt.Sprintf("Waiting %d seconds for deployment to succeed.", timeout))
 	if deploysSuccesful, deploysFailed, errors := x.waitForDeploymentSuccess(clientset, namespace, projectSlug, deploymentServices); errors != nil && len(errors) > 0 {
-		// x.rollbackSuccesfulDeployments(clientset, namespace, projectSlug)
 		for _, success := range deploysSuccesful {
-			log.Warn("Successfully Deployed Service: ", success.Name)
+			log.Debug("Successfully Deployed Service: ", success.Name)
 		}
 		for _, failure := range deploysFailed {
-			log.Warn("Failed to Deploy Service: ", failure.Name)
+			log.Debug("Failed to Deploy Service: ", failure.Name)
 		}
 		for _, err := range errors {
-			log.Warn("Encountered Error: ", err.Error())
+			log.Debug("Encountered Error: ", err.Error())
 		}
 
-		if err := x.rollbackOnFailedDeploy(clientset, namespace, projectSlug, deploymentServices, preDeploymentGenerations); err != nil {
+		if err := x.unwindFailedDeployment(clientset, namespace, projectSlug, deploymentServices, preDeploymentGenerations); err != nil {
 			log.Error(err)
+			x.sendErrorResponse(e, err.Error())
 			return err
 		}
 
@@ -1349,10 +1344,10 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	return nil
 }
 
-func (x *Kubernetes) rollbackOnFailedDeploy(clientset kubernetes.Interface, namespace string, projectSlug string, deploymentServices []plugins.Service, preDeploymentGenerations map[string]int64) error {
+func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, namespace string, projectSlug string, deploymentServices []plugins.Service, preDeploymentGenerations map[string]int64) error {
 	depInterface := clientset.Extensions()
 
-	log.Debug("rollbackOnFailedDeploy")
+	log.Debug("unwindFailedDeployment")
 	for _, service := range deploymentServices {
 		// Generate the deployment name based off of the slug and service name
 		deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
@@ -1362,7 +1357,7 @@ func (x *Kubernetes) rollbackOnFailedDeploy(clientset kubernetes.Interface, name
 		var deployment *v1beta1.Deployment
 		deployment, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
 		if err != nil {
-			log.Error(fmt.Sprintf("Error '%s' fetching deployment status for %s", err, deploymentName))
+			log.Error(fmt.Sprintf("UNWIND-DEPLOY: Error '%s' fetching deployment status for %s", err, deploymentName))
 			continue
 		}
 
@@ -1371,7 +1366,7 @@ func (x *Kubernetes) rollbackOnFailedDeploy(clientset kubernetes.Interface, name
 			LabelSelector: fmt.Sprintf("app=%s", deploymentName),
 		})
 		if err != nil {
-			log.Error(err.Error())
+			log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s ", err.Error()))
 			continue
 		}
 
@@ -1387,7 +1382,10 @@ func (x *Kubernetes) rollbackOnFailedDeploy(clientset kubernetes.Interface, name
 		var targetReplicaSet *v1beta1.ReplicaSet
 		for _, rs := range replicaSets.Items {
 			annotations := rs.GetAnnotations()
-			rsGeneration, _ := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
+			rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
+			if err != nil {
+				continue
+			}
 
 			if rsGeneration == targetGeneration {
 				targetReplicaSet = &rs
@@ -1396,7 +1394,7 @@ func (x *Kubernetes) rollbackOnFailedDeploy(clientset kubernetes.Interface, name
 		}
 
 		if targetReplicaSet == nil {
-			log.Error(fmt.Sprintf("AUTO-ROLLBACK: Target Replica Set Not Found for: %s", deploymentName))
+			log.Error(fmt.Sprintf("UNWIND-DEPLOY: Target Replica Set Not Found for: %s", deploymentName))
 			continue
 		}
 
@@ -1405,7 +1403,8 @@ func (x *Kubernetes) rollbackOnFailedDeploy(clientset kubernetes.Interface, name
 		deployment.Spec.Template = targetReplicaSet.Spec.Template
 		_, err = depInterface.Deployments(namespace).Update(deployment)
 		if err != nil {
-			log.Error(err)
+			log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
+			return err
 		}
 	}
 
