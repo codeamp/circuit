@@ -85,6 +85,24 @@ type IngressInput struct {
 	UpstreamFQDNs        []Domain
 }
 
+type UpstreamRoute struct {
+	FQDNs   []Domain
+	Methods []string
+	Paths   []string
+}
+
+type KongIngressInput struct {
+	Type                 string
+	KubeConfig           string
+	ClientCertificate    string
+	ClientKey            string
+	CertificateAuthority string
+	Controller           IngressController
+	Service              Service
+	ControlledApexDomain string
+	UpstreamRoutes       []UpstreamRoute
+}
+
 type IngressRouteInput struct {
 	Type                 string
 	KubeConfig           string

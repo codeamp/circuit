@@ -20,12 +20,13 @@ plugins:
       password: ""
     service_address: ":3011"
   gitsync:
-    workers: 1
+    workers: 0
     workdir: "/tmp/gitsync" 
   heartbeat:
     workers: 0
   kubernetes:
-    workers: 1  
+    workers: 1
+    kong_api_url: http://192.168.39.175:31338
   githubstatus:
     workers: 1
   route53:
