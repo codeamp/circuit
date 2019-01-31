@@ -1346,7 +1346,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, namespace string, projectSlug string, deploymentServices []plugins.Service, preDeploymentGenerations map[string]int64) error {
 	depInterface := clientset.Extensions()
 
-	log.Debug("unwindFailedDeployment")
+	log.Debug("Unwinding Failed Deployment")
 	for _, service := range deploymentServices {
 		// Generate the deployment name based off of the slug and service name
 		deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
@@ -1369,41 +1369,85 @@ func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, name
 			continue
 		}
 
-		var ok bool
-		var targetGeneration int64
-		// See if we can find this particular service/app name in the list of
-		// deployment generations prior to this (ongoing) deploy
-		if targetGeneration, ok = preDeploymentGenerations[deploymentName]; !ok {
-			log.Error("AUTO-ROLLBACK: COULD NOT FIND ", deploymentName, " IN DEPLOYMENT GENERATIONS")
-			continue
-		}
+		// Check to see if there are any generations currently existing:
+		log.Warn("NUMBER OF REPLICA SETS: ", len(replicaSets.Items) == 1)
+		if len(preDeploymentGenerations) == 0 && len(replicaSets.Items) == 1 {
+			log.Warn("There were no previous generations found. Was this a first deploy?")
+			log.Warn("DELETING DEPLOYMENT")
 
-		var targetReplicaSet *v1beta1.ReplicaSet
-		for _, rs := range replicaSets.Items {
-			annotations := rs.GetAnnotations()
-			rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
+			for _, rs := range replicaSets.Items {
+				log.Warn("UNWIND-DEPLOY: Scaling ReplicaSet: ", rs.Name)
+
+				scale := &v1beta1.Scale{
+					TypeMeta: meta_v1.TypeMeta{
+						Kind: "ReplicaSet",
+					},
+					ObjectMeta: meta_v1.ObjectMeta{
+						Name:            rs.Name,
+						Namespace:       namespace,
+						ResourceVersion: rs.ObjectMeta.ResourceVersion,
+					},
+					Spec: v1beta1.ScaleSpec{
+						Replicas: 0,
+					},
+				}
+				_, err = depInterface.ReplicaSets(namespace).UpdateScale(rs.Name, scale)
+				if err != nil {
+					log.Error(err)
+				}
+
+				log.Warn("UNWIND-DEPLOY: Deleting ReplicaSet: ", rs.Name)
+				err = depInterface.ReplicaSets(namespace).Delete(rs.Name, &meta_v1.DeleteOptions{})
+				if err != nil {
+					log.Error(err)
+				}
+			}
+
+			// spew.Dump(*scaleResult)
+			err = depInterface.Deployments(namespace).Delete(deploymentName, &meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
+				Kind: "Deployment",
+			}})
 			if err != nil {
+				log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
+				return err
+			}
+		} else {
+			var ok bool
+			var targetGeneration int64
+			// See if we can find this particular service/app name in the list of
+			// deployment generations prior to this (ongoing) deploy
+			if targetGeneration, ok = preDeploymentGenerations[deploymentName]; !ok {
+				log.Error("UNWIND-DEPLOY: COULD NOT FIND ", deploymentName, " IN DEPLOYMENT GENERATIONS")
 				continue
 			}
 
-			if rsGeneration == targetGeneration {
-				targetReplicaSet = &rs
-				break
+			var targetReplicaSet *v1beta1.ReplicaSet
+			for _, rs := range replicaSets.Items {
+				annotations := rs.GetAnnotations()
+				rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
+				if err != nil {
+					continue
+				}
+
+				if rsGeneration == targetGeneration {
+					targetReplicaSet = &rs
+					break
+				}
 			}
-		}
 
-		if targetReplicaSet == nil {
-			log.Error(fmt.Sprintf("UNWIND-DEPLOY: Target Replica Set Not Found for: %s", deploymentName))
-			continue
-		}
+			if targetReplicaSet == nil {
+				log.Error(fmt.Sprintf("UNWIND-DEPLOY: Target Replica Set Not Found for: %s", deploymentName))
+				continue
+			}
 
-		// Update the deployment, change the spec to match
-		// the replicaset spec
-		deployment.Spec.Template = targetReplicaSet.Spec.Template
-		_, err = depInterface.Deployments(namespace).Update(deployment)
-		if err != nil {
-			log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
-			return err
+			// Update the deployment, change the spec to match
+			// the replicaset spec
+			deployment.Spec.Template = targetReplicaSet.Spec.Template
+			_, err = depInterface.Deployments(namespace).Update(deployment)
+			if err != nil {
+				log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
+				return err
+			}
 		}
 	}
 
