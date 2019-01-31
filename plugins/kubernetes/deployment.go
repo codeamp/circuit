@@ -947,10 +947,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					continue
 				}
 
-				log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d",
-					deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas,
-					deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
-
 				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation &&
 					deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas &&
 					deployment.Status.AvailableReplicas >= deployment.Status.UpdatedReplicas &&
@@ -964,7 +960,10 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 					log.Info(fmt.Sprintf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices)))
 				} else {
-					log.Debug("WAITING FOR DEPLOY FOR: ", deploymentName)
+					log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d",
+						deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas,
+						deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
+
 					latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
 
 					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
@@ -1314,7 +1313,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			log.Debug("Failed to Deploy Service: ", failure.Name)
 		}
 		for _, err := range errors {
-			log.Debug("Encountered Error: ", err.Error())
+			log.Error("WAIT-FOR: ", err.Error())
 		}
 
 		if err := x.unwindFailedDeployment(clientset, namespace, projectSlug, deploymentServices, preDeploymentGenerations); err != nil {
