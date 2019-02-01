@@ -11,7 +11,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 )
 
@@ -154,10 +153,7 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 		}
 
 		log.Warn("Sending events for release extension: ", re.Model.ID)
-
-		ev := x.createReleaseWorkflowExtensionEvent(&extension, release, &projectExtension, &re, releaseEvent)
-		spew.Dump(*ev)
-		x.Events <- *ev
+		x.Events <- *x.createReleaseWorkflowExtensionEvent(&extension, release, &projectExtension, &re, releaseEvent)
 	}
 
 	return nil
