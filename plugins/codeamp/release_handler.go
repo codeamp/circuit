@@ -11,8 +11,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-
-	_ "github.com/davecgh/go-spew/spew"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -22,7 +20,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 		releaseEvent := e.Payload.(plugins.Release)
 		release := model.Release{}
 
-		if x.DB.Where("id = ?", releaseEvent.ID).First(&release).RecordNotFound() {
+		if x.DB.Where("id = ?", releaseEvent.ID).Find(&release).RecordNotFound() {
 			log.InfoWithFields("release not found", log.Fields{
 				"id": releaseEvent.ID,
 			})
@@ -63,7 +61,7 @@ func (x *CodeAmp) GetStartableRelease(release *model.Release, releaseEvent *plug
 
 			// Do not provide a releaseID here unless this is a redeploy (it's not, just queued release)
 			releaseComponents, err := releaseMutation.PrepRelease(queuedRelease.ProjectID.String(), queuedRelease.EnvironmentID.String(),
-				queuedRelease.HeadFeatureID.String(), nil)			
+				queuedRelease.HeadFeatureID.String(), nil)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -119,15 +117,15 @@ func (x *CodeAmp) StartRelease(release *model.Release, releaseEvent *plugins.Rel
 
 func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *plugins.Release) error {
 	log.Debug("StartWorkflowExtensions")
-	var releaseExtensions []model.ReleaseExtension
+	var workflowExtensions []model.ReleaseExtension
 	if err := x.DB.
 		Where("release_id = ? and type = 'workflow'", release.Model.ID).
-		Find(&releaseExtensions).Error; err != nil {
+		Find(&workflowExtensions).Error; err != nil {
 		log.Error(err)
 		return err
 	}
 
-	for _, re := range releaseExtensions {
+	for _, re := range workflowExtensions {
 		projectExtension := model.ProjectExtension{}
 		if x.DB.Where("id = ?", re.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.InfoWithFields("project extensions not found", log.Fields{
@@ -146,6 +144,50 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 			return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
 		}
 
+		payload := plugins.ReleaseExtension{
+			ID:      re.Model.ID.String(),
+			Release: *releaseEvent,
+		}
+
+		var ev transistor.Event
+
+		makeFreshRelease := true
+		if !release.ForceRebuild && extension.Cacheable {
+			lastReleaseExtension := model.ReleaseExtension{}
+			// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
+			err := x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
+				projectExtension.Model.ID, re.ServicesSignature,
+				re.SecretsSignature, re.FeatureHash,
+				[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
+			if err != nil {
+				log.Error(err.Error())
+			} else {
+				makeFreshRelease = false
+				ev = transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("status"), payload)
+				ev.State = lastReleaseExtension.State
+				ev.StateMessage = fmt.Sprintf("Using cache from previous release: %s", lastReleaseExtension.StateMessage)
+
+				err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &ev.Artifacts)
+				if err != nil {
+					log.Error(err.Error())
+					return nil
+				}
+			}
+		}
+
+		if makeFreshRelease {
+			artifacts, err := graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
+			if err != nil {
+				log.Error(err.Error())
+				return nil
+			}
+
+			ev = transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), payload)
+			ev.State = transistor.GetState("waiting")
+			ev.StateMessage = ""
+			ev.Artifacts = artifacts
+		}
+
 		re.Started = time.Now()
 		re.State = "running"
 		re.StateMessage = "Release Extension Started"
@@ -153,26 +195,7 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 			return err
 		}
 
-		artifacts, err := graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
-		if err != nil {
-			log.Error(err.Error())
-			return nil
-		}
-
-		payload := plugins.ReleaseExtension{
-			ID:      re.Model.ID.String(),
-			Release: *releaseEvent,
-		}
-
-		eventAction := transistor.GetAction("create")
-		eventState := transistor.GetState("waiting")
-
 		log.Warn("Sending events for release extension: ", re.Model.ID)
-		ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), eventAction, payload)
-		ev.State = eventState
-		ev.StateMessage = ""
-		ev.Artifacts = artifacts
-
 		x.Events <- ev
 	}
 
@@ -345,7 +368,7 @@ func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
 	} else {
 		log.Error(err)
 		return err
-	}	
+	}
 
 	return nil
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm/dialects/postgres"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -1969,9 +1968,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 	for len(ts.Resolver.Events) > 0 {
-		log.Warn("dumping event 1")
 		e = <-ts.Resolver.Events
-		spew.Dump(e)
 	}
 
 	// Release Extension
