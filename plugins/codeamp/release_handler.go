@@ -177,7 +177,7 @@ func (x *CodeAmp) createReleaseWorkflowExtensionEvent(extension *model.Extension
 		if err != nil {
 			log.Error(err.Error())
 			if gorm.IsRecordNotFoundError(err) == false {
-				log.Error("Bailing from caching extension. Database error")
+				log.Error(fmt.Sprintf("Bailing from caching extension, %s. Database error", extension.Key))
 			}
 		} else {
 			ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("status"), payload)
@@ -187,7 +187,7 @@ func (x *CodeAmp) createReleaseWorkflowExtensionEvent(extension *model.Extension
 			err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &ev.Artifacts)
 			if err != nil {
 				log.Error(err.Error())
-				log.Error("Bailing from caching extension. Could not marshall artifacts")
+				log.Error(fmt.Sprintf("Bailing from caching extension, %s. Could not marshall artifacts", extension.Key))
 			} else {
 				return &ev
 			}
