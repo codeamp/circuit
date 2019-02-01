@@ -1358,15 +1358,67 @@ func (ts *ServiceTestSuite) TestExportServices_Success() {
 }
 
 func (ts *ServiceTestSuite) TestExportServices_Success_NoServices() {
-	return
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call ExportServices
+	serviceResolverQuery := graphql_resolver.ServiceResolverQuery{
+		DB: ts.Resolver.DB,
+	}
+	servicesYAMLString, err := serviceResolverQuery.ExportServices(&struct{ Params *model.ExportServicesInput }{
+		Params: &model.ExportServicesInput{
+			ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		},
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+	assert.Equal(ts.T(), "[]\n", servicesYAMLString)
 }
 
 func (ts *ServiceTestSuite) TestExportServices_Fail_InvalidProjectID() {
-	return
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// call ExportServices
+	serviceResolverQuery := graphql_resolver.ServiceResolverQuery{
+		DB: ts.Resolver.DB,
+	}
+	servicesYAMLString, err := serviceResolverQuery.ExportServices(&struct{ Params *model.ExportServicesInput }{
+		Params: &model.ExportServicesInput{
+			ProjectID:     "invalid-project-id",
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		},
+	})
+	assert.NotNil(ts.T(), err.Error())
+	assert.Equal(ts.T(), "", servicesYAMLString)
 }
 
 func (ts *ServiceTestSuite) TestExportServices_Fail_InvalidEnvironmentID() {
-	return
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call ExportServices
+	serviceResolverQuery := graphql_resolver.ServiceResolverQuery{
+		DB: ts.Resolver.DB,
+	}
+	servicesYAMLString, err := serviceResolverQuery.ExportServices(&struct{ Params *model.ExportServicesInput }{
+		Params: &model.ExportServicesInput{
+			ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID: "invalid-env-id",
+		},
+	})
+	assert.NotNil(ts.T(), err)
+	assert.Equal(ts.T(), "", servicesYAMLString)
 }
 
 func (ts *ServiceTestSuite) TearDownTest() {
