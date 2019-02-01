@@ -908,7 +908,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 	return nil
 }
 
-// Blocks the main thread while waiting for a succesful deployment
+// Blocks the main thread while waiting for a successful deployment
 func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 	namespace string, projectSlug string, deploymentServices []plugins.Service) ([]plugins.Service, []plugins.Service, []error) {
 
@@ -954,12 +954,12 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 					// deployment success
 					deploymentServices[index].State = transistor.GetState("complete")
-					log.Debug("SUCCESFUL DEPLOY FOR: ", deploymentName)
+					log.Debug("SUCCESSFUL DEPLOY FOR: ", deploymentName)
 					successfulDeploys++
 					servicesDeployed = append(servicesDeployed, service)
 
 					log.Info(fmt.Sprintf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices)))
-				} else {
+				} else if deployment.Status.UnavailableReplicas > 0 {
 					log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d",
 						deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas,
 						deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
@@ -967,8 +967,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
 
 					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
-					matchLabel := make(map[string]string)
-					matchLabel["app"] = deploymentName
 					replicaSetList, err := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{
 						LabelSelector: "app=" + deploymentName,
 					})
@@ -1021,7 +1019,27 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 				break
 			} else {
 				if successfulDeploys+failedDeploys == len(deploymentServices) {
-					log.Debug("All services failed or deployed")
+					servicesSuccessfulDeployed := ""
+					for _, successes := range servicesDeployed {
+						deploymentName := strings.ToLower(genDeploymentName(projectSlug, successes.Name))
+						servicesSuccessfulDeployed += deploymentName
+						if successes.ID != servicesDeployed[len(servicesDeployed)-1].ID {
+							servicesSuccessfulDeployed += ", "
+						}
+					}
+					servicesFailedDeployed := ""
+					for _, fails := range servicesFailed {
+						deploymentName := strings.ToLower(genDeploymentName(projectSlug, fails.Name))
+						servicesFailedDeployed += deploymentName
+						if fails.ID != servicesFailed[len(servicesFailed)-1].ID {
+							servicesFailedDeployed += ", "
+						}
+					}
+
+					log.Info("All services deployed for namespace: ", namespace)
+					log.Info("Succeeded: ", servicesSuccessfulDeployed)
+					log.Info("Failed: ", servicesFailedDeployed)
+
 					break
 				}
 
@@ -1030,10 +1048,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 			}
 		}
 	}
-
-	log.Debug("Succeeded: ", successfulDeploys)
-	log.Debug("Failed: ", failedDeploys)
-
 	return servicesDeployed, servicesFailed, errorsReported
 }
 
@@ -1289,7 +1303,6 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	}
 
 	// Retrieve existing services generations
-	log.Warn("GETTING DEPLOYMENT GENERATIONS")
 	preDeploymentGenerations, err := x.getDeploymentGenerations(clientset, namespace)
 
 	// Deployment Services
@@ -1370,30 +1383,62 @@ func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, name
 		}
 
 		// Check to see if there are any generations currently existing:
-		log.Warn("NUMBER OF REPLICA SETS: ", len(replicaSets.Items) == 1)
 		if len(preDeploymentGenerations) == 0 && len(replicaSets.Items) == 1 {
 			log.Warn("There were no previous generations found. Was this a first deploy?")
-			log.Warn("DELETING DEPLOYMENT")
 
+			// Scale the deployment down
+			_, err = depInterface.Deployments(namespace).UpdateScale(deploymentName, &v1beta1.Scale{
+				TypeMeta: meta_v1.TypeMeta{
+					Kind: "Deployment",
+				},
+				ObjectMeta: meta_v1.ObjectMeta{
+					Name:            deployment.Name,
+					Namespace:       namespace,
+					ResourceVersion: deployment.ObjectMeta.ResourceVersion,
+				},
+				Spec: v1beta1.ScaleSpec{
+					Replicas: 0,
+				},
+			})
+			if err != nil {
+				log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
+				return err
+			}
+
+			// Delete the deployment
+			err = depInterface.Deployments(namespace).Delete(deploymentName, &meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
+				Kind: "Deployment",
+			}})
+			if err != nil {
+				log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
+				return err
+			}
+
+			// Clean up any orphaned replica sets
+			couldNotScale := false
 			for _, rs := range replicaSets.Items {
-				log.Warn("UNWIND-DEPLOY: Scaling ReplicaSet: ", rs.Name)
+				if rs.Status.Replicas != 0 {
+					log.Warn(fmt.Sprintf("SCALING DOWN REPLICASET FROM %d REPLICAS", rs.Status.Replicas))
+					log.Warn("ReousrceVersion: ", rs.ObjectMeta.ResourceVersion)
+					scale := &v1beta1.Scale{
+						TypeMeta: meta_v1.TypeMeta{
+							Kind: "ReplicaSet",
+						},
+						ObjectMeta: meta_v1.ObjectMeta{
+							Name:      rs.Name,
+							Namespace: namespace,
+						},
+						Spec: v1beta1.ScaleSpec{
+							Replicas: 0,
+						},
+					}
 
-				scale := &v1beta1.Scale{
-					TypeMeta: meta_v1.TypeMeta{
-						Kind: "ReplicaSet",
-					},
-					ObjectMeta: meta_v1.ObjectMeta{
-						Name:            rs.Name,
-						Namespace:       namespace,
-						ResourceVersion: rs.ObjectMeta.ResourceVersion,
-					},
-					Spec: v1beta1.ScaleSpec{
-						Replicas: 0,
-					},
-				}
-				_, err = depInterface.ReplicaSets(namespace).UpdateScale(rs.Name, scale)
-				if err != nil {
-					log.Error(err)
+					log.Debug("UNWIND-DEPLOY: Scaling ReplicaSet: ", rs.Name)
+					_, err = depInterface.ReplicaSets(namespace).UpdateScale(rs.Name, scale)
+					if err != nil {
+						couldNotScale = true
+						log.Error(err)
+					}
 				}
 
 				log.Warn("UNWIND-DEPLOY: Deleting ReplicaSet: ", rs.Name)
@@ -1403,13 +1448,24 @@ func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, name
 				}
 			}
 
-			// spew.Dump(*scaleResult)
-			err = depInterface.Deployments(namespace).Delete(deploymentName, &meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
-				Kind: "Deployment",
-			}})
-			if err != nil {
-				log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
-				return err
+			// This is used in case the above updatescale operation does not complete.
+			// In that case we'll need to delete all the pods that are in this namespace
+			if couldNotScale {
+				log.Warn("UNWIND-DEPLOY: COULD NOT SCALE DOWN REPLICA SET, DELETING ALL PODS IN NAMESPACE")
+				coreInterface := clientset.Core()
+				allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
+				if podErr != nil {
+					log.Error(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
+					continue
+				}
+
+				// Deleting pods!
+				for _, pod := range allPods.Items {
+					err := coreInterface.Pods(namespace).Delete(pod.Name, &meta_v1.DeleteOptions{})
+					if err != nil {
+						log.Error(err.Error())
+					}
+				}
 			}
 		} else {
 			var ok bool
@@ -1426,6 +1482,7 @@ func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, name
 				annotations := rs.GetAnnotations()
 				rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
 				if err != nil {
+					log.Error(err.Error())
 					continue
 				}
 
