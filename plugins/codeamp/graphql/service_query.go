@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -47,7 +48,7 @@ func (r *ServiceResolverQuery) ExportServices(args *struct{ Params *model.Export
 		return "", err
 	}
 
-	if err := r.DB.Where("project_id = ? and environment_id = ?", project.Model.ID.String(), env.Model.ID.String()).Find(&services).Error; err != nil {
+	if err := r.DB.Where("project_id = ? and environment_id = ?", project.Model.ID, env.Model.ID).Find(&services).Error; err != nil {
 		return "", err
 	}
 
@@ -55,23 +56,27 @@ func (r *ServiceResolverQuery) ExportServices(args *struct{ Params *model.Export
 	for _, service := range services {
 		// Get ports
 		ports := []model.ServicePort{}
-		r.DB.Where("service_id = ?", service.Model.ID).Order("created_at desc").Find(&ports)
+		if err := r.DB.Where("service_id = ?", service.Model.ID).Order("created_at desc").Find(&ports).Error; err != nil {
+			log.Info(err.Error())
+		}
 		service.Ports = ports
 
 		// Get deploy strategy
 		deployStrategy := model.ServiceDeploymentStrategy{}
-		r.DB.Where("service_id = ?", service.Model.ID).First(&deployStrategy)
+		if err := r.DB.Where("service_id = ?", service.Model.ID).First(&deployStrategy).Error; err != nil {
+			log.Info(err.Error())
+		}
 		service.DeploymentStrategy = deployStrategy
 
 		// Get readiness probe
 		readinessProbe := model.ServiceHealthProbe{}
 		rpHeaders := []model.ServiceHealthProbeHttpHeader{}
 		if err := r.DB.Where("service_id = ? and type = ?", service.Model.ID, string(plugins.GetType("readinessProbe"))).First(&readinessProbe).Error; err != nil {
-			return "", nil
+			log.Info(err.Error())
 		}
 
 		if err := r.DB.Where("health_probe_id = ?", readinessProbe.Model.ID).Find(&rpHeaders).Error; err != nil {
-			return "", nil
+			log.Info(err.Error())
 		}
 
 		readinessProbe.HttpHeaders = rpHeaders
@@ -81,11 +86,11 @@ func (r *ServiceResolverQuery) ExportServices(args *struct{ Params *model.Export
 		livenessProbe := model.ServiceHealthProbe{}
 		lpHeaders := []model.ServiceHealthProbeHttpHeader{}
 		if err := r.DB.Where("service_id = ? and type = ?", service.Model.ID, string(plugins.GetType("livenessProbe"))).First(&livenessProbe).Error; err != nil {
-			return "", nil
+			log.Info(err.Error())
 		}
 
 		if err := r.DB.Where("health_probe_id = ?", livenessProbe.Model.ID).Find(&lpHeaders).Error; err != nil {
-			return "", nil
+			log.Info(err.Error())
 		}
 
 		livenessProbe.HttpHeaders = lpHeaders

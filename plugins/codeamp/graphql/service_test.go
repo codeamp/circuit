@@ -1225,9 +1225,11 @@ func (ts *ServiceTestSuite) TestExportServices_Success() {
 		assert.FailNow(ts.T(), err.Error())
 	}
 	ts.helper.CreateServiceSpec(ts.T(), true)
+	ts.helper.CreateService(ts.T(), projectResolver, &model.DeploymentStrategyInput{
+		Type: "recreate",
+	}, &model.ServiceHealthProbeInput{}, &model.ServiceHealthProbeInput{}, nil)
 
 	preStopHook := "service_name_2_prestophook"
-	// create a service
 
 	// readiness probe inputs
 	port := int32(8080)
@@ -1327,24 +1329,32 @@ func (ts *ServiceTestSuite) TestExportServices_Success() {
 		assert.FailNow(ts.T(), err.Error())
 	}
 
-	assert.Equal(ts.T(), 1, len(services))
+	assert.Equal(ts.T(), 2, len(services))
 
-	// validate all inputs
-	assert.Equal(ts.T(), service.Command, services[0].Command)
-	assert.Equal(ts.T(), service.Name, services[0].Name)
-	assert.Equal(ts.T(), service.Count, services[0].Count)
-	assert.Equal(ts.T(), len(*service.Ports), len(services[0].Ports))
-	assert.Equal(ts.T(), string(service.Type), string(services[0].Type))
-	assert.Equal(ts.T(), string(service.DeploymentStrategy.Type), string(services[0].DeploymentStrategy.Type))
-	assert.Equal(ts.T(), service.DeploymentStrategy.MaxUnavailable, services[0].DeploymentStrategy.MaxUnavailable)
-	assert.Equal(ts.T(), service.DeploymentStrategy.MaxSurge, services[0].DeploymentStrategy.MaxSurge)
-	assert.Equal(ts.T(), string(*service.ReadinessProbe.Type), string(services[0].ReadinessProbe.Type))
-	assert.Equal(ts.T(), service.ReadinessProbe.Method, services[0].ReadinessProbe.Method)
-	assert.Equal(ts.T(), *service.ReadinessProbe.Port, services[0].ReadinessProbe.Port)
-	assert.Equal(ts.T(), *service.ReadinessProbe.Scheme, services[0].ReadinessProbe.Scheme)
-	assert.Equal(ts.T(), *service.ReadinessProbe.Path, services[0].ReadinessProbe.Path)
-	assert.Equal(ts.T(), service.ReadinessProbe.Method, services[0].ReadinessProbe.Method)
-	assert.Equal(ts.T(), *service.LivenessProbe.Command, services[0].LivenessProbe.Command)
+	outService := model.Service{}
+	for _, createdService := range services {
+		if createdService.Name == service.Name {
+			outService = createdService
+			break
+		}
+	}
+
+	// validate all inputs for created service
+	assert.Equal(ts.T(), service.Command, outService.Command)
+	assert.Equal(ts.T(), service.Name, outService.Name)
+	assert.Equal(ts.T(), service.Count, outService.Count)
+	assert.Equal(ts.T(), len(*service.Ports), len(outService.Ports))
+	assert.Equal(ts.T(), string(service.Type), string(outService.Type))
+	assert.Equal(ts.T(), string(service.DeploymentStrategy.Type), string(outService.DeploymentStrategy.Type))
+	assert.Equal(ts.T(), service.DeploymentStrategy.MaxUnavailable, outService.DeploymentStrategy.MaxUnavailable)
+	assert.Equal(ts.T(), service.DeploymentStrategy.MaxSurge, outService.DeploymentStrategy.MaxSurge)
+	assert.Equal(ts.T(), string(*service.ReadinessProbe.Type), string(outService.ReadinessProbe.Type))
+	assert.Equal(ts.T(), service.ReadinessProbe.Method, outService.ReadinessProbe.Method)
+	assert.Equal(ts.T(), *service.ReadinessProbe.Port, outService.ReadinessProbe.Port)
+	assert.Equal(ts.T(), *service.ReadinessProbe.Scheme, outService.ReadinessProbe.Scheme)
+	assert.Equal(ts.T(), *service.ReadinessProbe.Path, outService.ReadinessProbe.Path)
+	assert.Equal(ts.T(), service.ReadinessProbe.Method, outService.ReadinessProbe.Method)
+	assert.Equal(ts.T(), *service.LivenessProbe.Command, outService.LivenessProbe.Command)
 }
 
 func (ts *ServiceTestSuite) TestExportServices_Success_NoServices() {
