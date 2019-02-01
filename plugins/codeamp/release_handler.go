@@ -11,6 +11,8 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/jinzhu/gorm"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
@@ -144,50 +146,6 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 			return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
 		}
 
-		payload := plugins.ReleaseExtension{
-			ID:      re.Model.ID.String(),
-			Release: *releaseEvent,
-		}
-
-		var ev transistor.Event
-
-		makeFreshRelease := true
-		if !release.ForceRebuild && extension.Cacheable {
-			lastReleaseExtension := model.ReleaseExtension{}
-			// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
-			err := x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
-				projectExtension.Model.ID, re.ServicesSignature,
-				re.SecretsSignature, re.FeatureHash,
-				[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
-			if err != nil {
-				log.Error(err.Error())
-			} else {
-				makeFreshRelease = false
-				ev = transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("status"), payload)
-				ev.State = lastReleaseExtension.State
-				ev.StateMessage = fmt.Sprintf("Using cache from previous release: %s", lastReleaseExtension.StateMessage)
-
-				err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &ev.Artifacts)
-				if err != nil {
-					log.Error(err.Error())
-					return nil
-				}
-			}
-		}
-
-		if makeFreshRelease {
-			artifacts, err := graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
-			if err != nil {
-				log.Error(err.Error())
-				return nil
-			}
-
-			ev = transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), payload)
-			ev.State = transistor.GetState("waiting")
-			ev.StateMessage = ""
-			ev.Artifacts = artifacts
-		}
-
 		re.Started = time.Now()
 		re.State = "running"
 		re.StateMessage = "Release Extension Started"
@@ -196,10 +154,63 @@ func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *
 		}
 
 		log.Warn("Sending events for release extension: ", re.Model.ID)
-		x.Events <- ev
+
+		ev := x.createReleaseWorkflowExtensionEvent(&extension, release, &projectExtension, &re, releaseEvent)
+		spew.Dump(*ev)
+		x.Events <- *ev
 	}
 
 	return nil
+}
+
+func (x *CodeAmp) createReleaseWorkflowExtensionEvent(extension *model.Extension, release *model.Release,
+	projectExtension *model.ProjectExtension, re *model.ReleaseExtension, releaseEvent *plugins.Release) *transistor.Event {
+	// Support caching
+	payload := plugins.ReleaseExtension{
+		ID:      re.Model.ID.String(),
+		Release: *releaseEvent,
+	}
+
+	if !release.ForceRebuild && extension.Cacheable {
+		lastReleaseExtension := model.ReleaseExtension{}
+		// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
+		err := x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
+			projectExtension.Model.ID, re.ServicesSignature,
+			re.SecretsSignature, re.FeatureHash,
+			[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
+		if err != nil {
+			log.Error(err.Error())
+			if gorm.IsRecordNotFoundError(err) == false {
+				log.Error("Bailing from caching extension. Database error")
+			}
+		} else {
+			ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("status"), payload)
+			ev.State = lastReleaseExtension.State
+			ev.StateMessage = fmt.Sprintf("Using cache from previous release: %s", lastReleaseExtension.StateMessage)
+
+			err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &ev.Artifacts)
+			if err != nil {
+				log.Error(err.Error())
+				log.Error("Bailing from caching extension. Could not marshall artifacts")
+			} else {
+				return &ev
+			}
+		}
+	}
+
+	// Hit this workflow if no artifact to utilize for cache
+	artifacts, err := graphql_resolver.ExtractArtifacts(*projectExtension, *extension, x.DB)
+	if err != nil {
+		log.Error(err.Error())
+		return nil
+	}
+
+	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), payload)
+	ev.State = transistor.GetState("waiting")
+	ev.StateMessage = ""
+	ev.Artifacts = artifacts
+
+	return &ev
 }
 
 func (x *CodeAmp) CreateReleaseExtensionsForRelease(release *model.Release, releaseEvent *plugins.Release) error {
