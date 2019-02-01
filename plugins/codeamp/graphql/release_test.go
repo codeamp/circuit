@@ -1932,7 +1932,6 @@ func (ts *ReleaseTestSuite) TestStopReleaseFailureNoReleaseExtensions() {
 }
 
 func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
-	var e transistor.Event
 	// Environment
 	environmentResolver := ts.helper.CreateEnvironment(ts.T())
 
@@ -1968,7 +1967,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 	// Release
 	releaseResolver := ts.helper.CreateRelease(ts.T(), featureResolver, projectResolver)
 	for len(ts.Resolver.Events) > 0 {
-		e = <-ts.Resolver.Events
+		<-ts.Resolver.Events
 	}
 
 	// Release Extension
@@ -1996,7 +1995,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 		EnvironmentID: string(environmentResolver.ID()),
 	})
 	log.Warn("Waiting for event")
-	e = <-ts.Resolver.Events
+	<-ts.Resolver.Events
 
 	// Release Extension
 	ts.helper.CreateReleaseExtension(ts.T(), releaseResolver, projectExtensionResolver)
