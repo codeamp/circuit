@@ -56,6 +56,8 @@ type Mutation {
   updateService(service: ServiceInput): Service
   # Delete service
   deleteService(service: ServiceInput): Service
+  # Import many services at once
+  importServices(services: ImportServicesInput): [Service!]!
   # Create service spec
   createServiceSpec(serviceSpec: ServiceSpecInput): ServiceSpec
   # Update service spec
@@ -74,6 +76,8 @@ type Mutation {
   updateSecret(secret: SecretInput): Secret
   # Delete environment variable 
   deleteSecret(secret: SecretInput): Secret
+  # Import many environment variables at once
+  importSecrets(secrets: ImportSecretsInput): [Secret!]!
   # Create extension spec
   createExtension(extension: ExtensionInput): Extension
   # Update extension spec
@@ -342,6 +346,13 @@ input ServiceInput {
   preStopHook: String
 }
 
+# Services import input
+input ImportServicesInput {
+  servicesYAMLString: String!
+  projectID: String!
+  environmentID: String!
+}
+
 # Container port input
 input ServicePortInput {
   port: Int!
@@ -405,6 +416,14 @@ input SecretInput {
   projectID: String
   environmentID: String!
   isSecret: Boolean!
+}
+
+# Environment variable import input
+input ImportSecretsInput {
+  secretsYAMLString: String!
+  projectID: String!
+  userID: String!
+  environmentID: String!
 }
 
 # Extension spec input

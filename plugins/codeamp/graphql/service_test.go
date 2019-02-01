@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	_ "github.com/satori/go.uuid"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -20,6 +21,148 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
+
+var validYAMLServicesString = `
+- name: service_name_1
+  command: npm start
+  type: general
+  count: 2
+  ports:
+    - protocol: TCP
+      port: 8000
+  deploymentStrategy:
+    type: recreate
+    maxUnavailable: 70
+    maxSurge: 30
+  readinessProbe:
+    type: readinessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  livenessProbe:
+    type: livenessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10    
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  preStopHook: service_name_1
+- name: service_name_2
+  command: python app.py
+  type: general
+  count: 2
+  ports:
+    - protocol: TCP
+      port: 8000
+  deploymentStrategy:
+    type: recreate
+    maxUnavailable: 70
+    maxSurge: 30
+  readinessProbe:
+    type: readinessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  livenessProbe:
+    type: livenessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  preStopHook: service_name_2_prestophook
+`
+
+var invalidValueInYAMLSpecString = `
+- name: service_name_1
+  command: npm start
+  type: invalid-type-of-service
+  count: 2
+  ports:
+    - protocol: TCP
+      port: 8000
+  deploymentStrategy:
+    type: recreate
+    maxUnavailable: 70
+    maxSurge: 30
+  readinessProbe:
+    type: readinessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  livenessProbe:
+    type: livenessProbe # should this be omitted since we already specify it one layer up?
+    method: exec
+    command: exec
+    port: 8080
+    scheme: http
+    path: /
+    httpHeaders:
+      - name: foo  
+        value: val
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10    
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 10
+    failureThreshold: 10
+  preStopHook: service_name_1
+`
 
 type ServiceTestSuite struct {
 	suite.Suite
@@ -598,8 +741,8 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 		},
 	}
 	serviceInput := &model.ServiceInput{
-		ID:            &serviceID,
-		ProjectID:     string(projectResolver.ID()),
+		ID:        &serviceID,
+		ProjectID: string(projectResolver.ID()),
 		DeploymentStrategy: &model.DeploymentStrategyInput{
 			Type:           plugins.GetType("rollingUpdate"),
 			MaxUnavailable: 30,
@@ -713,8 +856,8 @@ func (ts *ServiceTestSuite) TestDeleteServiceSuccess() {
 	projectID := string(projectResolver.ID())
 
 	serviceInput := &model.ServiceInput{
-		ID:            &serviceID,
-		ProjectID:     projectID,
+		ID:        &serviceID,
+		ProjectID: projectID,
 	}
 	_, err = ts.Resolver.DeleteService(&struct{ Service *model.ServiceInput }{serviceInput})
 	if err != nil {
@@ -847,6 +990,296 @@ func (ts *ServiceTestSuite) TestServiceQuery() {
 	assert.Nil(ts.T(), err)
 	assert.NotNil(ts.T(), serviceResolvers)
 	assert.NotEmpty(ts.T(), serviceResolvers, "Service Resolvers was empty")
+}
+
+func (ts *ServiceTestSuite) TestImportServices_Success() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	serviceResolvers, err := serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// check outputs
+	count := 0
+	for _, inputService := range yamlServices {
+		for _, createdServiceResolver := range serviceResolvers {
+			if inputService.Name == createdServiceResolver.DBServiceResolver.Service.Name {
+				count += 1
+			}
+		}
+	}
+
+	assert.Equal(ts.T(), len(yamlServices), count)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), len(yamlServices), len(createdServices))
+}
+
+func (ts *ServiceTestSuite) TestImportServices_Success_OnlyImportNewService() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	// create 1st service in yamlServices (this one will be ignored in ImportServices)
+	serviceInput := yamlServices[0]
+	serviceInput.ProjectID = projectResolver.DBProjectResolver.Project.Model.ID.String()
+	serviceInput.EnvironmentID = envResolver.DBEnvironmentResolver.Environment.Model.ID.String()
+	_, err = serviceResolverMutation.CreateService(&struct{ Service *model.ServiceInput }{
+		Service: &serviceInput,
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	timeAfter1stServiceCreated := time.Now()
+
+	serviceResolvers, err := serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+
+	// check outputs
+	count := 0
+	for _, inputService := range yamlServices {
+		for _, createdServiceResolver := range serviceResolvers {
+			if inputService.Name == createdServiceResolver.DBServiceResolver.Service.Name {
+				count += 1
+			}
+		}
+	}
+
+	assert.Equal(ts.T(), len(yamlServices)-1, count)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ? and created_at > ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID, timeAfter1stServiceCreated).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), len(yamlServices)-1, len(createdServices))
+}
+
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidProjectID() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          "invalid-project-id",
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
+}
+
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidEnvironmentID() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      "invalid-environment-id",
+			ServicesYAMLString: validYAMLServicesString,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
+}
+
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidYAMLFileFormat() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(validYAMLServicesString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: `invalidyaml`,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
+}
+
+func (ts *ServiceTestSuite) TestImportServices_Fail_InvalidValueInYAMLSpec() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	ts.helper.CreateServiceSpec(ts.T(), true)
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// validate input yaml string
+	yamlServices := []model.ServiceInput{}
+	err = yaml.Unmarshal([]byte(invalidValueInYAMLSpecString), &yamlServices)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call service import
+	serviceResolverMutation := graphql_resolver.ServiceResolverMutation{
+		DB: ts.Resolver.DB,
+	}
+
+	_, err = serviceResolverMutation.ImportServices(&struct{ Services *model.ImportServicesInput }{
+		Services: &model.ImportServicesInput{
+			ProjectID:          projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:      envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			ServicesYAMLString: invalidValueInYAMLSpecString,
+		},
+	})
+	assert.NotNil(ts.T(), err)
+
+	// check side-effects
+	createdServices := []model.Service{}
+	err = ts.Resolver.DB.Where("environment_id = ? and project_id = ?",
+		envResolver.DBEnvironmentResolver.Environment.Model.ID,
+		projectResolver.DBProjectResolver.Project.Model.ID).Find(&createdServices).Error
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 0, len(createdServices))
 }
 
 func (ts *ServiceTestSuite) TearDownTest() {
