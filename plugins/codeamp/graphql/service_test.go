@@ -1218,6 +1218,144 @@ func (ts *ServiceTestSuite) TestServiceImport_Fail_InvalidValueInYAMLSpec() {
 
 // ExportServices test cases
 func (ts *ServiceTestSuite) TestExportServices_Success() {
+	// pre-reqs
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+	ts.helper.CreateServiceSpec(ts.T(), true)
+
+	preStopHook := "service_name_2_prestophook"
+	// create a service
+
+	// readiness probe inputs
+	port := int32(8080)
+	probeType := plugins.GetType("recreate")
+	command := "exec"
+	scheme := "http"
+	path := "/"
+	initialDelaySeconds := int32(10)
+	periodSeconds := int32(10)
+	timeoutSeconds := int32(10)
+	successThreshold := int32(10)
+	failureThreshold := int32(10)
+
+	service := model.ServiceInput{
+		ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+		EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		Command:       "npm start",
+		Name:          "service_name_1",
+		Count:         int32(1),
+		Ports: &[]model.ServicePortInput{
+			model.ServicePortInput{
+				Port:     int32(8080),
+				Protocol: "http",
+			},
+		},
+		Type: "general",
+		DeploymentStrategy: &model.DeploymentStrategyInput{
+			Type:           "rollingUpdate",
+			MaxUnavailable: int32(70),
+			MaxSurge:       int32(30),
+		},
+		ReadinessProbe: &model.ServiceHealthProbeInput{
+			Type:   &probeType,
+			Method: "http",
+			Port:   &port,
+			Scheme: &scheme,
+			Path:   &path,
+			HttpHeaders: &[]model.HealthProbeHttpHeaderInput{
+				model.HealthProbeHttpHeaderInput{
+					Name:  "foo",
+					Value: "bar",
+				},
+			},
+			InitialDelaySeconds: &initialDelaySeconds,
+			PeriodSeconds:       &periodSeconds,
+			TimeoutSeconds:      &timeoutSeconds,
+			SuccessThreshold:    &successThreshold,
+			FailureThreshold:    &failureThreshold,
+		},
+		LivenessProbe: &model.ServiceHealthProbeInput{
+			Type:    &probeType,
+			Method:  "exec",
+			Command: &command,
+			Scheme:  &scheme,
+			Path:    &path,
+			HttpHeaders: &[]model.HealthProbeHttpHeaderInput{
+				model.HealthProbeHttpHeaderInput{
+					Name:  "foo",
+					Value: "bar",
+				},
+			},
+			InitialDelaySeconds: &initialDelaySeconds,
+			PeriodSeconds:       &periodSeconds,
+			TimeoutSeconds:      &timeoutSeconds,
+			SuccessThreshold:    &successThreshold,
+			FailureThreshold:    &failureThreshold,
+		},
+		PreStopHook: &preStopHook,
+	}
+
+	serviceResolver, err := ts.Resolver.CreateService(&struct{ Service *model.ServiceInput }{
+		Service: &service,
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.NotNil(ts.T(), serviceResolver)
+
+	// call ExportServices
+	serviceResolverQuery := graphql_resolver.ServiceResolverQuery{
+		DB: ts.Resolver.DB,
+	}
+	servicesYAMLString, err := serviceResolverQuery.ExportServices(&struct{ Params *model.ExportServicesInput }{
+		Params: &model.ExportServicesInput{
+			ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		},
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	services := []model.Service{}
+	err = yaml.Unmarshal([]byte(servicesYAMLString), &services)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 1, len(services))
+
+	// validate all inputs
+	assert.Equal(ts.T(), service.Command, services[0].Command)
+	assert.Equal(ts.T(), service.Name, services[0].Name)
+	assert.Equal(ts.T(), service.Count, services[0].Count)
+	assert.Equal(ts.T(), len(*service.Ports), len(services[0].Ports))
+	assert.Equal(ts.T(), string(service.Type), string(services[0].Type))
+	assert.Equal(ts.T(), string(service.DeploymentStrategy.Type), string(services[0].DeploymentStrategy.Type))
+	assert.Equal(ts.T(), service.DeploymentStrategy.MaxUnavailable, services[0].DeploymentStrategy.MaxUnavailable)
+	assert.Equal(ts.T(), service.DeploymentStrategy.MaxSurge, services[0].DeploymentStrategy.MaxSurge)
+	assert.Equal(ts.T(), string(*service.ReadinessProbe.Type), string(services[0].ReadinessProbe.Type))
+	assert.Equal(ts.T(), service.ReadinessProbe.Method, services[0].ReadinessProbe.Method)
+	assert.Equal(ts.T(), *service.ReadinessProbe.Port, services[0].ReadinessProbe.Port)
+	assert.Equal(ts.T(), *service.ReadinessProbe.Scheme, services[0].ReadinessProbe.Scheme)
+	assert.Equal(ts.T(), *service.ReadinessProbe.Path, services[0].ReadinessProbe.Path)
+	assert.Equal(ts.T(), service.ReadinessProbe.Method, services[0].ReadinessProbe.Method)
+	assert.Equal(ts.T(), *service.LivenessProbe.Command, services[0].LivenessProbe.Command)
+}
+
+func (ts *ServiceTestSuite) TestExportServices_Success_NoServices() {
+	return
+}
+
+func (ts *ServiceTestSuite) TestExportServices_Fail_InvalidProjectID() {
+	return
+}
+
+func (ts *ServiceTestSuite) TestExportServices_Fail_InvalidEnvironmentID() {
 	return
 }
 
