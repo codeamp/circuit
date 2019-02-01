@@ -50,11 +50,11 @@ func (r *SecretResolverQuery) ExportSecrets(ctx context.Context, args *struct{ P
 	env := model.Environment{}
 	secrets := []model.Secret{}
 
-	if err := r.DB.Where("id = ?", args.Params.ProjectID).First(&project).Error; err != nil {
+	if err := r.DB.Debug().Where("id = ?", args.Params.ProjectID).Find(&project).Error; err != nil {
 		return "", err
 	}
 
-	if err := r.DB.Where("id = ?", args.Params.EnvironmentID).First(&env).Error; err != nil {
+	if err := r.DB.Where("id = ?", args.Params.EnvironmentID).Find(&env).Error; err != nil {
 		return "", err
 	}
 

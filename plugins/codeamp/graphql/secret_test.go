@@ -213,9 +213,7 @@ func (ts *SecretTestSuite) TestSecretScopes() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Success() {
-	ts.T().Log("TestSecretsImport_Success")
 	// provide inputs
-
 	// YAML string of secrets
 	secretsYAMLString := `
 - key: SECRET_KEY
@@ -278,9 +276,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidYAMLFileFormat() {
-	ts.T().Log("TestSecretsImport_Fail_InvalidYAMLFileFormat")
 	// provide inputs
-
 	// invalid YAML string of secrets
 	secretsYAMLString := `
 - key: SECRET_KEY
@@ -317,9 +313,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidYAMLFileFormat() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidProjectID() {
-	ts.T().Log("TestSecretsImport_Fail_InvalidProjectID")
 	// provide inputs
-
 	// YAML string of secrets
 	secretsYAMLString := `
 - key: SECRET_KEY
@@ -357,9 +351,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidProjectID() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidUserID() {
-	ts.T().Log("TestSecretsImport_Fail_InvalidUserID")
 	// provide inputs
-
 	// YAML string of secrets
 	secretsYAMLString := `
 - key: SECRET_KEY
@@ -400,9 +392,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidUserID() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidEnvironmentID() {
-	ts.T().Log("TestSecretsImport_Fail_InvalidEnvironmentID")
 	// provide inputs
-
 	// YAML string of secrets
 	secretsYAMLString := `
 - key: SECRET_KEY
@@ -445,9 +435,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidEnvironmentID() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
-	ts.T().Log("TestSecretsImport_Fail_InvalidSecretsType")
 	// provide inputs
-
 	// YAML string of secrets with invalid secrets type
 	secretsYAMLString := `
 - key: SECRET_KEY
@@ -490,9 +478,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
 }
 
 func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
-	ts.T().Log("TestSecretsImport_Success_ProtectedSecretCreated")
 	// provide inputs
-
 	// YAML string of secrets with invalid secrets type
 	secretsYAMLString := `
 - key: SECRET_KEY
