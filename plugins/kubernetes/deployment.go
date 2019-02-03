@@ -175,13 +175,9 @@ func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kube
 
 // Returns false if there is no failures detected and true if there is an error waiting
 func detectPodFailure(pod v1.Pod) (string, bool) {
-	log.Warn("dt1")
 	if len(pod.Status.ContainerStatuses) > 0 {
-		log.Warn("dt2")
 		for _, containerStatus := range pod.Status.ContainerStatuses {
-			log.Warn("dt3")
 			if containerStatus.State.Waiting != nil {
-				log.Warn("dt4")
 				switch waitingReason := containerStatus.State.Waiting.Reason; waitingReason {
 				case "CrashLoopBackOff", "ImageInspectError", "ErrImageNeverPull", "RegistryUnavilable", "InvalidImageName":
 					failmessage := fmt.Sprintf("Detected Pod '%s' is waiting forever because of '%s'", pod.Name, waitingReason)
@@ -593,9 +589,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 
 	// For all OneShot Services
 	for index, service := range oneShotServices {
-		log.Warn("SERVICE NAME: ", service.Name)
 		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
-		log.Warn("SERVICE NAME: ", oneShotServiceName)
 
 		// Check and delete any completed or failed jobs, and delete respective pods
 		listOptions := meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}
@@ -780,7 +774,6 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 
 	// Now process all deployment services
 	for _, service := range deploymentServices {
-		log.Warn("DEPLOYING SERVICE: ", service.Name)
 		deploymentName := genDeploymentName(projectSlug, service.Name)
 		deployPorts := getContainerPorts(service)
 
@@ -934,8 +927,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 	if len(deploymentServices) > 0 {
 		// Check status of all deployments till they succeed or timeout.
 		for {
-			log.Warn("waitForDeploymentSuccess")
-
 			successfulDeploys = 0
 			failedDeploys = 0
 			servicesDeployed = nil
@@ -944,7 +935,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 			for index, service := range deploymentServices {
 				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
-				log.Warn("waitForDeploymentSuccess - ", deploymentName)
 
 				var err error
 				var deployment *v1beta1.Deployment
@@ -953,10 +943,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					log.Error(fmt.Sprintf("Error '%s' fetching deployment status for %s", err, deploymentName))
 					continue
 				}
-
-				log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d",
-						deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas,
-						deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
 
 				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation &&
 					deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas &&
@@ -970,8 +956,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					servicesDeployed = append(servicesDeployed, service)
 
 					log.Info(fmt.Sprintf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices)))
-				} else if deployment.Status.UnavailableReplicas > 0 {
-					
+				} else if deployment.Status.UnavailableReplicas > 0 {					
 					latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
 
 					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
@@ -997,7 +982,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 						continue
 					}
 
-					log.Warn("checking pods ", len(allPods.Items), " ", currentReplica.Name)
 				Items:
 					for _, pod := range allPods.Items {
 						for _, ref := range pod.ObjectMeta.OwnerReferences {
