@@ -1029,18 +1029,18 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 			} else {
 				if successfulDeploys+failedDeploys == len(deploymentServices) {
 					deploymentSucceededReport := ""
-					for _, successes := range servicesDeployed {
-						deploymentName := strings.ToLower(genDeploymentName(projectSlug, successes.Name))
+					for _, successDeploy := range servicesDeployed {
+						deploymentName := strings.ToLower(genDeploymentName(projectSlug, successDeploy.Name))
 						deploymentSucceededReport += deploymentName
-						if successes.ID != servicesDeployed[len(servicesDeployed)-1].ID {
+						if successDeploy.ID != servicesDeployed[len(servicesDeployed)-1].ID {
 							deploymentSucceededReport += ", "
 						}
 					}
 					deploymentFailedReport := ""
-					for _, fails := range servicesFailed {
-						deploymentName := strings.ToLower(genDeploymentName(projectSlug, fails.Name))
+					for _, failDeploy := range servicesFailed {
+						deploymentName := strings.ToLower(genDeploymentName(projectSlug, failDeploy.Name))
 						deploymentFailedReport += deploymentName
-						if fails.ID != servicesFailed[len(servicesFailed)-1].ID {
+						if failDeploy.ID != servicesFailed[len(servicesFailed)-1].ID {
 							deploymentFailedReport += ", "
 						}
 					}
