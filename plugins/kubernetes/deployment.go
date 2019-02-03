@@ -1340,8 +1340,10 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			return err
 		} else {
 			err := fmt.Errorf("%s - %s", errors[0].Error(), "Unwinding Deploy")
+			if len(preDeploymentGenerations) == 0 {
+				err = fmt.Errorf("%s - %s", errors[0].Error(), "Unwinding Deploy First Deploy")
+			}
 			log.Error(err)
-
 			x.sendErrorResponse(e, err.Error())
 			return err
 		}
@@ -1524,13 +1526,8 @@ func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, name
 }
 
 func (x *Kubernetes) getDeploymentGenerations(clientset kubernetes.Interface, namespace string) (map[string]int64, error) {
-	depInterface := clientset.Extensions()
-
 	results := make(map[string]int64, 0)
-
-	// var err error
-	// var deployments []v1beta1.Deployment
-	deployments, err := depInterface.Deployments(namespace).List(meta_v1.ListOptions{})
+	deployments, err := x.ExtDeploymenter.List(clientset, namespace, &meta_v1.ListOptions{})
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -1538,7 +1535,6 @@ func (x *Kubernetes) getDeploymentGenerations(clientset kubernetes.Interface, na
 
 	for _, deployment := range deployments.Items {
 		results[deployment.GetName()] = deployment.GetGeneration()
-
 	}
 
 	return results, nil

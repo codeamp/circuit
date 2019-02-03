@@ -108,6 +108,7 @@ type MockCoreDeployment struct {}
 
 type MockExtDeployment struct {
 	DeploymentStatusOverride *v1beta1.DeploymentStatus
+	DeploymentListOverride []v1beta1.Deployment
 }
 
 func (l MockExtDeployment) Get(clientset kubernetes.Interface, namespace string, deploymentName string, getOptions *meta_v1.GetOptions) (*v1beta1.Deployment, error) {
@@ -128,7 +129,12 @@ func (l MockExtDeployment) Create(clientset kubernetes.Interface, namespace stri
 }
 
 func (l MockExtDeployment) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*v1beta1.DeploymentList, error) {
-	return clientset.Extensions().Deployments(namespace).List(*listOptions)
+	deploymentList, err := clientset.Extensions().Deployments(namespace).List(*listOptions)
+	if len(l.DeploymentListOverride) > 0 {
+		deploymentList = &v1beta1.DeploymentList{ Items: l.DeploymentListOverride }
+	}
+
+	return deploymentList, err
 }
 
 func (l MockExtDeployment) Update(clientset kubernetes.Interface, namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {

@@ -104,6 +104,7 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwindFirstDeploy() {
 	suite.transistor.Events <- ReleaseEvent(FailingReleaseExtension())
 	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded: 1}
 	suite.MockExtDeployment.DeploymentStatusOverride = &v1beta1.DeploymentStatus{UnavailableReplicas: 1}
+	suite.MockExtDeployment.DeploymentListOverride = []v1beta1.Deployment{}
 
 	suite.MockCorePod.Pods = []corev1.Pod{
 		corev1.Pod{
@@ -141,13 +142,20 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwindFirstDeploy() {
 
 	suite.T().Log(e.StateMessage)
 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
-	assert.Equal(suite.T(), kubernetes.ErrDeployPodWaitingForeverUnwindingDeploy.Error(), e.StateMessage)
+	assert.Equal(suite.T(), kubernetes.ErrDeployPodWaitingForeverUnwindingDeployFirstDeploy.Error(), e.StateMessage)
 }
 
 func (suite *TestSuiteDeployment) TestFailedDeployUnwind() {
 	suite.transistor.Events <- ReleaseEvent(FailingReleaseExtension())
 	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded: 1}
 	suite.MockExtDeployment.DeploymentStatusOverride = &v1beta1.DeploymentStatus{UnavailableReplicas: 1}
+	suite.MockExtDeployment.DeploymentListOverride = []v1beta1.Deployment{
+		v1beta1.Deployment{
+			ObjectMeta: meta_v1.ObjectMeta{
+				Generation: 1,
+			},
+		},	
+	}
 	suite.MockCorePod.Pods = []corev1.Pod{
 		corev1.Pod{
 			ObjectMeta: meta_v1.ObjectMeta{
@@ -359,8 +367,8 @@ func BasicReleaseExtensionJobAndService() plugins.ReleaseExtension {
 
 	release := plugins.Release{
 		Project: plugins.Project{
-			Repository: "checkr/deploy-test",
-			Slug:       "checkr-deploy-test",
+			Repository: fmt.Sprintf("checkr/deploy-test-%s", uuid),
+			Slug:       fmt.Sprintf("checkr-deploy-test-%s", uuid),
 		},
 		Git: plugins.Git{
 			Url:           "https://github.com/checkr/deploy-test.git",
