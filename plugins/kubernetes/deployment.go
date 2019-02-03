@@ -25,8 +25,6 @@ import (
 
 	"github.com/google/shlex"
 	"github.com/spf13/viper"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 var deploySleepTime = 5 * time.Second
@@ -701,11 +699,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		}
 
 		// Create the job
-		listJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{})
-		for _, item := range listJobs.Items {
-			spew.Dump(item.ObjectMeta)
-		}
-
 		createdJob, err := x.BatchV1Jobber.Create(clientset, namespace, jobParams)
 		if err != nil {
 			errMsg := fmt.Errorf("Failed to create job %s, with error: %s", jobParams.ObjectMeta.GenerateName, err)
@@ -764,7 +757,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				return errors.New(ErrDeployListingPods)
 			} else {
 				for _, item := range pods.Items {
-					spew.Dump(item)
 					if message, result := detectPodFailure(item); result {
 						// Job has failed
 						log.Error(fmt.Errorf(message))
@@ -1371,6 +1363,16 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	return nil
 }
 
+// The purpose of this function is to undo the steps in a deployment
+// when one or more services fail to deploy succesfully.
+// The process works by updating the Deployment template spec
+// to the previous replica sets spec which in turn restores
+// the previous deployment. If there are no replica sets
+// for a previous generation, and there is only one replica set
+// for the deployment that failed, then it is assumed that this
+// is a first time deployment. In the case of a first time deployment failure,
+// the deployment, replica sets, and pods are all deleted to ensure
+// no services listed as failed are in a running state
 func (x *Kubernetes) unwindFailedDeployment(clientset kubernetes.Interface, namespace string, projectSlug string, deploymentServices []plugins.Service, preDeploymentGenerations map[string]int64) error {
 	log.Debug("Unwinding Failed Deployment")
 	for _, service := range deploymentServices {
