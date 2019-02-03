@@ -25,6 +25,8 @@ import (
 
 	"github.com/google/shlex"
 	"github.com/spf13/viper"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 var deploySleepTime = 5 * time.Second
@@ -175,9 +177,13 @@ func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kube
 
 // Returns false if there is no failures detected and true if there is an error waiting
 func detectPodFailure(pod v1.Pod) (string, bool) {
+	log.Warn("dt1")
 	if len(pod.Status.ContainerStatuses) > 0 {
+		log.Warn("dt2")
 		for _, containerStatus := range pod.Status.ContainerStatuses {
+			log.Warn("dt3")
 			if containerStatus.State.Waiting != nil {
+				log.Warn("dt4")
 				switch waitingReason := containerStatus.State.Waiting.Reason; waitingReason {
 				case "CrashLoopBackOff", "ImageInspectError", "ErrImageNeverPull", "RegistryUnavilable", "InvalidImageName":
 					failmessage := fmt.Sprintf("Detected Pod '%s' is waiting forever because of '%s'", pod.Name, waitingReason)
@@ -589,7 +595,9 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 
 	// For all OneShot Services
 	for index, service := range oneShotServices {
+		log.Warn("SERVICE NAME: ", service.Name)
 		oneShotServiceName := strings.ToLower(genOneShotServiceName(projectSlug, service.Name))
+		log.Warn("SERVICE NAME: ", oneShotServiceName)
 
 		// Check and delete any completed or failed jobs, and delete respective pods
 		listOptions := meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}
@@ -693,9 +701,14 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		}
 
 		// Create the job
-		createdJob, err := batchv1DepInterface.Jobs(namespace).Create(jobParams)
+		listJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{})
+		for _, item := range listJobs.Items {
+			spew.Dump(item.ObjectMeta)
+		}
+
+		createdJob, err := x.BatchV1Jobber.Create(clientset, namespace, jobParams)
 		if err != nil {
-			errMsg := fmt.Errorf("Failed to create job %s, with error: %s", createdJob.Name, err)
+			errMsg := fmt.Errorf("Failed to create job %s, with error: %s", jobParams.ObjectMeta.GenerateName, err)
 			log.Error(errMsg)
 
 			return errors.New(ErrDeployJobCreate)
@@ -751,6 +764,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				return errors.New(ErrDeployListingPods)
 			} else {
 				for _, item := range pods.Items {
+					spew.Dump(item)
 					if message, result := detectPodFailure(item); result {
 						// Job has failed
 						log.Error(fmt.Errorf(message))
@@ -913,9 +927,6 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 	namespace string, projectSlug string, deploymentServices []plugins.Service) ([]plugins.Service, []plugins.Service, []error) {
 
-	coreInterface := clientset.Core()
-	depInterface := clientset.Extensions()
-
 	for i := range deploymentServices {
 		deploymentServices[i].State = transistor.GetState("waiting")
 	}
@@ -945,7 +956,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 				var err error
 				var deployment *v1beta1.Deployment
-				deployment, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
+				deployment, err = x.ExtDeploymenter.Get(clientset, namespace, deploymentName, &meta_v1.GetOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Error '%s' fetching deployment status for %s", err, deploymentName))
 					continue
@@ -972,7 +983,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
 
 					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
-					replicaSetList, err := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{
+					replicaSetList, err := x.ExtReplicaSetter.List(clientset, namespace, &meta_v1.ListOptions{
 						LabelSelector: "app=" + deploymentName,
 					})
 					if err != nil {
@@ -988,12 +999,13 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 						}
 					}
 
-					allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
+					allPods, podErr := x.CorePodder.List(clientset, namespace, &meta_v1.ListOptions{})
 					if podErr != nil {
 						log.Error(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
 						continue
 					}
 
+					log.Warn("checking pods ", len(allPods.Items), " ", currentReplica.Name)
 				Items:
 					for _, pod := range allPods.Items {
 						for _, ref := range pod.ObjectMeta.OwnerReferences {
@@ -1024,26 +1036,26 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 				break
 			} else {
 				if successfulDeploys+failedDeploys == len(deploymentServices) {
-					servicesSuccessfulDeployed := ""
+					deploymentSucceededReport := ""
 					for _, successes := range servicesDeployed {
 						deploymentName := strings.ToLower(genDeploymentName(projectSlug, successes.Name))
-						servicesSuccessfulDeployed += deploymentName
+						deploymentSucceededReport += deploymentName
 						if successes.ID != servicesDeployed[len(servicesDeployed)-1].ID {
-							servicesSuccessfulDeployed += ", "
+							deploymentSucceededReport += ", "
 						}
 					}
-					servicesFailedDeployed := ""
+					deploymentFailedReport := ""
 					for _, fails := range servicesFailed {
 						deploymentName := strings.ToLower(genDeploymentName(projectSlug, fails.Name))
-						servicesFailedDeployed += deploymentName
+						deploymentFailedReport += deploymentName
 						if fails.ID != servicesFailed[len(servicesFailed)-1].ID {
-							servicesFailedDeployed += ", "
+							deploymentFailedReport += ", "
 						}
 					}
 
 					log.Info("All services deployed for namespace: ", namespace)
-					log.Info("Succeeded: ", servicesSuccessfulDeployed)
-					log.Info("Failed: ", servicesFailedDeployed)
+					log.Info(fmt.Sprintf("Succeeded: '%s'", deploymentSucceededReport))
+					log.Info(fmt.Sprintf("Failed: '%s'", deploymentFailedReport))
 
 					break
 				}
@@ -1323,26 +1335,24 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	*
 	*******************************************/
 	log.Info(fmt.Sprintf("Waiting %d seconds for deployment to succeed.", timeout))
-	if deploysSuccesful, deploysFailed, errors := x.waitForDeploymentSuccess(clientset, namespace, projectSlug, deploymentServices); errors != nil && len(errors) > 0 {
-		for _, success := range deploysSuccesful {
-			log.Debug("Successfully Deployed Service: ", success.Name)
-		}
-		for _, failure := range deploysFailed {
-			log.Debug("Failed to Deploy Service: ", failure.Name)
-		}
+	if _, _, errors := x.waitForDeploymentSuccess(clientset, namespace, projectSlug, deploymentServices); errors != nil && len(errors) > 0 {
 		for _, err := range errors {
 			log.Error("WAIT-FOR: ", err.Error())
 		}
 
 		if err := x.unwindFailedDeployment(clientset, namespace, projectSlug, deploymentServices, preDeploymentGenerations); err != nil {
+			err := fmt.Errorf("%s - %s", err.Error(), "Unwinding Deploy FAILED")
 			log.Error(err)
+
+			x.sendErrorResponse(e, err.Error())
+			return err
+		} else {
+			err := fmt.Errorf("%s - %s", errors[0].Error(), "Unwinding Deploy")
+			log.Error(err)
+
 			x.sendErrorResponse(e, err.Error())
 			return err
 		}
-
-		err := errors[0]
-		x.sendErrorResponse(e, err.Error())
-		return err
 	}
 
 	// all success!

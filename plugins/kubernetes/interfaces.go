@@ -40,6 +40,7 @@ func (l ContourNamespace) NewForConfig(config *rest.Config) (contour_client.Inte
 ///////////////////////////////////////////////////
 
 type BatchV1Jobber interface {
+	Create(kubernetes.Interface, string, *v1.Job) (*v1.Job, error)
 	Get(kubernetes.Interface, string, string, meta_v1.GetOptions) (*v1.Job, error)
 }
 
@@ -47,6 +48,10 @@ type BatchV1Job struct{}
 
 func (l BatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error) {
 	return clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
+}
+
+func (l BatchV1Job) Create(clientset kubernetes.Interface, namespace string, job *v1.Job) (*v1.Job, error) {
+	return clientset.BatchV1().Jobs(namespace).Create(job)
 }
 
 ///////////////////////////////////////////////////
@@ -93,7 +98,7 @@ func (l CoreSecret) Create(clientset kubernetes.Interface, namespace string, sec
 ///////////////////////////////////////////////////
 
 type ExtDeploymenter interface {
-	Create(kubernetes.Interface, string, string, *v1beta1.Deployment) (*v1beta1.Deployment, error)
+	Create(kubernetes.Interface, string, *v1beta1.Deployment) (*v1beta1.Deployment, error)
 	Update(kubernetes.Interface, string, *v1beta1.Deployment) (*v1beta1.Deployment, error)
 	List(kubernetes.Interface, string, *meta_v1.ListOptions) (*v1beta1.DeploymentList, error)
 	Get(kubernetes.Interface, string, string, *meta_v1.GetOptions) (*v1beta1.Deployment, error)
@@ -103,8 +108,8 @@ type ExtDeploymenter interface {
 
 type ExtDeployment struct {}
 
-func (l ExtDeployment) Get(clientset kubernetes.Interface, namespace string, deploymentName string, getOptions meta_v1.GetOptions) (*v1beta1.Deployment, error) {
-	return clientset.Extensions().Deployments(namespace).Get(deploymentName, getOptions)
+func (l ExtDeployment) Get(clientset kubernetes.Interface, namespace string, deploymentName string, getOptions *meta_v1.GetOptions) (*v1beta1.Deployment, error) {
+	return clientset.Extensions().Deployments(namespace).Get(deploymentName, *getOptions)
 }
 
 func (l ExtDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {

@@ -10,6 +10,7 @@ import (
 
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	uuid "github.com/satori/go.uuid"
@@ -39,6 +40,11 @@ func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jo
 	job.Status = l.StatusOverride
 
 	return job, err
+}
+
+func (l MockBatchV1Job) Create(clientset kubernetes.Interface, namespace string, job *v1.Job) (*v1.Job, error) {
+	job.ObjectMeta.Name = job.ObjectMeta.GenerateName
+	return clientset.BatchV1().Jobs(namespace).Create(job)
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -100,10 +106,17 @@ type MockCoreDeployment struct {}
 
 ///////////////////////////////////////////////////
 
-type MockExtDeployment struct {}
+type MockExtDeployment struct {
+	DeploymentStatusOverride *v1beta1.DeploymentStatus
+}
 
-func (l MockExtDeployment) Get(clientset kubernetes.Interface, namespace string, deploymentName string, getOptions meta_v1.GetOptions) (*v1beta1.Deployment, error) {
-	return clientset.Extensions().Deployments(namespace).Get(deploymentName, getOptions)
+func (l MockExtDeployment) Get(clientset kubernetes.Interface, namespace string, deploymentName string, getOptions *meta_v1.GetOptions) (*v1beta1.Deployment, error) {
+	deployment, err := clientset.Extensions().Deployments(namespace).Get(deploymentName, *getOptions)
+	if l.DeploymentStatusOverride != nil {
+		deployment.Status = *l.DeploymentStatusOverride
+	}
+
+	return deployment, err
 }
 
 func (l MockExtDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {
@@ -128,13 +141,28 @@ func (l MockExtDeployment) UpdateScale(clientset kubernetes.Interface, namespace
 
 ///////////////////////////////////////////////////
 
+type MockExtReplicaSet struct {}
+
+func (l MockExtReplicaSet) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*v1beta1.ReplicaSetList, error) {
+	return clientset.Extensions().ReplicaSets(namespace).List(*listOptions)
+}
+
+func (l MockExtReplicaSet) Delete(clientset kubernetes.Interface, namespace string, replicaSetName string, deleteOptions *meta_v1.DeleteOptions) error {
+	return clientset.Extensions().ReplicaSets(namespace).Delete(replicaSetName, deleteOptions)
+}
+
+func (l MockExtReplicaSet) UpdateScale(clientset kubernetes.Interface, namespace string, replicaSetName string, scale *v1beta1.Scale) (*v1beta1.Scale, error) {
+	return clientset.Extensions().ReplicaSets(namespace).UpdateScale(replicaSetName, scale)
+}
 
 ///////////////////////////////////////////////////
 
-type MockCorePod struct {}
+type MockCorePod struct {
+	Pods []corev1.Pod
+}
 
 func (l MockCorePod) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*corev1.PodList, error) {
-	return clientset.Core().Pods(namespace).List(*listOptions)
+	return &corev1.PodList{ Items: l.Pods }, nil
 }
 
 func (l MockCorePod) Delete(clientset kubernetes.Interface, namespace string, podName string, deleteOptions *meta_v1.DeleteOptions) error {
