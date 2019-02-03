@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/kubernetes"
 	"github.com/codeamp/circuit/test"
+	"github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -87,6 +88,58 @@ func (suite *TestSuiteDeployment) TestBasicFailedDeploy() {
 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
 	assert.Equal(suite.T(), kubernetes.ErrDeployJobStarting.Error(), e.StateMessage)
 }
+
+func (suite *TestSuiteDeployment) TestFailedDeployUnwindFirstDeploy() {
+	suite.transistor.Events <- BasicFailedReleaseEvent()
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded: 1}
+
+	var e transistor.Event
+	var err error
+	for {
+		log.Warn("waiting for event")
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 30)
+		log.Warn(e.Event())
+		log.Warn(e.StateMessage)
+
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+	assert.Equal(suite.T(), kubernetes.ErrDeployJobStarting.Error(), e.StateMessage)
+}
+
+func (suite *TestSuiteDeployment) TestFailedDeployUnwind() {
+	suite.transistor.Events <- BasicFailedReleaseEvent()
+	suite.MockBatchV1Job.StatusOverride = v1.JobStatus{Succeeded: 1}
+
+	var e transistor.Event
+	var err error
+	for {
+		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 30)
+
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+	assert.Equal(suite.T(), kubernetes.ErrDeployJobStarting.Error(), e.StateMessage)
+}
+
 
 func (suite *TestSuiteDeployment) TestDeployFailureNoSecrets() {
 	suite.transistor.Events <- BuildReleaseEvent(BasicReleaseExtensionNoSecrets())
@@ -212,6 +265,27 @@ func BasicReleaseExtension() plugins.ReleaseExtension {
 				},
 				Replicas: 1,
 				Type:     "one-shot",
+			},
+			{
+				Name: "www",
+				Listeners: []plugins.Listener{
+					{
+						Port:     80,
+						Protocol: "TCP",
+					},
+				},
+				Action: transistor.GetAction("create"),
+				State:  transistor.GetState("waiting"),
+				Spec: plugins.ServiceSpec{
+
+					CpuRequest:                    "10m",
+					CpuLimit:                      "500m",
+					MemoryRequest:                 "1Mi",
+					MemoryLimit:                   "500Mi",
+					TerminationGracePeriodSeconds: int64(1),
+				},
+				Replicas: 1,
+				Type:     "general",
 			},
 		},
 		HeadFeature: plugins.Feature{

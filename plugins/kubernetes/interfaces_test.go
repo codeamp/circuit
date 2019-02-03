@@ -93,3 +93,50 @@ func (l MockCoreSecret) Create(clientset kubernetes.Interface, namespace string,
 
 	return clientset.Core().Secrets(namespace).Create(&secretsCopy)
 }
+
+/////////////////////////////////////////////////////////////////////////
+
+type MockCoreDeployment struct {}
+
+///////////////////////////////////////////////////
+
+type MockExtDeployment struct {}
+
+func (l MockExtDeployment) Get(clientset kubernetes.Interface, namespace string, deploymentName string, getOptions meta_v1.GetOptions) (*v1beta1.Deployment, error) {
+	return clientset.Extensions().Deployments(namespace).Get(deploymentName, getOptions)
+}
+
+func (l MockExtDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {
+	return clientset.Extensions().Deployments(namespace).Delete(deploymentName, deleteOptions)
+}
+
+func (l MockExtDeployment) Create(clientset kubernetes.Interface, namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
+	return clientset.Extensions().Deployments(namespace).Create(deployment)
+}
+
+func (l MockExtDeployment) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*v1beta1.DeploymentList, error) {
+	return clientset.Extensions().Deployments(namespace).List(*listOptions)
+}
+
+func (l MockExtDeployment) Update(clientset kubernetes.Interface, namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
+	return clientset.Extensions().Deployments(namespace).Update(deployment)
+}
+
+func (l MockExtDeployment) UpdateScale(clientset kubernetes.Interface, namespace string, deploymentName string, scale *v1beta1.Scale) (*v1beta1.Scale, error) {
+	return clientset.Extensions().Deployments(namespace).UpdateScale(deploymentName, scale)
+}
+
+///////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////
+
+type MockCorePod struct {}
+
+func (l MockCorePod) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*corev1.PodList, error) {
+	return clientset.Core().Pods(namespace).List(*listOptions)
+}
+
+func (l MockCorePod) Delete(clientset kubernetes.Interface, namespace string, podName string, deleteOptions *meta_v1.DeleteOptions) error {
+	return clientset.Core().Pods(namespace).Delete(podName, deleteOptions)
+}
