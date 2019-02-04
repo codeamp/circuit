@@ -56,27 +56,27 @@ func (r *ServiceResolverQuery) ExportServices(args *struct{ Params *model.Export
 	for _, service := range services {
 		// Get ports
 		ports := []model.ServicePort{}
-		if err := r.DB.Where("service_id = ?", service.Model.ID).Order("created_at desc").Find(&ports).Error; err != nil {
-			log.Info(err.Error())
+		if err := r.DB.Where("service_id = ?", service.Model.ID).Order("created_at desc").Find(&ports).Error; gorm.IsRecordNotFoundError(err) {
+			log.Error(err.Error())
 		}
 		service.Ports = ports
 
 		// Get deploy strategy
 		deployStrategy := model.ServiceDeploymentStrategy{}
-		if err := r.DB.Where("service_id = ?", service.Model.ID).First(&deployStrategy).Error; err != nil {
-			log.Info(err.Error())
+		if err := r.DB.Where("service_id = ?", service.Model.ID).First(&deployStrategy).Error; gorm.IsRecordNotFoundError(err) {
+			log.Error(err.Error())
 		}
 		service.DeploymentStrategy = deployStrategy
 
 		// Get readiness probe
 		readinessProbe := model.ServiceHealthProbe{}
 		rpHeaders := []model.ServiceHealthProbeHttpHeader{}
-		if err := r.DB.Where("service_id = ? and type = ?", service.Model.ID, string(plugins.GetType("readinessProbe"))).First(&readinessProbe).Error; err != nil {
-			log.Info(err.Error())
+		if err := r.DB.Where("service_id = ? and type = ?", service.Model.ID, string(plugins.GetType("readinessProbe"))).First(&readinessProbe).Error; gorm.IsRecordNotFoundError(err) {
+			log.Error(err.Error())
 		}
 
-		if err := r.DB.Where("health_probe_id = ?", readinessProbe.Model.ID).Find(&rpHeaders).Error; err != nil {
-			log.Info(err.Error())
+		if err := r.DB.Where("health_probe_id = ?", readinessProbe.Model.ID).Find(&rpHeaders).Error; gorm.IsRecordNotFoundError(err) {
+			log.Error(err.Error())
 		}
 
 		readinessProbe.HttpHeaders = rpHeaders
@@ -85,12 +85,12 @@ func (r *ServiceResolverQuery) ExportServices(args *struct{ Params *model.Export
 		// get liveness probe
 		livenessProbe := model.ServiceHealthProbe{}
 		lpHeaders := []model.ServiceHealthProbeHttpHeader{}
-		if err := r.DB.Where("service_id = ? and type = ?", service.Model.ID, string(plugins.GetType("livenessProbe"))).First(&livenessProbe).Error; err != nil {
-			log.Info(err.Error())
+		if err := r.DB.Where("service_id = ? and type = ?", service.Model.ID, string(plugins.GetType("livenessProbe"))).First(&livenessProbe).Error; gorm.IsRecordNotFoundError(err) {
+			log.Error(err.Error())
 		}
 
-		if err := r.DB.Where("health_probe_id = ?", livenessProbe.Model.ID).Find(&lpHeaders).Error; err != nil {
-			log.Info(err.Error())
+		if err := r.DB.Where("health_probe_id = ?", livenessProbe.Model.ID).Find(&lpHeaders).Error; gorm.IsRecordNotFoundError(err) {
+			log.Error(err.Error())
 		}
 
 		livenessProbe.HttpHeaders = lpHeaders
