@@ -249,7 +249,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success() {
 		Email:       userResolver.DBUserResolver.User.Email,
 		Permissions: []string{""},
 	})
-	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+	secretsResolver, err := ts.Resolver.ImportSecrets(userContext, &struct{ Secrets *model.ImportSecretsInput }{
 		Secrets: &model.ImportSecretsInput{
 			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
 			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
