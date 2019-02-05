@@ -23,6 +23,8 @@ var ErrDeployServiceCreate = errors.Errorf("Failed to create service")
 var ErrDeployServiceUpdate = errors.Errorf("Failed to update service")
 
 var ErrDeployPodWaitingForever = errors.Errorf("Pod is waiting forever")
+var ErrDeployPodWaitingForeverUnwindingDeploy = errors.Errorf("Pod is waiting forever - Unwinding Deploy")
+var ErrDeployPodWaitingForeverUnwindingDeployFirstDeploy = errors.Errorf("Pod is waiting forever - Unwinding Deploy First Deploy")
 var ErrDeployTimeout = errors.Errorf("Error, timeout reached waiting for all deployments to succeed.")
 
 // Services Errors
