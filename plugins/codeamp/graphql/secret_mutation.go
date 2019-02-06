@@ -158,7 +158,17 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 	}
 
 	user := model.User{}
-	if err := r.DB.Where("id = ?", args.Secrets.UserID).First(&user).Error; err != nil {
+	userIDString, err := auth.CheckAuth(ctx, []string{})
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := uuid.FromString(userIDString)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.DB.Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
 

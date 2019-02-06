@@ -59,6 +59,13 @@ func (r *Resolver) Services(ctx context.Context, args *struct {
 	return initializer.Services(ctx, args)
 }
 
+func (r *Resolver) ExportServices(ctx context.Context, args *struct {
+	Params *model.ExportServicesInput
+}) (string, error) {
+	initializer := ServiceResolverQuery{DB: r.DB}
+	return initializer.ExportServices(args)
+}
+
 func (r *Resolver) ServiceSpecs(ctx context.Context) ([]*ServiceSpecResolver, error) {
 	initializer := ServiceSpecResolverQuery{DB: r.DB}
 	return initializer.ServiceSpecs(ctx)

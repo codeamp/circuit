@@ -244,8 +244,8 @@ func (ts *SecretTestSuite) TestSecretsImport_Success() {
 	}
 
 	// call importer function
-	ctx := context.Background()
-	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+	userContext := test.BuildAuthContext(userResolver.DBUserResolver.User.Model.ID.String(), userResolver.DBUserResolver.User.Email, []string{""})
+	secretsResolver, err := ts.Resolver.ImportSecrets(userContext, &struct{ Secrets *model.ImportSecretsInput }{
 		Secrets: &model.ImportSecretsInput{
 			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
 			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
@@ -521,11 +521,7 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	}
 
 	// call importer function
-	userContext := context.WithValue(context.Background(), "jwt", model.Claims{
-		UserID:      userResolver.DBUserResolver.Model.ID.String(),
-		Email:       userResolver.DBUserResolver.User.Email,
-		Permissions: []string{""},
-	})
+	userContext := test.BuildAuthContext(userResolver.DBUserResolver.User.Model.ID.String(), userResolver.DBUserResolver.User.Email, []string{""})
 	secretsResolver, err := ts.Resolver.ImportSecrets(userContext, &struct{ Secrets *model.ImportSecretsInput }{
 		Secrets: &model.ImportSecretsInput{
 			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
