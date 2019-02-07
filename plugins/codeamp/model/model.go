@@ -109,9 +109,9 @@ type ServiceSpec struct {
 
 // Service
 type Service struct {
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ProjectID
-	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
+	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid" yaml:"-"`
 	// Command
 	Command string `json:"command" yaml:"command"`
 	// Name
@@ -123,7 +123,7 @@ type Service struct {
 	// Ports
 	Ports []ServicePort `json:"servicePorts" yaml:"servicePorts"`
 	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid" yaml:"-"`
 	// DeploymentStrategy
 	DeploymentStrategy ServiceDeploymentStrategy `json:"deploymentStrategy" yaml:"deploymentStrategy"`
 	// ReadinessProbe
@@ -136,9 +136,9 @@ type Service struct {
 
 // ServicePort
 type ServicePort struct {
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid" yaml:"-"`
 	// Protocol
 	Protocol string `json:"protocol" yaml:"protocol"`
 	// Port
@@ -148,9 +148,9 @@ type ServicePort struct {
 // DeploymentStrategy
 type ServiceDeploymentStrategy struct {
 	// Model
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid" yaml:"-"`
 	// Type
 	Type plugins.Type `json:"type" yaml:"type"`
 	// MaxUnavailable
@@ -162,9 +162,9 @@ type ServiceDeploymentStrategy struct {
 // ServiceHealthProbe
 type ServiceHealthProbe struct {
 	// Model
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid" yaml:"-"`
 	// Type: required; accepts `readinessProbe` and `livenessProbe`
 	Type plugins.Type `json:"type" yaml:"type"`
 	// Method: required; accepts `exec`, `http`, and `tcp`
@@ -192,8 +192,8 @@ type ServiceHealthProbe struct {
 }
 
 type ServiceHealthProbeHttpHeader struct {
-	Model         `json:",inline"`
-	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"-" gorm:"type:uuid"`
+	Model         `json:",inline" yaml:"-"`
+	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"-" gorm:"type:uuid" yaml:"-"`
 	Name          string    `json:"name" yaml:"name"`
 	Value         string    `json:"value" yaml:"value"`
 }
