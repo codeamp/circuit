@@ -450,14 +450,18 @@ func (r *ServiceResolverMutation) createServiceInDB(tx *gorm.DB, serviceInput *m
 		}
 	}
 
-	if serviceInput.Ports != nil && serviceInput.Type == string(plugins.GetType("general")) {
-		for _, cp := range *serviceInput.Ports {
-			servicePort := model.ServicePort{
-				ServiceID: service.ID,
-				Port:      cp.Port,
-				Protocol:  cp.Protocol,
+	if serviceInput.Ports != nil {
+		if serviceInput.Type == string(plugins.GetType("general")) {
+			for _, cp := range *serviceInput.Ports {
+				servicePort := model.ServicePort{
+					ServiceID: service.ID,
+					Port:      cp.Port,
+					Protocol:  cp.Protocol,
+				}
+				tx.Create(&servicePort)
 			}
-			tx.Create(&servicePort)
+		} else {
+			return nil, fmt.Errorf("Can only create ports if the service type is general")
 		}
 	}
 

@@ -777,9 +777,10 @@ func (ts *ServiceTestSuite) TestCreateService_Fail_OneShotWithPorts() {
 		},
 	}
 	serviceInput := &model.ServiceInput{
-		Type:      "one-shot",
-		ProjectID: string(projectResolver.ID()),
-		Ports:     &servicePorts,
+		Type:          "one-shot",
+		ProjectID:     string(projectResolver.ID()),
+		Ports:         &servicePorts,
+		EnvironmentID: string(envResolver.ID()),
 	}
 	_, err = ts.Resolver.CreateService(&struct{ Service *model.ServiceInput }{serviceInput})
 	assert.NotNil(ts.T(), err)
