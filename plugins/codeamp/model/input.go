@@ -156,7 +156,7 @@ type ServiceInput struct {
 	// Count
 	Count int32 `json:"count,string" yaml:"count"`
 	// ContainerPorts
-	Ports *[]ServicePortInput `json:"ports" yaml:"ports"`
+	Ports *[]ServicePortInput `json:"ports" yaml:"servicePorts"`
 	// Type
 	Type string `json:"type" yaml:"type"`
 	// EnvironmentID
