@@ -756,6 +756,34 @@ func (ts *ServiceTestSuite) TestUpdateServiceSuccess() {
 		assert.FailNow(ts.T(), err.Error())
 	}
 }
+func (ts *ServiceTestSuite) TestCreateService_Fail_OneShotWithPorts() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	ts.helper.CreateServiceSpec(ts.T(), true)
+
+	// Create Service
+	servicePorts := []model.ServicePortInput{
+		{
+			Port:     80,
+			Protocol: "HTTP",
+		},
+	}
+	serviceInput := &model.ServiceInput{
+		Type:      "one-shot",
+		ProjectID: string(projectResolver.ID()),
+		Ports:     &servicePorts,
+	}
+	_, err = ts.Resolver.CreateService(&struct{ Service *model.ServiceInput }{serviceInput})
+	assert.NotNil(ts.T(), err)
+}
 
 func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
 	// Environment
