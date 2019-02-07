@@ -53,6 +53,12 @@ type ImportSecretsInput struct {
 	EnvironmentID     string `json:"environmentID"`
 }
 
+// ExportSecretsInput
+type ExportSecretsInput struct {
+	ProjectID     string `json:"projectID"`
+	EnvironmentID string `json:"environmentID"`
+}
+
 // ProjectExtensionInput
 type ProjectExtensionInput struct {
 	// ID
@@ -150,7 +156,7 @@ type ServiceInput struct {
 	// Count
 	Count int32 `json:"count,string" yaml:"count"`
 	// ContainerPorts
-	Ports *[]ServicePortInput `json:"ports" yaml:"ports"`
+	Ports *[]ServicePortInput `json:"ports" yaml:"servicePorts"`
 	// Type
 	Type string `json:"type" yaml:"type"`
 	// EnvironmentID
@@ -170,6 +176,12 @@ type ImportServicesInput struct {
 	ServicesYAMLString string `json:"servicesYAMLString"`
 	ProjectID          string `json:"projectID"`
 	EnvironmentID      string `json:"environmentID"`
+}
+
+// ExportServicesInput
+type ExportServicesInput struct {
+	ProjectID     string `json:"projectID"`
+	EnvironmentID string `json:"environmentID"`
 }
 
 type DeploymentStrategyInput struct {

@@ -20,6 +20,8 @@ type Query {
   features(params: PaginatorInput): FeatureList!
   # Services
   services(params: PaginatorInput): ServiceList!
+  # Export all services within given projectID and environmentID
+  exportServices(params: ExportServicesInput): String!  
   # Service specs
   serviceSpecs(): [ServiceSpec]!
   # Releases
@@ -28,6 +30,8 @@ type Query {
   environments(projectSlug: String): [Environment]!
   # Environment variables
   secrets(params: PaginatorInput): SecretList!
+  # Export all environment variables within given projectID and environmentID
+  exportSecrets(params: ExportSecretsInput): String!  
   # Single Secret
   secret(id: String): Secret
   # ProjectExtension spec
@@ -353,6 +357,12 @@ input ImportServicesInput {
   environmentID: String!
 }
 
+# Services export input
+input ExportServicesInput {
+  projectID: String!
+  environmentID: String!
+}
+
 # Container port input
 input ServicePortInput {
   port: Int!
@@ -422,7 +432,12 @@ input SecretInput {
 input ImportSecretsInput {
   secretsYAMLString: String!
   projectID: String!
-  userID: String!
+  environmentID: String!
+}
+
+# Environment variable export input
+input ExportSecretsInput {
+  projectID: String!
   environmentID: String!
 }
 
