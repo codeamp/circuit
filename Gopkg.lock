@@ -323,6 +323,14 @@
   revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
 
 [[projects]]
+  digest = "1:cea4aa2038169ee558bf507d5ea02c94ca85bcca28a4c7bb99fd59b31e43a686"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  pruneopts = ""
+  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   digest = "1:754f77e9c839b24778a4b64422236d38515301d2baeb63113aa3edc42e6af692"
   name = "github.com/google/gofuzz"
@@ -450,14 +458,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e263d2bb71de71fb5048d0ac4240ff5d79fff886bc580118c848377cf9f39318"
-  name = "github.com/influxdata/influxdb"
-  packages = ["."]
-  pruneopts = ""
-  revision = "db8f51ff2fdba4f0825a007000a4ad244ae163d1"
-
-[[projects]]
-  branch = "master"
   digest = "1:e19eb20c74cfdd81fdd562e874ed3743586e7eb1be5f67ce72361f39e23a04ce"
   name = "github.com/jinzhu/gorm"
   packages = [
@@ -496,6 +496,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
+
+[[projects]]
+  digest = "1:f2c979072d9365b7c616331af01064615ed257c1fa26ec4a08c61c463f7e4595"
+  name = "github.com/kevholditch/gokong"
+  packages = ["."]
+  pruneopts = ""
+  revision = "091a29709b2dd2357e3f4d1f131eba52ef476603"
+  version = "v3.0.1"
 
 [[projects]]
   branch = "master"
@@ -550,6 +558,14 @@
   version = "1.0.0"
 
 [[projects]]
+  digest = "1:fe67641b990bdc1802f8a1e462a4924210a8762a8a17b72e09656049c906b871"
+  name = "github.com/moul/http2curl"
+  packages = ["."]
+  pruneopts = ""
+  revision = "9ac6cf4d929b2fa8fd2d2e6dec5bb0feb4f4911d"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   digest = "1:55c48c9cfdf8bab6f4911f621616fbe223c0b72a6df9aab6b172ab7e5cfc6bd2"
   name = "github.com/nu7hatch/gouuid"
@@ -598,6 +614,14 @@
   pruneopts = ""
   revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
   version = "v1.0.2"
+
+[[projects]]
+  digest = "1:1d1d7cc9c374bc5bd1884d07705dbde6d2257de17f5f6504e4335e4d2b60a350"
+  name = "github.com/parnurzeal/gorequest"
+  packages = ["."]
+  pruneopts = ""
+  revision = "a578a48e8d6ca8b01a3b18314c43c6716bb5f5a3"
+  version = "v0.2.15"
 
 [[projects]]
   digest = "1:d60cfeee185019d4fcd35e8c89c83aff576e4723b6100300bf67b05be961388f"
@@ -765,6 +789,7 @@
     "http2/hpack",
     "idna",
     "lex/httplex",
+    "publicsuffix",
   ]
   pruneopts = ""
   revision = "d41e8174641f662c5a2d1c7a5f9e828788eb8706"
@@ -1085,6 +1110,7 @@
     "github.com/codeamp/logger",
     "github.com/codeamp/transistor",
     "github.com/coreos/go-oidc",
+    "github.com/davecgh/go-spew/spew",
     "github.com/extemporalgenome/slug",
     "github.com/fsouza/go-dockerclient",
     "github.com/go-errors/errors",
@@ -1095,9 +1121,9 @@
     "github.com/graph-gophers/graphql-go/relay",
     "github.com/heptio/contour/apis/contour/v1beta1",
     "github.com/heptio/contour/apis/generated/clientset/versioned",
-    "github.com/influxdata/influxdb",
     "github.com/jinzhu/gorm",
     "github.com/jinzhu/gorm/dialects/postgres",
+    "github.com/kevholditch/gokong",
     "github.com/lytics/slackhook",
     "github.com/rk/go-cron",
     "github.com/satori/go.uuid",
