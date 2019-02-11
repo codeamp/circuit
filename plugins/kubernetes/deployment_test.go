@@ -11,7 +11,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/kubernetes"
 	"github.com/codeamp/circuit/test"
-	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -209,9 +208,6 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwind() {
 		}
 
 		e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:kubernetes:deployment"), transistor.GetAction("status"), 30)
-		log.Warn(e.Event())
-		log.Warn(e.StateMessage)
-
 		if err != nil {
 			assert.Nil(suite.T(), err, err.Error())
 			return

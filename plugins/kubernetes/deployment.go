@@ -1385,7 +1385,6 @@ func (x *Kubernetes) unwindFailedDeployments(clientset kubernetes.Interface, nam
 		}
 
 		// Grab all the replica sets that match this criteria
-		log.Warn(deploymentName)
 		replicaSets, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
 			LabelSelector: fmt.Sprintf("app=%s", deploymentName),
 		})
@@ -1439,7 +1438,7 @@ func (x *Kubernetes) handleFirstDeploymentUnwind(clientset kubernetes.Interface,
 	}
 
 	// Delete the deployment
-	log.Warn("Deleting deployment for first deployment unwind")
+	log.Warn(fmt.Sprintf("Deleting deployment for first deployment unwind: %s, %s", namespace, deploymentName))
 	err = clientset.Extensions().Deployments(namespace).Delete(deploymentName, &meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
 		Kind: "Deployment",
 	}})
@@ -1556,7 +1555,6 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			targetGeneration := deployment.GetGeneration()
 			for _, rs := range replicaSets.Items {
 				annotations := rs.GetAnnotations()
-				labels := rs.GetLabels()
 				rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
 				if err != nil {
 					log.Error(err.Error())
