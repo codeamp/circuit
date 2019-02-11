@@ -59,6 +59,12 @@ func (r *Resolver) DeleteService(args *struct{ Service *model.ServiceInput }) (*
 	return mut.DeleteService(args)
 }
 
+// ImportServices Import services
+func (r *Resolver) ImportServices(args *struct{ Services *model.ImportServicesInput }) ([]*ServiceResolver, error) {
+	mut := ServiceResolverMutation{r.DB}
+	return mut.ImportServices(args)
+}
+
 func (r *Resolver) CreateServiceSpec(args *struct{ ServiceSpec *model.ServiceSpecInput }) (*ServiceSpecResolver, error) {
 	mut := ServiceSpecResolverMutation{r.DB}
 	return mut.CreateServiceSpec(args)
@@ -87,6 +93,11 @@ func (r *Resolver) UpdateEnvironment(ctx context.Context, args *struct{ Environm
 func (r *Resolver) DeleteEnvironment(ctx context.Context, args *struct{ Environment *model.EnvironmentInput }) (*EnvironmentResolver, error) {
 	mut := EnvironmentResolverMutation{r.DB}
 	return mut.DeleteEnvironment(ctx, args)
+}
+
+func (r *Resolver) ImportSecrets(ctx context.Context, args *struct{ Secrets *model.ImportSecretsInput }) ([]*SecretResolver, error) {
+	mut := SecretResolverMutation{r.DB}
+	return mut.ImportSecrets(ctx, args)
 }
 
 func (r *Resolver) CreateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {

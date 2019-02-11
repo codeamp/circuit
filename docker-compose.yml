@@ -16,7 +16,7 @@ services:
       - codeamp
   postgres:
     container_name: circuit_postgres
-    image: postgres
+    image: postgres:10
     ports:
       - "${DOCKER_COMPOSE_POSTGRES_PORT}:5432"
     volumes:

@@ -4,11 +4,13 @@ import (
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
-	log "github.com/codeamp/logger"
+	"github.com/codeamp/circuit/plugins/codeamp/constants"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Service Resolver Mutation
@@ -17,122 +19,22 @@ type ServiceResolverMutation struct {
 }
 
 func (r *ServiceResolverMutation) CreateService(args *struct{ Service *model.ServiceInput }) (*ServiceResolver, error) {
-	// Check service name length
-	if len(args.Service.Name) > 63 {
-		return nil, fmt.Errorf("Service name cannot be longer than 63 characters.")
-	}
+	tx := r.DB.Begin()
 
-	// Check if project can create service in environment
-	if r.DB.Where("environment_id = ? and project_id = ?", args.Service.EnvironmentID, args.Service.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
-		return nil, fmt.Errorf("Project not allowed to create service in given environment")
-	}
-
-	projectID, err := uuid.FromString(args.Service.ProjectID)
+	service, err := r.createServiceInDB(tx, args.Service)
 	if err != nil {
+		tx.Rollback()
+		log.Error(err.Error())
 		return nil, err
 	}
 
-	environmentID, err := uuid.FromString(args.Service.EnvironmentID)
-	if err != nil {
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		log.Error(err.Error())
 		return nil, err
 	}
 
-	// Find the default service spec and create ServiceSpec specific for Service
-	defaultServiceSpec := model.ServiceSpec{}
-	if err := r.DB.Where("is_default = ?", true).First(&defaultServiceSpec).Error; err != nil {
-		return nil, fmt.Errorf("no default service spec found")
-	}	
-
-	var deploymentStrategy model.ServiceDeploymentStrategy
-	if args.Service.DeploymentStrategy != nil {
-		deploymentStrategy, err = validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var livenessProbe model.ServiceHealthProbe
-	if args.Service.LivenessProbe != nil {
-		probeType := plugins.GetType("livenessProbe")
-		probe := args.Service.LivenessProbe
-		probe.Type = &probeType
-		livenessProbe, err = validateHealthProbe(*probe)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var readinessProbe model.ServiceHealthProbe
-	if args.Service.ReadinessProbe != nil {
-		probeType := plugins.GetType("readinessProbe")
-		probe := args.Service.ReadinessProbe
-		probe.Type = &probeType
-		readinessProbe, err = validateHealthProbe(*probe)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var preStopHook string
-	if args.Service.PreStopHook != nil {
-		preStopHook = *args.Service.PreStopHook
-	}
-
-	service := model.Service{
-		Name:               args.Service.Name,
-		Command:            args.Service.Command,
-		Type:               plugins.Type(args.Service.Type),
-		Count:              args.Service.Count,
-		ProjectID:          projectID,
-		EnvironmentID:      environmentID,
-		DeploymentStrategy: deploymentStrategy,
-		LivenessProbe:      livenessProbe,
-		ReadinessProbe:     readinessProbe,
-		PreStopHook:        preStopHook,
-	}
-
-	r.DB.Create(&service)	
-
-	serviceSpec := model.ServiceSpec{
-		Name: defaultServiceSpec.Name,
-		CpuRequest: defaultServiceSpec.CpuRequest,
-		CpuLimit: defaultServiceSpec.CpuLimit,
-		MemoryRequest: defaultServiceSpec.MemoryRequest,
-		MemoryLimit: defaultServiceSpec.MemoryLimit,
-		TerminationGracePeriod: defaultServiceSpec.TerminationGracePeriod,
-		ServiceID: service.Model.ID,
-		IsDefault: false,
-	}
-
-	r.DB.Create(&serviceSpec)
-
-	// Create Health Probe Headers
-	if service.LivenessProbe.HttpHeaders != nil {
-		for _, h := range service.LivenessProbe.HttpHeaders {
-			h.HealthProbeID = service.LivenessProbe.ID
-			r.DB.Create(&h)
-		}
-	}
-
-	if service.ReadinessProbe.HttpHeaders != nil {
-		for _, h := range service.ReadinessProbe.HttpHeaders {
-			h.HealthProbeID = service.ReadinessProbe.ID
-			r.DB.Create(&h)
-		}
-	}
-
-	if args.Service.Ports != nil {
-		for _, cp := range *args.Service.Ports {
-			servicePort := model.ServicePort{
-				ServiceID: service.ID,
-				Port:      cp.Port,
-				Protocol:  cp.Protocol,
-			}
-			r.DB.Create(&servicePort)
-		}
-	}
-
-	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
+	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: *service}}, nil
 }
 
 // UpdateService Update Service
@@ -366,6 +268,47 @@ func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHeal
 	return healthProbe, nil
 }
 
+// ImportServices takes in a YAML string of services as input
+// and batch creates new services in the specified environment and project
+func (r *ServiceResolverMutation) ImportServices(args *struct{ Services *model.ImportServicesInput }) ([]*ServiceResolver, error) {
+	services := []model.ServiceInput{}
+	serviceResolvers := []*ServiceResolver{}
+	// unmarshal services yaml string into []model.Service{}
+	err := yaml.Unmarshal([]byte(args.Services.ServicesYAMLString), &services)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := r.DB.Begin()
+
+	// for each one, call CreateService
+	for _, service := range services {
+		service.ProjectID = args.Services.ProjectID
+		service.EnvironmentID = args.Services.EnvironmentID
+
+		service, err := r.createServiceInDB(tx, &service)
+		if err == nil {
+			serviceResolvers = append(serviceResolvers, &ServiceResolver{
+				DBServiceResolver: &db_resolver.ServiceResolver{
+					Service: *service,
+					DB:      r.DB,
+				},
+			})
+			// check if it's just a service already created error. We can
+			// continue creation if so
+		} else if err != nil && err.Error() != constants.ServiceAlreadyExistsErrMsg {
+			return []*ServiceResolver{}, err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return []*ServiceResolver{}, err
+	}
+
+	// return newly created services
+	return serviceResolvers, nil
+}
+
 func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
 	switch strategy := input.Type; strategy {
 	case plugins.GetType("default"), plugins.GetType("recreate"):
@@ -389,4 +332,138 @@ func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (mode
 	}
 
 	return deploymentStrategy, nil
+}
+
+func (r *ServiceResolverMutation) createServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Service, error) {
+	// Check service name length
+	if len(serviceInput.Name) > 63 {
+		return nil, fmt.Errorf("Service name cannot be longer than 63 characters.")
+	}
+
+	// Check if project can create service in environment
+	if r.DB.Where("environment_id = ? and project_id = ?", serviceInput.EnvironmentID, serviceInput.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
+		return nil, fmt.Errorf("Project not allowed to create service in given environment")
+	}
+
+	// Check if service name already exists in environment and project
+	if err := r.DB.Where("environment_id = ? and project_id = ? and name = ?",
+		serviceInput.EnvironmentID, serviceInput.ProjectID, serviceInput.Name).First(&model.Service{}).Error; err == nil {
+		return nil, fmt.Errorf(constants.ServiceAlreadyExistsErrMsg)
+	}
+
+	// Check if service type exists
+	if string(plugins.GetType(serviceInput.Type)) == "unknown" {
+		return nil, fmt.Errorf("Service type %s does not exist", serviceInput.Type)
+	}
+
+	projectID, err := uuid.FromString(serviceInput.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	environmentID, err := uuid.FromString(serviceInput.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the default service spec and create ServiceSpec specific for Service
+	defaultServiceSpec := model.ServiceSpec{}
+	if err := r.DB.Where("is_default = ?", true).First(&defaultServiceSpec).Error; err != nil {
+		return nil, fmt.Errorf("no default service spec found")
+	}
+
+	var deploymentStrategy model.ServiceDeploymentStrategy
+	if serviceInput.DeploymentStrategy != nil {
+		deploymentStrategy, err = validateDeploymentStrategyInput(serviceInput.DeploymentStrategy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var livenessProbe model.ServiceHealthProbe
+	if serviceInput.LivenessProbe != nil {
+		probeType := plugins.GetType("livenessProbe")
+		probe := serviceInput.LivenessProbe
+		probe.Type = &probeType
+		livenessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var readinessProbe model.ServiceHealthProbe
+	if serviceInput.ReadinessProbe != nil {
+		probeType := plugins.GetType("readinessProbe")
+		probe := serviceInput.ReadinessProbe
+		probe.Type = &probeType
+		readinessProbe, err = validateHealthProbe(*probe)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var preStopHook string
+	if serviceInput.PreStopHook != nil {
+		preStopHook = *serviceInput.PreStopHook
+	}
+
+	service := model.Service{
+		Name:               serviceInput.Name,
+		Command:            serviceInput.Command,
+		Type:               plugins.Type(serviceInput.Type),
+		Count:              serviceInput.Count,
+		ProjectID:          projectID,
+		EnvironmentID:      environmentID,
+		DeploymentStrategy: deploymentStrategy,
+		LivenessProbe:      livenessProbe,
+		ReadinessProbe:     readinessProbe,
+		PreStopHook:        preStopHook,
+	}
+
+	tx.Create(&service)
+
+	serviceSpec := model.ServiceSpec{
+		Name:                   defaultServiceSpec.Name,
+		CpuRequest:             defaultServiceSpec.CpuRequest,
+		CpuLimit:               defaultServiceSpec.CpuLimit,
+		MemoryRequest:          defaultServiceSpec.MemoryRequest,
+		MemoryLimit:            defaultServiceSpec.MemoryLimit,
+		TerminationGracePeriod: defaultServiceSpec.TerminationGracePeriod,
+		ServiceID:              service.Model.ID,
+		IsDefault:              false,
+	}
+
+	tx.Create(&serviceSpec)
+
+	// Create Health Probe Headers
+	if service.LivenessProbe.HttpHeaders != nil {
+		for _, h := range service.LivenessProbe.HttpHeaders {
+			h.HealthProbeID = service.LivenessProbe.ID
+			tx.Create(&h)
+		}
+	}
+
+	if service.ReadinessProbe.HttpHeaders != nil {
+		for _, h := range service.ReadinessProbe.HttpHeaders {
+			h.HealthProbeID = service.ReadinessProbe.ID
+			tx.Create(&h)
+		}
+	}
+
+	if serviceInput.Ports != nil {
+		if serviceInput.Type == string(plugins.GetType("general")) {
+			for _, cp := range *serviceInput.Ports {
+				servicePort := model.ServicePort{
+					ServiceID: service.ID,
+					Port:      cp.Port,
+					Protocol:  cp.Protocol,
+				}
+				tx.Create(&servicePort)
+			}
+		} else {
+			return nil, fmt.Errorf("Can only create ports if the service type is general")
+		}
+	}
+
+	return &service, nil
 }
