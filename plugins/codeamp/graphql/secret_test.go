@@ -535,7 +535,6 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 	}
 
 	assert.Equal(ts.T(), 2, len(secretsResolver))
-
 	// check that protected was created
 	page := int32(0)
 	limit := int32(1)
@@ -574,6 +573,8 @@ func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
 			protectedCount += 1
 			assert.Equal(ts.T(), "******", secret.Value())
 		}
+
+		assert.Equal(ts.T(), "project", secret.Scope())
 	}
 
 	assert.Equal(ts.T(), 1, protectedCount)
