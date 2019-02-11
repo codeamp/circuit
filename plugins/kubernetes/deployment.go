@@ -1507,8 +1507,6 @@ func (x *Kubernetes) handleTypicalUnwind(clientset kubernetes.Interface, namespa
 	var err error
 	var preExistingDeploymentConfiguration *DeploymentConfiguration
 
-	log.Error("handleTypicalUnwind")
-
 	// See if we can find this particular service/app name in the list of
 	// deployment generations prior to this (ongoing) deploy
 	if preExistingDeploymentConfiguration, ok = preExistingDeploymentConfigurations[deploymentName]; !ok {
