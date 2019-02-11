@@ -13,6 +13,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type SecretTestSuite struct {
@@ -209,6 +210,595 @@ func (ts *SecretTestSuite) TestSecretScopes() {
 		result := graphql_resolver.GetSecretScope(testCase.input)
 		assert.Equal(ts.T(), testCase.expectedResult, result)
 	}
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Success() {
+	ts.T().Log("TestSecretsImport_Success")
+	// provide inputs
+
+	// YAML string of secrets
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "secret_value"
+  type: "env"
+  isSecret: false
+- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	secrets := []model.YAMLSecret{}
+	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// user
+	userResolver := ts.helper.CreateUser(ts.T())
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	// project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call importer function
+	userContext := test.BuildAuthContext(userResolver.DBUserResolver.User.Model.ID.String(), userResolver.DBUserResolver.User.Email, []string{""})
+	secretsResolver, err := ts.Resolver.ImportSecrets(userContext, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
+			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.NotNil(ts.T(), secretsResolver)
+
+	// check that all new keys in yaml file were created
+	count := 0
+	for _, inputKey := range secretsResolver {
+		for _, resolverKey := range secrets {
+			if inputKey.Key() == resolverKey.Key {
+				count += 1
+			}
+		}
+	}
+
+	assert.Equal(ts.T(), 2, count)
+
+	// assert side effects
+	var numDBSecretsCreated int
+	ts.Resolver.DB.Where("project_id = ? and environment_id = ?", projectResolver.DBProjectResolver.Project.Model.ID, envResolver.DBEnvironmentResolver.Environment.Model.ID).Count(&numDBSecretsCreated)
+	assert.Equal(ts.T(), 2, count)
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidYAMLFileFormat() {
+	ts.T().Log("TestSecretsImport_Fail_InvalidYAMLFileFormat")
+	// provide inputs
+
+	// invalid YAML string of secrets
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "secret_value"
+  type: "env"
+  isSecret: false
+	- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	// user
+	userResolver := ts.helper.CreateUser(ts.T())
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	// project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call importer function
+	ctx := context.Background()
+	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
+			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	assert.Nil(ts.T(), secretsResolver)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidProjectID() {
+	ts.T().Log("TestSecretsImport_Fail_InvalidProjectID")
+	// provide inputs
+
+	// YAML string of secrets
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "secret_value"
+  type: "env"
+  isSecret: false
+- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	secrets := []model.YAMLSecret{}
+	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// user
+	userResolver := ts.helper.CreateUser(ts.T())
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// call importer function
+	ctx := context.Background()
+	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
+			ProjectID:         "invalidprojectid",
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	assert.Nil(ts.T(), secretsResolver)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidUserID() {
+	ts.T().Log("TestSecretsImport_Fail_InvalidUserID")
+	// provide inputs
+
+	// YAML string of secrets
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "secret_value"
+  type: "env"
+  isSecret: false
+- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	secrets := []model.YAMLSecret{}
+	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	// project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call importer function
+	ctx := context.Background()
+	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            "invalid-user-id",
+			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	assert.Nil(ts.T(), secretsResolver)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidEnvironmentID() {
+	ts.T().Log("TestSecretsImport_Fail_InvalidEnvironmentID")
+	// provide inputs
+
+	// YAML string of secrets
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "secret_value"
+  type: "env"
+  isSecret: false
+- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	secrets := []model.YAMLSecret{}
+	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// user
+	userResolver := ts.helper.CreateUser(ts.T())
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	// project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call importer function
+	ctx := context.Background()
+	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
+			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:     "invalid-env-id",
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	assert.Nil(ts.T(), secretsResolver)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Fail_InvalidSecretsType() {
+	ts.T().Log("TestSecretsImport_Fail_InvalidSecretsType")
+	// provide inputs
+
+	// YAML string of secrets with invalid secrets type
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "secret_value"
+  type: "invalid-type"
+  isSecret: false
+- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	secrets := []model.YAMLSecret{}
+	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// user
+	userResolver := ts.helper.CreateUser(ts.T())
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	// project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call importer function
+	ctx := context.Background()
+	secretsResolver, err := ts.Resolver.ImportSecrets(ctx, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
+			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	assert.Nil(ts.T(), secretsResolver)
+	assert.NotNil(ts.T(), err)
+}
+
+func (ts *SecretTestSuite) TestSecretsImport_Success_ProtectedSecretCreated() {
+	ts.T().Log("TestSecretsImport_Success_ProtectedSecretCreated")
+	// provide inputs
+
+	// YAML string of secrets with invalid secrets type
+	secretsYAMLString := `
+- key: SECRET_KEY
+  value: "protected_secret_value"
+  type: "env"
+  isSecret: true
+- key: SECRET_KEY_2
+  value: "secret_value_2"
+  type: "build"
+  isSecret: false
+`
+	secrets := []model.YAMLSecret{}
+	err := yaml.Unmarshal([]byte(secretsYAMLString), &secrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// user
+	userResolver := ts.helper.CreateUser(ts.T())
+	// env
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	// project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// call importer function
+	userContext := test.BuildAuthContext(userResolver.DBUserResolver.User.Model.ID.String(), userResolver.DBUserResolver.User.Email, []string{""})
+	secretsResolver, err := ts.Resolver.ImportSecrets(userContext, &struct{ Secrets *model.ImportSecretsInput }{
+		Secrets: &model.ImportSecretsInput{
+			UserID:            userResolver.DBUserResolver.User.Model.ID.String(),
+			ProjectID:         projectResolver.DBProjectResolver.Project.Model.ID.String(),
+			EnvironmentID:     envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			SecretsYAMLString: secretsYAMLString,
+		},
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 2, len(secretsResolver))
+	// check that protected was created
+	page := int32(0)
+	limit := int32(1)
+
+	// just in case, we want to set the environment context before querying project secrets
+	projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
+	projectSecretsResolver, err := projectResolver.Secrets(userContext, &struct {
+		Params    *model.PaginatorInput
+		SearchKey *string
+	}{
+		Params: &model.PaginatorInput{
+			Page:  &page,
+			Limit: &limit,
+		},
+		SearchKey: nil,
+	})
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	count, err := projectSecretsResolver.Count()
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), 2, int(count))
+
+	secretsCreated, err := projectSecretsResolver.Entries()
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	protectedCount := 0
+	for _, secret := range secretsCreated {
+		if secret.IsSecret() {
+			protectedCount += 1
+			assert.Equal(ts.T(), "******", secret.Value())
+		}
+
+		assert.Equal(ts.T(), "project", secret.Scope())
+	}
+
+	assert.Equal(ts.T(), 1, protectedCount)
+}
+
+func (ts *SecretTestSuite) TestSecretsExport_Success() {
+	// pre-reqs
+	userResolver := ts.helper.CreateUser(ts.T())
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	projectID := projectResolver.DBProjectResolver.Project.Model.ID.String()
+
+	secrets := []model.SecretInput{
+		model.SecretInput{
+			Key:           "KEY_1",
+			Value:         "val_1",
+			Type:          "env",
+			IsSecret:      true,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+		model.SecretInput{
+			Key:           "KEY_2",
+			Value:         "val_2",
+			Type:          "env",
+			IsSecret:      false,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+		model.SecretInput{
+			Key:           "KEY_3",
+			Value:         "val_3",
+			Type:          "file",
+			IsSecret:      false,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+	}
+
+	ctx := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      userResolver.DBUserResolver.User.Model.ID.String(),
+		Email:       userResolver.DBUserResolver.User.Email,
+		Permissions: []string{""},
+	})
+	for _, secret := range secrets {
+		_, err := ts.Resolver.CreateSecret(ctx, &struct{ Secret *model.SecretInput }{
+			Secret: &secret,
+		})
+		if err != nil {
+			assert.FailNow(ts.T(), err.Error())
+		}
+	}
+
+	// call export secrets
+	exportedSecretYAMLString, err := ts.Resolver.ExportSecrets(ctx, &struct{ Params *model.ExportSecretsInput }{
+		Params: &model.ExportSecretsInput{
+			ProjectID:     projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		},
+	})
+
+	// unmarshal and make sure secrets are there
+	yamlSecrets := []model.YAMLSecret{}
+	err = yaml.Unmarshal([]byte(exportedSecretYAMLString), &yamlSecrets)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	assert.Equal(ts.T(), len(secrets), len(yamlSecrets))
+
+	count := 0
+	for _, secret := range secrets {
+		for _, exportedSecret := range yamlSecrets {
+			if exportedSecret.Key == secret.Key {
+				if exportedSecret.IsSecret {
+					assert.Equal(ts.T(), "", exportedSecret.Value)
+				}
+				count += 1
+			}
+		}
+	}
+
+	assert.Equal(ts.T(), len(secrets), count)
+}
+
+func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidProjectID() {
+	// pre-reqs
+	userResolver := ts.helper.CreateUser(ts.T())
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	projectID := projectResolver.DBProjectResolver.Project.Model.ID.String()
+
+	secrets := []model.SecretInput{
+		model.SecretInput{
+			Key:           "KEY_1",
+			Value:         "val_1",
+			Type:          "env",
+			IsSecret:      true,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+		model.SecretInput{
+			Key:           "KEY_2",
+			Value:         "val_2",
+			Type:          "env",
+			IsSecret:      false,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+		model.SecretInput{
+			Key:           "KEY_3",
+			Value:         "val_3",
+			Type:          "file",
+			IsSecret:      false,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+	}
+
+	ctx := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      userResolver.DBUserResolver.User.Model.ID.String(),
+		Email:       userResolver.DBUserResolver.User.Email,
+		Permissions: []string{""},
+	})
+	for _, secret := range secrets {
+		_, err := ts.Resolver.CreateSecret(ctx, &struct{ Secret *model.SecretInput }{
+			Secret: &secret,
+		})
+		if err != nil {
+			assert.FailNow(ts.T(), err.Error())
+		}
+	}
+
+	// call export secrets
+	exportedSecretYAMLString, err := ts.Resolver.ExportSecrets(ctx, &struct{ Params *model.ExportSecretsInput }{
+		Params: &model.ExportSecretsInput{
+			ProjectID:     "invalid-project-id",
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		},
+	})
+
+	assert.NotNil(ts.T(), err)
+	assert.Equal(ts.T(), "", exportedSecretYAMLString)
+}
+
+func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidEnvironmentID() {
+	// pre-reqs
+	userResolver := ts.helper.CreateUser(ts.T())
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	projectID := projectResolver.DBProjectResolver.Project.Model.ID.String()
+
+	secrets := []model.SecretInput{
+		model.SecretInput{
+			Key:           "KEY_1",
+			Value:         "val_1",
+			Type:          "env",
+			IsSecret:      true,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+		model.SecretInput{
+			Key:           "KEY_2",
+			Value:         "val_2",
+			Type:          "env",
+			IsSecret:      false,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+		model.SecretInput{
+			Key:           "KEY_3",
+			Value:         "val_3",
+			Type:          "file",
+			IsSecret:      false,
+			ProjectID:     &projectID,
+			EnvironmentID: envResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+			Scope:         "project",
+		},
+	}
+
+	ctx := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      userResolver.DBUserResolver.User.Model.ID.String(),
+		Email:       userResolver.DBUserResolver.User.Email,
+		Permissions: []string{""},
+	})
+	for _, secret := range secrets {
+		_, err := ts.Resolver.CreateSecret(ctx, &struct{ Secret *model.SecretInput }{
+			Secret: &secret,
+		})
+		if err != nil {
+			assert.FailNow(ts.T(), err.Error())
+		}
+	}
+
+	// call export secrets
+	exportedSecretYAMLString, err := ts.Resolver.ExportSecrets(ctx, &struct{ Params *model.ExportSecretsInput }{
+		Params: &model.ExportSecretsInput{
+			ProjectID:     projectID,
+			EnvironmentID: "invalid-env-id",
+		},
+	})
+
+	assert.NotNil(ts.T(), err)
+	assert.Equal(ts.T(), "", exportedSecretYAMLString)
 }
 
 func (ts *SecretTestSuite) TearDownTest() {

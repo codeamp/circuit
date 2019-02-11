@@ -109,93 +109,93 @@ type ServiceSpec struct {
 
 // Service
 type Service struct {
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ProjectID
-	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid"`
+	ProjectID uuid.UUID `bson:"projectID" json:"projectID" gorm:"type:uuid" yaml:"-"`
 	// Command
-	Command string `json:"command"`
+	Command string `json:"command" yaml:"command"`
 	// Name
-	Name string `json:"name"`
+	Name string `json:"name" yaml:"name"`
 	// Type
-	Type plugins.Type `json:"type"`
+	Type plugins.Type `json:"type" yaml:"type"`
 	// Count
-	Count int32 `json:"count,string"`
+	Count int32 `json:"count,string" yaml:"count"`
 	// Ports
-	Ports []ServicePort `json:"servicePorts"`
+	Ports []ServicePort `json:"servicePorts" yaml:"servicePorts"`
 	// EnvironmentID
-	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
+	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid" yaml:"-"`
 	// DeploymentStrategy
-	DeploymentStrategy ServiceDeploymentStrategy `json:"deploymentStrategy"`
+	DeploymentStrategy ServiceDeploymentStrategy `json:"deploymentStrategy" yaml:"deploymentStrategy"`
 	// ReadinessProbe
-	ReadinessProbe ServiceHealthProbe `json:"readinessProbe"`
+	ReadinessProbe ServiceHealthProbe `json:"readinessProbe" yaml:"readinessProbe"`
 	// LivenessProbe
-	LivenessProbe ServiceHealthProbe `json:"livenessProbe"`
+	LivenessProbe ServiceHealthProbe `json:"livenessProbe" yaml:"livenessProbe"`
 	// PreStopHook
-	PreStopHook string `json:"preStopHook"`
+	PreStopHook string `json:"preStopHook" yaml:"preStopHook"`
 }
 
 // ServicePort
 type ServicePort struct {
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid" yaml:"-"`
 	// Protocol
-	Protocol string `json:"protocol"`
+	Protocol string `json:"protocol" yaml:"protocol"`
 	// Port
-	Port int32 `json:"port"`
+	Port int32 `json:"port" yaml:"port"`
 }
 
 // DeploymentStrategy
 type ServiceDeploymentStrategy struct {
 	// Model
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid" yaml:"-"`
 	// Type
-	Type plugins.Type `json:"type"`
+	Type plugins.Type `json:"type" yaml:"type"`
 	// MaxUnavailable
-	MaxUnavailable int32 `json:"maxUnavailable"`
+	MaxUnavailable int32 `json:"maxUnavailable" yaml:"maxUnavailable"`
 	// MaxSurge
-	MaxSurge int32 `json:"maxSurge"`
+	MaxSurge int32 `json:"maxSurge" yaml:"maxSurge"`
 }
 
 // ServiceHealthProbe
 type ServiceHealthProbe struct {
 	// Model
-	Model `json:",inline"`
+	Model `json:",inline" yaml:"-"`
 	// ServiceID
-	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid"`
+	ServiceID uuid.UUID `bson:"serviceID" json:"serviceID" gorm:"type:uuid" yaml:"-"`
 	// Type: required; accepts `readinessProbe` and `livenessProbe`
-	Type plugins.Type `json:"type"`
+	Type plugins.Type `json:"type" yaml:"type"`
 	// Method: required; accepts `exec`, `http`, and `tcp`
-	Method string `json:"method"`
+	Method string `json:"method" yaml:"method"`
 	// Command: Required with Method `exec`
-	Command string `json:"command"`
+	Command string `json:"command" yaml:"command"`
 	// Port: Required with Method `http` or `tcp`
-	Port int32 `json:"port"`
+	Port int32 `json:"port" yaml:"port"`
 	// Scheme: required with method `http`; accepts `http` or `https`
-	Scheme string `json:"scheme"`
+	Scheme string `json:"scheme" yaml:"scheme"`
 	// Path: required with Method `http`
-	Path string `json:"path"`
+	Path string `json:"path" yaml:"path"`
 	//HTTPHeaders is a slice of HTTP headers used by http probes
-	HttpHeaders []ServiceHealthProbeHttpHeader `json:"httpHeaders"`
+	HttpHeaders []ServiceHealthProbeHttpHeader `json:"httpHeaders" yaml:"httpHeaders"`
 	// InitialDelaySeconds is the delay before the probe begins to evaluate service health
-	InitialDelaySeconds int32 `json:"initialDelaySeconds"`
+	InitialDelaySeconds int32 `json:"initialDelaySeconds" yaml:"initialDelaySeconds"`
 	// PeriodSeconds is how frequently the probe is executed
-	PeriodSeconds int32 `json:"periodSeconds"`
+	PeriodSeconds int32 `json:"periodSeconds" yaml:"periodSeconds"`
 	// TimeoutSeconds is the number of seconds before the probe times out
-	TimeoutSeconds int32 `json:"timeoutSeconds"`
+	TimeoutSeconds int32 `json:"timeoutSeconds" yaml:"timeoutSeconds"`
 	// SuccessThreshold minimum consecutive success before the probe is considered successfull
-	SuccessThreshold int32 `json:"successThreshold"`
+	SuccessThreshold int32 `json:"successThreshold" yaml:"successThreshold"`
 	// FailureThreshold is the number of attempts before a probe is considered failed
-	FailureThreshold int32 `json:"failureThreshold"`
+	FailureThreshold int32 `json:"failureThreshold" yaml:"failureThreshold"`
 }
 
 type ServiceHealthProbeHttpHeader struct {
-	Model         `json:",inline"`
-	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"-" gorm:"type:uuid"`
-	Name          string    `json:"name"`
-	Value         string    `json:"value"`
+	Model         `json:",inline" yaml:"-"`
+	HealthProbeID uuid.UUID `bson:"healthProbeID" json:"-" gorm:"type:uuid" yaml:"-"`
+	Name          string    `json:"name" yaml:"name"`
+	Value         string    `json:"value" yaml:"value"`
 }
 
 // Secret
@@ -215,6 +215,14 @@ type Secret struct {
 	EnvironmentID uuid.UUID `bson:"environmentID" json:"environmentID" gorm:"type:uuid"`
 	// IsSecret
 	IsSecret bool `json:"isSecret"`
+}
+
+// YAMLSecret
+type YAMLSecret struct {
+	Key      string `yaml:"key"`
+	Value    string `yaml:"value"`
+	IsSecret bool   `yaml:"isSecret"`
+	Type     string `yaml:"type"`
 }
 
 type SecretValue struct {
