@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-errors/errors"
 
 	"github.com/codeamp/circuit/plugins"
@@ -1558,7 +1557,6 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			for _, rs := range replicaSets.Items {
 				annotations := rs.GetAnnotations()
 				labels := rs.GetLabels()
-				spew.Dump(labels)
 				rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
 				if err != nil {
 					log.Error(err.Error())
