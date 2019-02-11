@@ -154,3 +154,7 @@
 [[override]]
   name = "k8s.io/kubernetes"
   version = "1.12.3"
+
+[[constraint]]
+  name = "github.com/kevholditch/gokong"
+  version = "3.0.1"
