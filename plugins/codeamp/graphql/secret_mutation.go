@@ -184,6 +184,7 @@ func (r *SecretResolverMutation) ImportSecrets(ctx context.Context, args *struct
 			ProjectID:     project.Model.ID,
 			EnvironmentID: env.Model.ID,
 			IsSecret:      importedSecret.IsSecret,
+			Scope:         "project",
 		}
 		newSecretValue := model.SecretValue{
 			Value:  importedSecret.Value,
