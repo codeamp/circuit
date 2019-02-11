@@ -4,7 +4,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -86,7 +86,7 @@ type IngressInput struct {
 }
 
 type UpstreamRoute struct {
-	FQDNs   []Domain
+	Domain  Domain
 	Methods []string
 	Paths   []string
 }
@@ -97,7 +97,7 @@ type KongIngressInput struct {
 	ClientCertificate    string
 	ClientKey            string
 	CertificateAuthority string
-	Controller           IngressController
+	Controller           KongIngressController
 	Service              Service
 	ControlledApexDomain string
 	UpstreamRoutes       []UpstreamRoute

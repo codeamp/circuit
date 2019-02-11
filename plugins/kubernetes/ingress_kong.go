@@ -1,14 +1,17 @@
 package kubernetes
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/spf13/viper"
-	"k8s.io/api/core/v1"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/kevholditch/gokong"
+	v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -16,9 +19,6 @@ import (
 
 func (x *Kubernetes) ProcessKongIngress(e transistor.Event) {
 	log.Println("processing kong ingress")
-
-	kongAPI := viper.GetString("plugins.kubernetes.kong_api_url")
-	log.Error(kongAPI)
 
 	if e.Matches("project:kubernetes:ingresskong") {
 		var err error
@@ -28,7 +28,8 @@ func (x *Kubernetes) ProcessKongIngress(e transistor.Event) {
 		case transistor.GetAction("create"):
 			err = x.createKongIngress(e)
 		case transistor.GetAction("update"):
-			err = x.updateKongIngress(e)
+			err = x.createKongIngress(e)
+			// err = x.updateKongIngress(e)
 		}
 
 		if err != nil {
@@ -39,7 +40,54 @@ func (x *Kubernetes) ProcessKongIngress(e transistor.Event) {
 }
 
 func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
+	// delete routes
+	err := x.deleteK8sService(e)
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("Failed to delete K8s Service: %s", err.Error()))
+	}
+
+	inputs, err := getKongIngressInputs(e)
+	if err != nil {
+		return err
+	}
+
+	kongConfig := gokong.NewDefaultConfig()
+	kongConfig.HostAddress = inputs.Controller.API
+	kongClient := gokong.NewClient(kongConfig)
+
+	status, err := kongClient.Status().Get()
+	if err != nil {
+		log.Error(err)
+		log.Error(status)
+		return err
+	}
+
+	ingType, err := e.GetArtifact("type")
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve service type")
+	}
+
+	if ingType.String() == "loadbalancer" {
+		inputs, err := getKongIngressInputs(e)
+		if err != nil {
+			return err
+		}
+
+		for _, route := range inputs.UpstreamRoutes {
+			routeName := generateRouteName(route, inputs.Service)
+
+			err := kongClient.Routes().DeleteByName(routeName)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+		}
+
+	}
+
 	return nil
+
 }
 
 func (x *Kubernetes) createKongIngress(e transistor.Event) error {
@@ -50,21 +98,280 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 		return err
 	}
 
-	log.Error(service)
-
-	input, err := getKongIngressInputs(e)
+	inputs, err := getKongIngressInputs(e)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+	var artifacts []transistor.Artifact
 
-	log.Error(input)
+	routesArtifact := ""
+	var tableView string
+	for idx, route := range inputs.UpstreamRoutes {
+		methods := strings.Join(route.Methods, "\n\t")
+		paths := strings.Join(route.Paths, "\n\t")
+
+		routesArtifact = routesArtifact + fmt.Sprintf("\nUPSTREAM_%d:\n\n", idx+1)
+		tableView = strings.Join([]string{tableView, route.Domain.FQDN}, ",")
+
+		routesArtifact = routesArtifact + "Domain:\n\t" + route.Domain.FQDN + "\n"
+		routesArtifact = routesArtifact + "Methods:\n\t" + methods + "\n"
+		routesArtifact = routesArtifact + "Paths:\n\t" + paths + "\n"
+		routesArtifact = routesArtifact + "Target: \n\t" + fmt.Sprintf("%s:%d\n", inputs.Service.Name, inputs.Service.Port.TargetPort)
+
+	}
+
+	artifacts = append(artifacts, transistor.Artifact{Key: "ingress_controller", Value: inputs.Controller.ControllerName, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "elb_dns", Value: inputs.Controller.ELB, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "name", Value: inputs.Service.Name, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "controlled_apex_domain", Value: inputs.ControlledApexDomain, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "cluster_ip", Value: service.Spec.ClusterIP, Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "internal_dns", Value: fmt.Sprintf("%s.%s", inputs.Service.ID, service.Namespace), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "table_view", Value: strings.Trim(tableView, ","), Secret: false})
+	artifacts = append(artifacts, transistor.Artifact{Key: "routes", Value: routesArtifact, Secret: false})
+
+	kongConfig := gokong.NewDefaultConfig()
+	kongConfig.HostAddress = inputs.Controller.API
+	kongClient := gokong.NewClient(kongConfig)
+
+	status, err := kongClient.Status().Get()
+	if err != nil {
+		log.Error(err)
+		log.Error(status)
+		return err
+	}
+
+	// spew.Dump(status)
+
+	serviceRequest := &gokong.ServiceRequest{
+		Name:     gokong.String(inputs.Service.ID),
+		Protocol: gokong.String("http"),
+		Host:     gokong.String(fmt.Sprintf("%s.%s", inputs.Service.ID, service.GetNamespace())),
+		Port:     gokong.Int(int(inputs.Service.Port.SourcePort)),
+	}
+
+	// Find service if already exists
+	existingKongService, err := kongClient.Services().GetServiceByName(inputs.Service.ID)
+	if err != nil {
+		log.Error(err)
+	}
+
+	kongService := &gokong.Service{}
+	if existingKongService != nil {
+		spew.Dump("kong service exists!")
+		kongService = existingKongService
+	} else {
+		kongService, err = kongClient.Services().Create(serviceRequest)
+		if err != nil {
+			log.Error(err)
+			log.Error(kongService)
+			return err
+		}
+
+	}
+
+	// get existing upstream routes to remove after new routes are provisioned
+	routesToRemove, err := kongClient.Routes().GetRoutesFromServiceName(inputs.Service.ID)
+	if err != nil {
+		log.Error(err)
+	}
+
+	// check for duplicate routes
+	for _, route := range inputs.UpstreamRoutes {
+		isDuplicateRoute, err := checkDuplicateRoute(*inputs, route, kongClient)
+
+		if isDuplicateRoute || err != nil {
+			log.Error(err)
+			return fmt.Errorf(fmt.Sprintf("ERR: %s", err.Error()))
+		}
+	}
+
+	for _, route := range inputs.UpstreamRoutes {
+
+		keepRoute, err := kongClient.Routes().GetByName(generateRouteName(route, inputs.Service))
+		if err != nil {
+			log.Error(err)
+		}
+		if keepRoute != nil {
+			skipCreate := false
+			for idx, removeRoute := range routesToRemove {
+				if *keepRoute.Name == *removeRoute.Name {
+					routesToRemove = append(routesToRemove[:idx], routesToRemove[idx+1:]...)
+					skipCreate = true
+				}
+			}
+			spew.Dump(fmt.Sprintf("REMOVING ROUTES: %t", skipCreate), keepRoute.Name)
+			if skipCreate == true {
+				continue
+			}
+		}
+
+		routeRequest := &gokong.RouteRequest{
+			Name:         gokong.String(generateRouteName(route, inputs.Service)),
+			Protocols:    gokong.StringSlice([]string{"http", "https"}),
+			Methods:      gokong.StringSlice(route.Methods),
+			Paths:        gokong.StringSlice(route.Paths),
+			Hosts:        gokong.StringSlice([]string{route.Domain.FQDN}),
+			StripPath:    gokong.Bool(false),
+			PreserveHost: gokong.Bool(true),
+			Service:      gokong.ToId(*kongService.Id),
+		}
+
+		if len(route.Methods) > 0 {
+			methods := strings.Split(strings.ToUpper(strings.Join(route.Methods, ",")), ",")
+			routeRequest.Methods = gokong.StringSlice(methods)
+		}
+
+		kongRoute, err := kongClient.Routes().Create(routeRequest)
+		if err != nil {
+			log.Error(err)
+			log.Error(kongRoute)
+			return err
+		}
+
+	}
+
+	// delete oldroutes
+	for _, route := range routesToRemove {
+		err := kongClient.Routes().DeleteById(*route.Id)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
+	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 
 	return nil
 }
 
+func generateRouteName(route UpstreamRoute, service Service) string {
+	return fmt.Sprintf("%s_%s", generateRouteKey(route), service.ID)
+}
+
+func generateRouteKey(route UpstreamRoute) string {
+	sort.Strings(route.Methods)
+	sort.Strings(route.Paths)
+
+	key := fmt.Sprintf("%s_%s_%s", route.Domain.FQDN, strings.Join(route.Methods, "_"), strings.Join(route.Paths, "_"))
+
+	// return cleaned key
+	return strings.Replace(key, "/", "_", -1)
+}
+
+func checkDuplicateRoute(input KongIngressInput, upstream UpstreamRoute, client *gokong.KongAdminClient) (bool, error) {
+
+	// list all routes
+	// iterate through routes, checking for duplicates
+	query := gokong.RouteQueryString{Offset: 0, Size: 1000}
+	routesResult, err := client.Routes().List(&query)
+	if err != nil {
+		log.Error("Failed to retrieve routes")
+	}
+
+	routes := routesResult
+
+	for len(routesResult) == query.Size {
+		query.Offset += query.Size
+		routesResult, err = client.Routes().List(&query)
+		if err != nil {
+			log.Error("faild to retrieve routes")
+		}
+		routes = append(routes, routesResult...)
+	}
+
+	searchMap := map[string]string{}
+	for _, route := range routes {
+		var methods []string
+		var paths []string
+		var hosts []string
+
+		for _, method := range route.Methods {
+			methods = append(methods, strings.ToUpper(*method))
+		}
+		for _, path := range route.Paths {
+			paths = append(paths, strings.ToUpper(*path))
+		}
+
+		// for _, host := range hosts {
+		upstreamRoute := UpstreamRoute{
+			Domain: Domain{
+				FQDN: *route.Hosts[0],
+			},
+			Methods: methods,
+			Paths:   paths,
+		}
+		searchMap[generateRouteKey(upstreamRoute)] = *route.Id
+
+		log.InfoWithFields("route", log.Fields{
+			"Methods": strings.Join(methods, ","),
+			"Paths":   strings.Join(paths, ","),
+			"Hosts":   strings.Join(hosts, ","),
+		})
+
+	}
+
+	spew.Dump(searchMap)
+
+	searchKey := generateRouteKey(upstream)
+
+	spew.Dump(searchMap)
+
+	if searchMap[searchKey] != "" {
+		service, err := client.Services().GetServiceFromRouteId(searchMap[searchKey])
+		if err != nil {
+			return false, fmt.Errorf("Failed to get route's associated service")
+		}
+
+		spew.Dump(*service.Name)
+		spew.Dump(input.Service.ID)
+
+		if *service.Name != input.Service.ID {
+			return true, fmt.Errorf("Ingress contains routes controlled by another Ingress")
+		}
+	}
+
+	return false, nil
+}
+
 func (x *Kubernetes) updateKongIngress(e transistor.Event) error {
 	return nil
+}
+
+func (x *Kubernetes) deleteK8sService(e transistor.Event) error {
+	log.Info("deleteKubernetesService")
+	var err error
+	payload := e.Payload.(plugins.ProjectExtension)
+
+	clientset, err := x.getKubernetesClient(e)
+	if err != nil {
+		return err
+	}
+
+	service, err := parseService(e)
+	if err != nil {
+		return err
+	}
+
+	projectSlug := plugins.GetSlug(payload.Project.Repository)
+
+	coreInterface := clientset.Core()
+	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
+
+	// Delete Service
+	_, svcGetErr := coreInterface.Services(namespace).Get(service.ID, metav1.GetOptions{})
+	if svcGetErr == nil {
+		// Service was found, ready to delete
+		svcDeleteErr := coreInterface.Services(namespace).Delete(service.ID, &metav1.DeleteOptions{})
+		if svcDeleteErr != nil {
+			return fmt.Errorf("Error managing loadbalancer '%s' deleting service %s", service.ID, svcDeleteErr)
+		}
+	} else {
+		// Send failure message that we couldn't find the service to delete
+		return fmt.Errorf("Error managing loadbalancer finding %s service: '%s'", service.ID, svcGetErr)
+	}
+
+	return nil
+
 }
 
 func (x *Kubernetes) createK8sService(e transistor.Event) (*v1.Service, error) {
@@ -219,24 +526,43 @@ func getKongIngressInputs(e transistor.Event) (*KongIngressInput, error) {
 			return nil, err
 		}
 
-		// Guarantee persisted ingress controller is configured on the extension side.
-		found := false
-		for _, controller := range strings.Split(ingressControllers.String(), ",") {
-			if controller == selectedIngress.String() {
-				found = true
-			}
-			continue
-		}
-		if found == false {
-			return nil, fmt.Errorf("Selected Ingress Controller is Not Configured")
-
-		}
-
-		parsedController, err := parseController(selectedIngress.String())
+		controllers, err := parseKongControllers(ingressControllers.String())
 		if err != nil {
 			return nil, err
 		}
-		input.Controller = *parsedController
+
+		var selectedController KongIngressController
+		found := false
+		for _, controller := range controllers {
+			if controller.ControllerID == selectedIngress.String() {
+				found = true
+				selectedController = controller
+				break
+			}
+		}
+
+		if found == false {
+			return nil, fmt.Errorf("Selected Ingress Controller is Not Configured")
+		}
+
+		// // Guarantee persisted ingress controller is configured on the extension side.
+		// found := false
+		// for _, controller := range strings.Split(ingressControllers.String(), ",") {
+		// 	if controller == selectedIngress.String() {
+		// 		found = true
+		// 	}
+		// 	continue
+		// }
+		// if found == false {
+		// 	return nil, fmt.Errorf("Selected Ingress Controller is Not Configured")
+
+		// }
+
+		// parsedController, err := parseKongControllers(selectedIngress.String())
+		// if err != nil {
+		// 	return nil, err
+		// }
+		input.Controller = selectedController
 
 	}
 
@@ -244,21 +570,77 @@ func getKongIngressInputs(e transistor.Event) (*KongIngressInput, error) {
 
 }
 
+type KongIngressController struct {
+	ControllerName string `json:"name"`
+	ControllerID   string `json:"id"`
+	ELB            string `json:"elb"`
+	API            string `json:"api"`
+}
+
+func parseKongControllers(ingressControllers string) ([]KongIngressController, error) {
+
+	// parts := strings.Split(ingressController, ":")
+	// if len(parts) != 3 {
+	// 	return nil, fmt.Errorf("%s is an invalid IngressController string. Must be in format: <ingress_name:ingress_controller_id:elb_dns>", ingressController)
+	// }
+
+	controllers := []KongIngressController{}
+
+	err := json.Unmarshal([]byte(ingressControllers), &controllers)
+	if err != nil {
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to parse kong controllers: %s", err.Error()))
+	}
+
+	return controllers, nil
+
+	// controller := IngressController{
+	// 	ControllerName: parts[0],
+	// 	ControllerID:   parts[1],
+	// 	ELB:            parts[2],
+	// }
+
+	// return &controller, nil
+}
+
 func parseUpstreamRoutes(a transistor.Artifact) []UpstreamRoute {
 	var upstreamRoutes []UpstreamRoute
+
 	for _, upstream := range a.Value.([]interface{}) {
+		var methods []string
+		var paths []string
 
-		methods := strings.Split(strings.ToLower(upstream.(map[string]interface{})["methods"].(string)), ",")
-		paths := strings.Split(strings.ToLower(upstream.(map[string]interface{})["paths"].(string)), ",")
-		domains := upstream.(map[string]interface{})["domains"].(transistor.Artifact)
+		methodsString := upstream.(map[string]interface{})["methods"].(string)
+		if methodsString == "" {
+			methods = []string{}
+		} else {
+			methods = strings.Split(strings.ToLower(methodsString), ",")
+		}
 
-		fqdns := parseUpstreamDomains(domains)
+		pathsString := upstream.(map[string]interface{})["paths"].(string)
+		if pathsString == "" {
+			paths = []string{}
+		} else {
+			paths = strings.Split(strings.ToLower(pathsString), ",")
+		}
 
-		upstreamRoutes = append(upstreamRoutes, UpstreamRoute{
-			FQDNs:   fqdns,
-			Methods: methods,
-			Paths:   paths,
-		})
+		domains := upstream.(map[string]interface{})["domains"]
+
+		domainArtifact := transistor.Artifact{
+			Key:    "domains",
+			Value:  domains,
+			Secret: false,
+		}
+
+		fqdns := parseUpstreamDomains(domainArtifact)
+
+		// normalize domains to hosts
+		for _, host := range fqdns {
+			upstreamRoutes = append(upstreamRoutes, UpstreamRoute{
+				Domain:  host,
+				Methods: methods,
+				Paths:   paths,
+			})
+		}
 	}
 
 	return upstreamRoutes
