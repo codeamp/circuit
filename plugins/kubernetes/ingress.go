@@ -7,7 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -361,7 +361,10 @@ func getIngressInputs(e transistor.Event) (*IngressInput, error) {
 			return nil, err
 		}
 
-		input.UpstreamFQDNs = parseUpstreamDomains(upstreamDomains)
+		input.UpstreamFQDNs, err = parseUpstreamDomains(upstreamDomains)
+		if err != nil {
+			return nil, err
+		}
 
 		selectedIngress, err := e.GetArtifact("ingress")
 		if err != nil {
