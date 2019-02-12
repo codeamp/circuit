@@ -28,7 +28,6 @@ func (x *Kubernetes) ProcessKongIngress(e transistor.Event) {
 			err = x.createKongIngress(e)
 		case transistor.GetAction("update"):
 			err = x.createKongIngress(e)
-			// err = x.updateKongIngress(e)
 		}
 
 		if err != nil {
@@ -86,7 +85,6 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 	}
 
 	return nil
-
 }
 
 func (x *Kubernetes) createKongIngress(e transistor.Event) error {
