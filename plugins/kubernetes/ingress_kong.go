@@ -9,7 +9,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/kevholditch/gokong"
 	v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
@@ -141,8 +140,6 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 		return err
 	}
 
-	// spew.Dump(status)
-
 	serviceRequest := &gokong.ServiceRequest{
 		Name:     gokong.String(inputs.Service.ID),
 		Protocol: gokong.String("http"),
@@ -158,7 +155,6 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 
 	kongService := &gokong.Service{}
 	if existingKongService != nil {
-		spew.Dump("kong service exists!")
 		kongService = existingKongService
 	} else {
 		kongService, err = kongClient.Services().Create(serviceRequest)
@@ -200,7 +196,6 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 					skipCreate = true
 				}
 			}
-			spew.Dump(fmt.Sprintf("REMOVING ROUTES: %t", skipCreate), keepRoute.Name)
 			if skipCreate == true {
 				continue
 			}
@@ -291,8 +286,6 @@ func checkDuplicateRoute(input KongIngressInput, upstream UpstreamRoute, client 
 		for _, path := range route.Paths {
 			paths = append(paths, strings.ToUpper(*path))
 		}
-
-		// for _, host := range hosts {
 		upstreamRoute := UpstreamRoute{
 			Domain: Domain{
 				FQDN: *route.Hosts[0],
@@ -309,21 +302,13 @@ func checkDuplicateRoute(input KongIngressInput, upstream UpstreamRoute, client 
 		})
 
 	}
-
-	spew.Dump(searchMap)
-
 	searchKey := generateRouteKey(upstream)
-
-	spew.Dump(searchMap)
 
 	if searchMap[searchKey] != "" {
 		service, err := client.Services().GetServiceFromRouteId(searchMap[searchKey])
 		if err != nil {
 			return false, fmt.Errorf("Failed to get route's associated service")
 		}
-
-		spew.Dump(*service.Name)
-		spew.Dump(input.Service.ID)
 
 		if *service.Name != input.Service.ID {
 			return true, fmt.Errorf("Ingress contains routes controlled by another Ingress")
@@ -371,7 +356,6 @@ func (x *Kubernetes) deleteK8sService(e transistor.Event) error {
 	}
 
 	return nil
-
 }
 
 func (x *Kubernetes) createK8sService(e transistor.Event) (*v1.Service, error) {
@@ -391,8 +375,6 @@ func (x *Kubernetes) createK8sService(e transistor.Event) (*v1.Service, error) {
 
 	coreInterface := clientset.Core()
 	deploymentName := x.GenDeploymentName(projectSlug, inputs.Service.Name)
-
-	// var servicePorts []v1.ServicePort
 	namespace := x.GenNamespaceName(payload.Environment, projectSlug)
 	createNamespaceErr := x.CreateNamespaceIfNotExists(namespace, coreInterface)
 	if createNamespaceErr != nil {
@@ -514,7 +496,10 @@ func getKongIngressInputs(e transistor.Event) (*KongIngressInput, error) {
 			return nil, err
 		}
 
-		input.UpstreamRoutes = parseUpstreamRoutes(upstreamRoutes)
+		input.UpstreamRoutes, err = parseUpstreamRoutes(upstreamRoutes)
+		if err != nil {
+			return nil, err
+		}
 
 		selectedIngress, err := e.GetArtifact("ingress")
 		if err != nil {
@@ -544,46 +529,12 @@ func getKongIngressInputs(e transistor.Event) (*KongIngressInput, error) {
 		if found == false {
 			return nil, fmt.Errorf("Selected Ingress Controller is Not Configured")
 		}
-
-		// // Guarantee persisted ingress controller is configured on the extension side.
-		// found := false
-		// for _, controller := range strings.Split(ingressControllers.String(), ",") {
-		// 	if controller == selectedIngress.String() {
-		// 		found = true
-		// 	}
-		// 	continue
-		// }
-		// if found == false {
-		// 	return nil, fmt.Errorf("Selected Ingress Controller is Not Configured")
-
-		// }
-
-		// parsedController, err := parseKongControllers(selectedIngress.String())
-		// if err != nil {
-		// 	return nil, err
-		// }
 		input.Controller = selectedController
-
 	}
-
 	return &input, nil
-
-}
-
-type KongIngressController struct {
-	ControllerName string `json:"name"`
-	ControllerID   string `json:"id"`
-	ELB            string `json:"elb"`
-	API            string `json:"api"`
 }
 
 func parseKongControllers(ingressControllers string) ([]KongIngressController, error) {
-
-	// parts := strings.Split(ingressController, ":")
-	// if len(parts) != 3 {
-	// 	return nil, fmt.Errorf("%s is an invalid IngressController string. Must be in format: <ingress_name:ingress_controller_id:elb_dns>", ingressController)
-	// }
-
 	controllers := []KongIngressController{}
 
 	err := json.Unmarshal([]byte(ingressControllers), &controllers)
@@ -592,18 +543,15 @@ func parseKongControllers(ingressControllers string) ([]KongIngressController, e
 	}
 
 	return controllers, nil
-
-	// controller := IngressController{
-	// 	ControllerName: parts[0],
-	// 	ControllerID:   parts[1],
-	// 	ELB:            parts[2],
-	// }
-
-	// return &controller, nil
 }
 
-func parseUpstreamRoutes(a transistor.Artifact) []UpstreamRoute {
+func parseUpstreamRoutes(a transistor.Artifact) ([]UpstreamRoute, error) {
 	var upstreamRoutes []UpstreamRoute
+
+	upstreams, ok := a.Value.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf(fmt.Sprintf("Expected type []interface{} but got %T", upstreams))
+	}
 
 	for _, upstream := range a.Value.([]interface{}) {
 		var methods []string
@@ -631,7 +579,10 @@ func parseUpstreamRoutes(a transistor.Artifact) []UpstreamRoute {
 			Secret: false,
 		}
 
-		fqdns := parseUpstreamDomains(domainArtifact)
+		fqdns, err := parseUpstreamDomains(domainArtifact)
+		if err != nil {
+			return []UpstreamRoute{}, err
+		}
 
 		// normalize domains to hosts
 		for _, host := range fqdns {
@@ -643,5 +594,5 @@ func parseUpstreamRoutes(a transistor.Artifact) []UpstreamRoute {
 		}
 	}
 
-	return upstreamRoutes
+	return upstreamRoutes, nil
 }

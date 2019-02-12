@@ -94,6 +94,13 @@ type UpstreamRoute struct {
 	Paths   []string
 }
 
+type KongIngressController struct {
+	ControllerName string `json:"name"`
+	ControllerID   string `json:"id"`
+	ELB            string `json:"elb"`
+	API            string `json:"api"`
+}
+
 type KongIngressInput struct {
 	Type                 string
 	KubeConfig           string
