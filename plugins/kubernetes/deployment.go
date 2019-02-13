@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-errors/errors"
 
 	"github.com/codeamp/circuit/plugins"
@@ -33,6 +34,8 @@ var timeout = 600
 type DeploymentConfiguration struct {
 	Replicas        int32
 	PodTemplateSpec v1.PodTemplateSpec
+	Annotations     map[string]string
+	Labels          map[string]string
 }
 
 func (x *Kubernetes) ProcessDeployment(e transistor.Event) {
@@ -1448,6 +1451,8 @@ func (x *Kubernetes) handleTypicalUnwind(clientset kubernetes.Interface, namespa
 	} else {
 		deployment.Spec.Replicas = &preExistingDeploymentConfiguration.Replicas
 		deployment.Spec.Template = preExistingDeploymentConfiguration.PodTemplateSpec
+		deployment.SetLabels(preExistingDeploymentConfiguration.Labels)
+		deployment.SetAnnotations(preExistingDeploymentConfiguration.Annotations)
 	}
 
 	// Update the deployment, change the spec to match
@@ -1470,7 +1475,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 	}
 
 	for _, deployment := range deployments.Items {
-		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas != 0 {
+		if deployment.Spec.Replicas != nil {
 			deploymentName := deployment.GetName()
 
 			replicaSets, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
@@ -1494,12 +1499,16 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 					results[deployment.GetName()] = &DeploymentConfiguration{
 						Replicas:        *deployment.Spec.Replicas,
 						PodTemplateSpec: rs.Spec.Template,
+						Labels:          deployment.GetLabels(),
+						Annotations:     deployment.GetAnnotations(),
 					}
 					break
 				}
 			}
 		}
 	}
+
+	spew.Dump(results)
 
 	return results, nil
 }
