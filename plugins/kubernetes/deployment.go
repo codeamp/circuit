@@ -1417,85 +1417,16 @@ func (x *Kubernetes) handleFirstDeploymentUnwind(clientset kubernetes.Interface,
 	deployment *v1beta1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *v1beta1.ReplicaSetList) error {
 	log.Warn("There were no previous generations found. Was this a first deploy?")
 
-	// Scale the deployment down
-	var err error
-	_, err = clientset.Extensions().Deployments(namespace).UpdateScale(deploymentName, &v1beta1.Scale{
-		TypeMeta: meta_v1.TypeMeta{
-			Kind: "Deployment",
-		},
-		ObjectMeta: meta_v1.ObjectMeta{
-			Name:            deployment.Name,
-			Namespace:       namespace,
-			ResourceVersion: deployment.ObjectMeta.ResourceVersion,
-		},
-		Spec: v1beta1.ScaleSpec{
-			Replicas: 0,
-		},
-	})
-	if err != nil {
-		log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
-		return err
-	}
-
 	// Delete the deployment
+	propagationPolicy := meta_v1.DeletePropagationForeground
+
 	log.Warn(fmt.Sprintf("Deleting deployment for first deployment unwind: %s, %s", namespace, deploymentName))
-	err = clientset.Extensions().Deployments(namespace).Delete(deploymentName, &meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
+	err := clientset.Extensions().Deployments(namespace).Delete(deploymentName, &meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
 		Kind: "Deployment",
-	}})
+	}, PropagationPolicy: &propagationPolicy})
 	if err != nil {
 		log.Error(fmt.Sprintf("UNWIND-DEPLOY: %s", err.Error()))
 		return err
-	}
-
-	// Clean up any orphaned replica sets
-	couldNotScale := false
-	for _, rs := range replicaSets.Items {
-		if rs.Status.Replicas != 0 {
-			scale := &v1beta1.Scale{
-				TypeMeta: meta_v1.TypeMeta{
-					Kind: "ReplicaSet",
-				},
-				ObjectMeta: meta_v1.ObjectMeta{
-					Name:      rs.Name,
-					Namespace: namespace,
-				},
-				Spec: v1beta1.ScaleSpec{
-					Replicas: 0,
-				},
-			}
-
-			log.Warn(fmt.Sprintf("SCALING DOWN REPLICASET FROM %d REPLICAS", rs.Status.Replicas))
-			_, err = clientset.Extensions().ReplicaSets(namespace).UpdateScale(rs.Name, scale)
-			if err != nil {
-				couldNotScale = true
-				log.Error(err)
-			}
-		}
-
-		log.Warn("UNWIND-DEPLOY: Deleting ReplicaSet: ", rs.Name)
-		err = clientset.Extensions().ReplicaSets(namespace).Delete(rs.Name, &meta_v1.DeleteOptions{})
-		if err != nil {
-			log.Error(err)
-		}
-	}
-
-	// This is used in case the above updatescale operation does not complete.
-	// In that case we'll need to delete all the pods that are in this namespace
-	if couldNotScale {
-		log.Warn("UNWIND-DEPLOY: COULD NOT SCALE DOWN REPLICA SET, DELETING ALL PODS IN NAMESPACE")
-		allPods, podErr := clientset.Core().Pods(namespace).List(meta_v1.ListOptions{})
-		if podErr != nil {
-			log.Error(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
-			return nil
-		}
-
-		// Deleting pods!
-		for _, pod := range allPods.Items {
-			err := clientset.Core().Pods(namespace).Delete(pod.Name, &meta_v1.DeleteOptions{})
-			if err != nil {
-				log.Error(err.Error())
-			}
-		}
 	}
 
 	return nil

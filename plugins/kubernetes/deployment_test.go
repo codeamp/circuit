@@ -258,6 +258,9 @@ func (suite *TestSuiteDeployment) TearDownSuite() {
 }
 
 func FailingReleaseExtension() plugins.ReleaseExtension {
+	extension := BasicReleaseExtensionService()
+	extension.Release.Services[0].Command = "/bin/false"
+
 	return BasicReleaseExtensionService()
 }
 
@@ -378,7 +381,6 @@ func BasicReleaseExtensionJob() plugins.ReleaseExtension {
 	}
 
 	releaseExtension := plugins.ReleaseExtension{
-		//		Slug:    "kubernetesdeployments",
 		Release: release,
 	}
 
@@ -463,7 +465,6 @@ func BasicReleaseExtensionJobAndService() plugins.ReleaseExtension {
 	}
 
 	releaseExtension := plugins.ReleaseExtension{
-		//		Slug:    "kubernetesdeployments",
 		Release: release,
 	}
 
@@ -528,7 +529,6 @@ func BasicReleaseExtensionService() plugins.ReleaseExtension {
 	}
 
 	releaseExtension := plugins.ReleaseExtension{
-		//		Slug:    "kubernetesdeployments",
 		Release: release,
 	}
 
