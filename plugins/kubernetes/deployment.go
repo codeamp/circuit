@@ -1486,7 +1486,10 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 				continue
 			}
 
+			foundTarget := false
 			targetGeneration := deployment.GetGeneration()
+
+			log.Error(fmt.Sprintf("Found %d replicasets for deployment %s"), len(replicaSets.Items), deploymentName)
 			for _, rs := range replicaSets.Items {
 				annotations := rs.GetAnnotations()
 				rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
@@ -1502,9 +1505,17 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 						Labels:          deployment.GetLabels(),
 						Annotations:     deployment.GetAnnotations(),
 					}
+					foundTarget = true
 					break
 				}
 			}
+
+			if foundTarget == false {
+				log.Error("Could not find target rs for deployment: ", deployment.GetName())
+			}
+
+		} else {
+			log.Error("Skipping Replica Set for ", deployment.GetName())
 		}
 	}
 
