@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-errors/errors"
 
 	"github.com/codeamp/circuit/plugins"
@@ -1475,8 +1474,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 	}
 
 	for _, deployment := range deployments.Items {
-		log.Warn("Scanning RS for deployment ", deployment.GetName())
-		if deployment.Spec.Replicas != nil {
+		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas != 0 {
 			deploymentName := deployment.GetName()
 
 			replicaSets, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
@@ -1489,24 +1487,25 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 
 			foundTarget := false
 			deploymentAnnotations := deployment.GetAnnotations()
-			targetGeneration, err := strconv.ParseInt(deploymentAnnotations["deployment.kubernetes.io/revision"], 10, 64)
+			targetRevision, err := strconv.ParseInt(deploymentAnnotations["deployment.kubernetes.io/revision"], 10, 64)
 			if err != nil {
 				log.Error(err.Error())
 				continue
 			}
 
-			log.Error(fmt.Sprintf("Found %d replicasets for deployment %s", len(replicaSets.Items), deploymentName))
+			var mostRecentReplicaSet *v1beta1.ReplicaSet
+			if len(replicaSets.Items) > 0 {
+				mostRecentReplicaSet = &replicaSets.Items[0]
+			}
 			for _, rs := range replicaSets.Items {
-				log.Error("Looking for RS: ", rs.GetName(), " for deploy ", deploymentName, " gen: ", targetGeneration, " / ", rs.GetGeneration())
-
 				annotations := rs.GetAnnotations()
-				rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
+				rsRevision, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
 				if err != nil {
 					log.Error(err.Error())
 					continue
 				}
 
-				if rsGeneration == targetGeneration {
+				if rsRevision == targetRevision {
 					results[deployment.GetName()] = &DeploymentConfiguration{
 						Replicas:        *deployment.Spec.Replicas,
 						PodTemplateSpec: rs.Spec.Template,
@@ -1516,18 +1515,30 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 					foundTarget = true
 					break
 				}
+
+				if mostRecentReplicaSet.ObjectMeta.CreationTimestamp.Before(&rs.ObjectMeta.CreationTimestamp) {
+					mostRecentReplicaSet = &rs
+				}
 			}
 
 			if foundTarget == false {
-				log.Error("Could not find target rs for deployment: ", deployment.GetName(), " ", targetGeneration)
-			}
+				log.Warn(fmt.Sprintf("Could not find target ReplicaSet for deployment: %s rev (%d)", deployment.GetName(), targetRevision))
 
+				if mostRecentReplicaSet != nil {
+					log.Warn("Using most recent ReplicaSet to unwind: ", mostRecentReplicaSet.GetName())
+
+					results[deployment.GetName()] = &DeploymentConfiguration{
+						Replicas:        *deployment.Spec.Replicas,
+						PodTemplateSpec: mostRecentReplicaSet.Spec.Template,
+						Labels:          deployment.GetLabels(),
+						Annotations:     deploymentAnnotations,
+					}
+				}
+			}
 		} else {
-			log.Error("Skipping Replica Set for ", deployment.GetName())
+			log.Warn(fmt.Sprintf("Skipping ReplicaSet for %s due to no replicas", deployment.GetName()))
 		}
 	}
-
-	spew.Dump(results)
 
 	return results, nil
 }
