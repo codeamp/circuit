@@ -1488,7 +1488,12 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			}
 
 			foundTarget := false
-			targetGeneration := deployment.GetGeneration()
+			deploymentAnnotations := deployment.GetAnnotations()
+			targetGeneration, err := strconv.ParseInt(deploymentAnnotations["deployment.kubernetes.io/revision"], 10, 64)
+			if err != nil {
+				log.Error(err.Error())
+				continue
+			}
 
 			log.Error(fmt.Sprintf("Found %d replicasets for deployment %s", len(replicaSets.Items), deploymentName))
 			for _, rs := range replicaSets.Items {
