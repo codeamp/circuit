@@ -1475,6 +1475,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 	}
 
 	for _, deployment := range deployments.Items {
+		log.Warn("Scanning RS for deployment ", deployment.GetName())
 		if deployment.Spec.Replicas != nil {
 			deploymentName := deployment.GetName()
 
@@ -1491,6 +1492,8 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 
 			log.Error(fmt.Sprintf("Found %d replicasets for deployment %s", len(replicaSets.Items), deploymentName))
 			for _, rs := range replicaSets.Items {
+				log.Error("Looking for RS: ", rs.GetName(), " for deploy ", deploymentName, " gen: ", targetGeneration, " / ", rs.GetGeneration())
+
 				annotations := rs.GetAnnotations()
 				rsGeneration, err := strconv.ParseInt(annotations["deployment.kubernetes.io/revision"], 10, 64)
 				if err != nil {
@@ -1503,7 +1506,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 						Replicas:        *deployment.Spec.Replicas,
 						PodTemplateSpec: rs.Spec.Template,
 						Labels:          deployment.GetLabels(),
-						Annotations:     deployment.GetAnnotations(),
+						Annotations:     annotations,
 					}
 					foundTarget = true
 					break
@@ -1511,7 +1514,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			}
 
 			if foundTarget == false {
-				log.Error("Could not find target rs for deployment: ", deployment.GetName())
+				log.Error("Could not find target rs for deployment: ", deployment.GetName(), " ", targetGeneration)
 			}
 
 		} else {
