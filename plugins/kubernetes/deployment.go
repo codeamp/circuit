@@ -1511,7 +1511,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 						Replicas:        *deployment.Spec.Replicas,
 						PodTemplateSpec: rs.Spec.Template,
 						Labels:          deployment.GetLabels(),
-						Annotations:     annotations,
+						Annotations:     deploymentAnnotations,
 					}
 					foundTarget = true
 					break
