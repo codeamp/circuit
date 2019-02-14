@@ -1465,18 +1465,35 @@ func (x *Kubernetes) handleTypicalUnwind(clientset kubernetes.Interface, namespa
 	return nil
 }
 
+// This function is used pre-deployment to gather the existing state of the kubernetes deployment
+// The existing state of the deployment includes the pod template spec, the replica count,
+// the label and the annotations. The purpose is to provide a 'good' configuration to unwind too
+// if a deployment ends up being unsuccesful. If any services fail to deploy, all will be 'unwound' back
+// to their previously known state, which we assume is good, because if it was a bad deploy it would have been unwound
+// before visiting this code
 func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.Interface, namespace string) (map[string]*DeploymentConfiguration, error) {
 	results := make(map[string]*DeploymentConfiguration, 0)
+
+	// Grab all the deployments in the namespace that we are deploying to
 	deployments, err := clientset.Extensions().Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
+	// Iterate over each of the deployment items
 	for _, deployment := range deployments.Items {
+
+		// If there are no replicas for this deployment, we can leave it alone
+		// because there is nothing currently deployed there. In case of a failure
+		// of a deploy, and the service is not found in the map populated in this function
+		// the result is that the existing deploy is scaled to 0 to prevent deleting the deployment
+		// Keeping the deployment around means that we can restore the deployment manually
+		// if necessary without having to keep track of the yaml that created the deployment
 		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas != 0 {
 			deploymentName := deployment.GetName()
 
+			// Find all the replica sets for this deployment
 			replicaSets, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
 				LabelSelector: fmt.Sprintf("app=%s", deploymentName),
 			})
@@ -1486,6 +1503,8 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			}
 
 			foundTarget := false
+
+			// Grab the current revision from the deployment annotations
 			deploymentAnnotations := deployment.GetAnnotations()
 			targetRevision, err := strconv.ParseInt(deploymentAnnotations["deployment.kubernetes.io/revision"], 10, 64)
 			if err != nil {
@@ -1493,6 +1512,10 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 				continue
 			}
 
+			// Search for the replicaset that matches the revision
+			// while searching for it, keep track of the most
+			// recent RS so if we can't find the revision
+			// we're looking for we can unwind to the most recent replicaset
 			var mostRecentReplicaSet *v1beta1.ReplicaSet
 			if len(replicaSets.Items) > 0 {
 				mostRecentReplicaSet = &replicaSets.Items[0]
@@ -1505,6 +1528,9 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 					continue
 				}
 
+				// If we've found the replicaset that matches the current deployment
+				// based off of the revision, then stuff in the data describing
+				// this deployment: pod spec, replica count, labels, annotations
 				if rsRevision == targetRevision {
 					results[deployment.GetName()] = &DeploymentConfiguration{
 						Replicas:        *deployment.Spec.Replicas,
@@ -1516,14 +1542,18 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 					break
 				}
 
+				// If we've found a more recent rs, keep track of it here
 				if mostRecentReplicaSet.ObjectMeta.CreationTimestamp.Before(&rs.ObjectMeta.CreationTimestamp) {
 					mostRecentReplicaSet = &rs
 				}
 			}
 
+			// This is in the case that there was no rs found, we can unwind back to the most recent
 			if foundTarget == false {
 				log.Warn(fmt.Sprintf("Could not find target ReplicaSet for deployment: %s rev (%d)", deployment.GetName(), targetRevision))
 
+				// If we didn't find our target, but we DO have a most recent replica set, use this
+				// in case of needing to unwind
 				if mostRecentReplicaSet != nil {
 					log.Warn("Using most recent ReplicaSet to unwind: ", mostRecentReplicaSet.GetName())
 
