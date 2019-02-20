@@ -1,0 +1,1 @@
+package resourceconfig_test
