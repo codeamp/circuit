@@ -180,6 +180,7 @@ func (suite *ServiceTestSuite) SetupTest() {
 		&model.ProjectBookmark{},
 		&model.UserPermission{},
 		&model.ServiceSpec{},
+		&model.ServicePort{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
@@ -813,7 +814,10 @@ func (ts *ServiceTestSuite) TestCreateService_Success_OneShot() {
 	serviceResolver, err := ts.Resolver.CreateService(&struct{ Service *model.ServiceInput }{serviceInput})
 	assert.Nil(ts.T(), err)
 
+	ports, _ := serviceResolver.Ports()
+
 	assert.Equal(ts.T(), serviceResolver.Type(), serviceInput.Type)
+	assert.Equal(ts.T(), len(ports), 0)
 }
 
 func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
