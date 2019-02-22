@@ -60,29 +60,25 @@ func (p *ProjectConfig) ExportYAML() (string, error) {
 func (p *ProjectConfig) GetChildResourceConfigs() ([]ResourceConfig, error) {
 	childResourceConfigs := []ResourceConfig{}
 	// unmarshal config and get resource configs for each child object
-	project := Project{}
+	project := model.Project{}
 	err := yaml.Unmarshal([]byte(p.GetConfig()), &project)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, service := range project.Services {
-		serviceConfigString, _ := yaml.Marshal(service)
-		childResourceConfigs = append(childResourceConfigs, CreateServiceConfig(string(serviceConfigString), p.db, p.project, p.environment))
+	for _, service := range services {
+		childResourceConfigs = append(childResourceConfigs, CreateServiceConfig(``, p.db, p.project, p.environment))
 	}
 
 	for _, extension := range project.ProjectExtensions {
-		extensionConfigString, _ := yaml.Marshal(extension)
-		childResourceConfigs = append(childResourceConfigs, CreateProjectExtensionConfig(string(extensionConfigString), p.db, p.project, p.environment))
+		childResourceConfigs = append(childResourceConfigs, CreateProjectExtensionConfig(``, p.db, p.project, p.environment))
 	}
 
 	for _, secret := range project.Secrets {
-		secretConfigString, _ := yaml.Marshal(secret)
-		childResourceConfigs = append(childResourceConfigs, CreateSecretConfig(string(secretConfigString), p.db, p.project, p.environment))
+		childResourceConfigs = append(childResourceConfigs, CreateSecretConfig(``, p.db, p.project, p.environment))
 	}
 
-	projectSettingsString, _ := yaml.Marshal(project.ProjectSettings)
-	childResourceConfigs = append(childResourceConfigs, CreateProjectSettingsConfig(string(projectSettingsString), p.db, p.project, p.environment))
+	childResourceConfigs = append(childResourceConfigs, CreateProjectSettingsConfig(``, p.db, p.project, p.environment))
 
 	return childResourceConfigs, nil
 }

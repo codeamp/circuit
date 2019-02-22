@@ -22,3 +22,7 @@ func CreateProjectSettingsConfig(config string, db *gorm.DB, project *model.Proj
 		},
 	}
 }
+
+func (p *ProjectSettingsConfig) ExportYAML() (string, error) {
+	return ``, nil
+}
