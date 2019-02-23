@@ -450,7 +450,7 @@ func (r *ServiceResolverMutation) createServiceInDB(tx *gorm.DB, serviceInput *m
 		}
 	}
 
-	if serviceInput.Ports != nil {
+	if serviceInput.Ports != nil && len(*serviceInput.Ports) > 0 {
 		if serviceInput.Type == string(plugins.GetType("general")) {
 			for _, cp := range *serviceInput.Ports {
 				servicePort := model.ServicePort{
