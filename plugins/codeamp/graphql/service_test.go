@@ -177,6 +177,10 @@ func (suite *ServiceTestSuite) SetupTest() {
 		&model.Project{},
 		&model.ProjectEnvironment{},
 		&model.Extension{},
+		&model.ProjectBookmark{},
+		&model.UserPermission{},
+		&model.ServiceSpec{},
+		&model.ServicePort{},
 	}
 
 	db, err := test.SetupResolverTest(migrators)
@@ -784,6 +788,36 @@ func (ts *ServiceTestSuite) TestCreateService_Fail_OneShotWithPorts() {
 	}
 	_, err = ts.Resolver.CreateService(&struct{ Service *model.ServiceInput }{serviceInput})
 	assert.NotNil(ts.T(), err)
+}
+
+func (ts *ServiceTestSuite) TestCreateService_Success_OneShot() {
+	// Environment
+	envResolver := ts.helper.CreateEnvironment(ts.T())
+
+	// Project
+	projectResolver, err := ts.helper.CreateProject(ts.T(), envResolver)
+	if err != nil {
+		assert.FailNow(ts.T(), err.Error())
+	}
+
+	// Service Spec ID
+	ts.helper.CreateServiceSpec(ts.T(), true)
+
+	// Create Service
+	servicePorts := []model.ServicePortInput{}
+	serviceInput := &model.ServiceInput{
+		Type:          "one-shot",
+		ProjectID:     string(projectResolver.ID()),
+		Ports:         &servicePorts,
+		EnvironmentID: string(envResolver.ID()),
+	}
+	serviceResolver, err := ts.Resolver.CreateService(&struct{ Service *model.ServiceInput }{serviceInput})
+	assert.Nil(ts.T(), err)
+
+	ports, _ := serviceResolver.Ports()
+
+	assert.Equal(ts.T(), serviceResolver.Type(), serviceInput.Type)
+	assert.Equal(ts.T(), len(ports), 0)
 }
 
 func (ts *ServiceTestSuite) TestUpdateServiceFailureNullID() {
