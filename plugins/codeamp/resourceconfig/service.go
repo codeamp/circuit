@@ -1,16 +1,24 @@
 package resourceconfig
 
 import (
+	"fmt"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 )
 
-type ProjectService struct{}
+type Service struct {
+	Name string `yaml:"name"`
+}
 
-type ServiceConfig struct{ ProjectConfig }
+type ServiceConfig struct {
+	ProjectConfig
+	service *model.Service
+}
 
-func CreateServiceConfig(config string, db *gorm.DB, project *model.Project, env *model.Environment) *ServiceConfig {
+func CreateServiceConfig(config *string, db *gorm.DB, service *model.Service, project *model.Project, env *model.Environment) *ServiceConfig {
 	return &ServiceConfig{
+		service: service,
 		ProjectConfig: ProjectConfig{
 			db:          db,
 			project:     project,
@@ -22,6 +30,12 @@ func CreateServiceConfig(config string, db *gorm.DB, project *model.Project, env
 	}
 }
 
-func (s *ServiceConfig) ExportYAML() (string, error) {
-	return ``, nil
+func (s *ServiceConfig) Export() (*Service, error) {
+	if s.service != nil {
+		return &Service{
+			Name: s.service.Name,
+		}, nil
+	} else {
+		return nil, fmt.Errorf(NilDependencyForExportErr, "service")
+	}
 }

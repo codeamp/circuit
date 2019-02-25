@@ -5,13 +5,24 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type ProjectExtensionConfig struct{ ProjectConfig }
-
-type ProjectExtension struct {
+type ProjectExtensionConfig struct {
+	projectExtension *model.ProjectExtension
+	ProjectConfig
 }
 
-func CreateProjectExtensionConfig(config string, db *gorm.DB, project *model.Project, env *model.Environment) *ProjectExtensionConfig {
+type Extension struct {
+	Key string `yaml:"name"`
+}
+
+type ProjectExtension struct {
+	CustomConfig []byte `yaml:"customConfig"`
+	Config       []byte `yaml:"config"`
+	Key          string `yaml:"key"`
+}
+
+func CreateProjectExtensionConfig(config *string, db *gorm.DB, projectExtension *model.ProjectExtension, project *model.Project, env *model.Environment) *ProjectExtensionConfig {
 	return &ProjectExtensionConfig{
+		projectExtension: projectExtension,
 		ProjectConfig: ProjectConfig{
 			db:          db,
 			project:     project,
@@ -21,4 +32,18 @@ func CreateProjectExtensionConfig(config string, db *gorm.DB, project *model.Pro
 			},
 		},
 	}
+}
+
+func (p *ProjectExtensionConfig) Export() (*ProjectExtension, error) {
+	extension := model.Extension{}
+
+	if err := p.db.Where("id = ?", p.projectExtension.ExtensionID).First(&extension).Error; err != nil {
+		return nil, err
+	}
+
+	return &ProjectExtension{
+		CustomConfig: p.projectExtension.CustomConfig.RawMessage,
+		Config:       p.projectExtension.Config.RawMessage,
+		Key:          extension.Key,
+	}, nil
 }

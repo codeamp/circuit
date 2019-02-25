@@ -3,7 +3,6 @@ package resourceconfig
 import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // example struct that implements ResourceConfig
@@ -19,66 +18,81 @@ type Project struct {
 	ProjectSettings   ProjectSettings    `yaml:"settings`
 	ProjectExtensions []ProjectExtension `yaml:"extensions"`
 	Secrets           []Secret           `yaml"secrets"`
-	Services          []ProjectService   `yaml:"servies"`
+	Services          []Service          `yaml:"services"`
 }
 
-func CreateProjectConfig(config string, db *gorm.DB, project *model.Project, env *model.Environment) *ProjectConfig {
+func CreateProjectConfig(config *string, db *gorm.DB, project *model.Project, env *model.Environment) *ProjectConfig {
 	return &ProjectConfig{
 		db:          db,
 		project:     project,
 		environment: env,
+		BaseResourceConfig: BaseResourceConfig{
+			config: config,
+		},
 	}
 }
 
-func (p *ProjectConfig) ExportYAML() (string, error) {
-	aggregateConfigString := ``
-	childConfigs, err := p.GetChildResourceConfigs()
-	if err != nil {
-		return ``, err
-	}
+func (p *ProjectConfig) Export() (*Project, error) {
+	var project Project
 
-	var configString string
-	for _, config := range childConfigs {
-		configString, err = config.ExportYAML()
-		if err != nil {
-			return ``, err
-		}
+	childObjectQuery := p.db.Where("project_id = ? and environment_id = ?", p.project.Model.ID, p.environment.Model.ID)
 
-		aggregateConfigString += configString
-	}
-
-	// test if can be unmarshaled
-	unmarshaledProject := Project{}
-	err = yaml.Unmarshal([]byte(aggregateConfigString), &unmarshaledProject)
-	if err != nil {
-		return ``, err
-	}
-
-	return aggregateConfigString, nil
-}
-
-func (p *ProjectConfig) GetChildResourceConfigs() ([]ResourceConfig, error) {
-	childResourceConfigs := []ResourceConfig{}
-	// unmarshal config and get resource configs for each child object
-	project := model.Project{}
-	err := yaml.Unmarshal([]byte(p.GetConfig()), &project)
-	if err != nil {
+	// Collect services inside project
+	var services []model.Service
+	if err := childObjectQuery.Find(&services).Error; err != nil {
 		return nil, err
 	}
 
 	for _, service := range services {
-		childResourceConfigs = append(childResourceConfigs, CreateServiceConfig(``, p.db, p.project, p.environment))
+		exportedSvc, err := CreateServiceConfig(nil, p.db, &service, nil, nil).Export()
+		if err != nil {
+			return nil, err
+		}
+
+		project.Services = append(project.Services, *exportedSvc)
 	}
 
-	for _, extension := range project.ProjectExtensions {
-		childResourceConfigs = append(childResourceConfigs, CreateProjectExtensionConfig(``, p.db, p.project, p.environment))
+	// Collect project extensions inside project
+	var pExtensions []model.ProjectExtension
+	if err := childObjectQuery.Find(&pExtensions).Error; err != nil {
+		return nil, err
 	}
 
-	for _, secret := range project.Secrets {
-		childResourceConfigs = append(childResourceConfigs, CreateSecretConfig(``, p.db, p.project, p.environment))
+	for _, pExtension := range pExtensions {
+		exportedProjectExtension, err := CreateProjectExtensionConfig(nil, p.db, &pExtension, nil, nil).Export()
+		if err != nil {
+			return nil, err
+		}
+
+		project.ProjectExtensions = append(project.ProjectExtensions, *exportedProjectExtension)
 	}
 
-	childResourceConfigs = append(childResourceConfigs, CreateProjectSettingsConfig(``, p.db, p.project, p.environment))
+	var secrets []model.Secret
+	if err := childObjectQuery.Find(&services).Error; err != nil {
+		return nil, err
+	}
 
-	return childResourceConfigs, nil
+	// Collect services inside project
+	for _, secret := range secrets {
+		exportedSecret, err := CreateSecretConfig(nil, p.db, &secret, nil, nil).Export()
+		if err != nil {
+			return nil, err
+		}
+
+		project.Secrets = append(project.Secrets, *exportedSecret)
+	}
+
+	projectSettings := model.ProjectSettings{}
+	if err := childObjectQuery.Find(&projectSettings).Error; err != nil {
+		return nil, err
+	}
+
+	exportedProjectSettings, err := CreateProjectSettingsConfig(nil, p.db, &projectSettings, nil, nil).Export()
+	if err != nil {
+		return nil, err
+	}
+
+	project.ProjectSettings = *exportedProjectSettings
+
+	return &project, nil
 }
