@@ -31,11 +31,11 @@ func CreateServiceConfig(config *string, db *gorm.DB, service *model.Service, pr
 }
 
 func (s *ServiceConfig) Export() (*Service, error) {
-	if s.service != nil {
-		return &Service{
-			Name: s.service.Name,
-		}, nil
-	} else {
+	if s.service == nil {
 		return nil, fmt.Errorf(NilDependencyForExportErr, "service")
 	}
+
+	return &Service{
+		Name: s.service.Name,
+	}, nil
 }
