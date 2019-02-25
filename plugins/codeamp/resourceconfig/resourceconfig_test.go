@@ -39,6 +39,9 @@ func (suite *ResourceConfigTestSuite) SetupTest() {
 }
 
 /* Test successful env. creation */
+/*
+
+ */
 func (suite *ResourceConfigTestSuite) TestExportProject() {
 	project := model.Project{
 		Slug: "hello-there",
