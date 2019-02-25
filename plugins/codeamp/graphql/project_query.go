@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codeamp/circuit/plugins/codeamp/resourceconfig"
+	yaml "gopkg.in/yaml.v2"
+
 	auth "github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 
@@ -121,4 +124,36 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 			PaginatorInput: args.Params,
 		},
 	}, nil
+}
+
+func (u *ProjectResolverQuery) ExportProject(ctx context.Context, args *struct {
+	ID            *graphql.ID
+	EnvironmentID *string
+}) (*string, error) {
+	// confirm environment and project object existence
+	project := model.Project{}
+	if err := u.DB.Where("id = ?", args.ID).Find(&project).Error; err != nil {
+		return nil, err
+	}
+
+	env := model.Environment{}
+	if err := u.DB.Where("id = ?", args.ID).Find(&env).Error; err != nil {
+		return nil, err
+	}
+
+	// get exported project object from project resource config
+	exportedProject, err := resourceconfig.CreateProjectConfig(nil, u.DB, &project, &env).Export()
+	if err != nil {
+		return nil, err
+	}
+
+	// marshal exported project output to YAML string
+	exportedProjectYAMLBytes, err := yaml.Marshal(exportedProject)
+	if err != nil {
+		return nil, err
+	}
+
+	exportedProjectYAMLString := string(exportedProjectYAMLBytes)
+
+	return &exportedProjectYAMLString, nil
 }
