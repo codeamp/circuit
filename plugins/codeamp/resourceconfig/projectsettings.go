@@ -30,12 +30,12 @@ func CreateProjectSettingsConfig(config *string, db *gorm.DB, projectSettings *m
 }
 
 func (p *ProjectSettingsConfig) Export() (*ProjectSettings, error) {
-	if p.projectSettings != nil {
-		return &ProjectSettings{
-			GitBranch:        p.projectSettings.GitBranch,
-			ContinuousDeploy: p.projectSettings.ContinuousDeploy,
-		}, nil
-	} else {
+	if p.projectSettings == nil {
 		return nil, fmt.Errorf(NilDependencyForExportErr, "projectSettings")
 	}
+
+	return &ProjectSettings{
+		GitBranch:        p.projectSettings.GitBranch,
+		ContinuousDeploy: p.projectSettings.ContinuousDeploy,
+	}, nil
 }

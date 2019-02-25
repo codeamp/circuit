@@ -1,6 +1,8 @@
 package resourceconfig
 
 import (
+	"fmt"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 )
@@ -36,6 +38,10 @@ func CreateProjectExtensionConfig(config *string, db *gorm.DB, projectExtension 
 
 func (p *ProjectExtensionConfig) Export() (*ProjectExtension, error) {
 	extension := model.Extension{}
+
+	if p.projectExtension == nil || p.db == nil {
+		return nil, fmt.Errorf(NilDependencyForExportErr, "projectExtension, db")
+	}
 
 	if err := p.db.Where("id = ?", p.projectExtension.ExtensionID).First(&extension).Error; err != nil {
 		return nil, err

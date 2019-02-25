@@ -1,6 +1,8 @@
 package resourceconfig
 
 import (
+	"fmt"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 )
@@ -34,6 +36,10 @@ func CreateProjectConfig(config *string, db *gorm.DB, project *model.Project, en
 
 func (p *ProjectConfig) Export() (*Project, error) {
 	var project Project
+
+	if p.project == nil || p.environment == nil || p.db == nil {
+		return nil, fmt.Errorf(NilDependencyForExportErr, "project, environment, db")
+	}
 
 	childObjectQuery := p.db.Where("project_id = ? and environment_id = ?", p.project.Model.ID, p.environment.Model.ID)
 

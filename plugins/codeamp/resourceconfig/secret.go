@@ -1,6 +1,8 @@
 package resourceconfig
 
 import (
+	"fmt"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 )
@@ -29,5 +31,17 @@ func CreateSecretConfig(config *string, db *gorm.DB, secret *model.Secret, proje
 }
 
 func (s *SecretConfig) Export() (*Secret, error) {
-	return &Secret{}, nil
+	if s.secret == nil || s.db == nil {
+		return nil, fmt.Errorf(NilDependencyForExportErr, "secret, db")
+	}
+
+	secretValue := model.SecretValue{}
+	if err := s.db.Where("secret_id = ?", s.secret.Model.ID).Order("created_at desc").Find(&secretValue).Error; err != nil {
+		return nil, err
+	}
+
+	return &Secret{
+		Key:   s.secret.Key,
+		Value: secretValue.Value,
+	}, nil
 }
