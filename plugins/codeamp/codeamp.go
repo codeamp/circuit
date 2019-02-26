@@ -15,7 +15,6 @@ import (
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -282,7 +281,7 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *model.Release,
 		extension := model.Extension{}
 		if x.DB.Where("id = ? and type = ?", pe.ExtensionID, plugins.GetType("notification")).Find(&extension).RecordNotFound() == false {
 
-			projectExtensionArtifacts, _ := helpers.ExtractArtifacts(pe, extension, x.DB)
+			projectExtensionArtifacts, _ := ExtractArtifacts(pe, extension, x.DB)
 			_artifacts := []transistor.Artifact{}
 
 			for _, artifact := range projectExtensionArtifacts {

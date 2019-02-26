@@ -6,7 +6,6 @@ import (
 	"time"
 
 	. "github.com/codeamp/circuit/plugins/codeamp/graphql"
-	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
 
@@ -195,7 +194,7 @@ func (ts *ProjectExtensionTestSuite) TestProjectExtensionExtractArtifacts() {
 	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
 	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
 
-	helpers.ExtractArtifacts(projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension,
+	graphql_resolver.ExtractArtifacts(projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension,
 		extensionResolver.DBExtensionResolver.Extension, ts.Resolver.DB)
 }
 
