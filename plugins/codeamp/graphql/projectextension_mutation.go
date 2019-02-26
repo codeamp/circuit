@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -81,7 +82,7 @@ func (r *ProjectExtensionResolverMutation) CreateProjectExtension(ctx context.Co
 
 		r.DB.Save(&projectExtension)
 
-		artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
+		artifacts, err := helpers.ExtractArtifacts(projectExtension, extension, r.DB)
 		if err != nil {
 			log.Error(err.Error())
 			return nil, err
@@ -154,7 +155,7 @@ func (r *ProjectExtensionResolverMutation) UpdateProjectExtension(args *struct{ 
 
 	r.DB.Save(&projectExtension)
 
-	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
+	artifacts, err := helpers.ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -219,7 +220,7 @@ func (r *ProjectExtensionResolverMutation) DeleteProjectExtension(args *struct{ 
 
 	r.DB.Delete(&projectExtension)
 
-	artifacts, err := ExtractArtifacts(projectExtension, extension, r.DB)
+	artifacts, err := helpers.ExtractArtifacts(projectExtension, extension, r.DB)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -257,7 +258,7 @@ func (r *ProjectExtensionResolverMutation) HandleExtensionRoute53(args *struct{ 
 		return fmt.Errorf("Could not unmarshal custom config")
 	}
 
-	artifacts, err := ExtractArtifacts(*projectExtension, extension, r.DB)
+	artifacts, err := helpers.ExtractArtifacts(*projectExtension, extension, r.DB)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -285,7 +286,7 @@ func (r *ProjectExtensionResolverMutation) HandleExtensionRoute53(args *struct{ 
 				return err
 			}
 
-			tmpExtensionArtifacts, err := ExtractArtifacts(existingProjectExtension, tmpExtension, r.DB)
+			tmpExtensionArtifacts, err := helpers.ExtractArtifacts(existingProjectExtension, tmpExtension, r.DB)
 			if err != nil {
 				return err
 			}

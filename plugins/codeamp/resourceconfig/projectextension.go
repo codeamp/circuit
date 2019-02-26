@@ -3,8 +3,10 @@ package resourceconfig
 import (
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type ProjectExtensionConfig struct {
@@ -47,9 +49,19 @@ func (p *ProjectExtensionConfig) Export() (*ProjectExtension, error) {
 		return nil, err
 	}
 
+	artifacts, err := helpers.ExtractArtifacts(*p.projectExtension, extension, p.db)
+	if err != nil {
+		return nil, err
+	}
+
+	artifactsBytes, err := yaml.Marshal(artifacts)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ProjectExtension{
 		CustomConfig: string(p.projectExtension.CustomConfig.RawMessage),
-		Config:       string(p.projectExtension.Config.RawMessage),
+		Config:       string(artifactsBytes),
 		Key:          extension.Key,
 	}, nil
 }
