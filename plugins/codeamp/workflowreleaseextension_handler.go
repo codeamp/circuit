@@ -221,7 +221,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 				return
 			}
 
-			projectExtensionArtifacts, err := ExtractArtifacts(projectExtension, extension, x.DB)
+			projectExtensionArtifacts, err := graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
 			if err != nil {
 				log.Error(err.Error())
 			}

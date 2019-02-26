@@ -281,7 +281,7 @@ func (x *CodeAmp) SendNotifications(releaseState string, release *model.Release,
 		extension := model.Extension{}
 		if x.DB.Where("id = ? and type = ?", pe.ExtensionID, plugins.GetType("notification")).Find(&extension).RecordNotFound() == false {
 
-			projectExtensionArtifacts, _ := ExtractArtifacts(pe, extension, x.DB)
+			projectExtensionArtifacts, _ := graphql_resolver.ExtractArtifacts(pe, extension, x.DB)
 			_artifacts := []transistor.Artifact{}
 
 			for _, artifact := range projectExtensionArtifacts {

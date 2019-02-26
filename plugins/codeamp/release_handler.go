@@ -83,7 +83,7 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 				}
 
 				if needsExtract {
-					artifacts, err = ExtractArtifacts(projectExtension, extension, x.DB)
+					artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
 					if err != nil {
 						log.Error(err.Error())
 						return nil
