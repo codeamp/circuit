@@ -8,7 +8,7 @@ import (
 )
 
 type Service struct {
-	Name string `yaml:"name"`
+	*model.Service
 }
 
 type ServiceConfig struct {
@@ -36,6 +36,6 @@ func (s *ServiceConfig) Export() (*Service, error) {
 	}
 
 	return &Service{
-		Name: s.service.Name,
+		Service: s.service,
 	}, nil
 }
