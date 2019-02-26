@@ -17,8 +17,8 @@ type Extension struct {
 }
 
 type ProjectExtension struct {
-	CustomConfig []byte `yaml:"customConfig"`
-	Config       []byte `yaml:"config"`
+	CustomConfig string `yaml:"customConfig"`
+	Config       string `yaml:"config"`
 	Key          string `yaml:"key"`
 }
 
@@ -48,8 +48,8 @@ func (p *ProjectExtensionConfig) Export() (*ProjectExtension, error) {
 	}
 
 	return &ProjectExtension{
-		CustomConfig: p.projectExtension.CustomConfig.RawMessage,
-		Config:       p.projectExtension.Config.RawMessage,
+		CustomConfig: string(p.projectExtension.CustomConfig.RawMessage),
+		Config:       string(p.projectExtension.Config.RawMessage),
 		Key:          extension.Key,
 	}, nil
 }

@@ -76,7 +76,13 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 			ProjectID:     project.Model.ID,
 			EnvironmentID: env.Model.ID,
 			Config:        postgres.Jsonb{[]byte(`[]`)},
-			CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
+			CustomConfig: postgres.Jsonb{[]byte(`
+			{
+				"type": "foobar", 
+				"service": "foo", 
+				"upstream_domains": [{"apex": "checkrhq-dev.net", "subdomain": "deploy-test"}]
+			}			
+			`)},
 		}
 
 		suite.db.Create(&projectExtension)
@@ -99,7 +105,6 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 	}
 
 	assert.NotNil(suite.T(), exportedProject)
-
 	assert.Equal(suite.T(), 2, len(exportedProject.Services))
 	assert.Equal(suite.T(), 2, len(exportedProject.ProjectExtensions))
 	assert.NotNil(suite.T(), exportedProject.ProjectSettings)
