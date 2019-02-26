@@ -194,7 +194,7 @@ func (ts *ProjectExtensionTestSuite) TestProjectExtensionExtractArtifacts() {
 	projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
 	ts.Resolver.DB.Save(&projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
 
-	graphql_resolver.ExtractArtifacts(projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension,
+	ExtractArtifacts(projectExtensionResolver.DBProjectExtensionResolver.ProjectExtension,
 		extensionResolver.DBExtensionResolver.Extension, ts.Resolver.DB)
 }
 
