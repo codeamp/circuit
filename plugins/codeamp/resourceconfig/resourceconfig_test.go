@@ -13,24 +13,24 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+var migrators = []interface{}{
+	&model.Project{},
+	&model.ProjectEnvironment{},
+	&model.ProjectExtension{},
+	&model.ProjectSettings{},
+	&model.Environment{},
+	&model.ProjectExtension{},
+	&model.Service{},
+	&model.Secret{},
+	&model.Extension{},
+}
+
 type ResourceConfigTestSuite struct {
 	suite.Suite
 	db *gorm.DB
 }
 
 func (suite *ResourceConfigTestSuite) SetupTest() {
-	migrators := []interface{}{
-		&model.Project{},
-		&model.ProjectEnvironment{},
-		&model.ProjectExtension{},
-		&model.ProjectSettings{},
-		&model.Environment{},
-		&model.ProjectExtension{},
-		&model.Service{},
-		&model.Secret{},
-		&model.Extension{},
-	}
-
 	db, err := test.SetupResolverTest(migrators)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -39,10 +39,6 @@ func (suite *ResourceConfigTestSuite) SetupTest() {
 	suite.db = db
 }
 
-/* Test successful env. creation */
-/*
-
- */
 func (suite *ResourceConfigTestSuite) TestExportProject() {
 	project := model.Project{
 		Slug: "hello-there",
@@ -112,6 +108,7 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 }
 
 func (suite *ResourceConfigTestSuite) TearDownTest() {
+	suite.db.Delete(&migrators)
 	suite.db.Close()
 }
 

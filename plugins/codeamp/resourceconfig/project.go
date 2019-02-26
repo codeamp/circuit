@@ -19,7 +19,7 @@ type ProjectConfig struct {
 type Project struct {
 	ProjectSettings   ProjectSettings    `yaml:"settings`
 	ProjectExtensions []ProjectExtension `yaml:"extensions"`
-	Secrets           []Secret           `yaml"secrets"`
+	Secrets           []Secret           `yaml:"secrets"`
 	Services          []Service          `yaml:"services"`
 }
 
@@ -74,7 +74,7 @@ func (p *ProjectConfig) Export() (*Project, error) {
 	}
 
 	var secrets []model.Secret
-	if err := childObjectQuery.Find(&services).Error; err != nil {
+	if err := childObjectQuery.Find(&secrets).Error; err != nil {
 		return nil, err
 	}
 

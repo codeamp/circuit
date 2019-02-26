@@ -127,8 +127,8 @@ func (u *ProjectResolverQuery) Projects(ctx context.Context, args *struct {
 }
 
 func (u *ProjectResolverQuery) ExportProject(ctx context.Context, args *struct {
-	ID            *graphql.ID
-	EnvironmentID *string
+	ID            string
+	EnvironmentID string
 }) (*string, error) {
 	// confirm environment and project object existence
 	project := model.Project{}
@@ -137,7 +137,7 @@ func (u *ProjectResolverQuery) ExportProject(ctx context.Context, args *struct {
 	}
 
 	env := model.Environment{}
-	if err := u.DB.Where("id = ?", args.ID).Find(&env).Error; err != nil {
+	if err := u.DB.Where("id = ?", args.EnvironmentID).Find(&env).Error; err != nil {
 		return nil, err
 	}
 

@@ -36,6 +36,15 @@ func (r *Resolver) Project(ctx context.Context, args *struct {
 	return initializer.Project(ctx, args)
 }
 
+// ExportProject
+func (r *Resolver) ExportProject(ctx context.Context, args *struct {
+	ID            string
+	EnvironmentID string
+}) (*string, error) {
+	initializer := ProjectResolverQuery{DB: r.DB}
+	return initializer.ExportProject(ctx, args)
+}
+
 // Projects
 func (r *Resolver) Projects(ctx context.Context, args *struct {
 	ProjectSearch *model.ProjectSearchInput
