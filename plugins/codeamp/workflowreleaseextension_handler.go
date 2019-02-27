@@ -162,7 +162,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
-					"id": releaseExtension.ProjectExtensionID,
+					"id":                   releaseExtension.ProjectExtensionID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return
@@ -171,7 +171,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
-					"id": projectExtension.Model.ID,
+					"id":                   projectExtension.Model.ID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return
@@ -206,7 +206,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
-					"id": releaseExtension.ProjectExtensionID,
+					"id":                   releaseExtension.ProjectExtensionID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return
@@ -215,7 +215,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
-					"id": projectExtension.Model.ID,
+					"id":                   projectExtension.Model.ID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return

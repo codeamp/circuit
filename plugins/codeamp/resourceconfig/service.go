@@ -8,13 +8,13 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+type Service struct {
+	*model.Service
+}
+
 type ServiceConfig struct {
 	ProjectConfig
 	service *model.Service
-}
-
-type Service struct {
-	*model.Service
 }
 
 func CreateProjectServiceConfig(db *gorm.DB, service *model.Service, project *model.Project, env *model.Environment) *ServiceConfig {

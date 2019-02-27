@@ -16,8 +16,10 @@ type SecretConfig struct {
 }
 
 type Secret struct {
-	Key   string `yaml:"key"`
-	Value string `yaml:"value"`
+	Key      string `yaml:"key"`
+	Value    string `yaml:"value"`
+	Type     string `yaml:"type"`
+	IsSecret bool   `yaml:"isSecret"`
 }
 
 func CreateSecretConfig(db *gorm.DB, secret *model.Secret, project *model.Project, env *model.Environment) *SecretConfig {
@@ -68,7 +70,9 @@ func (s *SecretConfig) Export() (*Secret, error) {
 	}
 
 	return &Secret{
-		Key:   s.secret.Key,
-		Value: secretValue.Value,
+		Key:      s.secret.Key,
+		Value:    secretValue.Value,
+		Type:     string(s.secret.Type),
+		IsSecret: s.secret.IsSecret,
 	}, nil
 }
