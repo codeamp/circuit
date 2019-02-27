@@ -23,15 +23,56 @@ type Project struct {
 	Services          []Service          `yaml:"services"`
 }
 
-func CreateProjectConfig(config *string, db *gorm.DB, project *model.Project, env *model.Environment) *ProjectConfig {
+func CreateProjectConfig(db *gorm.DB, project *model.Project, env *model.Environment) *ProjectConfig {
 	return &ProjectConfig{
 		db:          db,
 		project:     project,
 		environment: env,
-		BaseResourceConfig: BaseResourceConfig{
-			config: config,
-		},
 	}
+}
+
+func (p *ProjectConfig) Import(project *Project) error {
+	var err error
+
+	tx := p.db.Begin()
+
+	projectSettingsConfig := CreateProjectSettingsConfig(tx, p.project, p.environment)
+	err = projectSettingsConfig.Import(&project.ProjectSettings)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, secret := range project.Secrets {
+		secretsConfig := CreateSecretConfig(p.db, nil, p.project, p.environment)
+		err = secretsConfig.Import(&secret)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, service := range project.Services {
+		serviceConfig := CreateProjectServiceConfig(p.db, nil, p.project, p.environment)
+		err = serviceConfig.Import(&service)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, extension := range project.ProjectExtensions {
+		extensionConfig := CreateProjectExtensionConfig(p.db, nil, p.project, p.environment)
+		err = extensionConfig.Import(&extension)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
 }
 
 func (p *ProjectConfig) Export() (*Project, error) {
@@ -50,7 +91,7 @@ func (p *ProjectConfig) Export() (*Project, error) {
 	}
 
 	for _, service := range services {
-		exportedSvc, err := CreateServiceConfig(nil, p.db, &service, nil, nil).Export()
+		exportedSvc, err := CreateProjectServiceConfig(p.db, &service, nil, nil).Export()
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +106,7 @@ func (p *ProjectConfig) Export() (*Project, error) {
 	}
 
 	for _, pExtension := range pExtensions {
-		exportedProjectExtension, err := CreateProjectExtensionConfig(nil, p.db, &pExtension, nil, nil).Export()
+		exportedProjectExtension, err := CreateProjectExtensionConfig(p.db, &pExtension, nil, nil).Export()
 		if err != nil {
 			return nil, err
 		}
@@ -80,7 +121,7 @@ func (p *ProjectConfig) Export() (*Project, error) {
 
 	// Collect services inside project
 	for _, secret := range secrets {
-		exportedSecret, err := CreateSecretConfig(nil, p.db, &secret, nil, nil).Export()
+		exportedSecret, err := CreateSecretConfig(p.db, &secret, nil, nil).Export()
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +134,7 @@ func (p *ProjectConfig) Export() (*Project, error) {
 		return nil, err
 	}
 
-	exportedProjectSettings, err := CreateProjectSettingsConfig(nil, p.db, &projectSettings, nil, nil).Export()
+	exportedProjectSettings, err := CreateProjectSettingsConfig(p.db, p.project, p.environment).Export()
 	if err != nil {
 		return nil, err
 	}

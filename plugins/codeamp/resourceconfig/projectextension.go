@@ -22,18 +22,19 @@ type ProjectExtension struct {
 	Key          string `yaml:"key"`
 }
 
-func CreateProjectExtensionConfig(config *string, db *gorm.DB, projectExtension *model.ProjectExtension, project *model.Project, env *model.Environment) *ProjectExtensionConfig {
+func CreateProjectExtensionConfig(db *gorm.DB, projectExtension *model.ProjectExtension, project *model.Project, env *model.Environment) *ProjectExtensionConfig {
 	return &ProjectExtensionConfig{
 		projectExtension: projectExtension,
 		ProjectConfig: ProjectConfig{
 			db:          db,
 			project:     project,
 			environment: env,
-			BaseResourceConfig: BaseResourceConfig{
-				config: config,
-			},
 		},
 	}
+}
+
+func (p *ProjectExtensionConfig) Import(projectExtension *ProjectExtension) error {
+	return nil
 }
 
 func (p *ProjectExtensionConfig) Export() (*ProjectExtension, error) {

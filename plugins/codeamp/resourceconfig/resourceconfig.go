@@ -6,16 +6,10 @@ package resourceconfig
 // and provide a general-purpose interface for any resource that wants to implement
 // import/export behaviors.
 type ResourceConfig interface {
-	Import() error
+	Import(interface{}) error
 	Export() (interface{}, error)
-	GetConfig() *string
 }
 
 type BaseResourceConfig struct {
 	ResourceConfig
-	config *string
-}
-
-func (b *BaseResourceConfig) GetConfig() *string {
-	return b.config
 }

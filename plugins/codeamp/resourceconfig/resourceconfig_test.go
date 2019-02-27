@@ -1,6 +1,7 @@
 package resourceconfig_test
 
 import (
+	"fmt"
 	"log"
 	"testing"
 
@@ -91,7 +92,7 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 
 	suite.db.Create(&projectSettings)
 
-	projectConfig := resourceconfig.CreateProjectConfig(nil, suite.db, &project, &env)
+	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, &env)
 
 	exportedProject, err := projectConfig.Export()
 	if err != nil {
@@ -105,6 +106,45 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 	assert.NotNil(suite.T(), exportedProject.ProjectSettings)
 	assert.Equal(suite.T(), projectSettings.ContinuousDeploy, exportedProject.ProjectSettings.ContinuousDeploy)
 	assert.Equal(suite.T(), projectSettings.GitBranch, exportedProject.ProjectSettings.GitBranch)
+}
+
+func (suite *ResourceConfigTestSuite) TestImportProject() {
+	fmt.Println("TestImportProject")
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectSettings := model.ProjectSettings{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectSettings)
+
+	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, &env)
+	importableProject := resourceconfig.Project{
+		ProjectSettings: resourceconfig.ProjectSettings{
+			GitBranch:        "test-branch",
+			ContinuousDeploy: true,
+		},
+	}
+
+	err := projectConfig.Import(&importableProject)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	// check ProjectSettings update
+	dbProjectSettings := model.ProjectSettings{}
+	suite.db.Where("project_id = ? and environment_id = ?", project.Model.ID, env.Model.ID).First(&dbProjectSettings)
+	assert.Equal(suite.T(), "test-branch", dbProjectSettings.GitBranch)
+	assert.Equal(suite.T(), true, dbProjectSettings.ContinuousDeploy)
 }
 
 func (suite *ResourceConfigTestSuite) TearDownTest() {
