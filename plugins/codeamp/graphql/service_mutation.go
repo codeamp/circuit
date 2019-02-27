@@ -88,7 +88,11 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 		probeType := plugins.GetType("livenessProbe")
 		probe := args.Service.LivenessProbe
 		probe.Type = &probeType
+<<<<<<< HEAD
 		livenessProbe, err = helpers.ValidateHealthProbe(*probe)
+=======
+		livenessProbe, err = helpers.validateHealthProbe(*probe)
+>>>>>>> add initial import code
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +103,11 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 		probeType := plugins.GetType("readinessProbe")
 		probe := args.Service.ReadinessProbe
 		probe.Type = &probeType
+<<<<<<< HEAD
 		readinessProbe, err = helpers.ValidateHealthProbe(*probe)
+=======
+		readinessProbe, err = helpers.validateHealthProbe(*probe)
+>>>>>>> add initial import code
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +126,11 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
+<<<<<<< HEAD
 	updatedDeploymentStrategy, err := helpers.ValidateDeploymentStrategyInput(args.Service.DeploymentStrategy)
+=======
+	updatedDeploymentStrategy, err := helpers.validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
+>>>>>>> add initial import code
 	if err != nil {
 		return nil, err
 	}

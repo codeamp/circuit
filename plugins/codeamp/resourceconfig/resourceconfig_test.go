@@ -531,7 +531,7 @@ func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Success() {
 		CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
 	}
 	suite.db.Create(&projectExtension)
-  
+
 	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(suite.db, &projectExtension, &project, &env)
 	exportedProjectExtension, err := projectExtensionConfig.Export()
 
