@@ -5,6 +5,8 @@ import (
 	"log"
 	"testing"
 
+	"github.com/codeamp/circuit/plugins"
+
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/plugins/codeamp/resourceconfig"
 	"github.com/codeamp/circuit/test"
@@ -127,19 +129,74 @@ func (suite *ResourceConfigTestSuite) TestImportProject() {
 	suite.db.Create(&env)
 
 	projectSettings := model.ProjectSettings{
-		EnvironmentID: env.Model.ID,
-		ProjectID:     project.Model.ID,
+		EnvironmentID:    env.Model.ID,
+		ProjectID:        project.Model.ID,
+		GitBranch:        "master",
+		ContinuousDeploy: true,
 	}
 	suite.db.Create(&projectSettings)
 
-	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, &env)
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
 	importableProject := resourceconfig.Project{
 		ProjectSettings: resourceconfig.ProjectSettings{
 			GitBranch:        "test-branch",
 			ContinuousDeploy: true,
 		},
+		Services: []resourceconfig.Service{
+			resourceconfig.Service{
+				Service: &model.Service{
+					Command: "foocommand",
+					Name:    "fooname",
+					Type:    plugins.GetType("general"),
+					Count:   int32(1),
+					Ports: []model.ServicePort{
+						model.ServicePort{
+							Port:     int32(80),
+							Protocol: "TCP",
+						},
+					},
+					DeploymentStrategy: model.ServiceDeploymentStrategy{
+						Type: plugins.GetType("default"),
+					},
+					ReadinessProbe: model.ServiceHealthProbe{
+						Method: "default",
+						Type:   plugins.GetType("readinessProbe"),
+					},
+					LivenessProbe: model.ServiceHealthProbe{
+						Method: "default",
+						Type:   plugins.GetType("readinessProbe"),
+					},
+					PreStopHook: "fooprestophook",
+				},
+			},
+		},
+		ProjectExtensions: []resourceconfig.ProjectExtension{
+			resourceconfig.ProjectExtension{
+				CustomConfig: `{}`,
+				Config:       `[{ "key": "KEY", "value: "VALUE" }]`,
+				Key:          "fookey",
+			},
+		},
+		Secrets: []resourceconfig.Secret{
+			resourceconfig.Secret{
+				Key:      "FOOSECRET",
+				Value:    "foovalue",
+				IsSecret: false,
+			},
+			resourceconfig.Secret{
+				Key:      "FOOSECRET2",
+				Value:    "foovalue",
+				IsSecret: false,
+			},
+		},
 	}
 
+	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, &env)
 	err := projectConfig.Import(&importableProject)
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
@@ -150,6 +207,12 @@ func (suite *ResourceConfigTestSuite) TestImportProject() {
 	suite.db.Where("project_id = ? and environment_id = ?", project.Model.ID, env.Model.ID).First(&dbProjectSettings)
 	assert.Equal(suite.T(), "test-branch", dbProjectSettings.GitBranch)
 	assert.Equal(suite.T(), true, dbProjectSettings.ContinuousDeploy)
+
+	// check secrets
+
+	// check project extension
+
+	// check services
 }
 
 func (suite *ResourceConfigTestSuite) TearDownTest() {

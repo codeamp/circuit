@@ -29,8 +29,8 @@ func CreateProjectServiceConfig(db *gorm.DB, service *model.Service, project *mo
 }
 
 func (p *ServiceConfig) Import(service *Service) error {
-	if p.db == nil || p.project == nil || p.environment == nil {
-		return fmt.Errorf(NilDependencyForExportErr, "db, project, environment")
+	if service == nil || p.db == nil || p.project == nil || p.environment == nil {
+		return fmt.Errorf(NilDependencyForExportErr, "service, db, project, environment")
 	}
 
 	// check if service with name already exists
@@ -56,13 +56,17 @@ func (p *ServiceConfig) Import(service *Service) error {
 
 	// create base service
 	serviceInput := model.ServiceInput{
-		ProjectID:          p.project.Model.ID.String(),
-		Command:            service.Command,
-		Name:               service.Name,
-		Count:              service.Count,
-		Type:               string(service.Type),
-		EnvironmentID:      p.environment.Model.ID.String(),
-		DeploymentStrategy: &model.DeploymentStrategyInput{},
+		ProjectID:     p.project.Model.ID.String(),
+		Command:       service.Command,
+		Name:          service.Name,
+		Count:         service.Count,
+		Type:          string(service.Type),
+		EnvironmentID: p.environment.Model.ID.String(),
+		DeploymentStrategy: &model.DeploymentStrategyInput{
+			Type:           service.DeploymentStrategy.Type,
+			MaxUnavailable: service.DeploymentStrategy.MaxUnavailable,
+			MaxSurge:       service.DeploymentStrategy.MaxSurge,
+		},
 		LivenessProbe: &model.ServiceHealthProbeInput{
 			Type:                &service.LivenessProbe.Type,
 			Method:              service.LivenessProbe.Method,

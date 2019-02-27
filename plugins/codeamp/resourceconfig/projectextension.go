@@ -17,10 +17,6 @@ type ProjectExtensionConfig struct {
 	ProjectConfig
 }
 
-type Extension struct {
-	Key string `yaml:"name"`
-}
-
 type ProjectExtension struct {
 	CustomConfig string `yaml:"customConfig"`
 	Config       string `yaml:"config"`
@@ -39,6 +35,12 @@ func CreateProjectExtensionConfig(db *gorm.DB, projectExtension *model.ProjectEx
 }
 
 func (p *ProjectExtensionConfig) Import(projectExtension *ProjectExtension) error {
+	if projectExtension == nil || p.db == nil || p.project == nil || p.environment == nil {
+		return fmt.Errorf(NilDependencyForExportErr, "projectExtension, db, project, environment")
+	}
+
+	// convert to project extension input
+
 	return nil
 }
 

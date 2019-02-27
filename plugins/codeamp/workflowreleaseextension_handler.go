@@ -7,6 +7,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -221,7 +222,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 				return
 			}
 
-			projectExtensionArtifacts, err := graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
+			projectExtensionArtifacts, err := helpers.ExtractArtifacts(projectExtension, extension, x.DB)
 			if err != nil {
 				log.Error(err.Error())
 			}

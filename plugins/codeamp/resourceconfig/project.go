@@ -47,6 +47,7 @@ func (p *ProjectConfig) Import(project *Project) error {
 		secretsConfig := CreateSecretConfig(p.db, nil, p.project, p.environment)
 		err = secretsConfig.Import(&secret)
 		if err != nil {
+			tx.Rollback()
 			return err
 		}
 	}
@@ -55,6 +56,7 @@ func (p *ProjectConfig) Import(project *Project) error {
 		serviceConfig := CreateProjectServiceConfig(p.db, nil, p.project, p.environment)
 		err = serviceConfig.Import(&service)
 		if err != nil {
+			tx.Rollback()
 			return err
 		}
 	}
@@ -63,6 +65,7 @@ func (p *ProjectConfig) Import(project *Project) error {
 		extensionConfig := CreateProjectExtensionConfig(p.db, nil, p.project, p.environment)
 		err = extensionConfig.Import(&extension)
 		if err != nil {
+			tx.Rollback()
 			return err
 		}
 	}
