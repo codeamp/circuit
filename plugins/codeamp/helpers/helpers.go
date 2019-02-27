@@ -50,7 +50,7 @@ func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Se
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	if serviceInput.DeploymentStrategy != nil {
-		deploymentStrategy, err = validateDeploymentStrategyInput(serviceInput.DeploymentStrategy)
+		deploymentStrategy, err = ValidateDeploymentStrategyInput(serviceInput.DeploymentStrategy)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +61,7 @@ func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Se
 		probeType := plugins.GetType("livenessProbe")
 		probe := serviceInput.LivenessProbe
 		probe.Type = &probeType
-		livenessProbe, err = validateHealthProbe(*probe)
+		livenessProbe, err = ValidateHealthProbe(*probe)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Se
 		probeType := plugins.GetType("readinessProbe")
 		probe := serviceInput.ReadinessProbe
 		probe.Type = &probeType
-		readinessProbe, err = validateHealthProbe(*probe)
+		readinessProbe, err = ValidateHealthProbe(*probe)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +144,7 @@ func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Se
 	return &service, nil
 }
 
-func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
+func ValidateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHealthProbe, error) {
 	healthProbe := model.ServiceHealthProbe{}
 
 	switch probeType := *input.Type; probeType {
@@ -220,7 +220,7 @@ func validateHealthProbe(input model.ServiceHealthProbeInput) (model.ServiceHeal
 	return healthProbe, nil
 }
 
-func validateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
+func ValidateDeploymentStrategyInput(input *model.DeploymentStrategyInput) (model.ServiceDeploymentStrategy, error) {
 	switch strategy := input.Type; strategy {
 	case plugins.GetType("default"), plugins.GetType("recreate"):
 		return model.ServiceDeploymentStrategy{Type: plugins.Type(input.Type)}, nil

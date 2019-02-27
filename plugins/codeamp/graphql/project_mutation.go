@@ -297,3 +297,10 @@ func (r *ProjectResolverMutation) UpdateProjectEnvironments(ctx context.Context,
 
 	return results, nil
 }
+
+func (u *ProjectResolverQuery) ImportProject(ctx context.Context, args *struct {
+	ID            string
+	EnvironmentID string
+}) {
+	return
+}
