@@ -64,7 +64,7 @@ func (r *ProjectExtensionResolverMutation) CreateProjectExtension(ctx context.Co
 	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") ||
 		r.DB.Where("project_id = ? and extension_id = ? and environment_id = ?", args.ProjectExtension.ProjectID, args.ProjectExtension.ExtensionID, args.ProjectExtension.EnvironmentID).Find(&projectExtension).RecordNotFound() {
 		if extension.Key == "route53" {
-			err := r.HandleExtensionRoute53(args, &projectExtension)
+			err := helpers.HandleExtensionRoute53(r.DB, args.ProjectExtension, &projectExtension)
 			if err != nil {
 				return &ProjectExtensionResolver{}, err
 			}
@@ -141,7 +141,7 @@ func (r *ProjectExtensionResolverMutation) UpdateProjectExtension(args *struct{ 
 	}
 
 	if extension.Key == "route53" {
-		err := r.HandleExtensionRoute53(args, &projectExtension)
+		err := helpers.HandleExtensionRoute53(r.DB, args.ProjectExtension, &projectExtension)
 		if err != nil {
 			return nil, err
 		}
