@@ -1,6 +1,7 @@
 package resourceconfig_test
 
 import (
+	"context"
 	"log"
 	"testing"
 
@@ -99,7 +100,18 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 
 	suite.db.Create(&projectSettings)
 
-	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, &env)
+	user := model.User{
+		Email: "foo@gmail.com",
+	}
+	suite.db.Create(&user)
+
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      user.Model.ID.String(),
+		Email:       user.Email,
+		Permissions: []string{"admin"},
+	})
+
+	projectConfig := resourceconfig.CreateProjectConfig(authContext, suite.db, &project, &env)
 
 	exportedProject, err := projectConfig.Export()
 	if err != nil {
@@ -205,7 +217,18 @@ func (suite *ResourceConfigTestSuite) TestImportProjectSuccess_FullFlow() {
 		},
 	}
 
-	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, &env)
+	user := model.User{
+		Email: "foo@gmail.com",
+	}
+	suite.db.Create(&user)
+
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      user.Model.ID.String(),
+		Email:       user.Email,
+		Permissions: []string{"admin"},
+	})
+
+	projectConfig := resourceconfig.CreateProjectConfig(authContext, suite.db, &project, &env)
 	err := projectConfig.Import(&importableProject)
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
@@ -216,6 +239,27 @@ func (suite *ResourceConfigTestSuite) TestImportProjectSuccess_FullFlow() {
 	suite.db.Where("project_id = ? and environment_id = ?", project.Model.ID, env.Model.ID).First(&dbProjectSettings)
 	assert.Equal(suite.T(), "test-branch", dbProjectSettings.GitBranch)
 	assert.Equal(suite.T(), true, dbProjectSettings.ContinuousDeploy)
+
+	// assert all objects have been created - service, secret, projectextension
+	for _, service := range importableProject.Services {
+		if err = suite.db.Where("environment_id = ? and project_id = ? and name = ?", env.Model.ID, project.Model.ID, service.Name).Find(&model.Service{}).Error; err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}
+
+	for _, secret := range importableProject.Secrets {
+		if err = suite.db.Where("environment_id = ? and project_id = ? and key = ?", env.Model.ID, project.Model.ID, secret.Key).Find(&model.Secret{}).Error; err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}
+
+	for _, pExtension := range importableProject.ProjectExtensions {
+		extension := model.Extension{}
+		suite.db.Where("key = ? and environment_id = ?", pExtension.Key, env.Model.ID).Find(&extension)
+		if err = suite.db.Where("environment_id = ? and project_id = ? and extension_id = ?", env.Model.ID, project.Model.ID, extension.Model.ID).Find(&model.ProjectExtension{}).Error; err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
+	}
 }
 
 // ProjectSettings related
@@ -559,7 +603,18 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Success() {
 	suite.db.Create(&project)
 	suite.db.Create(&env)
 
-	secretConfig := resourceconfig.CreateProjectSecretConfig(suite.db, nil, &project, &env)
+	user := model.User{
+		Email: "foo@gmail.com",
+	}
+	suite.db.Create(&user)
+
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      user.Model.ID.String(),
+		Email:       user.Email,
+		Permissions: []string{"admin"},
+	})
+
+	secretConfig := resourceconfig.CreateProjectSecretConfig(authContext, suite.db, nil, &project, &env)
 	err := secretConfig.Import(&resourceconfig.Secret{
 		Key:   "KEY",
 		Value: "value",
@@ -582,7 +637,18 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_NilDependency() {
 	suite.db.Create(&project)
 	suite.db.Create(&env)
 
-	secretConfig := resourceconfig.CreateProjectSecretConfig(suite.db, nil, &project, nil)
+	user := model.User{
+		Email: "foo@gmail.com",
+	}
+	suite.db.Create(&user)
+
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      user.Model.ID.String(),
+		Email:       user.Email,
+		Permissions: []string{"admin"},
+	})
+
+	secretConfig := resourceconfig.CreateProjectSecretConfig(authContext, suite.db, nil, &project, nil)
 	err := secretConfig.Import(&resourceconfig.Secret{
 		Key:   "KEY",
 		Value: "value",
@@ -612,7 +678,18 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_SecretWithSameKey
 	}
 	suite.db.Create(&secret)
 
-	secretConfig := resourceconfig.CreateProjectSecretConfig(suite.db, nil, &project, nil)
+	user := model.User{
+		Email: "foo@gmail.com",
+	}
+	suite.db.Create(&user)
+
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      user.Model.ID.String(),
+		Email:       user.Email,
+		Permissions: []string{"admin"},
+	})
+
+	secretConfig := resourceconfig.CreateProjectSecretConfig(authContext, suite.db, nil, &project, nil)
 	err := secretConfig.Import(&resourceconfig.Secret{
 		Key:   "KEY",
 		Value: "value",
@@ -648,7 +725,18 @@ func (suite *ResourceConfigTestSuite) TestImportProject_Failure_NilEnvironment()
 	}
 	suite.db.Create(&projectEnv)
 
-	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, nil)
+	user := model.User{
+		Email: "foo@gmail.com",
+	}
+	suite.db.Create(&user)
+
+	authContext := context.WithValue(context.Background(), "jwt", model.Claims{
+		UserID:      user.Model.ID.String(),
+		Email:       user.Email,
+		Permissions: []string{"admin"},
+	})
+
+	projectConfig := resourceconfig.CreateProjectConfig(authContext, suite.db, &project, nil)
 	err := projectConfig.Import(&resourceconfig.Project{
 		ProjectSettings: resourceconfig.ProjectSettings{
 			GitBranch:        "master",

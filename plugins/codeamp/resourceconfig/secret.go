@@ -1,8 +1,10 @@
 package resourceconfig
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 )
@@ -13,6 +15,7 @@ type SecretConfig struct {
 	secret      *model.Secret
 	project     *model.Project
 	environment *model.Environment
+	ctx         context.Context // used for getting the user id when importing
 }
 
 type Secret struct {
@@ -22,11 +25,12 @@ type Secret struct {
 	IsSecret bool   `yaml:"isSecret"`
 }
 
-func CreateProjectSecretConfig(db *gorm.DB, secret *model.Secret, project *model.Project, env *model.Environment) *SecretConfig {
+func CreateProjectSecretConfig(ctx context.Context, db *gorm.DB, secret *model.Secret, project *model.Project, env *model.Environment) *SecretConfig {
 	return &SecretConfig{
 		db:          db,
 		secret:      secret,
 		project:     project,
+		ctx:         ctx,
 		environment: env,
 	}
 }
@@ -36,23 +40,20 @@ func (p *SecretConfig) Import(secret *Secret) error {
 		return fmt.Errorf(NilDependencyForExportErr, "db, project, environment")
 	}
 
-	// check if secret already exists
-	if err := p.db.Where("project_id = ? and environment_id = ? and key = ?", p.project.Model.ID, p.environment.Model.ID, secret.Key).Find(&model.Secret{}).Error; err == nil {
-		return fmt.Errorf(ObjectAlreadyExistsErr, "Secret")
+	projectID := p.project.Model.ID.String()
+
+	secretInput := model.SecretInput{
+		Key:           secret.Key,
+		Value:         secret.Value,
+		Type:          secret.Type,
+		Scope:         "project",
+		ProjectID:     &projectID,
+		EnvironmentID: p.environment.Model.ID.String(),
+		IsSecret:      secret.IsSecret,
 	}
 
-	newDBSecret := model.Secret{
-		Key: secret.Key,
-	}
-	if err := p.db.Create(&newDBSecret).Error; err != nil {
-		return err
-	}
-
-	newDBSecretValue := model.SecretValue{
-		Value:    secret.Value,
-		SecretID: newDBSecret.Model.ID,
-	}
-	if err := p.db.Create(&newDBSecretValue).Error; err != nil {
+	_, err := helpers.CreateSecretInDB(p.ctx, p.db, &secretInput)
+	if err != nil {
 		return err
 	}
 

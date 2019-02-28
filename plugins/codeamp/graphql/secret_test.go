@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -207,7 +208,7 @@ func (ts *SecretTestSuite) TestSecretScopes() {
 	}
 
 	for _, testCase := range testCases {
-		result := graphql_resolver.GetSecretScope(testCase.input)
+		result := helpers.GetSecretScope(testCase.input)
 		assert.Equal(ts.T(), testCase.expectedResult, result)
 	}
 }

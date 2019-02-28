@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
-	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
@@ -158,7 +158,7 @@ func (x *CodeAmp) Migrate() {
 						secret := model.Secret{
 							Key:           name,
 							Type:          "env",
-							Scope:         graphql_resolver.GetSecretScope("extension"),
+							Scope:         helpers.GetSecretScope("extension"),
 							EnvironmentID: environment.Model.ID,
 						}
 						if err := db.Save(&secret).Error; err != nil {
@@ -179,7 +179,7 @@ func (x *CodeAmp) Migrate() {
 						secret := model.Secret{
 							Key:           name,
 							Type:          "file",
-							Scope:         graphql_resolver.GetSecretScope("extension"),
+							Scope:         helpers.GetSecretScope("extension"),
 							EnvironmentID: environment.Model.ID,
 						}
 						if err := db.Save(&secret).Error; err != nil {

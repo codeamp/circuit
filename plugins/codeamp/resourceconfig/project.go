@@ -1,6 +1,7 @@
 package resourceconfig
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -13,6 +14,7 @@ type ProjectConfig struct {
 	db                 *gorm.DB
 	project            *model.Project
 	environment        *model.Environment
+	ctx                context.Context // for child objects
 }
 
 // For exporting purposes
@@ -23,17 +25,18 @@ type Project struct {
 	Services          []Service          `yaml:"services"`
 }
 
-func CreateProjectConfig(db *gorm.DB, project *model.Project, env *model.Environment) *ProjectConfig {
+func CreateProjectConfig(ctx context.Context, db *gorm.DB, project *model.Project, env *model.Environment) *ProjectConfig {
 	return &ProjectConfig{
 		db:          db,
 		project:     project,
 		environment: env,
+		ctx:         ctx,
 	}
 }
 
 func (p *ProjectConfig) Import(project *Project) error {
-	if p.project == nil || p.environment == nil || p.db == nil {
-		return fmt.Errorf(NilDependencyForExportErr, "project, environment, db")
+	if p.project == nil || p.environment == nil || p.db == nil || p.ctx == nil {
+		return fmt.Errorf(NilDependencyForExportErr, "project, environment, db, ctx")
 	}
 
 	var err error
@@ -47,7 +50,7 @@ func (p *ProjectConfig) Import(project *Project) error {
 	}
 
 	for _, secret := range project.Secrets {
-		secretsConfig := CreateProjectSecretConfig(tx, nil, p.project, p.environment)
+		secretsConfig := CreateProjectSecretConfig(p.ctx, tx, nil, p.project, p.environment)
 		err = secretsConfig.Import(&secret)
 		if err != nil {
 			tx.Rollback()
@@ -84,8 +87,8 @@ func (p *ProjectConfig) Import(project *Project) error {
 func (p *ProjectConfig) Export() (*Project, error) {
 	var project Project
 
-	if p.project == nil || p.environment == nil || p.db == nil {
-		return nil, fmt.Errorf(NilDependencyForExportErr, "project, environment, db")
+	if p.project == nil || p.environment == nil || p.db == nil || p.ctx == nil {
+		return nil, fmt.Errorf(NilDependencyForExportErr, "project, environment, db, ctx")
 	}
 
 	childObjectQuery := p.db.Where("project_id = ? and environment_id = ?", p.project.Model.ID, p.environment.Model.ID)
@@ -127,7 +130,7 @@ func (p *ProjectConfig) Export() (*Project, error) {
 
 	// Collect services inside project
 	for _, secret := range secrets {
-		exportedSecret, err := CreateProjectSecretConfig(p.db, &secret, nil, nil).Export()
+		exportedSecret, err := CreateProjectSecretConfig(p.ctx, p.db, &secret, nil, nil).Export()
 		if err != nil {
 			return nil, err
 		}

@@ -2,30 +2,11 @@ package graphql_resolver
 
 import (
 	"encoding/json"
-	"fmt"
 
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
-	log "github.com/codeamp/logger"
 	graphql "github.com/graph-gophers/graphql-go"
 )
-
-func GetSecretScope(s string) model.SecretScope {
-	secretScopes := []string{
-		"project",
-		"extension",
-		"global",
-	}
-
-	for _, secretScope := range secretScopes {
-		if s == secretScope {
-			return model.SecretScope(secretScope)
-		}
-	}
-
-	log.Warn(fmt.Sprintf("SecretScope not found: %s", s))
-	return model.SecretScope("unknown")
-}
 
 // SecretResolver resolver for Secret
 type SecretResolver struct {

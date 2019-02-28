@@ -142,7 +142,7 @@ func (u *ProjectResolverQuery) ExportProject(ctx context.Context, args *struct {
 	}
 
 	// get exported project object from project resource config
-	exportedProject, err := resourceconfig.CreateProjectConfig(u.DB, &project, &env).Export()
+	exportedProject, err := resourceconfig.CreateProjectConfig(ctx, u.DB, &project, &env).Export()
 	if err != nil {
 		return nil, err
 	}
