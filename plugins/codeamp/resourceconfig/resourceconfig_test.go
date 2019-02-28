@@ -4,6 +4,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/plugins/codeamp/resourceconfig"
 	"github.com/codeamp/circuit/test"
@@ -110,6 +111,126 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 	assert.NotNil(suite.T(), exportedProject.ProjectSettings)
 	assert.Equal(suite.T(), projectSettings.ContinuousDeploy, exportedProject.ProjectSettings.ContinuousDeploy)
 	assert.Equal(suite.T(), projectSettings.GitBranch, exportedProject.ProjectSettings.GitBranch)
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectSettings_Failure_NoExistingProjectSettings() {
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
+	projectSettingsConfig := resourceconfig.CreateProjectSettingsConfig(nil, suite.db, nil, &project, &env)
+	exportedProjectConfig, err := projectSettingsConfig.Export()
+
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), exportedProjectConfig)
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Success() {
+	// create relevant base objects - project, projectenvironment, projectsettings, extension
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	extension := model.Extension{
+		Type:          plugins.GetType("once"),
+		Key:           "key",
+		Name:          "name",
+		Component:     "",
+		Cacheable:     false,
+		EnvironmentID: env.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+	}
+
+	suite.db.Create(&projectEnv)
+	suite.db.Create(&extension)
+
+	projectExtension := model.ProjectExtension{
+		EnvironmentID: env.Model.ID,
+		ExtensionID:   extension.Model.ID,
+		ProjectID:     project.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+		CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
+	}
+	suite.db.Create(&projectExtension)
+
+	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(nil, suite.db, &projectExtension, &project, &env)
+	exportedProjectExtension, err := projectExtensionConfig.Export()
+
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), exportedProjectExtension)
+	assert.Equal(suite.T(), extension.Key, exportedProjectExtension.Key)
+	assert.Equal(suite.T(), "[]\n", exportedProjectExtension.Config)
+	assert.Equal(suite.T(), "{}", exportedProjectExtension.CustomConfig)
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Failure_NilDependency() {
+	// create relevant base objects - project, projectenvironment, projectsettings, extension
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	extension := model.Extension{
+		Type:          plugins.GetType("once"),
+		Key:           "key",
+		Name:          "name",
+		Component:     "",
+		Cacheable:     false,
+		EnvironmentID: env.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+	}
+
+	suite.db.Create(&projectEnv)
+	suite.db.Create(&extension)
+
+	projectExtension := model.ProjectExtension{
+		EnvironmentID: env.Model.ID,
+		ExtensionID:   extension.Model.ID,
+		ProjectID:     project.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+		CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
+	}
+	suite.db.Create(&projectExtension)
+
+	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(nil, suite.db, nil, &project, &env)
+	exportedProjectExtension, err := projectExtensionConfig.Export()
+
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), exportedProjectExtension)
 }
 
 func (suite *ResourceConfigTestSuite) TearDownTest() {
