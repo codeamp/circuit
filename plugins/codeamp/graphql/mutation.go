@@ -25,6 +25,16 @@ func (r *Resolver) UpdateProject(ctx context.Context, args *struct {
 	return mut.UpdateProject(ctx, args)
 }
 
+// ImportProject Import project
+func (r *Resolver) ImportProject(ctx context.Context, args *struct {
+	ID                string
+	EnvironmentID     string
+	ProjectYAMLConfig string
+}) (*ProjectResolver, error) {
+	mut := ProjectResolverMutation{r.DB}
+	return mut.ImportProject(ctx, args)
+}
+
 // StopRelease
 func (r *Resolver) StopRelease(ctx context.Context, args *struct{ ID graphql.ID }) (*ReleaseResolver, error) {
 	mut := ReleaseResolverMutation{r.DB, r.Events}

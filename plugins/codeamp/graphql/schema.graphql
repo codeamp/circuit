@@ -52,6 +52,8 @@ type Mutation {
   createProject(project: ProjectInput): Project
   # Update project
   updateProject(project: ProjectInput): Project
+  # Import Project
+  importProject(id: String!, environmentID: String!, projectYAMLConfig: String!): Project
   # Create release
   createRelease(release: ReleaseInput): Release
   # Stop release

@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codeamp/circuit/plugins/codeamp/resourceconfig"
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
@@ -298,9 +301,42 @@ func (r *ProjectResolverMutation) UpdateProjectEnvironments(ctx context.Context,
 	return results, nil
 }
 
-func (u *ProjectResolverQuery) ImportProject(ctx context.Context, args *struct {
-	ID            string
-	EnvironmentID string
-}) {
-	return
+// ImportProject takes in a YAML string
+// that can be unmaarshaled into resourceconfig.Project.
+// We then create a resourceconfig.ProjectConfig and call its
+// Import function, passing in the unmarshaled resourceconfig.Project
+func (r *ProjectResolverMutation) ImportProject(ctx context.Context, args *struct {
+	ID                string
+	EnvironmentID     string
+	ProjectYAMLConfig string
+}) (*ProjectResolver, error) {
+	env := model.Environment{}
+	if err := r.DB.Where("id = ?", args.EnvironmentID).First(&env).Error; err != nil {
+		return nil, err
+	}
+
+	project := model.Project{}
+	if err := r.DB.Where("id = ?", args.ID).First(&project).Error; err != nil {
+		return nil, err
+	}
+
+	// unmarshal config into resourceconfig.Project
+	unmarshaledProject := resourceconfig.Project{}
+	if err := yaml.Unmarshal([]byte(args.ProjectYAMLConfig), &unmarshaledProject); err != nil {
+		return nil, err
+	}
+
+	// create project config
+	projectConfig := resourceconfig.CreateProjectConfig(ctx, r.DB, &project, &env)
+	if err := projectConfig.Import(&unmarshaledProject); err != nil {
+		return nil, err
+	}
+
+	return &ProjectResolver{
+		DBProjectResolver: &db_resolver.ProjectResolver{
+			Project:     project,
+			Environment: env,
+			DB:          r.DB,
+		},
+	}, nil
 }
