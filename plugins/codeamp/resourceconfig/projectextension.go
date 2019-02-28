@@ -7,6 +7,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/jinzhu/gorm"
 	yaml "gopkg.in/yaml.v2"
@@ -39,7 +40,25 @@ func (p *ProjectExtensionConfig) Import(projectExtension *ProjectExtension) erro
 		return fmt.Errorf(NilDependencyForExportErr, "projectExtension, db, project, environment")
 	}
 
+	// query extension by key, environment
+	extension := model.Extension{}
+	if err := p.db.Where("key = ? and environment_id = ?", projectExtension.Key, p.environment.Model.ID).Find(&extension).Error; err != nil {
+		return err
+	}
+
 	// convert to project extension input
+	peInput := model.ProjectExtensionInput{
+		ProjectID:     p.project.Model.ID.String(),
+		ExtensionID:   extension.Model.ID.String(),
+		Config:        model.JSON{[]byte(projectExtension.Config)},
+		CustomConfig:  model.JSON{[]byte(projectExtension.CustomConfig)},
+		EnvironmentID: p.environment.Model.ID.String(),
+	}
+
+	_, err := helpers.CreateProjectExtensionInDB(p.db, &peInput)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

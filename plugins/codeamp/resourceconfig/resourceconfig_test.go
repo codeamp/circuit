@@ -114,16 +114,16 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 	assert.Equal(suite.T(), projectSettings.GitBranch, exportedProject.ProjectSettings.GitBranch)
 }
 
-func (suite *ResourceConfigTestSuite) TestImportProject() {
+func (suite *ResourceConfigTestSuite) TestImportProjectSuccess_FullFlow() {
 	project := model.Project{
 		Slug: "hello-there",
 	}
+	suite.db.Create(&project)
+
 	env := model.Environment{
 		Key:  "dev",
 		Name: "Dev",
 	}
-
-	suite.db.Create(&project)
 	suite.db.Create(&env)
 
 	projectSettings := model.ProjectSettings{
@@ -139,6 +139,17 @@ func (suite *ResourceConfigTestSuite) TestImportProject() {
 		ProjectID:     project.Model.ID,
 	}
 	suite.db.Create(&projectEnv)
+
+	extension := model.Extension{
+		Type:          plugins.GetType("once"),
+		Key:           "fookey",
+		Name:          "name",
+		Component:     "",
+		Cacheable:     false,
+		EnvironmentID: env.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+	}
+	suite.db.Create(&extension)
 
 	importableProject := resourceconfig.Project{
 		ProjectSettings: resourceconfig.ProjectSettings{
@@ -176,7 +187,7 @@ func (suite *ResourceConfigTestSuite) TestImportProject() {
 		ProjectExtensions: []resourceconfig.ProjectExtension{
 			resourceconfig.ProjectExtension{
 				CustomConfig: `{}`,
-				Config:       `[{ "key": "KEY", "value: "VALUE" }]`,
+				Config:       `[{ "key": "KEY", "value": "VALUE" }]`,
 				Key:          "fookey",
 			},
 		},
@@ -329,66 +340,285 @@ func (suite *ResourceConfigTestSuite) TestExportProjectSettings_Failure_NoExisti
 }
 
 // ProjectExtension related tests
+func (suite *ResourceConfigTestSuite) TestImportProjectExtension_Success() {
+	// create relevant base objects - project, projectenvironment, projectsettings, extension
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	extension := model.Extension{
+		Type:          plugins.GetType("once"),
+		Key:           "key",
+		Name:          "name",
+		Component:     "",
+		Cacheable:     false,
+		EnvironmentID: env.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+	}
+
+	suite.db.Create(&projectEnv)
+	suite.db.Create(&extension)
+
+	// attempt import project extension process now
+	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(suite.db, nil, &project, &env)
+	err := projectExtensionConfig.Import(&resourceconfig.ProjectExtension{
+		CustomConfig: `{}`,
+		Config:       `[]`,
+		Key:          extension.Key,
+	})
+	assert.Nil(suite.T(), err)
+}
+
 func (suite *ResourceConfigTestSuite) TestImportProjectExtension_Failure_NilDependency() {
-	return
+	// create relevant base objects - project, projectenvironment, projectsettings, extension
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	extension := model.Extension{
+		Type:          plugins.GetType("once"),
+		Key:           "key",
+		Name:          "name",
+		Component:     "",
+		Cacheable:     false,
+		EnvironmentID: env.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+	}
+
+	suite.db.Create(&projectEnv)
+	suite.db.Create(&extension)
+
+	// attempt import project extension process now
+	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(suite.db, nil, nil, &env)
+	err := projectExtensionConfig.Import(&resourceconfig.ProjectExtension{
+		CustomConfig: `{}`,
+		Config:       `[]`,
+		Key:          extension.Key,
+	})
+	assert.NotNil(suite.T(), err)
 }
 
 func (suite *ResourceConfigTestSuite) TestImportProjectExtension_Failure_NoExtensionExistsWithDeclaredKey() {
-	return
+	// create relevant base objects - project, projectenvironment, projectsettings, extension
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+
+	suite.db.Create(&projectEnv)
+
+	// attempt import project extension process now
+	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(suite.db, nil, &project, &env)
+	err := projectExtensionConfig.Import(&resourceconfig.ProjectExtension{
+		CustomConfig: `{}`,
+		Config:       `[]`,
+		Key:          "invalid key",
+	})
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Success() {
+	// create relevant base objects - project, projectenvironment, projectsettings, extension
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	extension := model.Extension{
+		Type:          plugins.GetType("once"),
+		Key:           "key",
+		Name:          "name",
+		Component:     "",
+		Cacheable:     false,
+		EnvironmentID: env.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+	}
+
+	suite.db.Create(&projectEnv)
+	suite.db.Create(&extension)
+
+	projectExtension := model.ProjectExtension{
+		EnvironmentID: env.Model.ID,
+		ExtensionID:   extension.Model.ID,
+		ProjectID:     project.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+		CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
+	}
+	suite.db.Create(&projectExtension)
+
+	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(suite.db, &projectExtension, &project, &env)
+	exportedProjectExtension, err := projectExtensionConfig.Export()
+
+	assert.Nil(suite.T(), err)
+	assert.NotNil(suite.T(), exportedProjectExtension)
+	assert.Equal(suite.T(), extension.Key, exportedProjectExtension.Key)
+	assert.Equal(suite.T(), "[]\n", exportedProjectExtension.Config)
+	assert.Equal(suite.T(), "{}", exportedProjectExtension.CustomConfig)
 }
 
 func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Failure_NilDependency() {
-	return
-}
-func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Failure_InvalidFormatArtifacts() {
-	return
-}
+	// create relevant base objects - project, projectenvironment, projectsettings, extension
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
 
-func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Failure_InvalidArtifactSecretValueReference() {
-	return
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	extension := model.Extension{
+		Type:          plugins.GetType("once"),
+		Key:           "key",
+		Name:          "name",
+		Component:     "",
+		Cacheable:     false,
+		EnvironmentID: env.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+	}
+
+	suite.db.Create(&projectEnv)
+	suite.db.Create(&extension)
+
+	projectExtension := model.ProjectExtension{
+		EnvironmentID: env.Model.ID,
+		ExtensionID:   extension.Model.ID,
+		ProjectID:     project.Model.ID,
+		Config:        postgres.Jsonb{[]byte(`[]`)},
+		CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
+	}
+	suite.db.Create(&projectExtension)
+
+	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(suite.db, nil, &project, &env)
+	exportedProjectExtension, err := projectExtensionConfig.Export()
+
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), exportedProjectExtension)
 }
 
 // Secret related tests
 func (suite *ResourceConfigTestSuite) TestImportSecret_Success() {
-	return
+	// base objects - project, environment
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	secretConfig := resourceconfig.CreateProjectSecretConfig(suite.db, nil, &project, &env)
+	err := secretConfig.Import(&resourceconfig.Secret{
+		Key:   "KEY",
+		Value: "value",
+	})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
 }
 
 func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_NilDependency() {
-	return
+	// base objects - project, environment
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	secretConfig := resourceconfig.CreateProjectSecretConfig(suite.db, nil, &project, nil)
+	err := secretConfig.Import(&resourceconfig.Secret{
+		Key:   "KEY",
+		Value: "value",
+	})
+
+	assert.NotNil(suite.T(), err)
 }
 
 func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_SecretWithSameKeyAlreadyExists() {
-	return
-}
+	// base objects - project, environment
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
 
-func (suite *ResourceConfigTestSuite) TestExportSecret_Success() {
-	return
-}
+	suite.db.Create(&project)
+	suite.db.Create(&env)
 
-func (suite *ResourceConfigTestSuite) TestExportSecret_Failure_NilDependency() {
-	return
-}
+	// create secret with key KEY
+	secret := model.Secret{
+		Key:           "KEY",
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&secret)
 
-func (suite *ResourceConfigTestSuite) TestExportSecret_Failure_NoSecretValue() {
-	return
-}
+	secretConfig := resourceconfig.CreateProjectSecretConfig(suite.db, nil, &project, nil)
+	err := secretConfig.Import(&resourceconfig.Secret{
+		Key:   "KEY",
+		Value: "value",
+	})
 
-// Service related tests
-
-func (suite *ResourceConfigTestSuite) TestExportService_Success() {
-	return
-}
-
-func (suite *ResourceConfigTestSuite) TestExportService_Failure_NilDependency() {
-	return
-}
-
-func (suite *ResourceConfigTestSuite) TestExportService_Failure_InvalidServiceInput() {
-	return
-}
-
-func (suite *ResourceConfigTestSuite) TestImportService_Success() {
-	return
+	assert.NotNil(suite.T(), err)
 }
 
 // Project related tests

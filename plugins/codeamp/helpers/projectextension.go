@@ -37,8 +37,7 @@ func CreateProjectExtensionInDB(tx *gorm.DB, input *model.ProjectExtensionInput)
 
 	// check if extension already exists with project
 	// ignore if the extension type is 'once' (installable many times)
-	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") ||
-		tx.Where("project_id = ? and extension_id = ? and environment_id = ?", input.ProjectID, input.ExtensionID, input.EnvironmentID).Find(&projectExtension).RecordNotFound() {
+	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") || tx.Where("project_id = ? and extension_id = ? and environment_id = ?", input.ProjectID, input.ExtensionID, input.EnvironmentID).Find(&projectExtension).RecordNotFound() {
 		if extension.Key == "route53" {
 			err := HandleExtensionRoute53(tx, input, &projectExtension)
 			if err != nil {
@@ -55,7 +54,9 @@ func CreateProjectExtensionInDB(tx *gorm.DB, input *model.ProjectExtensionInput)
 			CustomConfig:  postgres.Jsonb{[]byte(input.CustomConfig.RawMessage)},
 		}
 
-		tx.Save(&projectExtension)
+		if err := tx.Create(&projectExtension).Error; err != nil {
+			return nil, err
+		}
 
 		return &projectExtension, nil
 	}

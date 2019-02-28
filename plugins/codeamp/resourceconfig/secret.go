@@ -22,7 +22,7 @@ type Secret struct {
 	IsSecret bool   `yaml:"isSecret"`
 }
 
-func CreateSecretConfig(db *gorm.DB, secret *model.Secret, project *model.Project, env *model.Environment) *SecretConfig {
+func CreateProjectSecretConfig(db *gorm.DB, secret *model.Secret, project *model.Project, env *model.Environment) *SecretConfig {
 	return &SecretConfig{
 		db:          db,
 		secret:      secret,

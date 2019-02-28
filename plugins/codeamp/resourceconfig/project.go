@@ -37,7 +37,6 @@ func (p *ProjectConfig) Import(project *Project) error {
 	}
 
 	var err error
-
 	tx := p.db.Begin()
 
 	projectSettingsConfig := CreateProjectSettingsConfig(tx, p.project, p.environment)
@@ -48,7 +47,7 @@ func (p *ProjectConfig) Import(project *Project) error {
 	}
 
 	for _, secret := range project.Secrets {
-		secretsConfig := CreateSecretConfig(p.db, nil, p.project, p.environment)
+		secretsConfig := CreateProjectSecretConfig(tx, nil, p.project, p.environment)
 		err = secretsConfig.Import(&secret)
 		if err != nil {
 			tx.Rollback()
@@ -57,7 +56,7 @@ func (p *ProjectConfig) Import(project *Project) error {
 	}
 
 	for _, service := range project.Services {
-		serviceConfig := CreateProjectServiceConfig(p.db, nil, p.project, p.environment)
+		serviceConfig := CreateProjectServiceConfig(tx, nil, p.project, p.environment)
 		err = serviceConfig.Import(&service)
 		if err != nil {
 			tx.Rollback()
@@ -66,7 +65,7 @@ func (p *ProjectConfig) Import(project *Project) error {
 	}
 
 	for _, extension := range project.ProjectExtensions {
-		extensionConfig := CreateProjectExtensionConfig(p.db, nil, p.project, p.environment)
+		extensionConfig := CreateProjectExtensionConfig(tx, nil, p.project, p.environment)
 		err = extensionConfig.Import(&extension)
 		if err != nil {
 			tx.Rollback()
@@ -128,7 +127,7 @@ func (p *ProjectConfig) Export() (*Project, error) {
 
 	// Collect services inside project
 	for _, secret := range secrets {
-		exportedSecret, err := CreateSecretConfig(p.db, &secret, nil, nil).Export()
+		exportedSecret, err := CreateProjectSecretConfig(p.db, &secret, nil, nil).Export()
 		if err != nil {
 			return nil, err
 		}
