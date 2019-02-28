@@ -1,7 +1,6 @@
 package resourceconfig_test
 
 import (
-	"fmt"
 	"log"
 	"testing"
 
@@ -116,7 +115,6 @@ func (suite *ResourceConfigTestSuite) TestExportProject() {
 }
 
 func (suite *ResourceConfigTestSuite) TestImportProject() {
-	fmt.Println("TestImportProject")
 	project := model.Project{
 		Slug: "hello-there",
 	}
@@ -207,12 +205,228 @@ func (suite *ResourceConfigTestSuite) TestImportProject() {
 	suite.db.Where("project_id = ? and environment_id = ?", project.Model.ID, env.Model.ID).First(&dbProjectSettings)
 	assert.Equal(suite.T(), "test-branch", dbProjectSettings.GitBranch)
 	assert.Equal(suite.T(), true, dbProjectSettings.ContinuousDeploy)
+}
 
-	// check secrets
+// ProjectSettings related
+func (suite *ResourceConfigTestSuite) TestImportProjectSettings_Failure_NilDependency() {
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
 
-	// check project extension
+	suite.db.Create(&project)
+	suite.db.Create(&env)
 
-	// check services
+	projectSettings := model.ProjectSettings{
+		EnvironmentID:    env.Model.ID,
+		ProjectID:        project.Model.ID,
+		GitBranch:        "master",
+		ContinuousDeploy: true,
+	}
+	suite.db.Create(&projectSettings)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
+	projectSettingsConfig := resourceconfig.CreateProjectSettingsConfig(suite.db, &project, nil)
+	err := projectSettingsConfig.Import(&resourceconfig.ProjectSettings{
+		GitBranch:        "master",
+		ContinuousDeploy: false,
+	})
+
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *ResourceConfigTestSuite) TestImportProjectSettings_Failure_NoExistingProjectSettings() {
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
+	projectSettingsConfig := resourceconfig.CreateProjectSettingsConfig(suite.db, &project, &env)
+	err := projectSettingsConfig.Import(&resourceconfig.ProjectSettings{
+		GitBranch:        "master",
+		ContinuousDeploy: false,
+	})
+
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectSettings_NilDependency() {
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectSettings := model.ProjectSettings{
+		EnvironmentID:    env.Model.ID,
+		ProjectID:        project.Model.ID,
+		GitBranch:        "master",
+		ContinuousDeploy: true,
+	}
+	suite.db.Create(&projectSettings)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
+	projectSettingsConfig := resourceconfig.CreateProjectSettingsConfig(suite.db, &project, nil)
+	exportedProjectConfig, err := projectSettingsConfig.Export()
+
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), exportedProjectConfig)
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectSettings_Failure_NoExistingProjectSettings() {
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
+	projectSettingsConfig := resourceconfig.CreateProjectSettingsConfig(suite.db, &project, &env)
+	exportedProjectConfig, err := projectSettingsConfig.Export()
+
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), exportedProjectConfig)
+}
+
+// ProjectExtension related tests
+func (suite *ResourceConfigTestSuite) TestImportProjectExtension_Failure_NilDependency() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestImportProjectExtension_Failure_NoExtensionExistsWithDeclaredKey() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Failure_NilDependency() {
+	return
+}
+func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Failure_InvalidFormatArtifacts() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Failure_InvalidArtifactSecretValueReference() {
+	return
+}
+
+// Secret related tests
+func (suite *ResourceConfigTestSuite) TestImportSecret_Success() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_NilDependency() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_SecretWithSameKeyAlreadyExists() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestExportSecret_Success() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestExportSecret_Failure_NilDependency() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestExportSecret_Failure_NoSecretValue() {
+	return
+}
+
+// Service related tests
+
+func (suite *ResourceConfigTestSuite) TestExportService_Success() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestExportService_Failure_NilDependency() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestExportService_Failure_InvalidServiceInput() {
+	return
+}
+
+func (suite *ResourceConfigTestSuite) TestImportService_Success() {
+	return
+}
+
+// Project related tests
+func (suite *ResourceConfigTestSuite) TestImportProject_Failure_NilEnvironment() {
+	project := model.Project{
+		Slug: "hello-there",
+	}
+	env := model.Environment{
+		Key:  "dev",
+		Name: "Dev",
+	}
+
+	suite.db.Create(&project)
+	suite.db.Create(&env)
+
+	projectSettings := model.ProjectSettings{
+		EnvironmentID:    env.Model.ID,
+		ProjectID:        project.Model.ID,
+		GitBranch:        "master",
+		ContinuousDeploy: true,
+	}
+	suite.db.Create(&projectSettings)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
+	projectConfig := resourceconfig.CreateProjectConfig(suite.db, &project, nil)
+	err := projectConfig.Import(&resourceconfig.Project{
+		ProjectSettings: resourceconfig.ProjectSettings{
+			GitBranch:        "master",
+			ContinuousDeploy: true,
+		},
+	})
+
+	assert.NotNil(suite.T(), err)
 }
 
 func (suite *ResourceConfigTestSuite) TearDownTest() {

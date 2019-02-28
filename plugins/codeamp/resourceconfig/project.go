@@ -32,6 +32,10 @@ func CreateProjectConfig(db *gorm.DB, project *model.Project, env *model.Environ
 }
 
 func (p *ProjectConfig) Import(project *Project) error {
+	if p.project == nil || p.environment == nil || p.db == nil {
+		return fmt.Errorf(NilDependencyForExportErr, "project, environment, db")
+	}
+
 	var err error
 
 	tx := p.db.Begin()
