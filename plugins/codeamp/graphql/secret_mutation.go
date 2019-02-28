@@ -2,12 +2,12 @@ package graphql_resolver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
+	"github.com/codeamp/circuit/plugins/codeamp/helpers"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
@@ -21,67 +21,19 @@ type SecretResolverMutation struct {
 }
 
 func (r *SecretResolverMutation) CreateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
-
-	projectID := uuid.UUID{}
-	var environmentID uuid.UUID
-	var secretScope model.SecretScope
-
-	if args.Secret.ProjectID != nil {
-		// Check if project can create secret
-		if r.DB.Where("environment_id = ? and project_id = ?", args.Secret.EnvironmentID, args.Secret.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
-			return nil, errors.New("Project not allowed to create secret in given environment")
-		}
-
-		projectID = uuid.FromStringOrNil(*args.Secret.ProjectID)
-	}
-
-	secretScope = GetSecretScope(args.Secret.Scope)
-	if secretScope == model.SecretScope("unknown") {
-		return nil, fmt.Errorf("Invalid env var scope.")
-	}
-
-	environmentID, err := uuid.FromString(args.Secret.EnvironmentID)
+	secret, err := helpers.CreateSecretInDB(ctx, r.DB, args.Secret)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't parse environmentID. Invalid format.")
+		return nil, err
 	}
 
-	userIDString, err := auth.CheckAuth(ctx, []string{})
-	if err != nil {
-		return &SecretResolver{}, err
+	secretValue := model.SecretValue{}
+	if err = r.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").Find(&secretValue).Error; err != nil {
+		return nil, err
 	}
 
-	userID, err := uuid.FromString(userIDString)
-	if err != nil {
-		return &SecretResolver{}, err
-	}
+	//r.SecretCreated(&secret)
 
-	var existingEnvVar model.Secret
-
-	if r.DB.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ? and type = ?", args.Secret.Key, projectID, environmentID, args.Secret.Type).Find(&existingEnvVar).RecordNotFound() {
-		secret := model.Secret{
-			Key:           args.Secret.Key,
-			ProjectID:     projectID,
-			Type:          plugins.GetType(args.Secret.Type),
-			Scope:         secretScope,
-			EnvironmentID: environmentID,
-			IsSecret:      args.Secret.IsSecret,
-		}
-		r.DB.Create(&secret)
-
-		secretValue := model.SecretValue{
-			SecretID: secret.Model.ID,
-			Value:    args.Secret.Value,
-			UserID:   userID,
-		}
-		r.DB.Create(&secretValue)
-
-		//r.SecretCreated(&secret)
-
-		return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: secret, SecretValue: secretValue}}, nil
-	} else {
-		return nil, fmt.Errorf("CreateSecret: key already exists")
-	}
-
+	return &SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, Secret: *secret, SecretValue: secretValue}}, nil
 }
 
 func (r *SecretResolverMutation) UpdateSecret(ctx context.Context, args *struct{ Secret *model.SecretInput }) (*SecretResolver, error) {
