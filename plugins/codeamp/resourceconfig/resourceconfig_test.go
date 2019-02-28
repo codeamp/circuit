@@ -603,6 +603,12 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Success() {
 	suite.db.Create(&project)
 	suite.db.Create(&env)
 
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
 	user := model.User{
 		Email: "foo@gmail.com",
 	}
@@ -616,12 +622,24 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Success() {
 
 	secretConfig := resourceconfig.CreateProjectSecretConfig(authContext, suite.db, nil, &project, &env)
 	err := secretConfig.Import(&resourceconfig.Secret{
-		Key:   "KEY",
-		Value: "value",
+		Key:      "KEY",
+		Value:    "value",
+		Type:     "file",
+		IsSecret: false,
 	})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
+
+	// confirm secret creation
+	createdSecret := model.Secret{}
+	suite.db.Where("key = ? and project_id = ? and environment_id = ?", "KEY", project.Model.ID, env.Model.ID).Find(&createdSecret)
+	assert.Equal(suite.T(), plugins.GetType("file"), createdSecret.Type)
+	assert.Equal(suite.T(), false, createdSecret.IsSecret)
+
+	createdSecretValue := model.SecretValue{}
+	suite.db.Where("secret_id = ?", createdSecret.Model.ID).Find(&createdSecretValue)
+	assert.Equal(suite.T(), "value", createdSecretValue.Value)
 }
 
 func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_NilDependency() {
@@ -637,6 +655,12 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_NilDependency() {
 	suite.db.Create(&project)
 	suite.db.Create(&env)
 
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
+
 	user := model.User{
 		Email: "foo@gmail.com",
 	}
@@ -650,8 +674,10 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_NilDependency() {
 
 	secretConfig := resourceconfig.CreateProjectSecretConfig(authContext, suite.db, nil, &project, nil)
 	err := secretConfig.Import(&resourceconfig.Secret{
-		Key:   "KEY",
-		Value: "value",
+		Key:      "KEY",
+		Value:    "value",
+		Type:     "file",
+		IsSecret: false,
 	})
 
 	assert.NotNil(suite.T(), err)
@@ -669,6 +695,12 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_SecretWithSameKey
 
 	suite.db.Create(&project)
 	suite.db.Create(&env)
+
+	projectEnv := model.ProjectEnvironment{
+		EnvironmentID: env.Model.ID,
+		ProjectID:     project.Model.ID,
+	}
+	suite.db.Create(&projectEnv)
 
 	// create secret with key KEY
 	secret := model.Secret{
@@ -691,8 +723,10 @@ func (suite *ResourceConfigTestSuite) TestImportSecret_Failure_SecretWithSameKey
 
 	secretConfig := resourceconfig.CreateProjectSecretConfig(authContext, suite.db, nil, &project, nil)
 	err := secretConfig.Import(&resourceconfig.Secret{
-		Key:   "KEY",
-		Value: "value",
+		Key:      "KEY",
+		Value:    "value",
+		Type:     "file",
+		IsSecret: false,
 	})
 
 	assert.NotNil(suite.T(), err)
