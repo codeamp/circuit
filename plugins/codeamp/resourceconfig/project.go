@@ -17,7 +17,7 @@ type ProjectConfig struct {
 
 // For exporting purposes
 type Project struct {
-	ProjectSettings   ProjectSettings    `yaml:"settings`
+	ProjectSettings   ProjectSettings    `yaml:"settings"`
 	ProjectExtensions []ProjectExtension `yaml:"extensions"`
 	Secrets           []Secret           `yaml:"secrets"`
 	Services          []Service          `yaml:"services"`
