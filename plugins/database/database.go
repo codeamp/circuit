@@ -22,7 +22,7 @@ func init() {
 
 // Description
 func (x *Database) Description() string {
-	return ""
+	return "The plugin to install databases"
 }
 
 // SampleConfig
@@ -95,83 +95,45 @@ func (x *Database) Process(e transistor.Event) error {
 		return err
 	}
 
-	psql := Postgres{
-		Endpoint: instanceEndpoint.String(),
-		Username: instanceUsername.String(),
-		Password: instancePassword.String(),
-		Port:     instancePort.String(),
+	postgresDBInstance := Postgres{
+		InstanceMetadata: InstanceMetadata{
+			ConnectionInformation: ConnectionInformation{
+				Credentials: Credentials{
+					Username: instanceUsername.String(),
+					Password: instancePassword.String(),
+				},
+				Port:     instancePort.String(),
+				Endpoint: instanceEndpoint.String(),
+			},
+		},
 	}
 
-	dbName, err := genDBName(&projectExtensionEvent)
+	dbUsername, err := genDBUser(projectExtensionEvent)
 	if err != nil {
-		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
-	dbUser, err := genDBUser(&projectExtensionEvent)
+	dbPassword := ""
+	dbName, err := genDBName(projectExtensionEvent)
 	if err != nil {
-		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
-	dbInfo, err := psql.CreateDatabase(*dbName, *dbUser)
+	dbMetadata, err := postgresDBInstance.CreateDatabase(*dbName, *dbUsername, dbPassword)
 	if err != nil {
-		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
-	ev := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), nil)
-	ev.State = transistor.GetState("complete")
-	ev.AddArtifact("DB_USER", dbInfo.Username, false)
-	ev.AddArtifact("DB_PASS", dbInfo.Password, false)
-	ev.AddArtifact("DB_ENDPOINT", dbInfo.Endpoint, false)
-	ev.AddArtifact("DB_NAME", dbInfo.DBName, false)
+	// store db metadata into instance
+	respEvent := transistor.NewEvent(e.Name, transistor.GetAction("status"), nil)
+	respEvent.State = transistor.GetState("complete")
 
-	x.events <- ev
+	respEvent.AddArtifact("DB_USER", dbMetadata.Credentials.Username, false)
+	respEvent.AddArtifact("DB_PASSWORD", dbMetadata.Credentials.Password, false)
+	respEvent.AddArtifact("DB_NAME", dbMetadata.Name, false)
+	respEvent.AddArtifact("DB_ENDPOINT", postgresDBInstance.InstanceMetadata.Endpoint, false)
+	respEvent.AddArtifact("DB_PORT", postgresDBInstance.InstanceMetadata.Port, false)
 
-	return nil
-}
-
-func genDBName(pe *plugins.ProjectExtension) (*string, error) {
-	dbName := "db"
-	return &dbName, nil
-}
-
-func genDBUser(pe *plugins.ProjectExtension) (*string, error) {
-	user := "user"
-	return &user, nil
-}
-
-// DBInfo for the databases within the instance itself
-type DBInfo struct {
-	Username string
-	Password string
-	Endpoint string
-	DBName   string
-}
-
-// Databaser interface
-type Databaser interface {
-	CreateDatabase(string, string) (DBInfo, error)
-	DeleteDatabase(string) error
-}
-
-// Postgres
-type Postgres struct {
-	Endpoint string
-	Username string
-	Password string
-	Port     string
-}
-
-// CreateDatabase
-func (p *Postgres) CreateDatabase(dbName string, user string) (*DBInfo, error) {
-	return &DBInfo{
-		Endpoint: "",
-		Username: "",
-		Password: "",
-		DBName:   "",
-	}, nil
-}
-
-// DeleteDatabase
-func (p *Postgres) DeleteDatabase(dbName string) error {
+	x.events <- respEvent
 	return nil
 }
