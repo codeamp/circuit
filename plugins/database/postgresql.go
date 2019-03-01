@@ -7,7 +7,6 @@ type Postgres struct {
 
 // CreateDatabase
 func (p *Postgres) CreateDatabase(dbName string, username string, password string) (*DatabaseMetadata, error) {
-
 	//TODO: logic for actually provisioning a database within the instance
 
 	return &DatabaseMetadata{
@@ -21,5 +20,7 @@ func (p *Postgres) CreateDatabase(dbName string, username string, password strin
 
 // DeleteDatabase
 func (p *Postgres) DeleteDatabase(dbName string) error {
+	//TODO: logic for removing the database from the instance
+
 	return nil
 }
