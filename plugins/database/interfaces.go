@@ -1,5 +1,14 @@
 package database
 
+/*
+	The main variable to account for in the development of this extension
+	is the database instance type. If we all of a sudden want MySQL instead of Postgres,
+	the only behavior that should change is how the specific database is created and deleted
+	when requested. Thus, the DatabaseInstance interface is necessary, so that we can program to
+	it rather than specific database types within database.go. A higher-level constructor will be necessary
+	to interpret which database-type object (Postgres, MySQL, etc) to return back.
+*/
+
 // Databaser interface
 type DatabaseInstance interface {
 	CreateDatabase(string, string) (InstanceMetadata, error)
