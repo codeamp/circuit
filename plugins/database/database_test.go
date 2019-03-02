@@ -63,7 +63,7 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 
 	suite.transistor.Events <- dbProjectExtensionEvent
 
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 60)
+	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 60)
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
