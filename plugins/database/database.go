@@ -71,7 +71,7 @@ func (x *Database) Process(e transistor.Event) error {
 	projectExtensionEvent := e.Payload.(plugins.ProjectExtension)
 
 	// Create DB within shared instance of the correct db variant (postgres/mysql)
-	instanceEndpoint, err := e.GetArtifact("SHARED_DATABASE_ENDPOINT")
+	instanceEndpoint, err := e.GetArtifact("SHARED_DATABASE_HOST")
 	if err != nil {
 		x.events <- getFailedStatusEvent(err)
 		return err
@@ -95,32 +95,34 @@ func (x *Database) Process(e transistor.Event) error {
 		return err
 	}
 
-	postgresDBInstance := Postgres{
-		InstanceMetadata: InstanceMetadata{
-			ConnectionInformation: ConnectionInformation{
-				Credentials: Credentials{
-					Username: instanceUsername.String(),
-					Password: instancePassword.String(),
-				},
-				Port:     instancePort.String(),
-				Endpoint: instanceEndpoint.String(),
-			},
-		},
+	dbType, err := e.GetArtifact("DB_TYPE")
+	if err != nil {
+		x.events <- getFailedStatusEvent(err)
+		return err
+	}
+
+	dbInstance, err := initDBInstance(dbType.String(), instanceEndpoint.String(), instanceUsername.String(), instancePassword.String(), instancePort.String())
+	if err != nil {
+		x.events <- getFailedStatusEvent(err)
+		return err
 	}
 
 	dbUsername, err := genDBUser(projectExtensionEvent)
 	if err != nil {
+		x.events <- getFailedStatusEvent(err)
 		return err
 	}
 
 	dbPassword := ""
 	dbName, err := genDBName(projectExtensionEvent)
 	if err != nil {
+		x.events <- getFailedStatusEvent(err)
 		return err
 	}
 
-	dbMetadata, err := postgresDBInstance.CreateDatabase(*dbName, *dbUsername, dbPassword)
+	dbMetadata, err := (*dbInstance).CreateDatabase(*dbName, *dbUsername, dbPassword)
 	if err != nil {
+		x.events <- getFailedStatusEvent(err)
 		return err
 	}
 
@@ -131,8 +133,8 @@ func (x *Database) Process(e transistor.Event) error {
 	respEvent.AddArtifact("DB_USER", dbMetadata.Credentials.Username, false)
 	respEvent.AddArtifact("DB_PASSWORD", dbMetadata.Credentials.Password, false)
 	respEvent.AddArtifact("DB_NAME", dbMetadata.Name, false)
-	respEvent.AddArtifact("DB_ENDPOINT", postgresDBInstance.InstanceMetadata.Endpoint, false)
-	respEvent.AddArtifact("DB_PORT", postgresDBInstance.InstanceMetadata.Port, false)
+	respEvent.AddArtifact("DB_ENDPOINT", (*dbInstance).GetInstanceMetadata().Endpoint, false)
+	respEvent.AddArtifact("DB_PORT", (*dbInstance).GetInstanceMetadata().Port, false)
 
 	x.events <- respEvent
 	return nil

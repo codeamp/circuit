@@ -1,6 +1,7 @@
 package database_test
 
 import (
+	"log"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
@@ -38,92 +39,37 @@ func (suite *DatabaseTestSuite) TearDownSuite() {
 	suite.transistor.Stop()
 }
 
-func (suite *DatabaseTestSuite) TestDatabase_FailMissingPreRequisiteInputs() {
-	// attempt install of database extension with option 'postgres'
-	// and omit required pre-req input SHARED_DATABASE_ENDPOINT
-	databasePayload := plugins.ProjectExtension{
-		Project: plugins.Project{
-			Slug:       "checkr-deploy-test",
-			Repository: "TestDatabase_FailMissingPreRequisiteInputs",
-		},
-		Environment: "foo-env",
-	}
-	ev := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("create"), databasePayload)
-
-	ev.AddArtifact("SHARED_DATABASE_ADMIN_PASSWORD", "password", true)
-	ev.AddArtifact("SHARED_DATABASE_ADMIN_USERNAME", "username", true)
-	ev.AddArtifact("SHARED_DATABASE_PORT", "5432", true)
-
-	suite.transistor.Events <- ev
-
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 10)
-	if err != nil {
-		assert.Nil(suite.T(), err)
-	}
-
-	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
-	assert.NotNil(suite.T(), e.StateMessage)
-}
-
-func (suite *DatabaseTestSuite) TestDatabase_FailMissingInputs() {
-	// attempt install of database extension with option 'postgres'
-	// and omit required input environment
-	databasePayload := plugins.ProjectExtension{
-		Project: plugins.Project{
-			Slug:       "checkr-deploy-test",
-			Repository: "TestDatabase_FailMissingInputs",
-		},
-	}
-	ev := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("create"), databasePayload)
-
-	ev.AddArtifact("SHARED_DATABASE_ENDPOINT", "https://database-endpoint.com/create", true)
-	ev.AddArtifact("SHARED_DATABASE_ADMIN_PASSWORD", "password", true)
-	ev.AddArtifact("SHARED_DATABASE_ADMIN_USERNAME", "username", true)
-	ev.AddArtifact("SHARED_DATABASE_PORT", "5432", true)
-
-	suite.transistor.Events <- ev
-
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 10)
-	if err != nil {
-		assert.Nil(suite.T(), err)
-	}
-
-	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
-	assert.NotNil(suite.T(), e.StateMessage)
-}
-
-func (suite *DatabaseTestSuite) TestDatabase_FailExternalAPIError() {
-	// attempt install of database extension with option 'postgres'
-	// and mock failed API error
-	databasePayload := plugins.ProjectExtension{
-		Project: plugins.Project{
-			Slug:       "checkr-deploy-test",
-			Repository: "TestDatabase_FailExternalAPIError",
-		},
-		Environment: "foo-env",
-	}
-	ev := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("create"), databasePayload)
-
-	ev.AddArtifact("SHARED_DATABASE_ENDPOINT", "https://database-endpoint.com/create", true)
-	ev.AddArtifact("SHARED_DATABASE_ADMIN_PASSWORD", "password", true)
-	ev.AddArtifact("SHARED_DATABASE_ADMIN_USERNAME", "username", true)
-	ev.AddArtifact("SHARED_DATABASE_PORT", "5432", true)
-
-	suite.transistor.Events <- ev
-
-	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 10)
-	if err != nil {
-		assert.Nil(suite.T(), err)
-	}
-
-	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
-}
-
 func (suite *DatabaseTestSuite) TestDatabase_Success() {
-	return
+	log.Println("TestDatabase_Success")
+
+	// inputs
+	dbInstanceHost := "0.0.0.0"
+	dbAdminUsername := "postgres"
+	dbAdminPassword := ""
+	dbInstancePort := "5432"
+	dbType := "postgresql"
+
+	payload := plugins.ProjectExtension{
+		Project:     plugins.Project{},
+		Environment: "",
+	}
+
+	dbProjectExtensionEvent := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("create"), payload)
+	dbProjectExtensionEvent.AddArtifact("SHARED_DATABASE_HOST", dbInstanceHost, false)
+	dbProjectExtensionEvent.AddArtifact("SHARED_DATABASE_ADMIN_USERNAME", dbAdminUsername, false)
+	dbProjectExtensionEvent.AddArtifact("SHARED_DATABASE_ADMIN_PASSWORD", dbAdminPassword, false)
+	dbProjectExtensionEvent.AddArtifact("SHARED_DATABASE_PORT", dbInstancePort, false)
+	dbProjectExtensionEvent.AddArtifact("DB_TYPE", dbType, false)
+
+	suite.transistor.Events <- dbProjectExtensionEvent
+
+	e, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 60)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	dbProjectExtensionEvent.Action = transistor.GetAction("delete")
+	suite.transistor.Events <- dbProjectExtensionEvent
 }
 
 func TestDatabase(t *testing.T) {
