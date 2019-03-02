@@ -9,16 +9,26 @@ package database
 	to interpret which database-type object (Postgres, MySQL, etc) to return back.
 */
 
-// Databaser interface
+// DatabaseInstace interface
 type DatabaseInstance interface {
-	CreateDatabase(string, string) (InstanceMetadata, error)
+	CreateDatabase(username string, password string, dbName string) (*DatabaseMetadata, error)
 	DeleteDatabase(string) error
+	GetInstanceMetadata() InstanceMetadata
 }
 
 // InstanceMetadata contains metadata about the database
 // and should be inherited by any struct implementing DatabaseInstance
 type InstanceMetadata struct {
 	ConnectionInformation
+}
+
+type BaseDatabaseInstance struct {
+	DatabaseInstance
+	instanceMetadata InstanceMetadata
+}
+
+func (b *BaseDatabaseInstance) GetInstanceMetadata() InstanceMetadata {
+	return b.instanceMetadata
 }
 
 // ConnectionInformation contains the information
