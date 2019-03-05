@@ -1,22 +1,21 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 
-	_ "github.com/lib/pq"
+	"github.com/jinzhu/gorm"
 )
 
 // Postgres
 type Postgres struct {
 	BaseDatabaseInstance
-	db *sql.DB
+	db *gorm.DB
 }
 
 // initPostgresInstance opens a postgresql connection to the host
 // and returns a DatabaseInstance object, holding the connection object
 func initPostgresInstance(host string, username string, password string, port string) DatabaseInstance {
-	db, _ := sql.Open("postgres", fmt.Sprintf("user=%s host=%s sslmode=%s password=%s port=%s", username, host, "disable", password, port))
+	db, _ := gorm.Open("postgres", fmt.Sprintf("user=%s host=%s sslmode=%s password=%s port=%s", username, host, "disable", password, port))
 	return &Postgres{
 		BaseDatabaseInstance: BaseDatabaseInstance{
 			instanceMetadata: InstanceMetadata{
@@ -44,20 +43,17 @@ func (p *Postgres) CreateDatabaseAndUser(dbName string, username string, passwor
 
 	// we have to use fmt.Sprintf here because of an issue with the underlying driver
 	// and properly sanitizing create database statements
-	_, err := p.db.Exec(fmt.Sprintf("CREATE DATABASE %s;", dbName))
-	if err != nil {
+	if err := p.db.Exec(fmt.Sprintf("CREATE DATABASE %s;", dbName)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user
-	_, err = p.db.Exec(fmt.Sprintf("CREATE USER %s with PASSWORD '%s';", username, password))
-	if err != nil {
+	if err := p.db.Exec(fmt.Sprintf("CREATE USER %s with PASSWORD '%s';", username, password)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user permissions
-	_, err = p.db.Exec(fmt.Sprintf("GRANT CONNECT ON DATABASE %s TO %s;", dbName, username))
-	if err != nil {
+	if err := p.db.Exec(fmt.Sprintf("GRANT CONNECT ON DATABASE %s TO %s;", dbName, username)).Error; err != nil {
 		return nil, err
 	}
 
@@ -85,13 +81,11 @@ func (p *Postgres) DeleteDatabaseAndUser(dbName string, dbUser string) error {
 
 	// we have to use fmt.Sprintf here because of an issue with the underlying driver
 	// and properly sanitizing create database statements
-	_, err := p.db.Exec(fmt.Sprintf("DROP DATABASE %s;", dbName))
-	if err != nil {
+	if err := p.db.Exec(fmt.Sprintf("DROP DATABASE %s;", dbName)).Error; err != nil {
 		return err
 	}
 
-	_, err = p.db.Exec(fmt.Sprintf("DROP USER %s;", dbUser))
-	if err != nil {
+	if err := p.db.Exec(fmt.Sprintf("DROP USER %s;", dbUser)).Error; err != nil {
 		return err
 	}
 
