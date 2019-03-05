@@ -31,9 +31,6 @@ func init() {
 			BatchV1Jobber:        &BatchV1Job{},
 			CoreServicer:         &CoreService{},
 			CoreSecreter:         &CoreSecret{},
-			CorePodder:           &CorePod{},
-			ExtReplicaSetter:     &ExtReplicaSet{},
-			ExtDeploymenter:	  &ExtDeployment{},
 		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
