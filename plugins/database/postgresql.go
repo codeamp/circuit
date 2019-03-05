@@ -34,8 +34,10 @@ func initPostgresInstance(host string, username string, password string, port st
 	}
 }
 
-// CreateDatabase
-func (p *Postgres) CreateDatabase(dbName string, username string, password string) (*DatabaseMetadata, error) {
+// CreateDatabase creates a db within the DB instance
+// and creates and grants all read/write privileges
+// to the requested userame
+func (p *Postgres) CreateDatabaseAndUser(dbName string, username string, password string) (*DatabaseMetadata, error) {
 	if p.db == nil {
 		return nil, fmt.Errorf(NilDBInstanceErr, "postgres")
 	}
@@ -47,16 +49,22 @@ func (p *Postgres) CreateDatabase(dbName string, username string, password strin
 		return nil, err
 	}
 
+	// create user
+	_, err = p.db.Exec(fmt.Sprintf("CREATE USER %s with PASSWORD '%s';", username, password))
+	if err != nil {
+		return nil, err
+	}
+
 	// create user permissions
 	_, err = p.db.Exec(fmt.Sprintf("GRANT CONNECT ON DATABASE %s TO %s;", dbName, username))
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = p.db.Exec("FLUSH PRIVILEGES;")
-	if err != nil {
-		return nil, err
-	}
+	// _, err = p.db.Exec("FLUSH PRIVILEGES;")
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &DatabaseMetadata{
 		Name: dbName,
@@ -67,8 +75,10 @@ func (p *Postgres) CreateDatabase(dbName string, username string, password strin
 	}, nil
 }
 
-// DeleteDatabase
-func (p *Postgres) DeleteDatabase(dbName string) error {
+// DeleteDatabaseAndUser deletes the requested database
+// on the shared Postgres instance and also any roles
+// associated with the database
+func (p *Postgres) DeleteDatabaseAndUser(dbName string, dbUser string) error {
 	if p.db == nil {
 		return fmt.Errorf(NilDBInstanceErr, "postgres")
 	}
@@ -76,6 +86,11 @@ func (p *Postgres) DeleteDatabase(dbName string) error {
 	// we have to use fmt.Sprintf here because of an issue with the underlying driver
 	// and properly sanitizing create database statements
 	_, err := p.db.Exec(fmt.Sprintf("DROP DATABASE %s;", dbName))
+	if err != nil {
+		return err
+	}
+
+	_, err = p.db.Exec(fmt.Sprintf("DROP USER %s;", dbUser))
 	if err != nil {
 		return err
 	}

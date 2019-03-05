@@ -2,18 +2,34 @@ package database
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 )
 
-func genDBName(pe plugins.ProjectExtension) (*string, error) {
-	dbName := "db"
-	return &dbName, nil
+// genDBName creates a database name for the specified
+// project extension with the format <project.slug>-<environment>
+func genDBName(pe plugins.ProjectExtension) string {
+	return fmt.Sprintf("%s_%s", pe.Project.Slug, pe.Environment)
 }
 
-func genDBUser(pe plugins.ProjectExtension) (*string, error) {
-	user := "user"
-	return &user, nil
+// genDBUsername creates a database username for the specified
+// project extension with the format <project.slug>-<environment>
+func genDBUser(pe plugins.ProjectExtension) string {
+	return fmt.Sprintf("%s_%s_user", pe.Project.Slug, pe.Environment)
+}
+
+func genDBPassword() string {
+	var characters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	rand.Seed(time.Now().UnixNano())
+
+	b := make([]rune, DB_PASSWORD_LENGTH)
+	for i := range b {
+		b[i] = characters[rand.Intn(len(characters))]
+	}
+	return string(b)
 }
 
 // initDBInstance finds the correct db instance type to initialize

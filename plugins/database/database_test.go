@@ -50,8 +50,10 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 	dbType := "postgresql"
 
 	payload := plugins.ProjectExtension{
-		Project:     plugins.Project{},
-		Environment: "",
+		Project: plugins.Project{
+			Slug: "foobar",
+		},
+		Environment: "foobarenv",
 	}
 
 	dbProjectExtensionEvent := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("create"), payload)
@@ -63,13 +65,50 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 
 	suite.transistor.Events <- dbProjectExtensionEvent
 
-	_, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 60)
+	respEvent, err := suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 60)
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
 
-	dbProjectExtensionEvent.Action = transistor.GetAction("delete")
-	suite.transistor.Events <- dbProjectExtensionEvent
+	// assert state is complete
+	assert.Equal(suite.T(), transistor.GetState("complete"), respEvent.State)
+
+	// assert non-nil artifacts
+	dbName, err := respEvent.GetArtifact("DB_NAME")
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	dbUser, err := respEvent.GetArtifact("DB_USER")
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	dbPassword, err := respEvent.GetArtifact("DB_PASSWORD")
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	assert.NotNil(suite.T(), dbName)
+	assert.NotNil(suite.T(), dbUser)
+	assert.NotNil(suite.T(), dbPassword)
+
+	deleteDBEvent := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("delete"), payload)
+	deleteDBEvent.AddArtifact("SHARED_DATABASE_HOST", dbInstanceHost, false)
+	deleteDBEvent.AddArtifact("SHARED_DATABASE_ADMIN_USERNAME", dbAdminUsername, false)
+	deleteDBEvent.AddArtifact("SHARED_DATABASE_ADMIN_PASSWORD", dbAdminPassword, false)
+	deleteDBEvent.AddArtifact("SHARED_DATABASE_PORT", dbInstancePort, false)
+	deleteDBEvent.AddArtifact("DB_TYPE", dbType, false)
+	deleteDBEvent.AddArtifact("DB_NAME", dbName.String(), false)
+	deleteDBEvent.AddArtifact("DB_USER", dbUser.String(), false)
+
+	suite.transistor.Events <- deleteDBEvent
+	respEvent, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 60)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	assert.Equal(suite.T(), transistor.GetState("complete"), respEvent.State)
 }
 
 func TestDatabase(t *testing.T) {

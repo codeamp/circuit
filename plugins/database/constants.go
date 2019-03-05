@@ -1,5 +1,6 @@
 package database
 
 const (
-	POSTGRESQL = "postgresql"
+	POSTGRESQL         = "postgresql"
+	DB_PASSWORD_LENGTH = 32
 )

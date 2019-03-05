@@ -11,8 +11,8 @@ package database
 
 // DatabaseInstace interface
 type DatabaseInstance interface {
-	CreateDatabase(username string, password string, dbName string) (*DatabaseMetadata, error)
-	DeleteDatabase(string) error
+	CreateDatabaseAndUser(dbName string, username string, password string) (*DatabaseMetadata, error)
+	DeleteDatabaseAndUser(dbName string, username string) error
 	GetInstanceMetadata() InstanceMetadata
 }
 
