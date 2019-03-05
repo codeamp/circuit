@@ -43,7 +43,7 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 	log.Println("TestDatabase_Success")
 
 	// inputs
-	dbInstanceHost := "0.0.0.0"
+	dbInstanceHost := "postgres"
 	dbAdminUsername := "postgres"
 	dbAdminPassword := ""
 	dbInstancePort := "5432"
