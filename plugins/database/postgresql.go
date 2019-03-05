@@ -57,11 +57,6 @@ func (p *Postgres) CreateDatabaseAndUser(dbName string, username string, passwor
 		return nil, err
 	}
 
-	// _, err = p.db.Exec("FLUSH PRIVILEGES;")
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	return &DatabaseMetadata{
 		Name: dbName,
 		Credentials: Credentials{
