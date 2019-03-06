@@ -186,7 +186,7 @@ func (x *Kubernetes) deleteIngressRoute(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (x *Kubernetes) createIngressRoute(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
