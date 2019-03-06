@@ -4,7 +4,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -41,9 +41,6 @@ type Kubernetes struct {
 	BatchV1Jobber
 	CoreServicer
 	CoreSecreter
-	ExtDeploymenter
-	CorePodder
-	ExtReplicaSetter
 
 	KubernetesConfig
 }
@@ -86,6 +83,31 @@ type IngressInput struct {
 	Service              Service
 	ControlledApexDomain string
 	UpstreamFQDNs        []Domain
+}
+
+type UpstreamRoute struct {
+	Domain  Domain
+	Methods []string
+	Paths   []string
+}
+
+type KongIngressController struct {
+	ControllerName string `json:"name"`
+	ControllerID   string `json:"id"`
+	ELB            string `json:"elb"`
+	API            string `json:"api"`
+}
+
+type KongIngressInput struct {
+	Type                 string
+	KubeConfig           string
+	ClientCertificate    string
+	ClientKey            string
+	CertificateAuthority string
+	Controller           KongIngressController
+	Service              Service
+	ControlledApexDomain string
+	UpstreamRoutes       []UpstreamRoute
 }
 
 type IngressRouteInput struct {

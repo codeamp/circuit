@@ -25,7 +25,7 @@ plugins:
   heartbeat:
     workers: 0
   kubernetes:
-    workers: 1  
+    workers: 1
   githubstatus:
     workers: 0
   route53:

@@ -9,7 +9,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	contour_v1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -137,7 +137,10 @@ func getIngressRouteInputs(e transistor.Event) (*IngressRouteInput, error) {
 			return nil, err
 		}
 
-		input.UpstreamDomains = parseUpstreamDomains(upstreamDomains)
+		input.UpstreamDomains, err = parseUpstreamDomains(upstreamDomains)
+		if err != nil {
+			return nil, err
+		}
 
 		selectedIngress, err := e.GetArtifact("ingress")
 		if err != nil {
@@ -183,7 +186,7 @@ func (x *Kubernetes) deleteIngressRoute(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
@@ -256,7 +259,7 @@ func (x *Kubernetes) createIngressRoute(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
