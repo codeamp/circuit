@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
-
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/plugins/codeamp/resourceconfig"
 	"github.com/codeamp/circuit/test"
@@ -532,7 +531,7 @@ func (suite *ResourceConfigTestSuite) TestExportProjectExtension_Success() {
 		CustomConfig:  postgres.Jsonb{[]byte(`{}`)},
 	}
 	suite.db.Create(&projectExtension)
-
+  
 	projectExtensionConfig := resourceconfig.CreateProjectExtensionConfig(suite.db, &projectExtension, &project, &env)
 	exportedProjectExtension, err := projectExtensionConfig.Export()
 
