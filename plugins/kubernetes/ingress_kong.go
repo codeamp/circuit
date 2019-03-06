@@ -325,7 +325,7 @@ func (x *Kubernetes) deleteK8sService(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
@@ -364,7 +364,7 @@ func (x *Kubernetes) createK8sService(e transistor.Event) (*v1.Service, error) {
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return nil, err
 	}
