@@ -43,7 +43,7 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 	var err error
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 		return false, err
 	}
 
-	clientset, err := x.getKubernetesClient(e)
+	clientset, err := x.SetupClientset(e)
 	if err != nil {
 		return false, err
 	}

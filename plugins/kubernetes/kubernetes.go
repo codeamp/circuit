@@ -14,7 +14,7 @@ import (
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -309,19 +309,6 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	}
 
 	return config, nil
-}
-
-func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interface, error) {
-	if x.KubernetesClient != nil {
-		return x.KubernetesClient, nil
-	}
-
-	_, err := x.SetupClientset(e)
-	if err != nil {
-		return nil, err
-	}
-
-	return x.KubernetesClient, nil
 }
 
 func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
