@@ -60,7 +60,7 @@ func (suite *TestSuite) TestGitSync() {
 	}
 	assert.Equal(suite.T(), e.State, transistor.GetState("running"))
 
-	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 30)
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("gitsync"), transistor.GetAction("status"), 120)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return

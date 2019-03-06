@@ -6,7 +6,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	v1 "k8s.io/api/batch/v1"
-	"k8s.io/api/extensions/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -92,81 +91,4 @@ type CoreSecret struct{}
 
 func (l CoreSecret) Create(clientset kubernetes.Interface, namespace string, secretParams *corev1.Secret) (*corev1.Secret, error) {
 	return clientset.Core().Secrets(namespace).Create(secretParams)
-}
-
-
-///////////////////////////////////////////////////
-
-type ExtDeploymenter interface {
-	Create(kubernetes.Interface, string, *v1beta1.Deployment) (*v1beta1.Deployment, error)
-	Update(kubernetes.Interface, string, *v1beta1.Deployment) (*v1beta1.Deployment, error)
-	List(kubernetes.Interface, string, *meta_v1.ListOptions) (*v1beta1.DeploymentList, error)
-	Get(kubernetes.Interface, string, string, *meta_v1.GetOptions) (*v1beta1.Deployment, error)
-	Delete(kubernetes.Interface, string, string, *meta_v1.DeleteOptions) error
-	UpdateScale(kubernetes.Interface, string, string, *v1beta1.Scale) (*v1beta1.Scale, error)
-}
-
-type ExtDeployment struct {}
-
-func (l ExtDeployment) Get(clientset kubernetes.Interface, namespace string, deploymentName string, getOptions *meta_v1.GetOptions) (*v1beta1.Deployment, error) {
-	return clientset.Extensions().Deployments(namespace).Get(deploymentName, *getOptions)
-}
-
-func (l ExtDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {
-	return clientset.Extensions().Deployments(namespace).Delete(deploymentName, deleteOptions)
-}
-
-func (l ExtDeployment) Create(clientset kubernetes.Interface, namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
-	return clientset.Extensions().Deployments(namespace).Create(deployment)
-}
-
-func (l ExtDeployment) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*v1beta1.DeploymentList, error) {
-	return clientset.Extensions().Deployments(namespace).List(*listOptions)
-}
-
-func (l ExtDeployment) Update(clientset kubernetes.Interface, namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
-	return clientset.Extensions().Deployments(namespace).Update(deployment)
-}
-
-func (l ExtDeployment) UpdateScale(clientset kubernetes.Interface, namespace string, deploymentName string, scale *v1beta1.Scale) (*v1beta1.Scale, error) {
-	return clientset.Extensions().Deployments(namespace).UpdateScale(deploymentName, scale)
-}
-
-///////////////////////////////////////////////////
-
-type ExtReplicaSetter interface {
-	List(kubernetes.Interface, string, *meta_v1.ListOptions) (*v1beta1.ReplicaSetList, error)
-	Delete(kubernetes.Interface, string, string, *meta_v1.DeleteOptions) error
-	UpdateScale(kubernetes.Interface, string, string, *v1beta1.Scale) (*v1beta1.Scale, error)
-}
-
-type ExtReplicaSet struct {}
-
-func (l ExtReplicaSet) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*v1beta1.ReplicaSetList, error) {
-	return clientset.Extensions().ReplicaSets(namespace).List(*listOptions)
-}
-
-func (l ExtReplicaSet) Delete(clientset kubernetes.Interface, namespace string, replicaSetName string, deleteOptions *meta_v1.DeleteOptions) error {
-	return clientset.Extensions().ReplicaSets(namespace).Delete(replicaSetName, deleteOptions)
-}
-
-func (l ExtReplicaSet) UpdateScale(clientset kubernetes.Interface, namespace string, replicaSetName string, scale *v1beta1.Scale) (*v1beta1.Scale, error) {
-	return clientset.Extensions().ReplicaSets(namespace).UpdateScale(replicaSetName, scale)
-}
-
-///////////////////////////////////////////////////
-
-type CorePodder interface {
-	List(kubernetes.Interface, string, *meta_v1.ListOptions) (*corev1.PodList, error)
-	Delete(kubernetes.Interface, string, string, *meta_v1.DeleteOptions) error
-}
-
-type CorePod struct {}
-
-func (l CorePod) List(clientset kubernetes.Interface, namespace string, listOptions *meta_v1.ListOptions) (*corev1.PodList, error) {
-	return clientset.Core().Pods(namespace).List(*listOptions)
-}
-
-func (l CorePod) Delete(clientset kubernetes.Interface, namespace string, podName string, deleteOptions *meta_v1.DeleteOptions) error {
-	return clientset.Core().Pods(namespace).Delete(podName, deleteOptions)
 }

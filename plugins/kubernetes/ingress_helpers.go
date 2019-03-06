@@ -9,12 +9,6 @@ import (
 	"github.com/codeamp/transistor"
 )
 
-/*
-parseController accepts a string delimited by the `:` character.
-Each controller string must be in this format:
-	<subdomain:ingress_controler_id:elb_dns>
-*/
-
 func parseController(ingressController string) (*IngressController, error) {
 
 	parts := strings.Split(ingressController, ":")
@@ -31,9 +25,13 @@ func parseController(ingressController string) (*IngressController, error) {
 	return &controller, nil
 }
 
-func parseUpstreamDomains(a transistor.Artifact) []Domain {
-
+func parseUpstreamDomains(a transistor.Artifact) ([]Domain, error) {
 	var upstreamFQDNs []Domain
+
+	domains, ok := a.Value.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf(fmt.Sprintf("Expected type []interface{} but got %T", domains))
+	}
 	for _, domain := range a.Value.([]interface{}) {
 		apex := strings.ToLower(domain.(map[string]interface{})["apex"].(string))
 		subdomain := strings.ToLower(domain.(map[string]interface{})["subdomain"].(string))
@@ -47,7 +45,7 @@ func parseUpstreamDomains(a transistor.Artifact) []Domain {
 		})
 	}
 
-	return upstreamFQDNs
+	return upstreamFQDNs, nil
 }
 
 func getTableViewFromDomains(domains []Domain) string {

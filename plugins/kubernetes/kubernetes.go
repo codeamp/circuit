@@ -14,7 +14,7 @@ import (
 	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -31,9 +31,6 @@ func init() {
 			BatchV1Jobber:        &BatchV1Job{},
 			CoreServicer:         &CoreService{},
 			CoreSecreter:         &CoreSecret{},
-			CorePodder:           &CorePod{},
-			ExtReplicaSetter:     &ExtReplicaSet{},
-			ExtDeploymenter:	  &ExtDeployment{},
 		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
@@ -68,6 +65,9 @@ func (x *Kubernetes) Subscribe() []string {
 		"project:kubernetes:ingressroute:create",
 		"project:kubernetes:ingressroute:update",
 		"project:kubernetes:ingressroute:delete",
+		"project:kubernetes:ingresskong:create",
+		"project:kubernetes:ingresskong:update",
+		"project:kubernetes:ingresskong:delete",
 		"project:kubernetes:loadbalancer:create",
 		"project:kubernetes:loadbalancer:update",
 		"project:kubernetes:loadbalancer:delete",
@@ -88,13 +88,18 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		return nil
 	}
 
-	if e.Matches(".*kubernetes:ingress") == true {
+	if e.Matches(".*kubernetes:ingress:") == true {
 		x.ProcessIngressRoute(e)
 		return nil
 	}
 
-	if e.Matches(".*kubernetes:ingressroute") == true {
+	if e.Matches(".*kubernetes:ingressroute:") == true {
 		x.ProcessIngressRoute(e)
+		return nil
+	}
+
+	if e.Matches(".*kubernetes:ingresskong:") == true {
+		x.ProcessKongIngress(e)
 		return nil
 	}
 
@@ -304,19 +309,6 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	}
 
 	return config, nil
-}
-
-func (x *Kubernetes) getKubernetesClient(e transistor.Event) (kubernetes.Interface, error) {
-	if x.KubernetesClient != nil {
-		return x.KubernetesClient, nil
-	}
-
-	_, err := x.SetupClientset(e)
-	if err != nil {
-		return nil, err
-	}
-
-	return x.KubernetesClient, nil
 }
 
 func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
