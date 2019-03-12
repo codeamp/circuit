@@ -88,11 +88,7 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 		probeType := plugins.GetType("livenessProbe")
 		probe := args.Service.LivenessProbe
 		probe.Type = &probeType
-<<<<<<< HEAD
 		livenessProbe, err = helpers.ValidateHealthProbe(*probe)
-=======
-		livenessProbe, err = helpers.validateHealthProbe(*probe)
->>>>>>> add initial import code
 		if err != nil {
 			return nil, err
 		}
@@ -103,11 +99,7 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 		probeType := plugins.GetType("readinessProbe")
 		probe := args.Service.ReadinessProbe
 		probe.Type = &probeType
-<<<<<<< HEAD
 		readinessProbe, err = helpers.ValidateHealthProbe(*probe)
-=======
-		readinessProbe, err = helpers.validateHealthProbe(*probe)
->>>>>>> add initial import code
 		if err != nil {
 			return nil, err
 		}
@@ -126,11 +118,7 @@ func (r *ServiceResolverMutation) UpdateService(args *struct{ Service *model.Ser
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
 	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
-<<<<<<< HEAD
 	updatedDeploymentStrategy, err := helpers.ValidateDeploymentStrategyInput(args.Service.DeploymentStrategy)
-=======
-	updatedDeploymentStrategy, err := helpers.validateDeploymentStrategyInput(args.Service.DeploymentStrategy)
->>>>>>> add initial import code
 	if err != nil {
 		return nil, err
 	}
@@ -216,32 +204,57 @@ func (r *ServiceResolverMutation) DeleteService(args *struct{ Service *model.Ser
 
 	var service model.Service
 
-	r.DB.Where("id = ?", serviceID).Find(&service)
-	r.DB.Delete(&service)
+	if err := r.DB.Where("id = ?", serviceID).Find(&service).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.DB.Delete(&service).Error; err != nil {
+		return nil, err
+	}
 
 	// delete all previous container ports
 	var servicePorts []model.ServicePort
-	r.DB.Where("service_id = ?", serviceID).Find(&servicePorts)
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&servicePorts).Error; err != nil {
+		return nil, err
+	}
 
 	// delete all container ports
 	for _, cp := range servicePorts {
-		r.DB.Delete(&cp)
+		if err := r.DB.Delete(&cp).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	var healthProbes []model.ServiceHealthProbe
-	r.DB.Where("service_id = ?", serviceID).Find(&healthProbes)
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&healthProbes).Error; err != nil {
+		return nil, err
+	}
+
 	for _, probe := range healthProbes {
 		var headers []model.ServiceHealthProbeHttpHeader
-		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
-		for _, header := range headers {
-			r.DB.Delete(&header)
+		if err := r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers).Error; err != nil {
+			return nil, err
 		}
-		r.DB.Delete(&probe)
+
+		for _, header := range headers {
+			if err := r.DB.Delete(&header).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		if err := r.DB.Delete(&probe).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
-	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
-	r.DB.Delete(&deploymentStrategy)
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.DB.Delete(&deploymentStrategy).Error; err != nil {
+		return nil, err
+	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }

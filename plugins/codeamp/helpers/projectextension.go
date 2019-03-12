@@ -7,6 +7,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/gorm/dialects/postgres"
@@ -37,7 +38,17 @@ func CreateProjectExtensionInDB(tx *gorm.DB, input *model.ProjectExtensionInput)
 
 	// check if extension already exists with project
 	// ignore if the extension type is 'once' (installable many times)
-	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") || tx.Where("project_id = ? and extension_id = ? and environment_id = ?", input.ProjectID, input.ExtensionID, input.EnvironmentID).Find(&projectExtension).RecordNotFound() {
+
+	err := tx.Where("project_id = ? and extension_id = ? and environment_id = ?", input.ProjectID, input.ExtensionID, input.EnvironmentID).Find(&projectExtension).Error
+	if !gorm.IsRecordNotFoundError(err) {
+		log.ErrorWithFields(err.Error(), log.Fields{
+			"project_id":     input.ProjectID,
+			"extension_id":   input.ExtensionID,
+			"environment_id": input.EnvironmentID,
+		})
+	}
+
+	if extension.Type == plugins.GetType("once") || extension.Type == plugins.GetType("notification") || gorm.IsRecordNotFoundError(err) {
 		if extension.Key == "route53" {
 			err := HandleExtensionRoute53(tx, input, &projectExtension)
 			if err != nil {
@@ -66,7 +77,13 @@ func CreateProjectExtensionInDB(tx *gorm.DB, input *model.ProjectExtensionInput)
 
 func HandleExtensionRoute53(tx *gorm.DB, input *model.ProjectExtensionInput, projectExtension *model.ProjectExtension) error {
 	extension := model.Extension{}
-	if tx.Where("id = ?", input.ExtensionID).Find(&extension).RecordNotFound() {
+	if err := tx.Where("id = ?", input.ExtensionID).Find(&extension).Error; err != nil {
+		if !gorm.IsRecordNotFoundError(err) {
+			log.ErrorWithFields(err.Error(), log.Fields{
+				"id": input.ExtensionID,
+			})
+		}
+
 		return fmt.Errorf("No extension found.")
 	}
 

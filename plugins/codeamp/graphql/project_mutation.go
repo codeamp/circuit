@@ -311,12 +311,12 @@ func (r *ProjectResolverMutation) ImportProject(ctx context.Context, args *struc
 	ProjectYAMLConfig string
 }) (*ProjectResolver, error) {
 	env := model.Environment{}
-	if err := r.DB.Where("id = ?", args.EnvironmentID).First(&env).Error; err != nil {
+	if err := r.DB.Where("id = ?", args.EnvironmentID).Find(&env).Error; err != nil {
 		return nil, err
 	}
 
 	project := model.Project{}
-	if err := r.DB.Where("id = ?", args.ID).First(&project).Error; err != nil {
+	if err := r.DB.Where("id = ?", args.ID).Find(&project).Error; err != nil {
 		return nil, err
 	}
 

@@ -51,10 +51,16 @@ func ExtractArtifacts(projectExtension model.ProjectExtension, extension model.E
 		secretID := uuid.FromStringOrNil(extensionConfig[i].Value)
 		if secretID != uuid.Nil {
 			secret := model.SecretValue{}
-			if db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).RecordNotFound() {
-				log.InfoWithFields("secret not found", log.Fields{
-					"secret_id": secretID,
-				})
+			if err := db.Where("secret_id = ?", secretID).Order("created_at desc").First(&secret).Error; err != nil {
+				if !gorm.IsRecordNotFoundError(err) {
+					log.InfoWithFields(err.Error(), log.Fields{
+						"secret_id": secretID,
+					})
+				} else {
+					log.InfoWithFields("secret not found", log.Fields{
+						"secret_id": secretID,
+					})
+				}
 			}
 			artifact.Key = ec.Key
 			artifact.Value = secret.Value

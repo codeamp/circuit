@@ -6,18 +6,26 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/constants"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
 
 func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Service, error) {
 	// Check service name length
-	if len(serviceInput.Name) > 63 {
+	if len(serviceInput.Name) > MAX_K8S_SERVICE_NAME_LENGTH {
 		return nil, fmt.Errorf("Service name cannot be longer than 63 characters.")
 	}
 
 	// Check if project can create service in environment
-	if tx.Where("environment_id = ? and project_id = ?", serviceInput.EnvironmentID, serviceInput.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
+	if err := tx.Where("environment_id = ? and project_id = ?", serviceInput.EnvironmentID, serviceInput.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
+		if !gorm.IsRecordNotFoundError(err) {
+			log.ErrorWithFields(err.Error(), log.Fields{
+				"environment_id": serviceInput.EnvironmentID,
+				"project_id":     serviceInput.ProjectID,
+			})
+		}
+
 		return nil, fmt.Errorf("Project not allowed to create service in given environment")
 	}
 
@@ -96,7 +104,9 @@ func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Se
 		PreStopHook:        preStopHook,
 	}
 
-	tx.Create(&service)
+	if err := tx.Create(&service).Error; err != nil {
+		return nil, err
+	}
 
 	serviceSpec := model.ServiceSpec{
 		Name:                   defaultServiceSpec.Name,
@@ -109,20 +119,26 @@ func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Se
 		IsDefault:              false,
 	}
 
-	tx.Create(&serviceSpec)
+	if err := tx.Create(&serviceSpec).Error; err != nil {
+		return nil, err
+	}
 
 	// Create Health Probe Headers
 	if service.LivenessProbe.HttpHeaders != nil {
 		for _, h := range service.LivenessProbe.HttpHeaders {
 			h.HealthProbeID = service.LivenessProbe.ID
-			tx.Create(&h)
+			if err := tx.Create(&h).Error; err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	if service.ReadinessProbe.HttpHeaders != nil {
 		for _, h := range service.ReadinessProbe.HttpHeaders {
 			h.HealthProbeID = service.ReadinessProbe.ID
-			tx.Create(&h)
+			if err := tx.Create(&h).Error; err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -134,7 +150,9 @@ func CreateServiceInDB(tx *gorm.DB, serviceInput *model.ServiceInput) (*model.Se
 					Port:      cp.Port,
 					Protocol:  cp.Protocol,
 				}
-				tx.Create(&servicePort)
+				if err := tx.Create(&servicePort).Error; err != nil {
+					return nil, err
+				}
 			}
 		} else {
 			return nil, fmt.Errorf("Can only create ports if the service type is general")

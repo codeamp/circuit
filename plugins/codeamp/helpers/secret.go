@@ -20,7 +20,14 @@ func CreateSecretInDB(ctx context.Context, tx *gorm.DB, input *model.SecretInput
 
 	if input.ProjectID != nil {
 		// Check if project can create secret
-		if tx.Where("environment_id = ? and project_id = ?", input.EnvironmentID, input.ProjectID).Find(&model.ProjectEnvironment{}).RecordNotFound() {
+		if err := tx.Where("environment_id = ? and project_id = ?", input.EnvironmentID, input.ProjectID).Find(&model.ProjectEnvironment{}).Error; err != nil {
+			if !gorm.IsRecordNotFoundError(err) {
+				log.ErrorWithFields(err.Error(), log.Fields{
+					"environment_id": input.EnvironmentID,
+					"project_id":     input.ProjectID,
+				})
+			}
+
 			return nil, errors.New("Project not allowed to create secret in given environment")
 		}
 
@@ -49,7 +56,18 @@ func CreateSecretInDB(ctx context.Context, tx *gorm.DB, input *model.SecretInput
 
 	var existingEnvVar model.Secret
 
-	if tx.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ? and type = ?", input.Key, projectID, environmentID, input.Type).Find(&existingEnvVar).RecordNotFound() {
+	if err := tx.Where("key = ? and project_id = ? and deleted_at is null and environment_id = ? and type = ?", input.Key, projectID, environmentID, input.Type).Find(&existingEnvVar).Error; err != nil {
+		if !gorm.IsRecordNotFoundError(err) {
+			log.ErrorWithFields(err.Error(), log.Fields{
+				"key":            input.Key,
+				"project_id":     projectID,
+				"environment_id": environmentID,
+				"type":           input.Type,
+			})
+
+			return nil, err
+		}
+
 		secret := model.Secret{
 			Key:           input.Key,
 			ProjectID:     projectID,
@@ -58,14 +76,20 @@ func CreateSecretInDB(ctx context.Context, tx *gorm.DB, input *model.SecretInput
 			EnvironmentID: environmentID,
 			IsSecret:      input.IsSecret,
 		}
-		tx.Create(&secret)
+
+		if err := tx.Create(&secret).Error; err != nil {
+			return nil, err
+		}
 
 		secretValue := model.SecretValue{
 			SecretID: secret.Model.ID,
 			Value:    input.Value,
 			UserID:   userID,
 		}
-		tx.Create(&secretValue)
+
+		if err := tx.Create(&secretValue).Error; err != nil {
+			return nil, err
+		}
 
 		return &secret, nil
 	}
