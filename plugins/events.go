@@ -29,6 +29,7 @@ func GetEventName(s string) transistor.EventName {
 		"websocket",
 		"slack",
 		"slack:notify",
+		"project:database",
 	}
 
 	for _, t := range eventNames {
