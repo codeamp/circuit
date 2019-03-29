@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	apis_batch_v1 "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -660,10 +660,18 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 		}
 
 		// expose codeamp service name via env variable
-		podEnvVars := append(envVars, v1.EnvVar{
-			Name:  "CODEAMP_SERVICE_NAME",
-			Value: service.Name,
-		})
+		reData := e.Payload.(plugins.ReleaseExtension)
+		podEnvVars := append(
+			envVars,
+			v1.EnvVar{
+				Name:  "CODEAMP_SERVICE_NAME",
+				Value: service.Name,
+			},
+			v1.EnvVar{
+				Name:  "CODEAMP_RELEASE_ENV",
+				Value: reData.Release.Environment,
+			},
+		)
 
 		simplePod := SimplePodSpec{
 			Name:          oneShotServiceName,
@@ -816,10 +824,18 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 		}
 
 		// expose codeamp service name via env variable
-		podEnvVars := append(envVars, v1.EnvVar{
-			Name:  "CODEAMP_SERVICE_NAME",
-			Value: service.Name,
-		})
+		reData := e.Payload.(plugins.ReleaseExtension)
+		podEnvVars := append(
+			envVars,
+			v1.EnvVar{
+				Name:  "CODEAMP_SERVICE_NAME",
+				Value: service.Name,
+			},
+			v1.EnvVar{
+				Name:  "CODEAMP_RELEASE_ENV",
+				Value: reData.Release.Environment,
+			},
+		)
 
 		var preStopHook v1.Handler
 		if service.PreStopHook != "" {
