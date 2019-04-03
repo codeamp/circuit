@@ -174,6 +174,7 @@ func LBTCPEvent(name string, action transistor.Action, t plugins.Type) transisto
 	event.AddArtifact("client_certificate", "", false)
 	event.AddArtifact("client_key", "", false)
 	event.AddArtifact("certificate_authority", "", false)
+	event.AddArtifact("private_source_ranges", "10.0.0.0/16", false)
 
 	var listener_pairs []interface{} = make([]interface{}, 2, 2)
 	listener_pairs[0] = map[string]interface{}{

@@ -138,6 +138,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*	Prepare Annotations and ServiceType
 	*
 	*********************************************/
+	var loadBalancerSourceRanges []string
+
 	// Begin create
 	switch lbType {
 	case plugins.GetType("internal"):
@@ -157,6 +159,16 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		}
 	case plugins.GetType("office"):
 		serviceType = v1.ServiceTypeLoadBalancer
+
+		lbSourceRanges, err := e.GetArtifact("private_source_ranges")
+		if err == nil {
+			if lbSourceRanges.String() != "" {
+				loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
+			}
+		} else {
+			log.Error(err.Error())
+		}
+
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-internal"] = "0.0.0.0/0"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout"] = "300"
@@ -244,6 +256,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		Selector: map[string]string{"app": deploymentName},
 		Type:     serviceType,
 		Ports:    servicePorts,
+		LoadBalancerSourceRanges: loadBalancerSourceRanges,
 	}
 	serviceParams := v1.Service{
 		TypeMeta: meta_v1.TypeMeta{
