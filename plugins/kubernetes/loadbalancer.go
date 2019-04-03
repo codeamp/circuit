@@ -161,8 +161,11 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		serviceType = v1.ServiceTypeLoadBalancer
 
 		lbSourceRanges, err := e.GetArtifact("source_ranges")
-		if err != nil {
+		log.Info("SELECTED OFFICE LB TYPE")
+		if err == nil {
 			loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
+		} else {
+			log.Error(err.Error())
 		}
 
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-internal"] = "0.0.0.0/0"
