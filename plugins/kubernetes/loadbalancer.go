@@ -160,7 +160,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	case plugins.GetType("office"):
 		serviceType = v1.ServiceTypeLoadBalancer
 
-		lbSourceRanges, err := e.GetArtifact("source_ranges")
+		lbSourceRanges, err := e.GetArtifact("private_source_ranges")
 		if err == nil {
 			if lbSourceRanges.String() != "" {
 				loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
