@@ -138,7 +138,8 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*	Prepare Annotations and ServiceType
 	*
 	*********************************************/
-	loadBalancerSourceRanges := []string{}
+	var loadBalancerSourceRanges []string
+	log.Warn("loadBalancerSourceRanges", fmt.Sprintf("%T - %v - %#v", loadBalancerSourceRanges, loadBalancerSourceRanges, loadBalancerSourceRanges))
 
 	// Begin create
 	switch lbType {
