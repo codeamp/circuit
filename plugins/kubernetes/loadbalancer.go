@@ -139,7 +139,6 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*
 	*********************************************/
 	var loadBalancerSourceRanges []string
-	log.Warn("loadBalancerSourceRanges", fmt.Sprintf("%T - %v - %#v", loadBalancerSourceRanges, loadBalancerSourceRanges, loadBalancerSourceRanges))
 
 	// Begin create
 	switch lbType {
@@ -161,14 +160,14 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	case plugins.GetType("office"):
 		serviceType = v1.ServiceTypeLoadBalancer
 
-		lbSourceRanges, err := e.GetArtifact("private_source_ranges")
-		if err == nil {
-			if lbSourceRanges.String() != "" {
-				loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
-			}
-		} else {
-			log.Error(err.Error())
-		}
+		// lbSourceRanges, err := e.GetArtifact("private_source_ranges")
+		// if err == nil {
+		// 	if lbSourceRanges.String() != "" {
+		// 		loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
+		// 	}
+		// } else {
+		// 	log.Error(err.Error())
+		// }
 
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-internal"] = "0.0.0.0/0"
 		serviceAnnotations["service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled"] = "true"
