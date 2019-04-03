@@ -161,8 +161,10 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		serviceType = v1.ServiceTypeLoadBalancer
 
 		lbSourceRanges, err := e.GetArtifact("source_ranges")
-		if err == nil && len(lbSourceRanges) != 0 && lbSourceRanges != "" {
-			loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
+		if err == nil {
+			if lbSourceRanges.String() != "" {
+				loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
+			}
 		} else {
 			log.Error(err.Error())
 		}
