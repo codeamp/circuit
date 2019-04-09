@@ -138,7 +138,16 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*	Prepare Annotations and ServiceType
 	*
 	*********************************************/
-	var loadBalancerSourceRanges []string
+	loadBalancerSourceRanges := make([]string, 0, 10)
+
+	projectLBSourceRanges, err := e.GetArtifact("projext_lb_source_ranges")
+	if err == nil {
+		if projectLBSourceRanges.String() != "" {
+			loadBalancerSourceRanges = append(loadBalancerSourceRanges, strings.Split(projectLBSourceRanges.String(), ",")...)
+		}
+	} else {
+		log.Error(err.Error())
+	}
 
 	// Begin create
 	switch lbType {
@@ -163,7 +172,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 		lbSourceRanges, err := e.GetArtifact("private_source_ranges")
 		if err == nil {
 			if lbSourceRanges.String() != "" {
-				loadBalancerSourceRanges = strings.Split(lbSourceRanges.String(), ",")
+				loadBalancerSourceRanges = append(loadBalancerSourceRanges, strings.Split(lbSourceRanges.String(), ",")...)
 			}
 		} else {
 			log.Error(err.Error())
