@@ -12,14 +12,14 @@ import (
 // genDBName creates a database name for the specified
 // project extension with the format <project.slug>-<environment>
 func genDBName(pe plugins.ProjectExtension) string {
-	projectSlugWithUnderscores := strings.ReplaceAll(pe.Project.Slug, "-", "_")
+	projectSlugWithUnderscores := strings.Replace(pe.Project.Slug, "-", "_", -1)
 	return fmt.Sprintf("%s_%s", projectSlugWithUnderscores, pe.Environment)
 }
 
 // genDBUsername creates a database username for the specified
 // project extension with the format <project.slug>-<environment>
 func genDBUser(pe plugins.ProjectExtension) string {
-	projectSlugWithUnderscores := strings.ReplaceAll(pe.Project.Slug, "-", "_")
+	projectSlugWithUnderscores := strings.Replace(pe.Project.Slug, "-", "_", -1)
 	return fmt.Sprintf("%s_%s_user", projectSlugWithUnderscores, pe.Environment)
 }
 
