@@ -19,7 +19,8 @@ func genDBName(pe plugins.ProjectExtension) string {
 // genDBUsername creates a database username for the specified
 // project extension with the format <project.slug>-<environment>
 func genDBUser(pe plugins.ProjectExtension) string {
-	return fmt.Sprintf("%s_%s_user", pe.Project.Slug, pe.Environment)
+	projectSlugWithUnderscores := strings.ReplaceAll(pe.Project.Slug, "-", "_")
+	return fmt.Sprintf("%s_%s_user", projectSlugWithUnderscores, pe.Environment)
 }
 
 func genDBPassword() string {
