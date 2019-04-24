@@ -126,12 +126,13 @@ func (x *Database) Process(e transistor.Event) error {
 			return nil
 		}
 
-		artifacts := make([]transistor.Artifact, 5)
-		artifacts[0] = transistor.Artifact{Key: "DB_USER", Value: dbMetadata.Credentials.Username, Secret: false}
-		artifacts[1] = transistor.Artifact{Key: "DB_PASSWORD", Value: dbMetadata.Credentials.Password, Secret: false}
-		artifacts[2] = transistor.Artifact{Key: "DB_NAME", Value: dbMetadata.Name, Secret: false}
-		artifacts[3] = transistor.Artifact{Key: "DB_ENDPOINT", Value: (*dbInstance).GetInstanceMetadata().Endpoint, Secret: false}
-		artifacts[4] = transistor.Artifact{Key: "DB_PORT", Value: (*dbInstance).GetInstanceMetadata().Port, Secret: false}
+		artifacts := []transistor.Artifact{
+			transistor.Artifact{Key: "DB_USER", Value: dbMetadata.Credentials.Username, Secret: false},
+			transistor.Artifact{Key: "DB_PASSWORD", Value: dbMetadata.Credentials.Password, Secret: false},
+			transistor.Artifact{Key: "DB_NAME", Value: dbMetadata.Name, Secret: false},
+			transistor.Artifact{Key: "DB_ENDPOINT", Value: (*dbInstance).GetInstanceMetadata().Endpoint, Secret: false},
+			transistor.Artifact{Key: "DB_PORT", Value: (*dbInstance).GetInstanceMetadata().Port, Secret: false},
+		}
 
 		x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 	case transistor.GetAction("delete"):
@@ -151,8 +152,6 @@ func (x *Database) Process(e transistor.Event) error {
 			x.sendFailedStatusEvent(err)
 			return nil
 		}
-
-		// store db metadata into instance
 
 		x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 	}

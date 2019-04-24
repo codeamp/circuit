@@ -62,9 +62,14 @@ func genDBPassword() string {
 // and returns a corresponding DatabaseInstance object
 func initDBInstance(dbType string, host string, username string, password string, port string) (*DatabaseInstance, error) {
 	var dbInstance DatabaseInstance
+	var err error
+
 	switch dbType {
 	case POSTGRESQL:
-		dbInstance = initPostgresInstance(host, username, password, port)
+		dbInstance, err = initPostgresInstance(host, username, password, port)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf(UnsupportedDBTypeErr, dbType)
 	}
