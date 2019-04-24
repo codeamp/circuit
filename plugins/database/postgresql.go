@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	log "github.com/codeamp/logger"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -18,7 +19,11 @@ type Postgres struct {
 // and returns a DatabaseInstance object, holding the connection object
 func initPostgresInstance(host string, username string, password string, port string) DatabaseInstance {
 	spew.Dump(username, host, password, port)
-	db, _ := gorm.Open("postgres", fmt.Sprintf("user=%s host=%s sslmode=%s password=%s port=%s", username, host, "disable", password, port))
+	db, err := gorm.Open("postgres", fmt.Sprintf("user=%s host=%s sslmode=%s password=%s port=%s", username, host, "disable", password, port))
+	if err != nil {
+		log.Info(err.Error())
+	}
+
 	return &Postgres{
 		BaseDatabaseInstance: BaseDatabaseInstance{
 			instanceMetadata: InstanceMetadata{
@@ -46,17 +51,17 @@ func (p *Postgres) CreateDatabaseAndUser(dbName string, username string, passwor
 
 	// we have to use fmt.Sprintf here because of an issue with the underlying driver
 	// and properly sanitizing create database statements
-	if err := p.db.Exec(fmt.Sprintf("CREATE DATABASE %s;", dbName)).Error; err != nil {
+	if err := p.db.LogMode(true).Exec(fmt.Sprintf("CREATE DATABASE %s;", dbName)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user
-	if err := p.db.Exec(fmt.Sprintf("CREATE USER %s with PASSWORD '%s';", username, password)).Error; err != nil {
+	if err := p.db.LogMode(true).Exec(fmt.Sprintf("CREATE USER %s with PASSWORD '%s';", username, password)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user permissions
-	if err := p.db.Exec(fmt.Sprintf("GRANT CONNECT ON DATABASE %s TO %s;", dbName, username)).Error; err != nil {
+	if err := p.db.LogMode(true).Exec(fmt.Sprintf("GRANT CONNECT ON DATABASE %s TO %s;", dbName, username)).Error; err != nil {
 		return nil, err
 	}
 
@@ -79,11 +84,11 @@ func (p *Postgres) DeleteDatabaseAndUser(dbName string, dbUser string) error {
 
 	// we have to use fmt.Sprintf here because of an issue with the underlying driver
 	// and properly sanitizing create database statements
-	if err := p.db.Exec(fmt.Sprintf("DROP DATABASE %s;", dbName)).Error; err != nil {
+	if err := p.db.LogMode(true).Exec(fmt.Sprintf("DROP DATABASE %s;", dbName)).Error; err != nil {
 		return err
 	}
 
-	if err := p.db.Exec(fmt.Sprintf("DROP USER %s;", dbUser)).Error; err != nil {
+	if err := p.db.LogMode(true).Exec(fmt.Sprintf("DROP USER %s;", dbUser)).Error; err != nil {
 		return err
 	}
 
