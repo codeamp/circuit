@@ -2,6 +2,7 @@ package database
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/davecgh/go-spew/spew"
 
@@ -57,6 +58,13 @@ func (x *Database) sendFailedStatusEvent(err error) {
 	ev.State = transistor.GetState("failed")
 	ev.StateMessage = err.Error()
 	x.events <- ev
+}
+
+func (x *Database) sendSuccessResponse(e transistor.Event, state transistor.State, artifacts []transistor.Artifact) {
+	event := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("%s has completed successfully", e.Event()))
+	event.Artifacts = artifacts
+
+	x.events <- event
 }
 
 // Process
@@ -122,17 +130,14 @@ func (x *Database) Process(e transistor.Event) error {
 			return nil
 		}
 
-		// store db metadata into instance
-		respEvent := transistor.NewEvent(e.Name, transistor.GetAction("status"), nil)
-		respEvent.State = transistor.GetState("complete")
+		artifacts := make([]transistor.Artifact, 5)
+		artifacts[0] = transistor.Artifact{Key: "DB_USER", Value: dbMetadata.Credentials.Username, Secret: false}
+		artifacts[1] = transistor.Artifact{Key: "DB_PASSWORD", Value: dbMetadata.Credentials.Password, Secret: false}
+		artifacts[2] = transistor.Artifact{Key: "DB_NAME", Value: dbMetadata.Name, Secret: false}
+		artifacts[3] = transistor.Artifact{Key: "DB_ENDPOINT", Value: (*dbInstance).GetInstanceMetadata().Endpoint, Secret: false}
+		artifacts[4] = transistor.Artifact{Key: "DB_PORT", Value: (*dbInstance).GetInstanceMetadata().Port, Secret: false}
 
-		respEvent.AddArtifact("DB_USER", dbMetadata.Credentials.Username, false)
-		respEvent.AddArtifact("DB_PASSWORD", dbMetadata.Credentials.Password, false)
-		respEvent.AddArtifact("DB_NAME", dbMetadata.Name, false)
-		respEvent.AddArtifact("DB_ENDPOINT", (*dbInstance).GetInstanceMetadata().Endpoint, false)
-		respEvent.AddArtifact("DB_PORT", (*dbInstance).GetInstanceMetadata().Port, false)
-
-		x.events <- respEvent
+		x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 	case transistor.GetAction("delete"):
 		dbName, err := e.GetArtifact("DB_NAME")
 		if err != nil {
@@ -152,10 +157,8 @@ func (x *Database) Process(e transistor.Event) error {
 		}
 
 		// store db metadata into instance
-		respEvent := transistor.NewEvent(e.Name, transistor.GetAction("status"), nil)
-		respEvent.State = transistor.GetState("complete")
 
-		x.events <- respEvent
+		x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 	}
 
 	return nil
