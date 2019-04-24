@@ -1323,7 +1323,7 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 	}
 
 	// Retrieve existing services generations
-	preExistingDeploymentConfigurations, err := x.getExistingDeploymentConfigurations(clientset, namespace)
+	// preExistingDeploymentConfigurations, err := x.getExistingDeploymentConfigurations(clientset, namespace)
 
 	// Deployment Services
 	err = x.deployServices(clientset, e, namespace, projectSlug, reData.Release.IsRollback, envVars, volumeMounts, volumes, volumeSecretItems, deploymentServices)
@@ -1345,17 +1345,17 @@ func (x *Kubernetes) doDeploy(e transistor.Event) error {
 			log.Error("WAIT-FOR: ", err.Error())
 		}
 
-		if result, err := x.unwindFailedDeployments(clientset, namespace, projectSlug, deploymentServices, preExistingDeploymentConfigurations); err != nil {
-			log.Error(err)
-			x.sendErrorResponse(e, err.Error())
-			return err
-		} else {
-			err := fmt.Errorf("%s - %s", errors[0].Error(), result)
+		// if result, err := x.unwindFailedDeployments(clientset, namespace, projectSlug, deploymentServices, preExistingDeploymentConfigurations); err != nil {
+		// 	log.Error(err)
+		// 	x.sendErrorResponse(e, err.Error())
+		// 	return err
+		// } else {
+		// err := fmt.Errorf("%s - %s", errors[0].Error(), result)
 
-			log.Error(err)
-			x.sendErrorResponse(e, err.Error())
-			return err
-		}
+		log.Error(err)
+		x.sendErrorResponse(e, err.Error())
+		return err
+		// }
 	}
 
 	// all success!

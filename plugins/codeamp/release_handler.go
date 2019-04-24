@@ -12,8 +12,104 @@ import (
 	"github.com/codeamp/transistor"
 )
 
+func (x *CodeAmp) releasedInDependentEnvironments(e transistor.Event) (bool, error) {
+	payload := e.Payload.(plugins.Release)
+	primaryEnvironmentName := "production"
+	secondaryEnvironmentName := "development"
+
+	log.Println("CHECKING IF DEPENDENT ENVIRONMENT IS RELEASED")
+
+	primaryEnvironment := model.Environment{}
+	secondaryEnvironment := model.Environment{}
+
+	if x.DB.Where("name = ?", primaryEnvironmentName).First(&primaryEnvironment).RecordNotFound() {
+		log.Error("could not find primary environment")
+	}
+	if x.DB.Where("name = ?", secondaryEnvironmentName).First(&secondaryEnvironment).RecordNotFound() {
+		log.Error("could not find secondary environment")
+	}
+
+	if payload.Environment != primaryEnvironment.Name {
+		log.Info("No required environments set, nothing to check")
+		return true, nil
+	}
+	log.Println("release is for primary environment. Checking release in qualifying environments")
+
+	// check project exists in both primary and secondary environment
+	primaryProjectEnvironment := model.ProjectEnvironment{}
+	secondaryProjectEnvironment := model.ProjectEnvironment{}
+
+	if x.DB.Where("environment_id = ? and project_id = ?", primaryEnvironment.ID, payload.Project.ID).First(&primaryProjectEnvironment).RecordNotFound() {
+		log.Error("project is not configured in the primary environment")
+	}
+	if x.DB.Where("environment_id = ? and project_id = ?", secondaryEnvironment.ID, payload.Project.ID).First(&secondaryProjectEnvironment).RecordNotFound() {
+		log.Error("project is not configured in the secondary environment")
+	}
+
+	releaseQuery := fmt.Sprintf("environment_id = '%s' and project_id = '%s' and head_feature_id = '%s' and state = '%s'",
+		secondaryProjectEnvironment.EnvironmentID, secondaryProjectEnvironment.ProjectID,
+		payload.HeadFeature.ID,
+		string(transistor.GetState("complete")))
+
+	log.Println(releaseQuery)
+
+	//TODO: Handle project not defined in each environment
+	secondaryRelease := model.Release{}
+	if x.DB.Where(releaseQuery).First(&secondaryRelease).RecordNotFound() {
+
+		log.Println(secondaryRelease.State)
+
+		log.Error(fmt.Sprintf("RELEASE CREATED IN %s WITHOUT BEING DEPLOYED TO %s", primaryEnvironmentName, secondaryEnvironmentName))
+
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x *CodeAmp) alertReleaseNotReady(e transistor.Event) error {
+	//TODO: Dispatch alert to user/team
+	return nil
+}
+
+func (x *CodeAmp) checkDependentEnvironmentsDeployed(e transistor.Event) (bool, []error) {
+	payload := e.Payload.(plugins.Release)
+
+	projectSettings := model.ProjectSettings{}
+	environment := model.Environment{}
+
+	if x.DB.Where("name = ?", payload.Environment).First(&environment).RecordNotFound(){
+		log.ErrorWithFields("release environment not found", log.Fields{
+			"id": payload.Environment
+		})
+	}
+
+	if x.DB.Where("environment_id = ? and project_id = ?", environment.ID, payload.Project.ID).First(&projectSettings).RecordNotFound()}{
+		log.Error("project settings do not exist for this release")
+	}
+
+	undeployedDependencies := []model.Environment{}
+	for _, id := range projectSettings.DependentEnvironments {
+
+		releaseQuery := fmt.Sprintf("environment_id = '%s' and project_id = '%s' and head_feature_id = '%s' and state = '%s'",
+			secondaryProjectEnvironment.EnvironmentID, secondaryProjectEnvironment.ProjectID,
+			payload.HeadFeature.ID,
+			string(transistor.GetState("complete")))
+		
+		release := model.Release{}
+		x.DB.Where(releaseQuery).First(&release).RecordNotFound(){
+			log.error("Release created without first deploying to dependencies")
+		}
+		
+	}
+}
+
+func (x *CodeAmp) PassesPreReleaseChecks(e transistor.Event) (bool, []error) {
+	// dependent environments have been deployed
+
+}
+
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
-	var err error
+	// var err error
 	payload := e.Payload.(plugins.Release)
 	release := model.Release{}
 	releaseExtensions := []model.ReleaseExtension{}
@@ -27,6 +123,17 @@ func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
 
 	if e.Matches("release:create") {
 		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+
+		readyToRelease, err := x.releasedInDependentEnvironments(e)
+		if err != nil {
+			log.Error(fmt.Errorf("failed to validate release %s status in dependent environments: %s", payload.ID, err.Error()))
+		}
+		if readyToRelease != true {
+			err = x.alertReleaseNotReady(e)
+			if err != nil {
+				log.Error(fmt.Sprintf("failed to alert on release not ready: %s", err.Error()))
+			}
+		}
 
 		for _, releaseExtension := range releaseExtensions {
 			projectExtension := model.ProjectExtension{}

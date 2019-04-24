@@ -296,6 +296,8 @@ type ProjectSettings struct {
 	GitBranch string `json:"gitBranch"`
 	//ContinuousDeploy
 	ContinuousDeploy bool `json:"continuousDeploy"`
+	//DependentEnvironments
+	DependentEnvironments []uuid.UUID `json:"dependentEnvironments"`
 }
 
 // ProjectEnvironment

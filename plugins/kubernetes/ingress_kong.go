@@ -258,7 +258,7 @@ func checkDuplicateRoute(input KongIngressInput, upstream UpstreamRoute, client 
 	query := gokong.RouteQueryString{Offset: 0, Size: 1000}
 	routesResult, err := client.Routes().List(&query)
 	if err != nil {
-		log.Error("Failed to retrieve routes")
+		log.Error("failed to retrieve routes")
 	}
 
 	routes := routesResult
@@ -267,7 +267,7 @@ func checkDuplicateRoute(input KongIngressInput, upstream UpstreamRoute, client 
 		query.Offset += query.Size
 		routesResult, err = client.Routes().List(&query)
 		if err != nil {
-			log.Error("faild to retrieve routes")
+			log.Error("failed to retrieve routes")
 		}
 		routes = append(routes, routesResult...)
 	}
@@ -305,11 +305,11 @@ func checkDuplicateRoute(input KongIngressInput, upstream UpstreamRoute, client 
 	if searchMap[searchKey] != "" {
 		service, err := client.Services().GetServiceFromRouteId(searchMap[searchKey])
 		if err != nil {
-			return false, fmt.Errorf("Failed to get route's associated service")
+			return false, fmt.Errorf("failed to get route's associated service")
 		}
 
 		if *service.Name != input.Service.ID {
-			return true, fmt.Errorf("Ingress contains routes controlled by another Ingress")
+			return true, fmt.Errorf("ingress contains routes controlled by another Ingress")
 		}
 	}
 
