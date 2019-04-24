@@ -108,7 +108,7 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 			transistor.Artifact{Key: "table_view", Value: clusterDNS, Secret: false},
 			transistor.Artifact{Key: "cluster_dns", Value: clusterDNS, Secret: false},
 			transistor.Artifact{Key: "cluster_ip", Value: service.Spec.ClusterIP, Secret: false},
-			transistor.Artifact{Key: "name", Value: inputs.Service.Name, Secret: false}
+			transistor.Artifact{Key: "name", Value: inputs.Service.Name, Secret: false},
 		}
 		artifacts = append(artifacts, newArtifacts...)
 		x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
