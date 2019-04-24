@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	log "github.com/codeamp/logger"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
@@ -18,7 +17,6 @@ type Postgres struct {
 // initPostgresInstance opens a postgresql connection to the host
 // and returns a DatabaseInstance object, holding the connection object
 func initPostgresInstance(host string, username string, password string, port string) DatabaseInstance {
-	spew.Dump(username, host, password, port)
 	db, err := gorm.Open("postgres", fmt.Sprintf("user=%s host=%s sslmode=%s password=%s port=%s", username, host, "disable", password, port))
 	if err != nil {
 		log.Info(err.Error())
