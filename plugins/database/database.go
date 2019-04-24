@@ -3,6 +3,8 @@ package database
 import (
 	"errors"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -98,6 +100,8 @@ func (x *Database) Process(e transistor.Event) error {
 		x.sendFailedStatusEvent(err)
 		return nil
 	}
+
+	spew.Dump(instanceEndpoint, instanceUsername, instancePassword, instancePort, dbType)
 
 	dbInstance, err := initDBInstance(dbType.String(), instanceEndpoint.String(), instanceUsername.String(), instancePassword.String(), instancePort.String())
 	if err != nil {
