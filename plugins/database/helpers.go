@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -11,7 +12,8 @@ import (
 // genDBName creates a database name for the specified
 // project extension with the format <project.slug>-<environment>
 func genDBName(pe plugins.ProjectExtension) string {
-	return fmt.Sprintf("%s_%s", pe.Project.Slug, pe.Environment)
+	projectSlugWithUnderscores := strings.ReplaceAll(pe.Project.Slug, "-", "_")
+	return fmt.Sprintf("%s_%s", projectSlugWithUnderscores, pe.Environment)
 }
 
 // genDBUsername creates a database username for the specified
