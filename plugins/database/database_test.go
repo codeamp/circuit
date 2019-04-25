@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/database"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +48,7 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 	dbAdminUsername := "postgres"
 	dbAdminPassword := ""
 	dbInstancePort := "5432"
-	dbType := "postgresql"
+	dbType := database.POSTGRESQL
 
 	payload := plugins.ProjectExtension{
 		Project: plugins.Project{
