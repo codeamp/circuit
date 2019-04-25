@@ -74,19 +74,18 @@ func (x *S3) Subscribe() []string {
 // the credentials for which the project will
 // be using to access the bucket, as well as the prefix
 // that has been assigned for this application to use
+// in addition to the region the bucket is in
 //
 // Accepts:
 //		aws_access_key_id
 //		aws_secret_key
 //		aws_region
-//		#aws_policy
 // 		aws_bucket
 //		aws_generated_user_prefix
+//		aws_user_group_name
 //
 func (x *S3) Process(e transistor.Event) error {
 	var err error
-	log.Debug("Processing S3 event")
-
 	if e.Matches("project:s3") {
 		switch e.Action {
 		case transistor.GetAction("create"):
@@ -112,67 +111,54 @@ func (x *S3) Process(e transistor.Event) error {
 	return nil
 }
 
-func (x *S3) handleCredentials(e transistor.Event) {
-	log.Warn("handleCredentials")
-}
-
-func (x *S3) writeTestFile(e transistor.Event) {
-	log.Warn("writeTestFile")
-}
-
-func (x *S3) sendS3Response(e transistor.Event, action transistor.Action, state transistor.State, stateMessage string, lbPayload plugins.ProjectExtension) {
-	projectExtension := plugins.ProjectExtension{
-		Environment: lbPayload.Environment,
-		Project:     lbPayload.Project,
-		ID:          lbPayload.Project.ID,
-	}
-
+func (x *S3) sendS3Response(e transistor.Event, action transistor.Action, state transistor.State, stateMessage string, artifacts []transistor.Artifact) {
 	event := e.NewEvent(action, state, stateMessage)
-	event.SetPayload(projectExtension)
+	event.Artifacts = artifacts
+
 	x.events <- event
 }
 
+// Pull all the artifacts out from the event that we will need
+// in order to service these requests. Stuff them into a local storage object.
 func (x *S3) extractArtifacts(e transistor.Event) error {
-	payload := e.Payload.(plugins.ProjectExtension)
-
 	awsAccessKeyID, err := e.GetArtifact("aws_access_key_id")
 	if err != nil {
-		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 	x.awsAccessKeyID = awsAccessKeyID.String()
 
 	awsSecretKey, err := e.GetArtifact("aws_secret_key")
 	if err != nil {
-		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 	x.awsSecretKey = awsSecretKey.String()
 
 	awsRegion, err := e.GetArtifact("aws_region")
 	if err != nil {
-		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 	x.awsRegion = awsRegion.String()
 
 	awsBucket, err := e.GetArtifact("aws_bucket")
 	if err != nil {
-		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 	x.awsBucket = awsBucket.String()
 
 	awsGeneratedUserPrefix, err := e.GetArtifact("aws_generated_user_prefix")
 	if err != nil {
-		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 	x.awsGeneratedUserPrefix = awsGeneratedUserPrefix.String()
 
 	awsUserGroupName, err := e.GetArtifact("aws_user_group_name")
 	if err != nil {
-		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), payload)
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 	x.awsUserGroupName = awsUserGroupName.String()
@@ -180,13 +166,14 @@ func (x *S3) extractArtifacts(e transistor.Event) error {
 	return nil
 }
 
+// Provision storage for a project. Return an error if there is a user that already exists.
 func (x *S3) createS3(e transistor.Event) error {
-	log.Warn("Creating S3 Extension")
-
 	if err := x.extractArtifacts(e); err != nil {
 		log.Error(err.Error())
 		return err
 	}
+
+	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("running"), "Creating S3 Configuration", nil)
 
 	iamSvc := iam.New(session.New(&aws.Config{
 		Region:      &x.awsRegion,
@@ -201,7 +188,7 @@ func (x *S3) createS3(e transistor.Event) error {
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchEntity") {
 			// User does not exist. Create it!
-			log.Error("NO SUCH ENTITY - Creating User! ", userName)
+			log.Info("NO SUCH ENTITY - Creating User! ", userName)
 
 			// create the user
 			_, err := iamSvc.CreateUser(&iam.CreateUserInput{UserName: &userName})
@@ -213,15 +200,15 @@ func (x *S3) createS3(e transistor.Event) error {
 			if err := iamSvc.WaitUntilUserExists(&iam.GetUserInput{UserName: &userName}); err != nil {
 				log.Error(err.Error())
 			} else {
-				log.Error("user has been created! ", userName)
+				log.Info("user has been created! ", userName)
 			}
 		} else {
 			log.Error(err.Error())
 			return err
 		}
 	} else {
-		log.Error("THERE WAS AN ERROR - USER EXISTS")
-		return errors.New("There was an error during setup")
+		log.Error("S3 IAM USER EXISTS")
+		return errors.New("User Exists - Duplicate Extension?")
 	}
 
 	// Add the user to the group
@@ -232,7 +219,7 @@ func (x *S3) createS3(e transistor.Event) error {
 		log.Error(err.Error())
 		return err
 	} else {
-		log.Error("User was added to group: ", x.awsUserGroupName)
+		log.Info("User was added to group: ", x.awsUserGroupName)
 	}
 
 	// Assign the user a policy that includes the bucket and prefix
@@ -275,9 +262,12 @@ func (x *S3) createS3(e transistor.Event) error {
 		return err
 	}
 
-	time.Sleep(time.Second * 10)
+	secondsToWait := 10
+	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("running"), fmt.Sprintf("Waiting for AWS to propagate credentials (%ds)", secondsToWait), nil)
+	time.Sleep(time.Second * time.Duration(secondsToWait))
 
 	// Test that the API key has write access to the bucket
+	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("running"), "Testing Permissions by Writing Sample File", nil)
 	testSession := session.New(&aws.Config{
 		Region:      &x.awsRegion,
 		Credentials: credentials.NewStaticCredentials(*accessKeyResponse.AccessKey.AccessKeyId, *accessKeyResponse.AccessKey.SecretAccessKey, ""),
@@ -296,20 +286,22 @@ func (x *S3) createS3(e transistor.Event) error {
 		return errors.New("There was an error writing with S3")
 	}
 
-	log.Error("S3 Success!")
-	ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("S3 message"))
-	x.events <- ev
+	artifacts := []transistor.Artifact{
+		transistor.Artifact{Key: "aws_access_key_id", Value: *accessKeyResponse.AccessKey.AccessKeyId, Secret: false},
+		transistor.Artifact{Key: "aws_secret_key", Value: *accessKeyResponse.AccessKey.SecretAccessKey, Secret: false},
+		transistor.Artifact{Key: "aws_region", Value: x.awsRegion, Secret: false},
+		transistor.Artifact{Key: "aws_bucket", Value: x.awsBucket, Secret: false},
+		transistor.Artifact{Key: "aws_prefix", Value: fmt.Sprintf("%s/", payload.Project.Slug), Secret: false},
+	}
 
-	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("complete"), "S3 Completed", payload)
+	log.Info("S3 Success!")
+	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("complete"), "S3 Provisioning Complete", artifacts)
 
 	return nil
 }
 
 func (x *S3) updateS3(e transistor.Event) error {
-	log.Warn("Updating S3 Extension")
-
-	log.Error("S3 Success!")
-	ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), fmt.Sprintf("S3 message"))
+	ev := e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Nothing to Update")
 	x.events <- ev
 
 	return nil
@@ -329,8 +321,16 @@ func (x *S3) deleteS3(e transistor.Event) error {
 	payload := e.Payload.(plugins.ProjectExtension)
 	userName := fmt.Sprintf("%s%s", x.awsGeneratedUserPrefix, payload.Project.Slug)
 
-	log.Warn("DELETING USER: ", userName)
+	_, err := iamSvc.GetUser(&iam.GetUserInput{UserName: &userName})
+	if err != nil {
+		if strings.Contains(err.Error(), "NoSuchEntity") {
+			log.Error("No User to Delete")
+		}
 
+		return nil
+	}
+
+	log.Warn("DELETING AWS USER (S3 EXTENSION): ", userName)
 	listAccessKeys, err := iamSvc.ListAccessKeys(&iam.ListAccessKeysInput{UserName: &userName})
 	if err != nil {
 		log.Error(err.Error())
