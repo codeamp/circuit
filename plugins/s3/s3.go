@@ -77,12 +77,12 @@ func (x *S3) Subscribe() []string {
 // in addition to the region the bucket is in
 //
 // Accepts:
-//		aws_access_key_id
+//		aws_access_key_id			- Access to create users and update policies
 //		aws_secret_key
-//		aws_region
-// 		aws_bucket
-//		aws_generated_user_prefix
-//		aws_user_group_name
+//		aws_region					- The region of the bucket
+// 		aws_bucket					- Which bucket to be shared
+//		aws_generated_user_prefix	- What should the IAM users be prefixed with
+//		aws_user_group_name			- For organizational purposes, group users together to easily find later
 //
 func (x *S3) Process(e transistor.Event) error {
 	var err error
@@ -295,7 +295,7 @@ func (x *S3) createS3(e transistor.Event) error {
 	}
 
 	log.Info("S3 Success!")
-	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("complete"), "S3 Provisioning Complete", artifacts)
+	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("complete"), "S3 Provisioning Complete.\nRemoving this extension does not delete any data.", artifacts)
 
 	return nil
 }
@@ -307,6 +307,9 @@ func (x *S3) updateS3(e transistor.Event) error {
 	return nil
 }
 
+// When the extension is deleted, revoke access to the path that was created for this project
+// Since this data may need to be retained, and is not quickly deletable, we will simply revoke
+// access and worry about cleaning up stale/old data in another process
 func (x *S3) deleteS3(e transistor.Event) error {
 	if err := x.extractArtifacts(e); err != nil {
 		log.Error(err.Error())
