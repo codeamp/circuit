@@ -344,7 +344,7 @@ func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName
 
 		if currentTime.Sub(startedTime) >= (time.Duration(data.AWSCredentialsTimeout) * time.Second) {
 			log.Warn(fmt.Sprintf("%v", currentTime.Sub(startedTime)))
-			x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("Timed out when verifying permissions (%ss)", data.AWSCredentialsTimeout), nil)
+			x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("Timed out when verifying permissions (%ds)", data.AWSCredentialsTimeout), nil)
 			return errors.New("Timed out when verifying permissions")
 		}
 	}
