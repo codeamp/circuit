@@ -13,13 +13,9 @@ import (
 	log "github.com/codeamp/logger"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 )
 
 const s3UserPolicyTemplate = `{
@@ -53,6 +49,8 @@ const s3UserPolicyTemplate = `{
 type S3 struct {
 	events chan transistor.Event
 	data   S3Data
+
+	S3Interfaces S3Interfacer
 }
 
 type S3Data struct {
@@ -67,7 +65,7 @@ type S3Data struct {
 
 func init() {
 	transistor.RegisterPlugin("s3", func() transistor.Plugin {
-		return &S3{}
+		return &S3{S3Interfaces: &S3Interface{}}
 	}, plugins.ProjectExtension{})
 }
 
@@ -145,26 +143,6 @@ func (x *S3) Process(e transistor.Event) error {
 	}
 
 	return nil
-}
-
-// Provide IAM interface for mock/testing purposes
-func (x *S3) getIAMServiceInterface(data *S3Data) iamiface.IAMAPI {
-	iamSvc := iam.New(session.New(&aws.Config{
-		Region:      &data.AWSRegion,
-		Credentials: credentials.NewStaticCredentials(data.AWSAccessKeyID, data.AWSSecretKey, ""),
-	}))
-
-	return iamSvc
-}
-
-// Provide S3 interface for mock/testing purposes
-func (x *S3) getS3ServiceInterface(data *S3Data, accessKey *iam.AccessKey) s3iface.S3API {
-	s3Svc := s3.New(session.New(&aws.Config{
-		Region:      &data.AWSRegion,
-		Credentials: credentials.NewStaticCredentials(*accessKey.AccessKeyId, *accessKey.SecretAccessKey, ""),
-	}))
-
-	return s3Svc
 }
 
 // Wraper for sending an event back thruogh the messaging system for standardization and brevity
@@ -245,7 +223,7 @@ func (x *S3) extractArtifacts(e transistor.Event) (*S3Data, error) {
 
 // Creates an IAM user with the given userName if one does not currently exist
 func (x *S3) createIAMUserIfNotExist(data *S3Data, userName string) error {
-	iamSvc := x.getIAMServiceInterface(data)
+	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	// create the user if it doesn't exist yet
 	_, err := iamSvc.GetUser(&iam.GetUserInput{UserName: &userName})
@@ -280,7 +258,7 @@ func (x *S3) createIAMUserIfNotExist(data *S3Data, userName string) error {
 
 // Adds a IAM user to a specified IAM group
 func (x *S3) addIAMUserToGroup(data *S3Data, userName string) error {
-	iamSvc := x.getIAMServiceInterface(data)
+	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	if _, err := iamSvc.AddUserToGroup(&iam.AddUserToGroupInput{
 		UserName:  &userName,
@@ -296,7 +274,7 @@ func (x *S3) addIAMUserToGroup(data *S3Data, userName string) error {
 
 // Assign the below policy
 func (x *S3) assignUserIAMPolicyForS3(data *S3Data, userName string, prefix string) error {
-	iamSvc := x.getIAMServiceInterface(data)
+	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	userPolicy := fmt.Sprintf(s3UserPolicyTemplate, data.AWSBucket, prefix, data.AWSBucket)
 	_, err := iamSvc.PutUserPolicy(&iam.PutUserPolicyInput{
@@ -319,7 +297,7 @@ func (x *S3) assignUserIAMPolicyForS3(data *S3Data, userName string, prefix stri
 // but a simple PutObject request should suffice for now
 func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName string, accessKey *iam.AccessKey, prefix string) error {
 
-	testS3Svc := x.getS3ServiceInterface(data, accessKey)
+	testS3Svc := x.S3Interfaces.GetS3ServiceInterface(data, accessKey)
 	input := &s3.PutObjectInput{
 		Body:   strings.NewReader("This is a test file written by CodeAmp. You may delete it."),
 		Bucket: &data.AWSBucket,
@@ -343,7 +321,6 @@ func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName
 		currentTime = time.Now()
 
 		if currentTime.Sub(startedTime) >= (time.Duration(data.AWSCredentialsTimeout) * time.Second) {
-			log.Warn(fmt.Sprintf("%v", currentTime.Sub(startedTime)))
 			x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("Timed out when verifying permissions (%ds)", data.AWSCredentialsTimeout), nil)
 			return errors.New("Timed out when verifying permissions")
 		}
@@ -354,7 +331,7 @@ func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName
 
 // Generate an IAM access key from an existing IAM user
 func (x *S3) generateAccessCredentials(data *S3Data, userName string) (*iam.AccessKey, error) {
-	iamSvc := x.getIAMServiceInterface(data)
+	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	accessKeyResponse, err := iamSvc.CreateAccessKey(&iam.CreateAccessKeyInput{
 		UserName: &userName,
@@ -482,7 +459,7 @@ func (x *S3) updateS3(e transistor.Event) error {
 //		User Group Assignment
 //
 func (x *S3) deleteUserDependencies(data *S3Data, userName string) error {
-	iamSvc := x.getIAMServiceInterface(data)
+	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	// We need to know what access keys there are in order to enumerate and delete them
 	// there is no delete all access keys call
@@ -523,7 +500,7 @@ func (x *S3) deleteS3(e transistor.Event) error {
 		return err
 	}
 
-	iamSvc := x.getIAMServiceInterface(data)
+	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	payload := e.Payload.(plugins.ProjectExtension)
 	userName := fmt.Sprintf("%s%s", data.AWSGeneratedUserPrefix, payload.Project.Slug)
