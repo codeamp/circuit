@@ -100,7 +100,7 @@ func (x *S3) Subscribe() []string {
 // How does this work?
 // A bucket is shared by other staging projects
 // in order to create access for a new project
-// to use htis storage, we will need to generate
+// to use this storage, we will need to generate
 // an IAM user to use this new prefix for this bucket
 //
 // We want to do this so that we can utilize the same bucket
