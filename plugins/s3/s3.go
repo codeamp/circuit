@@ -334,7 +334,7 @@ func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName
 
 		_, err := testS3Svc.PutObject(input)
 		if err != nil {
-			log.Error(err.Error())
+			log.Warn(err.Error())
 		} else {
 			break
 		}
