@@ -107,7 +107,13 @@ func (x *Database) Process(e transistor.Event) error {
 		return nil
 	}
 
-	dbInstance, err := initDBInstance(dbType.String(), instanceEndpoint.String(), instanceUsername.String(), instancePassword.String(), instancePort.String())
+	sslMode, err := e.GetArtifact("SSL_MODE")
+	if err != nil {
+		x.sendFailedStatusEvent(err)
+		return nil
+	}
+
+	dbInstance, err := initDBInstance(dbType.String(), instanceEndpoint.String(), instanceUsername.String(), instancePassword.String(), sslMode.String(), instancePort.String())
 	if err != nil {
 		x.sendFailedStatusEvent(err)
 		return nil
