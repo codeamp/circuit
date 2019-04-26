@@ -30,6 +30,7 @@ type IAMAPI interface {
 }
 
 type S3Interfacer interface {
+	New() S3Interfacer
 	GetIAMServiceInterface(*S3Data) IAMAPI
 	GetS3ServiceInterface(*S3Data, *iam.AccessKey) S3API
 }
@@ -37,6 +38,10 @@ type S3Interfacer interface {
 type S3Interface struct {
 	IAMSvc IAMAPI
 	S3Svc  S3API
+}
+
+func (x *S3Interface) New() S3Interfacer {
+	return x
 }
 
 // Provide IAM interface for mock/testing purposes

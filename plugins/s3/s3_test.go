@@ -15,7 +15,8 @@ import (
 
 type TestSuiteS3Extension struct {
 	suite.Suite
-	transistor *transistor.Transistor
+	transistor  *transistor.Transistor
+	s3Interface s3.S3Interfacer
 }
 
 func (suite *TestSuiteS3Extension) SetupSuite() {
@@ -25,9 +26,9 @@ plugins:
     workers: 1
 `)
 
+	suite.s3Interface = &MockS3Interface{}
 	transistor.RegisterPlugin("s3", func() transistor.Plugin {
-		s3Interface := MockS3Interface{}
-		return &s3.S3{S3Interfaces: s3Interface.New()}
+		return &s3.S3{S3Interfaces: suite.s3Interface.New()}
 	}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -40,6 +41,10 @@ func TestS3Extension(t *testing.T) {
 
 func (suite *TestSuiteS3Extension) TearDownSuite() {
 	suite.transistor.Stop()
+}
+
+func (suite *TestSuiteS3Extension) AfterTest(suiteName string, testName string) {
+	suite.s3Interface = suite.s3Interface.New()
 }
 
 func (suite *TestSuiteS3Extension) TestCreateS3ExtSuccess() {
@@ -65,47 +70,47 @@ func (suite *TestSuiteS3Extension) TestCreateS3ExtSuccess() {
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
-// func (suite *TestSuiteS3Extension) TestCreateS3ExtFailureDuplicate() {
-// 	event := transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), suite.buildS3ExtPayload())
-// 	event.Artifacts = suite.buildS3ExtArtifacts()
-// 	suite.transistor.Events <- event
+func (suite *TestSuiteS3Extension) TestCreateS3ExtFailureDuplicate() {
+	event := transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), suite.buildS3ExtPayload())
+	event.Artifacts = suite.buildS3ExtArtifacts()
+	suite.transistor.Events <- event
 
-// 	var e transistor.Event
-// 	var err error
-// 	for {
-// 		e, err = suite.transistor.GetTestEvent("project:s3", transistor.GetAction("status"), 30)
-// 		if err != nil {
-// 			assert.Nil(suite.T(), err, err.Error())
-// 			return
-// 		}
+	var e transistor.Event
+	var err error
+	for {
+		e, err = suite.transistor.GetTestEvent("project:s3", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
 
-// 		if e.State != "running" {
-// 			break
-// 		}
-// 	}
+		if e.State != "running" {
+			break
+		}
+	}
 
-// 	suite.T().Log(e.StateMessage)
-// 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
-// 	event = transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), suite.buildS3ExtPayload())
-// 	event.Artifacts = suite.buildS3ExtArtifacts()
-// 	suite.transistor.Events <- event
+	event = transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), suite.buildS3ExtPayload())
+	event.Artifacts = suite.buildS3ExtArtifacts()
+	suite.transistor.Events <- event
 
-// 	for {
-// 		e, err = suite.transistor.GetTestEvent("project:s3", transistor.GetAction("status"), 30)
-// 		if err != nil {
-// 			assert.Nil(suite.T(), err, err.Error())
-// 			return
-// 		}
+	for {
+		e, err = suite.transistor.GetTestEvent("project:s3", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
 
-// 		if e.State != "running" {
-// 			break
-// 		}
-// 	}
+		if e.State != "running" {
+			break
+		}
+	}
 
-// 	suite.T().Log(e.StateMessage)
-// 	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
-// }
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+}
 
 // func (suite *TestSuiteS3Extension) TestDeleteS3ExtSuccess() {
 // 	event := transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), nil)

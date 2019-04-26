@@ -136,9 +136,8 @@ func (x *S3) Process(e transistor.Event) error {
 		}
 
 		if err != nil {
-			log.Error("Sending error from process")
-			x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%v (Action: %v, Step: S3)", err.Error(), e.State))
-			return nil
+			log.Error(err.Error())
+			return err
 		}
 	}
 

@@ -17,7 +17,7 @@ type MockS3Interface struct {
 	S3Svc  MockS3Client
 }
 
-func (x *MockS3Interface) New() *MockS3Interface {
+func (x *MockS3Interface) New() s3.S3Interfacer {
 	x.IAMSvc = *x.IAMSvc.New()
 	return x
 }
