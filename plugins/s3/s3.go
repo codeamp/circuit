@@ -306,7 +306,7 @@ func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName
 	startedTime := time.Now()
 	currentTime := time.Now()
 	waitInterval := 5
-	for true {
+	for {
 		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("running"), fmt.Sprintf("Testing Permissions by Writing Sample File (%v elapsed)", currentTime.Sub(startedTime)), nil)
 
 		_, err := testS3Svc.PutObject(input)
@@ -458,6 +458,7 @@ func (x *S3) updateS3(e transistor.Event) error {
 //		User Group Assignment
 //
 func (x *S3) deleteUserDependencies(data *S3Data, userName string) error {
+	log.Error("deleteUserDependencies")
 	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	// We need to know what access keys there are in order to enumerate and delete them
@@ -496,6 +497,7 @@ func (x *S3) deleteS3(e transistor.Event) error {
 
 	if data, err = x.extractArtifacts(e); err != nil {
 		log.Error(err.Error())
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 
@@ -511,6 +513,7 @@ func (x *S3) deleteS3(e transistor.Event) error {
 			log.Error("No User to Delete (S3 EXTENSION)")
 		}
 
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil
 	}
 
@@ -519,8 +522,10 @@ func (x *S3) deleteS3(e transistor.Event) error {
 	_, err = iamSvc.DeleteUser(&iam.DeleteUserInput{UserName: &userName})
 	if err != nil {
 		log.Error(err.Error())
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 
+	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("complete"), "Deleted Extension", nil)
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
+	log "github.com/codeamp/logger"
 )
 
 type S3API interface {
@@ -46,6 +47,7 @@ func (x *S3Interface) New() S3Interfacer {
 
 // Provide IAM interface for mock/testing purposes
 func (x *S3Interface) GetIAMServiceInterface(data *S3Data) IAMAPI {
+	log.Warn("USING REAL INTERFACE")
 	x.IAMSvc = iam.New(session.New(&aws.Config{
 		Region:      &data.AWSRegion,
 		Credentials: credentials.NewStaticCredentials(data.AWSAccessKeyID, data.AWSSecretKey, ""),

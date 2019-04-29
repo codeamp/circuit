@@ -7,9 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	amzS3 "github.com/aws/aws-sdk-go/service/s3"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins/s3"
-	log "github.com/codeamp/logger"
 )
 
 type MockS3Interface struct {
@@ -48,7 +48,7 @@ func (x *MockIAMClient) New() *MockIAMClient {
 }
 
 func (x *MockIAMClient) AddUserToGroup(input *iam.AddUserToGroupInput) (*iam.AddUserToGroupOutput, error) {
-	if _, ok := x.users[*input.UserName]; ok != false {
+	if _, ok := x.users[*input.UserName]; ok == true {
 		// Assume the group exists for testing purposes
 		if _, ok := x.groupMembers[*input.GroupName]; ok == false {
 			x.groupMembers[*input.GroupName] = make(map[string]string, 0)
@@ -62,11 +62,24 @@ func (x *MockIAMClient) AddUserToGroup(input *iam.AddUserToGroupInput) (*iam.Add
 }
 
 func (x *MockIAMClient) RemoveUserFromGroup(input *iam.RemoveUserFromGroupInput) (*iam.RemoveUserFromGroupOutput, error) {
-	return nil, errors.New("RemoveUserFromGroup Stub Function: Implement!")
+	if _, ok := x.users[*input.UserName]; ok == false {
+		return nil, errors.New("NoSuchEntity - RemoveUserFromGroup")
+	}
+
+	if _, ok := x.groupMembers[*input.GroupName]; ok == false {
+		return nil, errors.New("NoSuchEntity - RemoveUserFromGroup")
+	}
+
+	if _, ok := x.groupMembers[*input.GroupName][*input.UserName]; ok == false {
+		return nil, errors.New("NoSuchEntity - RemoveUserFromGroup")
+	}
+
+	delete(x.groupMembers[*input.GroupName], *input.UserName)
+	return &iam.RemoveUserFromGroupOutput{}, nil
 }
 
 func (x *MockIAMClient) CreateAccessKey(input *iam.CreateAccessKeyInput) (*iam.CreateAccessKeyOutput, error) {
-	if _, ok := x.users[*input.UserName]; ok != false {
+	if _, ok := x.users[*input.UserName]; ok == true {
 		if _, ok := x.accessKeys[*input.UserName]; ok == false {
 			x.accessKeys[*input.UserName] = make([]*iam.AccessKeyMetadata, 0, 1)
 		}
@@ -93,7 +106,11 @@ func (x *MockIAMClient) CreateAccessKey(input *iam.CreateAccessKeyInput) (*iam.C
 }
 
 func (x *MockIAMClient) ListAccessKeys(input *iam.ListAccessKeysInput) (*iam.ListAccessKeysOutput, error) {
-	if metadata, ok := x.accessKeys[*input.UserName]; ok != false {
+	if _, ok := x.users[*input.UserName]; ok != true {
+		return nil, errors.New("NoSuchEntity")
+	}
+
+	if metadata, ok := x.accessKeys[*input.UserName]; ok == true {
 		isTruncated := false
 		return &iam.ListAccessKeysOutput{
 			AccessKeyMetadata: metadata,
@@ -101,19 +118,25 @@ func (x *MockIAMClient) ListAccessKeys(input *iam.ListAccessKeysInput) (*iam.Lis
 		}, nil
 	}
 
-	return nil, errors.New("NoSuchEntity - ListAccessKeys")
+	return &iam.ListAccessKeysOutput{
+		AccessKeyMetadata: []*iam.AccessKeyMetadata{},
+	}, nil
 }
 
 func (x *MockIAMClient) DeleteAccessKey(input *iam.DeleteAccessKeyInput) (*iam.DeleteAccessKeyOutput, error) {
-	if _, ok := x.users[*input.UserName]; ok != false {
-		return nil, nil
+	if _, ok := x.users[*input.UserName]; ok != true {
+		return nil, errors.New("NoSuchEntity")
 	}
 
-	return nil, errors.New("NoSuchEntity - DeleteAccessKey")
+	if _, ok := x.accessKeys[*input.UserName]; ok == true {
+		delete(x.accessKeys, *input.UserName)
+	}
+
+	spew.Dump(x.accessKeys)
+	return &iam.DeleteAccessKeyOutput{}, nil
 }
 
 func (x *MockIAMClient) CreateUser(input *iam.CreateUserInput) (*iam.CreateUserOutput, error) {
-	log.Warn("CreateUser")
 	if _, ok := x.users[*input.UserName]; ok != true {
 		x.users[*input.UserName] = &iam.User{
 			UserName: input.UserName,
@@ -129,14 +152,38 @@ func (x *MockIAMClient) CreateUser(input *iam.CreateUserInput) (*iam.CreateUserO
 }
 
 func (x *MockIAMClient) GetUser(input *iam.GetUserInput) (*iam.GetUserOutput, error) {
-	if user, ok := x.users[*input.UserName]; ok != false {
+	if user, ok := x.users[*input.UserName]; ok == true {
 		return &iam.GetUserOutput{User: user}, nil
 	}
 
 	return nil, errors.New("NoSuchEntity - GetUser")
 }
 func (x *MockIAMClient) DeleteUser(input *iam.DeleteUserInput) (*iam.DeleteUserOutput, error) {
-	return nil, errors.New("DeleteUser Stub Function: Implement!")
+	// Check to see if user stuff is deleted
+	if _, ok := x.userPolicies[*input.UserName]; ok == true {
+		if len(x.userPolicies[*input.UserName]) > 0 {
+			return nil, errors.New("DeleteConflict - UserPolicies")
+		}
+	}
+
+	if _, ok := x.accessKeys[*input.UserName]; ok == true {
+		spew.Dump(x.accessKeys)
+		return nil, errors.New("DeleteConflict - AccessKeys")
+	}
+
+	for idx, group := range x.groupMembers {
+		spew.Dump(group, idx)
+		for idx, member := range group {
+			spew.Dump(member, idx)
+		}
+	}
+
+	if _, ok := x.users[*input.UserName]; ok != true {
+		return nil, errors.New("NoSuchEntity")
+	}
+
+	delete(x.users, *input.UserName)
+	return &iam.DeleteUserOutput{}, nil
 }
 func (x *MockIAMClient) WaitUntilUserExists(input *iam.GetUserInput) error {
 	return nil
@@ -146,6 +193,16 @@ func (x *MockIAMClient) DeleteUserPolicy(input *iam.DeleteUserPolicyInput) (*iam
 	if _, ok := x.users[*input.UserName]; ok == false {
 		return nil, errors.New("NoSuchEntity - DeleteUserPolicy")
 	}
+
+	if _, ok := x.userPolicies[*input.UserName]; ok == false {
+		return nil, errors.New("NoSuchEntity - DeleteUserPolicy")
+	}
+
+	if _, ok := x.userPolicies[*input.UserName][*input.PolicyName]; ok == false {
+		return nil, errors.New("NoSuchEntity - DeleteUserPolicy")
+	}
+
+	delete(x.userPolicies[*input.UserName], *input.PolicyName)
 
 	return nil, errors.New("NoSuchEntity - DeleteUserPolicy")
 }
