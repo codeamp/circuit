@@ -40,8 +40,8 @@ func (suite *DatabaseTestSuite) TearDownSuite() {
 	suite.transistor.Stop()
 }
 
-func (suite *DatabaseTestSuite) TestDatabase_Success() {
-	log.Println("TestDatabase_Success")
+func (suite *DatabaseTestSuite) TestPostgresqlDatabase_Success() {
+	log.Println("TestPostgresqlDatabase_Success")
 
 	// inputs
 	dbInstanceHost := "postgres"
@@ -49,6 +49,7 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 	dbAdminPassword := ""
 	dbInstancePort := "5432"
 	dbType := database.POSTGRESQL
+	sslMode := "disable"
 
 	payload := plugins.ProjectExtension{
 		Project: plugins.Project{
@@ -63,6 +64,7 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 	dbProjectExtensionEvent.AddArtifact("SHARED_DATABASE_ADMIN_PASSWORD", dbAdminPassword, false)
 	dbProjectExtensionEvent.AddArtifact("SHARED_DATABASE_PORT", dbInstancePort, false)
 	dbProjectExtensionEvent.AddArtifact("DB_TYPE", dbType, false)
+	dbProjectExtensionEvent.AddArtifact("SSL_MODE", sslMode, false)
 
 	suite.transistor.Events <- dbProjectExtensionEvent
 
@@ -102,6 +104,7 @@ func (suite *DatabaseTestSuite) TestDatabase_Success() {
 	deleteDBEvent.AddArtifact("DB_TYPE", dbType, false)
 	deleteDBEvent.AddArtifact("DB_NAME", dbName.String(), false)
 	deleteDBEvent.AddArtifact("DB_USER", dbUser.String(), false)
+	deleteDBEvent.AddArtifact("SSL_MODE", sslMode, false)
 
 	suite.transistor.Events <- deleteDBEvent
 	respEvent, err = suite.transistor.GetTestEvent(plugins.GetEventName("project:database"), transistor.GetAction("status"), 60)
