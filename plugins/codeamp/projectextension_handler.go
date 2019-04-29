@@ -44,7 +44,10 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 			}
 		}
 
-		x.DB.Save(&extension)
+		err := x.DB.Save(&extension).Error
+		if err != nil {
+			log.Error(err.Error())
+		}
 
 		sendPayload := plugins.WebsocketMsg{
 			Event: fmt.Sprintf("projects/%s/%s/extensions", project.Slug, receivedPayload.Environment),

@@ -15,8 +15,8 @@ type Postgres struct {
 
 // initPostgresInstance opens a postgresql connection to the host
 // and returns a DatabaseInstance object, holding the connection object
-func initPostgresInstance(host string, username string, password string, port string) (DatabaseInstance, error) {
-	db, err := gorm.Open("postgres", fmt.Sprintf("user=%s host=%s sslmode=%s password=%s port=%s", username, host, "disable", password, port))
+func initPostgresInstance(host string, username string, password string, sslmode string, port string) (DatabaseInstance, error) {
+	db, err := gorm.Open("postgres", fmt.Sprintf("user=%s host=%s sslmode=%s password=%s port=%s", username, host, sslmode, password, port))
 	if err != nil {
 		return nil, err
 	}
