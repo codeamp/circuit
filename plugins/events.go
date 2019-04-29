@@ -13,23 +13,27 @@ import (
 // GetEventName returns registered events.
 func GetEventName(s string) transistor.EventName {
 	eventNames := []string{
-		"project:kubernetes:deployment",
-		"release:kubernetes:deployment",
-		"project:kubernetes:loadbalancer",
 		"release:kubernetes:loadbalancer",
-		"project:githubstatus",
+		"release:kubernetes:deployment",
+		"release:dockerbuilder",
 		"release:githubstatus",
+
+		"project:githubstatus",
+		"project:dockerbuilder",
+		"project:database",
+		"project:s3",
+		"project:kubernetes:loadbalancer",
+		"project:kubernetes:deployment",
+
 		"gitsync",
 		"gitsync:commit",
 		"heartbeat",
 		"release",
-		"project:dockerbuilder",
-		"release:dockerbuilder",
+
 		"route53",
 		"websocket",
 		"slack",
 		"slack:notify",
-		"project:database",
 	}
 
 	for _, t := range eventNames {
