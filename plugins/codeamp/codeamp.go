@@ -15,6 +15,7 @@ import (
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/metrics"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -24,6 +25,7 @@ import (
 	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 
 	uuid "github.com/satori/go.uuid"
@@ -95,6 +97,8 @@ func (x *CodeAmp) GraphQLListen() {
 	middleware := graphql_resolver.Middleware{x.Resolver}
 	http.Handle("/query", middleware.Cors(middleware.Auth(&relay.Handler{Schema: x.Schema})))
 
+	http.Handle("/metrics", prometheus.Handler())
+
 	log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
 }
@@ -164,7 +168,16 @@ func (x *CodeAmp) initRedis() {
 	x.Redis = redisClient
 }
 
+func (x *CodeAmp) initMetrics() {
+	PostgresCollector := metrics.NewPostgresCollector(metrics.PostgresCollectorOpts{})
+	RedisCollector := metrics.NewRedisCollector(metrics.RedisCollectorOpts{})
+	prometheus.MustRegister(PostgresCollector)
+	prometheus.MustRegister(RedisCollector)
+}
+
 func (x *CodeAmp) Start(events chan transistor.Event) error {
+	x.initMetrics()
+
 	_, err := x.initPostGres()
 	if err != nil {
 		return err
