@@ -103,6 +103,11 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		return nil
 	}
 
+	if e.Matches(".*kubernetes:redis:") == true {
+		x.ProcessRedis(e)
+		return nil
+	}
+
 	return nil
 }
 
