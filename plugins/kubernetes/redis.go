@@ -12,6 +12,7 @@ import (
 	"github.com/codeamp/transistor"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -77,7 +78,7 @@ func (x *Kubernetes) doRedis(e transistor.Event) error {
 	}
 
 	// Create service name based on project slug, environment and unique id
-	redisService, err := x.createRedisServiceSpec(payload, svcInterface)
+	redisService, err := x.createRedisServiceSpec(payload, deploymentName, svcInterface)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
@@ -130,8 +131,13 @@ func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string, depInterfa
 	}, nil
 }
 
-func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, svcInterface corev1typed.ServiceInterface) (*corev1.Service, error) {
+func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, deploymentName string, svcInterface corev1typed.ServiceInterface) (*corev1.Service, error) {
+	serviceName := genRedisServiceName(payload)
+
 	return &corev1.Service{
+		ObjectMeta: meta_v1.ObjectMeta{
+			Name: serviceName,
+		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{
 				corev1.ServicePort{
@@ -142,6 +148,7 @@ func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, sv
 				},
 			},
 			Selector: map[string]string{
+				"app":     deploymentName,
 				"project": fmt.Sprintf("%s-%s", payload.Environment, payload.Project.Slug),
 			},
 		},
@@ -149,6 +156,11 @@ func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, sv
 }
 
 func genRedisDeploymentName(payload plugins.ProjectExtension) string {
+	uniqueID := uuid.NewV4()
+	return fmt.Sprintf("%s-%s-%s", payload.Environment[:10], payload.Project.Slug[:10], uniqueID.String()[:8])
+}
+
+func genRedisServiceName(payload plugins.ProjectExtension) string {
 	uniqueID := uuid.NewV4()
 	return fmt.Sprintf("%s-%s-%s", payload.Environment[:10], payload.Project.Slug[:10], uniqueID.String()[:8])
 }
