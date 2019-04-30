@@ -48,6 +48,7 @@ func (x *Database) Subscribe() []string {
 	return []string{
 		"project:database:create",
 		"project:database:delete",
+		"project:database:update",
 	}
 }
 
@@ -145,6 +146,8 @@ func (x *Database) Process(e transistor.Event) error {
 		}
 
 		x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
+	case transistor.GetAction("update"):
+		x.sendSuccessResponse(e, transistor.GetState("complete"), e.Artifacts)
 	case transistor.GetAction("delete"):
 		dbName, err := e.GetArtifact("DB_NAME")
 		if err != nil {
