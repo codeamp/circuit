@@ -25,7 +25,6 @@ import (
 	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 
 	uuid "github.com/satori/go.uuid"
@@ -97,7 +96,7 @@ func (x *CodeAmp) GraphQLListen() {
 	middleware := graphql_resolver.Middleware{x.Resolver}
 	http.Handle("/query", middleware.Cors(middleware.Auth(&relay.Handler{Schema: x.Schema})))
 
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", metrics.Handler())
 
 	log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
@@ -168,34 +167,7 @@ func (x *CodeAmp) initRedis() {
 	x.Redis = redisClient
 }
 
-func (x *CodeAmp) initMetrics() {
-	PostgresCollector := metrics.NewPostgresCollector(metrics.PostgresCollectorOpts{
-		Host:     viper.GetString("plugins.codeamp.postgres.host"),
-		Port:     viper.GetString("plugins.codeamp.postgres.port"),
-		User:     viper.GetString("plugins.codeamp.postgres.user"),
-		Password: viper.GetString("plugins.codeamp.postgres.password"),
-		DB:       viper.GetString("plugins.codeamp.postgres.dbname"),
-		SSLMode:  viper.GetString("plugins.codeamp.postgres.sslmode"),
-	})
-
-	redisDb, err := strconv.Atoi(viper.GetString("redis.database"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	RedisCollector := metrics.NewRedisCollector(metrics.RedisCollectorOpts{
-		Host:     viper.GetString("redis.server"),
-		Password: viper.GetString("redis.password"),
-		DB:       redisDb,
-	})
-
-	prometheus.MustRegister(PostgresCollector)
-	prometheus.MustRegister(RedisCollector)
-}
-
 func (x *CodeAmp) Start(events chan transistor.Event) error {
-	x.initMetrics()
-
 	_, err := x.initPostGres()
 	if err != nil {
 		return err
