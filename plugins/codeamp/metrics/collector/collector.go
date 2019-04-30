@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/go-redis/redis"
@@ -24,9 +25,15 @@ var (
 
 	continuousDeploymentGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "project",
-		Name:      "continuous_deployment",
+		Name:      "continuous_deploy",
 		Help:      "To show if project uses continuous deployment",
 	}, []string{"project", "environment"})
+
+	onMasterGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "project",
+		Name:      "on_master_branch",
+		Help:      "To show if project uses master branch",
+	}, []string{"project", "environment", "branch"})
 )
 
 type RedisCollectorOpts struct {
@@ -65,12 +72,16 @@ func (exporter *Collector) Describe(ch chan<- *prometheus.Desc) {
 func (exporter *Collector) Collect(ch chan<- prometheus.Metric) {
 	upGauge.Reset()
 	environmentGauge.Reset()
+	continuousDeploymentGauge.Reset()
+	onMasterGauge.Reset()
 
 	exporter.collectRedis()
 	exporter.collectPostgres()
 
 	upGauge.Collect(ch)
 	environmentGauge.Collect(ch)
+	continuousDeploymentGauge.Collect(ch)
+	onMasterGauge.Collect(ch)
 }
 
 func (exporter *Collector) collectRedis() {
@@ -107,6 +118,7 @@ func (exporter *Collector) collectPostgres() {
 	//db.LogMode(true)
 
 	exporter.collectEnvironments(db)
+	exporter.collectProjectSettings(db)
 }
 
 func (exporter *Collector) collectEnvironments(db *gorm.DB) {
@@ -125,5 +137,38 @@ func (exporter *Collector) collectEnvironments(db *gorm.DB) {
 				environmentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(1))
 			}
 		}
+	}
+}
+
+func (exporter *Collector) collectProjectSettings(db *gorm.DB) {
+	var projects []model.Project
+	var environments []model.Environment
+
+	db.Find(&projects)
+	db.Find(&environments)
+
+	for _, project := range projects {
+		for _, environment := range environments {
+			var projectSettings model.ProjectSettings
+			if db.Where("environment_id = ? AND project_id = ?", environment.ID.String(), project.ID.String()).First(&projectSettings).RecordNotFound() {
+				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(-1))
+				onMasterGauge.WithLabelValues(project.Name, environment.Name).Set(float64(-1))
+			} else {
+				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(bool2int(projectSettings.ContinuousDeploy)))
+				onMasterGauge.WithLabelValues(project.Name, environment.Name, projectSettings.GitBranch).Set(float64(onMaster2int(projectSettings.GitBranch)))
+			}
+		}
+	}
+}
+
+func bool2int(a bool) uint64 {
+	return *(*uint64)(unsafe.Pointer(&a)) & 1
+}
+
+func onMaster2int(a string) uint64 {
+	if a == "master" {
+		return uint64(1)
+	} else {
+		return uint64(0)
 	}
 }
