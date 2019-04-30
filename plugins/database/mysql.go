@@ -3,8 +3,6 @@ package database
 import (
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
@@ -20,7 +18,6 @@ type MySQL struct {
 func initMySQLInstance(host string, username string, password string, sslmode string, port string) (DatabaseInstance, error) {
 	db, err := gorm.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/?charset=utf8&parseTime=True&loc=Local", username, password, host, port))
 	if err != nil {
-		spew.Dump(err.Error())
 		return nil, err
 	}
 
@@ -45,24 +42,23 @@ func initMySQLInstance(host string, username string, password string, sslmode st
 // and creates and grants all read/write privileges
 // to the requested userame
 func (m *MySQL) CreateDatabaseAndUser(dbName string, username string, password string) (*DatabaseMetadata, error) {
-	spew.Dump("CreateDatabaseAndUser")
 	if m.db == nil {
 		return nil, fmt.Errorf(NilDBInstanceErr, "mysql")
 	}
 
 	// we have to use fmt.Sprintf here because of an issue with the underlying driver
 	// and properly sanitizing create database statements
-	if err := m.db.LogMode(true).Exec(fmt.Sprintf("CREATE DATABASE %s;", dbName)).Error; err != nil {
+	if err := m.db.Exec(fmt.Sprintf("CREATE DATABASE %s;", dbName)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user
-	if err := m.db.LogMode(true).Exec(fmt.Sprintf("CREATE USER '%s' IDENTIFIED BY '%s';", username, password)).Error; err != nil {
+	if err := m.db.Exec(fmt.Sprintf("CREATE USER '%s' IDENTIFIED BY '%s';", username, password)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user permissions
-	if err := m.db.LogMode(true).Exec(fmt.Sprintf("GRANT ALL PRIVILEGES ON %s.* TO '%s';", dbName, username)).Error; err != nil {
+	if err := m.db.Exec(fmt.Sprintf("GRANT ALL PRIVILEGES ON %s.* TO '%s';", dbName, username)).Error; err != nil {
 		return nil, err
 	}
 
