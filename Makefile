@@ -2,7 +2,7 @@ SERVICE="circuit"
 CONFIG="./configs/circuit.yml"
 
 up:
-	docker-compose up -d redis postgres mysql
+	docker-compose up -d redis postgres
 	docker-compose run --rm ${SERVICE} go run main.go migrate --config ${CONFIG}	
 	docker-compose up ${SERVICE}
 
