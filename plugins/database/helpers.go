@@ -37,8 +37,8 @@ func genDBUser(pe plugins.ProjectExtension) string {
 		projectSlugWithUnderscores = projectSlugWithUnderscores[:10]
 	}
 
-	if len(pe.Environment) > 10 {
-		envWithUnderscores = envWithUnderscores[:10]
+	if len(pe.Environment) > 6 {
+		envWithUnderscores = envWithUnderscores[:6]
 	}
 
 	uniqueID := uuid.NewV4()
