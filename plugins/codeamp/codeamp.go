@@ -15,6 +15,7 @@ import (
 	"github.com/codeamp/circuit/assets"
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"github.com/codeamp/circuit/plugins/codeamp/metrics"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -94,6 +95,8 @@ func (x *CodeAmp) GraphQLListen() {
 
 	middleware := graphql_resolver.Middleware{x.Resolver}
 	http.Handle("/query", middleware.Cors(middleware.Auth(&relay.Handler{Schema: x.Schema})))
+
+	http.Handle("/metrics", metrics.Handler())
 
 	log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
