@@ -15,17 +15,17 @@ import (
 func genDBName(pe plugins.ProjectExtension) string {
 	projectSlugWithUnderscores := strings.Replace(pe.Project.Slug, "-", "_", -1)
 	envWithUnderscores := strings.Replace(pe.Environment, "-", "_", -1)
-	if len(projectSlugWithUnderscores) > 20 {
-		projectSlugWithUnderscores = projectSlugWithUnderscores[:20]
+	if len(projectSlugWithUnderscores) > 10 {
+		projectSlugWithUnderscores = projectSlugWithUnderscores[:10]
 	}
 
-	if len(envWithUnderscores) > 20 {
-		envWithUnderscores = envWithUnderscores[:20]
+	if len(envWithUnderscores) > 10 {
+		envWithUnderscores = envWithUnderscores[:10]
 	}
 
 	uniqueID := uuid.NewV4()
 
-	return fmt.Sprintf("%s_%s_%s", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:15], "-", "_", -1))
+	return fmt.Sprintf("%s_%s_%s", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:12], "-", "_", -1))
 }
 
 // genDBUsername creates a database username for the specified
@@ -33,17 +33,17 @@ func genDBName(pe plugins.ProjectExtension) string {
 func genDBUser(pe plugins.ProjectExtension) string {
 	projectSlugWithUnderscores := strings.Replace(pe.Project.Slug, "-", "_", -1)
 	envWithUnderscores := strings.Replace(pe.Environment, "-", "_", -1)
-	if len(projectSlugWithUnderscores) > 20 {
-		projectSlugWithUnderscores = projectSlugWithUnderscores[:20]
+	if len(projectSlugWithUnderscores) > 10 {
+		projectSlugWithUnderscores = projectSlugWithUnderscores[:10]
 	}
 
-	if len(pe.Environment) > 20 {
-		envWithUnderscores = envWithUnderscores[:20]
+	if len(pe.Environment) > 10 {
+		envWithUnderscores = envWithUnderscores[:10]
 	}
 
 	uniqueID := uuid.NewV4()
 
-	return fmt.Sprintf("%s_%s_%s_user", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:11], "-", "_", -1))
+	return fmt.Sprintf("%s_%s_%s_user", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:8], "-", "_", -1))
 }
 
 func genDBPassword() string {
@@ -67,6 +67,11 @@ func initDBInstance(dbType string, host string, username string, sslmode string,
 	switch dbType {
 	case POSTGRESQL:
 		dbInstance, err = initPostgresInstance(host, username, password, sslmode, port)
+		if err != nil {
+			return nil, err
+		}
+	case MYSQL:
+		dbInstance, err = initMySQLInstance(host, username, password, sslmode, port)
 		if err != nil {
 			return nil, err
 		}

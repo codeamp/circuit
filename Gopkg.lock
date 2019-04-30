@@ -292,6 +292,14 @@
   version = "v6.10.2"
 
 [[projects]]
+  digest = "1:e692d16fdfbddb94e9e4886aaf6c08bdbae5cb4ac80651445de9181b371c6e46"
+  name = "github.com/go-sql-driver/mysql"
+  packages = ["."]
+  pruneopts = ""
+  revision = "72cd26f257d44c1114970e19afddcd812016007e"
+  version = "v1.4.1"
+
+[[projects]]
   digest = "1:0a3f6a0c68ab8f3d455f8892295503b179e571b7fefe47cc6c556405d1f83411"
   name = "github.com/gogo/protobuf"
   packages = [
@@ -472,6 +480,7 @@
   name = "github.com/jinzhu/gorm"
   packages = [
     ".",
+    "dialects/mysql",
     "dialects/postgres",
   ]
   pruneopts = ""
@@ -909,6 +918,7 @@
   digest = "1:934fb8966f303ede63aa405e2c8d7f0a427a05ea8df335dfdc1833dd4d40756f"
   name = "google.golang.org/appengine"
   packages = [
+    "cloudsql",
     "internal",
     "internal/base",
     "internal/datastore",
@@ -1175,6 +1185,7 @@
     "github.com/fsouza/go-dockerclient",
     "github.com/go-errors/errors",
     "github.com/go-redis/redis",
+    "github.com/go-sql-driver/mysql",
     "github.com/google/shlex",
     "github.com/gorilla/handlers",
     "github.com/graph-gophers/graphql-go",
@@ -1182,6 +1193,7 @@
     "github.com/heptio/contour/apis/contour/v1beta1",
     "github.com/heptio/contour/apis/generated/clientset/versioned",
     "github.com/jinzhu/gorm",
+    "github.com/jinzhu/gorm/dialects/mysql",
     "github.com/jinzhu/gorm/dialects/postgres",
     "github.com/kevholditch/gokong",
     "github.com/lytics/slackhook",
