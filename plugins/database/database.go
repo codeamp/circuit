@@ -124,9 +124,13 @@ func (x *Database) Process(e transistor.Event) error {
 	case transistor.GetAction("create"):
 		dbUsername := genDBUser(projectExtensionEvent)
 		dbName := genDBName(projectExtensionEvent)
-		dbPassword := genDBPassword()
+		dbPassword, err := genDBPassword()
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
 
-		dbMetadata, err := (*dbInstance).CreateDatabaseAndUser(dbName, dbUsername, dbPassword)
+		dbMetadata, err := (*dbInstance).CreateDatabaseAndUser(dbName, dbUsername, *dbPassword)
 		if err != nil {
 			x.sendFailedStatusEvent(err)
 			return nil

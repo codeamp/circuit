@@ -2,9 +2,10 @@ package database
 
 import (
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
+
+	"crypto/rand"
+	"encoding/base64"
 
 	"github.com/codeamp/circuit/plugins"
 	uuid "github.com/satori/go.uuid"
@@ -46,16 +47,17 @@ func genDBUser(pe plugins.ProjectExtension) string {
 	return fmt.Sprintf("%s_%s_%s_user", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:8], "-", "_", -1))
 }
 
-func genDBPassword() string {
-	var characters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-	rand.Seed(time.Now().UnixNano())
-
-	b := make([]rune, DB_PASSWORD_LENGTH)
-	for i := range b {
-		b[i] = characters[rand.Intn(len(characters))]
+func genDBPassword() (*string, error) {
+	b := make([]byte, DB_PASSWORD_LENGTH)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
 	}
-	return string(b)
+
+	randString := base64.URLEncoding.EncodeToString(b)
+
+	return &randString, err
 }
 
 // initDBInstance finds the correct db instance type to initialize
