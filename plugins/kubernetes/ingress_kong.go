@@ -102,6 +102,19 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 	}
 	var artifacts []transistor.Artifact
 
+	if inputs.Type == "clusterip" {
+		clusterDNS := fmt.Sprintf("%s.%s", service.Name, service.Namespace)
+		newArtifacts := []transistor.Artifact{
+			transistor.Artifact{Key: "table_view", Value: clusterDNS, Secret: false},
+			transistor.Artifact{Key: "cluster_dns", Value: clusterDNS, Secret: false},
+			transistor.Artifact{Key: "cluster_ip", Value: service.Spec.ClusterIP, Secret: false},
+			transistor.Artifact{Key: "name", Value: inputs.Service.Name, Secret: false},
+		}
+		artifacts = append(artifacts, newArtifacts...)
+		x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
+		return nil
+	}
+
 	routesArtifact := ""
 	var tableView string
 	for idx, route := range inputs.UpstreamRoutes {

@@ -24,16 +24,16 @@ jobs:
           command: |
             set -x
             docker-compose up -d postgres redis
-      - run: 
+      - run:
           name: Build Docker Container
           command: |
             set -x
 
             echo "RUN go get -u golang.org/x/tools/cmd/cover" >> Dockerfile
-            echo "RUN go get -u github.com/rakyll/gotest" >> Dockerfile            
+            echo "RUN go get -u github.com/rakyll/gotest" >> Dockerfile
 
-            docker-compose build circuit 
-      - run: 
+            docker-compose build circuit
+      - run:
           name: Setup Test Environment
           command: |
             set -x
@@ -52,27 +52,31 @@ jobs:
           name: Run Migration
           command: |
             set -x
-
             docker-compose run --rm "circuit" go run main.go migrate --config "./configs/circuit.yml"
-            
-      - run: 
+
+      - run:
           name: Run Tests
           command: |
             set -x
 
             docker-compose up -d registry
             docker-compose run --rm circuit /bin/sh -c "(set -o pipefail && gotest -v -short -covermode=count -coverprofile=coverage.out ./... | tee go-test-output.txt)" || EXIT_CODE=$? && true
-            
+
             # Generate Report XML
-            mkdir -p test-results/junit
-            go-junit-report < go-test-output.txt > test-results/junit/results.xml
-            
-            # Report to CodeBeat
-            codeclimate-test-reporter < coverage.out
+            if [[ -n "${CODECLIMATE_API_HOST}" ]]; then
+              mkdir -p test-results/junit
+              go-junit-report < go-test-output.txt > test-results/junit/results.xml
+
+              # Report to CodeBeat
+              codeclimate-test-reporter < coverage.out
+            fi
 
             # Report to CodeCov
-            bash <(curl -s https://codecov.io/bash) -t ${CODECOV_IO_TOKEN}
+            if [[ -n "${CODECOV_IO_TOKEN}" ]]; then
+              bash <(curl -s https://codecov.io/bash) -t ${CODECOV_IO_TOKEN}
+            fi
 
             exit $EXIT_CODE
+
       - store_test_results:
           path: test-results
