@@ -169,8 +169,26 @@ func (x *CodeAmp) initRedis() {
 }
 
 func (x *CodeAmp) initMetrics() {
-	PostgresCollector := metrics.NewPostgresCollector(metrics.PostgresCollectorOpts{})
-	RedisCollector := metrics.NewRedisCollector(metrics.RedisCollectorOpts{})
+	PostgresCollector := metrics.NewPostgresCollector(metrics.PostgresCollectorOpts{
+		Host:     viper.GetString("plugins.codeamp.postgres.host"),
+		Port:     viper.GetString("plugins.codeamp.postgres.port"),
+		User:     viper.GetString("plugins.codeamp.postgres.user"),
+		Password: viper.GetString("plugins.codeamp.postgres.password"),
+		DB:       viper.GetString("plugins.codeamp.postgres.dbname"),
+		SSLMode:  viper.GetString("plugins.codeamp.postgres.sslmode"),
+	})
+
+	redisDb, err := strconv.Atoi(viper.GetString("redis.database"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	RedisCollector := metrics.NewRedisCollector(metrics.RedisCollectorOpts{
+		Host:     viper.GetString("redis.server"),
+		Password: viper.GetString("redis.password"),
+		DB:       redisDb,
+	})
+
 	prometheus.MustRegister(PostgresCollector)
 	prometheus.MustRegister(RedisCollector)
 }

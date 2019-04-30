@@ -3,10 +3,12 @@ package metrics
 import (
 	"github.com/go-redis/redis"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/spf13/viper"
 )
 
 type RedisCollectorOpts struct {
+	Host     string
+	Password string
+	DB       int
 }
 
 type RedisCollector struct {
@@ -33,8 +35,9 @@ func (exporter *RedisCollector) Collect(ch chan<- prometheus.Metric) {
 
 func (exporter *RedisCollector) up() float64 {
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     viper.GetString("redis.server"),
-		Password: viper.GetString("redis.password"),
+		Addr:     exporter.Opts.Host,
+		Password: exporter.Opts.Password,
+		DB:       exporter.Opts.DB,
 	})
 
 	if _, err := redisClient.Ping().Result(); err != nil {
