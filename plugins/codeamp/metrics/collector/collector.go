@@ -57,26 +57,26 @@ type Collector struct {
 }
 
 func NewCollector(redisOpts RedisCollectorOpts, postgresOpts PostgresCollectorOpts) *Collector {
-	exporter := &Collector{
+	c := &Collector{
 		RedisOpts:    redisOpts,
 		PostgresOpts: postgresOpts,
 	}
 
-	return exporter
+	return c
 }
 
-func (exporter *Collector) Describe(ch chan<- *prometheus.Desc) {
-	prometheus.DescribeByCollect(exporter, ch)
+func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
+	prometheus.DescribeByCollect(c, ch)
 }
 
-func (exporter *Collector) Collect(ch chan<- prometheus.Metric) {
+func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	upGauge.Reset()
 	environmentGauge.Reset()
 	continuousDeploymentGauge.Reset()
 	onMasterGauge.Reset()
 
-	exporter.collectRedis()
-	exporter.collectPostgres()
+	c.collectRedis()
+	c.collectPostgres()
 
 	upGauge.Collect(ch)
 	environmentGauge.Collect(ch)
@@ -84,11 +84,11 @@ func (exporter *Collector) Collect(ch chan<- prometheus.Metric) {
 	onMasterGauge.Collect(ch)
 }
 
-func (exporter *Collector) collectRedis() {
+func (c *Collector) collectRedis() {
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     exporter.RedisOpts.Host,
-		Password: exporter.RedisOpts.Password,
-		DB:       exporter.RedisOpts.DB,
+		Addr:     c.RedisOpts.Host,
+		Password: c.RedisOpts.Password,
+		DB:       c.RedisOpts.DB,
 	})
 
 	if _, err := redisClient.Ping().Result(); err != nil {
@@ -99,14 +99,14 @@ func (exporter *Collector) collectRedis() {
 	upGauge.WithLabelValues("redis").Set(1)
 }
 
-func (exporter *Collector) collectPostgres() {
+func (c *Collector) collectPostgres() {
 	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
-		exporter.PostgresOpts.Host,
-		exporter.PostgresOpts.Port,
-		exporter.PostgresOpts.User,
-		exporter.PostgresOpts.DB,
-		exporter.PostgresOpts.SSLMode,
-		exporter.PostgresOpts.Password,
+		c.PostgresOpts.Host,
+		c.PostgresOpts.Port,
+		c.PostgresOpts.User,
+		c.PostgresOpts.DB,
+		c.PostgresOpts.SSLMode,
+		c.PostgresOpts.Password,
 	))
 	if err != nil {
 		upGauge.WithLabelValues("postgres").Set(float64(0))
@@ -117,11 +117,11 @@ func (exporter *Collector) collectPostgres() {
 
 	//db.LogMode(true)
 
-	exporter.collectEnvironments(db)
-	exporter.collectProjectSettings(db)
+	c.collectEnvironments(db)
+	c.collectProjectSettings(db)
 }
 
-func (exporter *Collector) collectEnvironments(db *gorm.DB) {
+func (c *Collector) collectEnvironments(db *gorm.DB) {
 	var projects []model.Project
 	var environments []model.Environment
 
@@ -140,7 +140,7 @@ func (exporter *Collector) collectEnvironments(db *gorm.DB) {
 	}
 }
 
-func (exporter *Collector) collectProjectSettings(db *gorm.DB) {
+func (c *Collector) collectProjectSettings(db *gorm.DB) {
 	var projects []model.Project
 	var environments []model.Environment
 
