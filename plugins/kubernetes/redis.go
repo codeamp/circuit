@@ -112,7 +112,17 @@ func deleteRedis(e transistor.Event, x *Kubernetes) error {
 func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string, depInterface appsv1.DeploymentInterface) (*v1.Deployment, error) {
 	return &v1.Deployment{
 		Spec: v1.DeploymentSpec{
+			Selector: &meta_v1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": deploymentName,
+				},
+			},
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: meta_v1.ObjectMeta{
+					Labels: map[string]string{
+						"app": deploymentName,
+					},
+				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						corev1.Container{
