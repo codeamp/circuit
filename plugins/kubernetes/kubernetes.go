@@ -71,6 +71,9 @@ func (x *Kubernetes) Subscribe() []string {
 		"project:kubernetes:loadbalancer:create",
 		"project:kubernetes:loadbalancer:update",
 		"project:kubernetes:loadbalancer:delete",
+		"project:kubernetes:redis:create",
+		"project:kubernetes:redis:update",
+		"project:kubernetes:redis:delete",
 		"release:kubernetes:deployment:create",
 	}
 }
