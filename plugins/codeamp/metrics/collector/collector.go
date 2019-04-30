@@ -152,7 +152,7 @@ func (c *Collector) collectProjectSettings(db *gorm.DB) {
 			var projectSettings model.ProjectSettings
 			if db.Where("environment_id = ? AND project_id = ?", environment.ID.String(), project.ID.String()).First(&projectSettings).RecordNotFound() {
 				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(-1))
-				onMasterGauge.WithLabelValues(project.Name, environment.Name).Set(float64(-1))
+				onMasterGauge.WithLabelValues(project.Name, environment.Name, "").Set(float64(-1))
 			} else {
 				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(bool2int(projectSettings.ContinuousDeploy)))
 				onMasterGauge.WithLabelValues(project.Name, environment.Name, projectSettings.GitBranch).Set(float64(onMaster2int(projectSettings.GitBranch)))
