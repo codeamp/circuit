@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
+	apis_meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	uuid "github.com/satori/go.uuid"
@@ -140,8 +141,8 @@ func deleteRedis(e transistor.Event, x *Kubernetes) error {
 		depInterface := clientset.AppsV1().Deployments(namespace)
 		svcInterface := clientset.Core().Services(namespace)
 
-		depInterface.Delete(deploymentName)
-		svcInterface.Delete(deploymentName)
+		depInterface.Delete(deploymentName, &apis_meta_v1.DeleteOptions{})
+		svcInterface.Delete(deploymentName, &apis_meta_v1.DeleteOptions{})
 
 		x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 	} else {
