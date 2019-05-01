@@ -132,7 +132,7 @@ func (c *Collector) collectEnvironments(db *gorm.DB) {
 		for _, environment := range environments {
 			var projectEnvironment model.ProjectEnvironment
 			if db.Where("environment_id = ? AND project_id = ?", environment.ID.String(), project.ID.String()).First(&projectEnvironment).RecordNotFound() {
-				environmentGauge.WithLabelValues(project.Name, environment.Key).Set(float64(0))
+				environmentGauge.WithLabelValues(project.Name, environment.Key).Set(float64(-1))
 			} else {
 				environmentGauge.WithLabelValues(project.Name, environment.Key).Set(float64(1))
 			}
