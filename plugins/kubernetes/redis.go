@@ -26,7 +26,18 @@ func (x *Kubernetes) ProcessRedis(e transistor.Event) {
 		case transistor.GetAction("create"):
 			err = x.doRedis(e)
 		case transistor.GetAction("update"):
-			err = x.doRedis(e)
+			redisEndpoint, err := e.GetArtifact("REDIS_ENDPOINT")
+			if err != nil {
+				log.Error(err)
+				x.sendErrorResponse(e, err.Error())
+			}
+
+			// Send back event with endpoint artifact (in this case, <service-name>.<redis-deploys-namespace>)
+			artifacts := []transistor.Artifact{
+				{Key: "REDIS_ENDPOINT", Value: redisEndpoint.String()},
+			}
+
+			x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 		}
 
 		if err != nil {
@@ -92,7 +103,7 @@ func (x *Kubernetes) doRedis(e transistor.Event) error {
 
 	// Send back event with endpoint artifact (in this case, <service-name>.<redis-deploys-namespace>)
 	artifacts := []transistor.Artifact{
-		transistor.Artifact{Key: "REDIS_ENDPOINT", Value: fmt.Sprintf("%s.%s", deploymentName, redisDeploysNamespace.String()), Secret: false},
+		{Key: "REDIS_ENDPOINT", Value: fmt.Sprintf("%s.%s", deploymentName, redisDeploysNamespace.String()), Secret: false},
 	}
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
@@ -128,11 +139,11 @@ func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string, depInterfa
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						corev1.Container{
+						{
 							Name:  deploymentName,
 							Image: REDIS_IMAGE_TAG,
 							Ports: []corev1.ContainerPort{
-								corev1.ContainerPort{
+								{
 									ContainerPort: int32(REDIS_CONTAINER_PORT),
 								},
 							},
@@ -153,7 +164,7 @@ func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, de
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
+				{
 					Port: int32(REDIS_CONTAINER_PORT),
 					TargetPort: intstr.IntOrString{
 						IntVal: int32(REDIS_CONTAINER_PORT),
