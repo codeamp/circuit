@@ -39,7 +39,8 @@ func genDBUser() (*string, error) {
 		return nil, err
 	}
 
-	randString := base64.URLEncoding.EncodeToString(b)
+	randString := strings.Replace(strings.Replace(base64.URLEncoding.EncodeToString(b), "=", "", -1), "-", "", -1)
+	fmt.Println(randString)
 	return &randString, nil
 }
 
