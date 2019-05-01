@@ -132,9 +132,9 @@ func (c *Collector) collectEnvironments(db *gorm.DB) {
 		for _, environment := range environments {
 			var projectEnvironment model.ProjectEnvironment
 			if db.Where("environment_id = ? AND project_id = ?", environment.ID.String(), project.ID.String()).First(&projectEnvironment).RecordNotFound() {
-				environmentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(0))
+				environmentGauge.WithLabelValues(project.Name, environment.Key).Set(float64(0))
 			} else {
-				environmentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(1))
+				environmentGauge.WithLabelValues(project.Name, environment.Key).Set(float64(1))
 			}
 		}
 	}
@@ -151,11 +151,11 @@ func (c *Collector) collectProjectSettings(db *gorm.DB) {
 		for _, environment := range environments {
 			var projectSettings model.ProjectSettings
 			if db.Where("environment_id = ? AND project_id = ?", environment.ID.String(), project.ID.String()).First(&projectSettings).RecordNotFound() {
-				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(-1))
-				onMasterGauge.WithLabelValues(project.Name, environment.Name, "").Set(float64(-1))
+				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Key).Set(float64(-1))
+				onMasterGauge.WithLabelValues(project.Name, environment.Key, "").Set(float64(-1))
 			} else {
-				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Name).Set(float64(bool2int(projectSettings.ContinuousDeploy)))
-				onMasterGauge.WithLabelValues(project.Name, environment.Name, projectSettings.GitBranch).Set(float64(onMaster2int(projectSettings.GitBranch)))
+				continuousDeploymentGauge.WithLabelValues(project.Name, environment.Key).Set(float64(bool2int(projectSettings.ContinuousDeploy)))
+				onMasterGauge.WithLabelValues(project.Name, environment.Key, projectSettings.GitBranch).Set(float64(onMaster2int(projectSettings.GitBranch)))
 			}
 		}
 	}
