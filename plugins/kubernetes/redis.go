@@ -15,6 +15,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
+	"strings"
 )
 
 func (x *Kubernetes) ProcessRedis(e transistor.Event) {
@@ -117,6 +118,36 @@ func (x *Kubernetes) doDeleteRedis(e transistor.Event) error {
 }
 
 func deleteRedis(e transistor.Event, x *Kubernetes) error {
+	// Get name from REDIS_ENDPOINT
+	redisEndpoint, err := e.GetArtifact("REDIS_ENDPOINT")
+	if err != nil {
+		x.sendErrorResponse(e, err.Error())
+		return err
+	}
+
+	splitRedisEndpoint := strings.Split(redisEndpoint.String(), ".")
+	if len(splitRedisEndpoint) > 0 {
+		deploymentName := splitRedisEndpoint[0]
+		namespace := splitRedisEndpoint[1]
+
+		clientset, err := x.SetupClientset(e)
+		if err != nil {
+			log.Error("Error getting cluster config.  Aborting!")
+			x.sendErrorResponse(e, err.Error())
+			return err
+		}
+
+		depInterface := clientset.AppsV1().Deployments(namespace)
+		svcInterface := clientset.Core().Services(namespace)
+
+		depInterface.Delete(deploymentName)
+		svcInterface.Delete(deploymentName)
+
+		x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
+	} else {
+		return fmt.Errorf("Invalid redis endpoint %s", redisEndpoint.String())
+	}
+
 	return nil
 }
 
