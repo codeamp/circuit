@@ -187,12 +187,10 @@ func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string, depInterfa
 	}, nil
 }
 
-func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, deploymentName string, svcInterface corev1typed.ServiceInterface) (*corev1.Service, error) {
-	serviceName := genRedisServiceName(payload)
-
+func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, svcName string, svcInterface corev1typed.ServiceInterface) (*corev1.Service, error) {
 	return &corev1.Service{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name: serviceName,
+			Name: svcName,
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{
