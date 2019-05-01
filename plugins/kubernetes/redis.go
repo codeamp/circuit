@@ -202,7 +202,7 @@ func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, sv
 				},
 			},
 			Selector: map[string]string{
-				"app":     deploymentName,
+				"app":     svcName,
 				"project": fmt.Sprintf("%s-%s", payload.Environment, payload.Project.Slug),
 			},
 		},
