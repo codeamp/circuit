@@ -32,8 +32,15 @@ func genDBName(pe plugins.ProjectExtension) string {
 // genDBUser creates a database username for the specified
 // project extension with the format <project.slug>-<environment>
 func genDBUser() string {
-	uniqueID := uuid.NewV4()
-	return strings.Replace(uniqueID.String()[:DB_USER_LENGTH], "-", "_", -1)
+	b := make([]byte, DB_USER_LENGTH)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
+	}
+
+	randString := base64.URLEncoding.EncodeToString(b)
+	return strings.Replace(uniqueID.String(), "-", "_", -1)
 }
 
 func genDBPassword() (*string, error) {
