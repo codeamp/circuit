@@ -8,6 +8,8 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
+	"strings"
+
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -16,7 +18,6 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
-	"strings"
 )
 
 func (x *Kubernetes) ProcessRedis(e transistor.Event) {
@@ -202,8 +203,7 @@ func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, sv
 				},
 			},
 			Selector: map[string]string{
-				"app":     svcName,
-				"project": fmt.Sprintf("%s-%s", payload.Environment, payload.Project.Slug),
+				"app": svcName,
 			},
 		},
 	}, nil
