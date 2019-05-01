@@ -33,7 +33,7 @@ func genDBName(pe plugins.ProjectExtension) string {
 // project extension with the format <project.slug>-<environment>
 func genDBUser() string {
 	uniqueID := uuid.NewV4()
-	return strings.Replace(uniqueID.String()[:14], "-", "_", -1)
+	return strings.Replace(uniqueID.String()[:DB_USER_LENGTH], "-", "_", -1)
 }
 
 func genDBPassword() (*string, error) {
