@@ -1,7 +1,6 @@
 package database_test
 
 import (
-	"log"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
@@ -41,8 +40,6 @@ func (suite *DatabaseTestSuite) TearDownSuite() {
 }
 
 func (suite *DatabaseTestSuite) TestPostgresqlDatabase_Success() {
-	log.Println("TestPostgresqlDatabase_Success")
-
 	// inputs
 	dbInstanceHost := "postgres"
 	dbAdminUsername := "postgres"

@@ -2,6 +2,8 @@ package database
 
 import (
 	"fmt"
+	"log"
+	"regexp"
 	"strings"
 
 	"crypto/rand"
@@ -29,29 +31,24 @@ func genDBName(pe plugins.ProjectExtension) string {
 	return fmt.Sprintf("%s_%s_%s", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:12], "-", "_", -1))
 }
 
-// genDBUser creates a database username for the specified
-// project extension with the format <project.slug>-<environment>
-func genDBUser() (*string, error) {
-	b := make([]byte, DB_USER_LENGTH)
+func genRandomAlphabetStringWithLength(length int) (*string, error) {
+	b := make([]byte, length)
 	_, err := rand.Read(b)
 	// Note that err == nil only if we read len(b) bytes.
 	if err != nil {
 		return nil, err
 	}
 
-	randString := strings.Replace(strings.Replace(base64.URLEncoding.EncodeToString(b), "=", "", -1), "-", "", -1)[:14]
-	return &randString, nil
-}
-
-func genDBPassword() (*string, error) {
-	b := make([]byte, DB_PASSWORD_LENGTH)
-	_, err := rand.Read(b)
-	// Note that err == nil only if we read len(b) bytes.
+	// Make a Regex to say we only want letters and numbers
+	reg, err := regexp.Compile("[^a-zA-Z]+")
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 
-	randString := base64.URLEncoding.EncodeToString(b)
+	randString := reg.ReplaceAllString(base64.RawStdEncoding.EncodeToString(b), "")
+	if len(randString) > length {
+		randString = randString[:length]
+	}
 
 	return &randString, nil
 }
