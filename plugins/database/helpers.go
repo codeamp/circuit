@@ -29,22 +29,19 @@ func genDBName(pe plugins.ProjectExtension) string {
 	return fmt.Sprintf("%s_%s_%s", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:12], "-", "_", -1))
 }
 
-// genDBUsername creates a database username for the specified
+// genDBUser creates a database username for the specified
 // project extension with the format <project.slug>-<environment>
-func genDBUser(pe plugins.ProjectExtension) string {
-	projectSlugWithUnderscores := strings.Replace(pe.Project.Slug, "-", "_", -1)
-	envWithUnderscores := strings.Replace(pe.Environment, "-", "_", -1)
-	if len(projectSlugWithUnderscores) > 10 {
-		projectSlugWithUnderscores = projectSlugWithUnderscores[:10]
+func genDBUser() (*string, error) {
+	b := make([]byte, DB_USER_LENGTH)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
 	}
 
-	if len(pe.Environment) > 6 {
-		envWithUnderscores = envWithUnderscores[:6]
-	}
-
-	uniqueID := uuid.NewV4()
-
-	return fmt.Sprintf("%s_%s_%s_user", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:8], "-", "_", -1))
+	randString := strings.Replace(strings.Replace(base64.URLEncoding.EncodeToString(b), "=", "", -1), "-", "", -1)
+	fmt.Println(randString)
+	return &randString, nil
 }
 
 func genDBPassword() (*string, error) {
@@ -57,7 +54,7 @@ func genDBPassword() (*string, error) {
 
 	randString := base64.URLEncoding.EncodeToString(b)
 
-	return &randString, err
+	return &randString, nil
 }
 
 // initDBInstance finds the correct db instance type to initialize
