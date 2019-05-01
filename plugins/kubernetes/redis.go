@@ -92,7 +92,7 @@ func (x *Kubernetes) doRedis(e transistor.Event) error {
 
 	// Send back event with endpoint artifact (in this case, <service-name>.<redis-deploys-namespace>)
 	artifacts := []transistor.Artifact{
-		transistor.Artifact{Key: "REDIS_ENDPOINT", Value: fmt.Sprintf("%s-%s", redisService.Spec.ExternalName, redisDeploysNamespace.String()), Secret: false},
+		transistor.Artifact{Key: "REDIS_ENDPOINT", Value: fmt.Sprintf("%s-%s", deploymentName, redisDeploysNamespace.String()), Secret: false},
 	}
 
 	x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
