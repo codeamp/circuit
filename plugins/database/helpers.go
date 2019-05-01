@@ -29,10 +29,11 @@ func genDBName(pe plugins.ProjectExtension) string {
 	return fmt.Sprintf("%s_%s_%s", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:12], "-", "_", -1))
 }
 
-// genDBUsername creates a unique user id
-func genDBUser(pe plugins.ProjectExtension) string {
+// genDBUser creates a database username for the specified
+// project extension with the format <project.slug>-<environment>
+func genDBUser() string {
 	uniqueID := uuid.NewV4()
-	return fmt.Sprintf("%s", uniqueID.String()[:10], "-", "_", -1)
+	return strings.Replace(uniqueID.String()[:14], "-", "_", -1)
 }
 
 func genDBPassword() (*string, error) {
