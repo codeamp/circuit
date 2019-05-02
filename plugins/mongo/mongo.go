@@ -13,13 +13,12 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 
-	atlas "github.com/Clever/atlas-api-client/gen-go/client"
 	atlas_models "github.com/Clever/atlas-api-client/gen-go/models"
 )
 
 func init() {
 	transistor.RegisterPlugin("mongo", func() transistor.Plugin {
-		return &MongoExtension{MongoAtlasClientBuilder: &MongoAtlasClient{}}
+		return &MongoExtension{MongoAtlasClientBuilder: &mongoAtlasClient{}}
 	}, plugins.ProjectExtension{})
 }
 
@@ -91,7 +90,7 @@ func (x *MongoExtension) Process(e transistor.Event) error {
 	return nil
 }
 
-func (x *MongoExtension) listMongoUsers(atlasAPI atlas.Client, data *MongoData) (*atlas_models.GetDatabaseUsersResponse, error) {
+func (x *MongoExtension) listMongoUsers(atlasAPI MongoAtlasClient, data *MongoData) (*atlas_models.GetDatabaseUsersResponse, error) {
 	log.Error("listMongoUsers")
 
 	resp, err := atlasAPI.GetDatabaseUsers(context.Background(), data.Atlas.ProjectID)
@@ -109,7 +108,7 @@ func (x *MongoExtension) listMongoUsers(atlasAPI atlas.Client, data *MongoData) 
 	return resp, nil
 }
 
-func (x *MongoExtension) getMongoUser(atlasAPI atlas.Client, data *MongoData, userName string) (*atlas_models.DatabaseUser, error) {
+func (x *MongoExtension) getMongoUser(atlasAPI MongoAtlasClient, data *MongoData, userName string) (*atlas_models.DatabaseUser, error) {
 	log.Error("getMongoUser")
 
 	getUserInput := &atlas_models.GetDatabaseUserInput{
@@ -125,7 +124,7 @@ func (x *MongoExtension) getMongoUser(atlasAPI atlas.Client, data *MongoData, us
 	return resp, nil
 }
 
-func (x *MongoExtension) createMongoUser(atlasAPI atlas.Client, data *MongoData, databaseName string, userName string) (*Credentials, error) {
+func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClient, data *MongoData, databaseName string, userName string) (*Credentials, error) {
 	log.Error("createMongoUser")
 
 	generatedPassword, err := x.genRandomAlpha(16)
@@ -168,7 +167,7 @@ func (x *MongoExtension) createMongoUser(atlasAPI atlas.Client, data *MongoData,
 	return &credentials, nil
 }
 
-func (x *MongoExtension) deleteMongoUser(atlasAPI atlas.Client, data *MongoData, userName string) error {
+func (x *MongoExtension) deleteMongoUser(atlasAPI MongoAtlasClient, data *MongoData, userName string) error {
 	log.Error("deleteMongoUser")
 
 	_, err := x.getMongoUser(atlasAPI, data, userName)
@@ -222,6 +221,7 @@ func (x *MongoExtension) verifyCredentials(data *MongoData, userName string, pas
 	return nil
 }
 
+// Used to construct "random" credentials for created users
 func (x *MongoExtension) genRandomAlpha(length int) (*string, error) {
 	b := make([]byte, length)
 	_, err := rand.Read(b)
@@ -242,7 +242,7 @@ func (x *MongoExtension) genRandomAlpha(length int) (*string, error) {
 	return &randString, nil
 }
 
-func (x *MongoExtension) getAtlasClient(data *MongoData) atlas.Client {
+func (x *MongoExtension) getAtlasClient(data *MongoData) MongoAtlasClient {
 	if x.MongoAtlasClientBuilder == nil {
 		log.Panic("MongoAtlasClientBuilder should NOT be nil!")
 	}
@@ -266,19 +266,15 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 
 	// Check to see if user already exists
 	createMongoUser := false
-	databaseUser, err := x.getMongoUser(atlasAPI, data, userName)
+	_, err = x.getMongoUser(atlasAPI, data, userName)
 	if err != nil {
 		log.Error(err.Error())
 		if strings.Contains(err.Error(), "No user with username") {
 			createMongoUser = true
-		}
-	} else {
-		if databaseUser != nil {
-			log.Warn("Found User! Do not Create!")
-			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "User Exists - Duplicate Extension?", nil)
 		} else {
-			log.Warn("Did not find database user. Create now!")
-			createMongoUser = true
+			log.Error(err.Error())
+			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+			return err
 		}
 	}
 
@@ -287,7 +283,13 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 		credentials, err = x.createMongoUser(atlasAPI, data, databaseName, userName)
 		if err != nil {
 			log.Error(err.Error())
+			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+
+			return err
 		}
+	} else {
+		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "User Exists - Duplicate Extension?", nil)
+		return err
 	}
 
 	x.sendMongoResponse(e, transistor.GetAction("status"),
@@ -388,7 +390,7 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	var data MongoData
 
 	// MongoEndpoint
-	mongoEndpoint, err := e.GetArtifact("mongo_api_endpoint")
+	mongoEndpoint, err := e.GetArtifact("mongo_atlas_endpoint")
 	if err != nil {
 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
@@ -396,7 +398,7 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	data.Atlas.APIEndpoint = mongoEndpoint.String()
 
 	// Mongo Public API Key
-	mongoAPIPublicKey, err := e.GetArtifact("mongo_api_public_key")
+	mongoAPIPublicKey, err := e.GetArtifact("mongo_atlas_public_key")
 	if err != nil {
 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
@@ -404,7 +406,7 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	data.Atlas.PublicKey = mongoAPIPublicKey.String()
 
 	// Mongo Private API Key
-	mongoAPIPrivateKey, err := e.GetArtifact("mongo_api_private_key")
+	mongoAPIPrivateKey, err := e.GetArtifact("mongo_atlas_private_key")
 	if err != nil {
 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
@@ -412,13 +414,14 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	data.Atlas.APIKey = mongoAPIPrivateKey.String()
 
 	// Mongo Project ID (The slug from the url in mongo atlas)
-	mongoProjectID, err := e.GetArtifact("mongo_project_id")
+	mongoProjectID, err := e.GetArtifact("mongo_atlas_project_id")
 	if err != nil {
 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
 	}
 	data.Atlas.ProjectID = mongoProjectID.String()
 
+	// The hostname of the actual cluster (not the atlas api endpoint)
 	mongoHostname, err := e.GetArtifact("mongo_hostname")
 	if err != nil {
 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)

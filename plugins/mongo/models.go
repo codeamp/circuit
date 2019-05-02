@@ -8,7 +8,6 @@ type MongoExtension struct {
 	events chan transistor.Event
 	data   MongoData
 
-	// mongo Mongoer
 	MongoAtlasClientBuilder
 }
 
