@@ -1,12 +1,17 @@
 package mongo
 
-import "github.com/codeamp/transistor"
+import (
+	atlas "github.com/Clever/atlas-api-client/gen-go/client"
+	"github.com/codeamp/transistor"
+)
 
 type MongoExtension struct {
 	events chan transistor.Event
 	data   MongoData
 
 	// mongo Mongoer
+	AtlasClient atlas.Client
+	Mongo
 }
 
 type MongoCloudProvider struct {

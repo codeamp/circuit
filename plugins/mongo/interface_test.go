@@ -7,9 +7,4 @@ type MockMongoAPI struct {
 }
 
 type MockMongoAtlasAPI struct {
-	MongoAtlasAPI mongo.MongoAtlasAPI
-}
-
-func (x *MockMongo) GetMongoInterface() mongo.MongoAPI {
-	return nil
 }

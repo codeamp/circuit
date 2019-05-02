@@ -5,6 +5,7 @@ import (
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/golang/mock/gomock"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -12,12 +13,13 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/mongo"
 	"github.com/codeamp/circuit/test"
+
+	atlas "github.com/Clever/atlas-api-client/gen-go/client"
 )
 
 type TestSuiteMongoExtension struct {
 	suite.Suite
-	transistor     *transistor.Transistor
-	mongoInterface mongo.Mongoer
+	transistor *transistor.Transistor
 }
 
 func (suite *TestSuiteMongoExtension) SetupSuite() {
@@ -26,10 +28,12 @@ plugins:
   mongo:
     workers: 1
 `)
+	controller := gomock.NewController(suite.T())
+	_ = atlas.NewMockClient(controller)
 
-	suite.MongoInterface = &MockMongoInterface{}
+	// suite.MongoInterface = &MockMongoInterface{}
 	transistor.RegisterPlugin("Mongo", func() transistor.Plugin {
-		return &Mongo.Mongo{MongoInterfaces: suite.MongoInterface.New()}
+		return &mongo.MongoExtension{}
 	}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
