@@ -45,10 +45,8 @@ func genRandomAlphabetStringWithLength(length int) (*string, error) {
 		log.Fatal(err)
 	}
 
-	randString := reg.ReplaceAllString(base64.RawStdEncoding.EncodeToString(b), "")
-	if len(randString) > length {
-		randString = randString[:length]
-	}
+	// a is an arbitrary char, no significance other than it being a placeholder
+	randString := reg.ReplaceAllString(base64.RawStdEncoding.EncodeToString(b), "a")[:length]
 
 	return &randString, nil
 }
