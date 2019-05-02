@@ -16,8 +16,6 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
-	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 func (x *Kubernetes) ProcessRedis(e transistor.Event) {
@@ -73,32 +71,29 @@ func (x *Kubernetes) doRedis(e transistor.Event) error {
 		return createNamespaceErr
 	}
 
-	depInterface := clientset.AppsV1().Deployments(redisDeploysNamespace.String())
-	svcInterface := clientset.Core().Services(redisDeploysNamespace.String())
-
 	payload := e.Payload.(plugins.ProjectExtension)
 
 	deploymentName := genRedisDeploymentName(payload)
-	redisDeployment, err := x.createRedisDeploymentSpec(deploymentName, depInterface)
+	redisDeployment, err := x.createRedisDeploymentSpec(deploymentName)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
 	}
 
-	_, err = depInterface.Create(redisDeployment)
+	_, err = x.CoreDeploymenter.Create(clientset, redisDeploysNamespace.String(), redisDeployment)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
 	}
 
 	// Create service name based on project slug, environment and unique id
-	redisService, err := x.createRedisServiceSpec(payload, deploymentName, svcInterface)
+	redisService, err := x.createRedisServiceSpec(payload, deploymentName)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
 	}
 
-	_, err = svcInterface.Create(redisService)
+	_, err = x.CoreServicer.Create(clientset, redisDeploysNamespace.String(), redisService)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
@@ -153,7 +148,7 @@ func deleteRedis(e transistor.Event, x *Kubernetes) error {
 	return nil
 }
 
-func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string, depInterface appsv1.DeploymentInterface) (*v1.Deployment, error) {
+func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string) (*v1.Deployment, error) {
 	return &v1.Deployment{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name: deploymentName,
@@ -188,7 +183,7 @@ func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string, depInterfa
 	}, nil
 }
 
-func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, svcName string, svcInterface corev1typed.ServiceInterface) (*corev1.Service, error) {
+func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, svcName string) (*corev1.Service, error) {
 	return &corev1.Service{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name: svcName,

@@ -31,6 +31,7 @@ func init() {
 			BatchV1Jobber:        &BatchV1Job{},
 			CoreServicer:         &CoreService{},
 			CoreSecreter:         &CoreSecret{},
+			CoreDeploymenter:     &CoreDeployment{},
 		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
