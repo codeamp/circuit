@@ -115,6 +115,50 @@ func (suite *TestSuiteMongoExtension) TestUpdateMongoExtSuccess() {
 }
 
 func (suite *TestSuiteMongoExtension) TestDeleteMongoExtSuccess() {
+	payload := suite.buildMongoExtPayload()
+	event := transistor.NewEvent(plugins.GetEventName("project:mongo"), transistor.GetAction("create"), payload)
+	event.Artifacts = suite.buildMongoExtArtifacts()
+	suite.transistor.Events <- event
+
+	var e transistor.Event
+	var err error
+	for {
+		e, err = suite.transistor.GetTestEvent("project:mongo", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+
+	event = transistor.NewEvent(plugins.GetEventName("project:mongo"), transistor.GetAction("delete"), payload)
+	event.Artifacts = suite.buildMongoExtArtifacts()
+	suite.transistor.Events <- event
+
+	for {
+		e, err = suite.transistor.GetTestEvent("project:mongo", transistor.GetAction("status"), 30)
+		if err != nil {
+			assert.Nil(suite.T(), err, err.Error())
+			return
+		}
+
+		if e.State != "running" {
+			break
+		}
+	}
+
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), e.StateMessage, "Successfully Deleted")
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+}
+
+func (suite *TestSuiteMongoExtension) TestCreateMongoExtFailMultipleInstall() {
 	event := transistor.NewEvent(plugins.GetEventName("project:mongo"), transistor.GetAction("create"), suite.buildMongoExtPayload())
 	event.Artifacts = suite.buildMongoExtArtifacts()
 	suite.transistor.Events <- event
@@ -135,15 +179,11 @@ func (suite *TestSuiteMongoExtension) TestDeleteMongoExtSuccess() {
 
 	suite.T().Log(e.StateMessage)
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
-}
 
-func (suite *TestSuiteMongoExtension) TestCreateMongoExtFailMultipleInstall() {
-	event := transistor.NewEvent(plugins.GetEventName("project:mongo"), transistor.GetAction("create"), suite.buildMongoExtPayload())
+	event = transistor.NewEvent(plugins.GetEventName("project:mongo"), transistor.GetAction("create"), suite.buildMongoExtPayload())
 	event.Artifacts = suite.buildMongoExtArtifacts()
 	suite.transistor.Events <- event
 
-	var e transistor.Event
-	var err error
 	for {
 		e, err = suite.transistor.GetTestEvent("project:mongo", transistor.GetAction("status"), 30)
 		if err != nil {

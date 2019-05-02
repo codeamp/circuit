@@ -110,7 +110,6 @@ func (x *MongoExtension) listMongoUsers(atlasAPI MongoAtlasClient, data *MongoDa
 
 func (x *MongoExtension) getMongoUser(atlasAPI MongoAtlasClient, data *MongoData, userName string) (*atlas_models.DatabaseUser, error) {
 	log.Error("getMongoUser")
-
 	getUserInput := &atlas_models.GetDatabaseUserInput{
 		GroupID:  data.Atlas.ProjectID,
 		Username: userName,
@@ -276,6 +275,8 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 			return err
 		}
+	} else {
+		log.Warn("NOT AN ERROR!")
 	}
 
 	var credentials *Credentials
@@ -297,7 +298,6 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 		"Mongo Provisioning Complete.\nRemoving this extension does not delete any data.",
 		x.buildResultArtifacts(data, payload.Project.Slug, credentials))
 
-	x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("complete"), "Successfully Installed", nil)
 	return nil
 }
 

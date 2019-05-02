@@ -25,17 +25,50 @@ func (x *MockMongoAtlasClient) Clear() {
 }
 
 func (x *MockMongoAtlasClient) GetDatabaseUsers(context.Context, string) (*atlas_models.GetDatabaseUsersResponse, error) {
-	return nil, errors.New("Stub Function!")
+	response := &atlas_models.GetDatabaseUsersResponse{
+		Results:    x.Users,
+		TotalCount: int64(len(x.Users)),
+	}
+
+	return response, nil
 }
 
-func (x *MockMongoAtlasClient) GetDatabaseUser(context.Context, *atlas_models.GetDatabaseUserInput) (*atlas_models.DatabaseUser, error) {
-	return nil, errors.New("Stub Function!")
+func (x *MockMongoAtlasClient) GetDatabaseUser(ctx context.Context, input *atlas_models.GetDatabaseUserInput) (*atlas_models.DatabaseUser, error) {
+	for _, dbUser := range x.Users {
+		if dbUser.GroupID == input.GroupID {
+			if dbUser.Username == input.Username {
+				return dbUser, nil
+			}
+		}
+	}
+
+	return nil, errors.New("No user with username")
 }
 
-func (x *MockMongoAtlasClient) CreateDatabaseUser(context.Context, *atlas_models.CreateDatabaseUserInput) (*atlas_models.DatabaseUser, error) {
-	return nil, errors.New("Stub Function!")
+func (x *MockMongoAtlasClient) CreateDatabaseUser(ctx context.Context, input *atlas_models.CreateDatabaseUserInput) (*atlas_models.DatabaseUser, error) {
+
+	additionalUser := &atlas_models.DatabaseUser{
+		DatabaseName: input.CreateDatabaseUserRequest.DatabaseName,
+		GroupID:      input.GroupID,
+		Links:        nil,
+		Roles:        nil,
+		Username:     input.CreateDatabaseUserRequest.Username,
+	}
+
+	x.Users = append(x.Users, additionalUser)
+
+	return additionalUser, nil
 }
 
-func (x *MockMongoAtlasClient) DeleteDatabaseUser(context.Context, *atlas_models.DeleteDatabaseUserInput) error {
-	return errors.New("Stub Function!")
+func (x *MockMongoAtlasClient) DeleteDatabaseUser(ctx context.Context, input *atlas_models.DeleteDatabaseUserInput) error {
+	for idx, dbUser := range x.Users {
+		if dbUser.GroupID == input.GroupID {
+			if dbUser.Username == input.Username {
+				x.Users = append(x.Users[:idx], x.Users[idx+1:]...)
+				return nil
+			}
+		}
+	}
+
+	return errors.New("No user with username")
 }
