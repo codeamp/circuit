@@ -1,7 +1,6 @@
 package mongo
 
 import (
-	atlas "github.com/Clever/atlas-api-client/gen-go/client"
 	"github.com/codeamp/transistor"
 )
 
@@ -10,8 +9,7 @@ type MongoExtension struct {
 	data   MongoData
 
 	// mongo Mongoer
-	AtlasClient atlas.Client
-	Mongo
+	MongoAtlasClientBuilder
 }
 
 type MongoCloudProvider struct {
@@ -28,6 +26,7 @@ type Credentials struct {
 }
 
 type MongoData struct {
-	Hostname string
-	Atlas    MongoCloudProvider
+	Hostname                string
+	Atlas                   MongoCloudProvider
+	CredentialsCheckTimeout int
 }

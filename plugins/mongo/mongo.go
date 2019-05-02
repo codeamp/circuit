@@ -6,9 +6,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
-	"github.com/Clever/atlas-api-client/digestauth"
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
@@ -19,7 +19,7 @@ import (
 
 func init() {
 	transistor.RegisterPlugin("mongo", func() transistor.Plugin {
-		return &MongoExtension{}
+		return &MongoExtension{MongoAtlasClientBuilder: &MongoAtlasClient{}}
 	}, plugins.ProjectExtension{})
 }
 
@@ -139,11 +139,12 @@ func (x *MongoExtension) createMongoUser(atlasAPI atlas.Client, data *MongoData,
 		Password: *generatedPassword,
 	}
 
+	const DATABASE_ALL_USERS_ARE_REQUIRED_IN = "admin"
 	createUserInput := &atlas_models.CreateDatabaseUserInput{
 		GroupID: data.Atlas.ProjectID,
 		CreateDatabaseUserRequest: &atlas_models.CreateDatabaseUserRequest{
 			DatabaseUser: atlas_models.DatabaseUser{
-				DatabaseName: "admin",
+				DatabaseName: DATABASE_ALL_USERS_ARE_REQUIRED_IN,
 				GroupID:      data.Atlas.ProjectID,
 				Links:        []*atlas_models.Link{},
 				Roles: []*atlas_models.Role{
@@ -191,31 +192,36 @@ func (x *MongoExtension) deleteMongoUser(atlasAPI atlas.Client, data *MongoData,
 	return nil
 }
 
-// mongoConnection := fmt.Sprintf("mongodb+srv://%s:%s@%s", data.Username, data.Password, data.Hostname)
+func (x *MongoExtension) verifyCredentials(data *MongoData, userName string, password string) error {
+	log.Warn("verifyCredentials")
+	// mongoConnection := fmt.Sprintf("mongodb+srv://%s:%s@%s", data.Username, data.Password, data.Hostname)
 
-// 	// Ensure we can construct a client interface with no issues
-// 	log.Warn("Building a new client")
-// 	client, err := mongo.NewClient(options.Client().ApplyURI(mongoConnection))
-// 	if err != nil {
-// 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Build Connection to Mongo", nil)
-// 		return err
-// 	}
+	// 	// Ensure we can construct a client interface with no issues
+	// 	log.Warn("Building a new client")
+	// 	client, err := mongo.NewClient(options.Client().ApplyURI(mongoConnection))
+	// 	if err != nil {
+	// 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Build Connection to Mongo", nil)
+	// 		return err
+	// 	}
 
-// 	// Provide timeout value and attempt to connect to the mongo database
-// 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-// 	err = client.Connect(ctx)
+	// 	// Provide timeout value and attempt to connect to the mongo database
+	// 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	// 	err = client.Connect(ctx)
 
-// 	if err != nil {
-// 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Build Connection to Mongo", nil)
-// 		return err
-// 	} else {
-// 		log.Warn("Pinging client!")
-// 		err = client.Ping(ctx, readpref.Primary())
-// 		if err != nil {
-// 			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Ping Mongo", nil)
-// 			return err
-// 		}
-// 	}
+	// 	if err != nil {
+	// 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Build Connection to Mongo", nil)
+	// 		return err
+	// 	} else {
+	// 		log.Warn("Pinging client!")
+	// 		err = client.Ping(ctx, readpref.Primary())
+	// 		if err != nil {
+	// 			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Ping Mongo", nil)
+	// 			return err
+	// 		}
+	// 	}
+	return nil
+}
+
 func (x *MongoExtension) genRandomAlpha(length int) (*string, error) {
 	b := make([]byte, length)
 	_, err := rand.Read(b)
@@ -227,7 +233,7 @@ func (x *MongoExtension) genRandomAlpha(length int) (*string, error) {
 	// Make a Regex to say we only want letters and numbers
 	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	// a is an arbitrary char, no significance other than it being a placeholder
@@ -237,14 +243,11 @@ func (x *MongoExtension) genRandomAlpha(length int) (*string, error) {
 }
 
 func (x *MongoExtension) getAtlasClient(data *MongoData) atlas.Client {
-	atlasAPI := atlas.New(data.Atlas.APIEndpoint)
-	digestT := digestauth.NewTransport(
-		data.Atlas.PublicKey,
-		data.Atlas.APIKey,
-	)
-	atlasAPI.SetTransport(&digestT)
+	if x.MongoAtlasClientBuilder == nil {
+		log.Panic("MongoAtlasClientBuilder should NOT be nil!")
+	}
 
-	return atlasAPI
+	return x.MongoAtlasClientBuilder.New(data.Atlas.APIEndpoint, data.Atlas.PublicKey, data.Atlas.APIKey)
 }
 
 func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
@@ -371,7 +374,7 @@ func (x *MongoExtension) deleteMongoExtension(e transistor.Event) error {
 	return nil
 }
 
-// Wraper for sending an event back thruogh the messaging system for standardization and brevity
+// Wrapper for sending an event back thruogh the messaging system for standardization and brevity
 func (x *MongoExtension) sendMongoResponse(e transistor.Event, action transistor.Action, state transistor.State, stateMessage string, artifacts []transistor.Artifact) {
 	event := e.NewEvent(action, state, stateMessage)
 	event.Artifacts = artifacts
@@ -422,6 +425,22 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 		return nil, err
 	}
 	data.Hostname = mongoHostname.String()
+
+	// Credentials check timeout
+	{
+		mongoCredentialsCheckTimeout, err := e.GetArtifact("mongo_credentials_check_timeout")
+		if err != nil {
+			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+			return nil, err
+		}
+
+		credentialsCheckTimeout, err := strconv.Atoi(mongoCredentialsCheckTimeout.String())
+		if err != nil {
+			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+			return nil, err
+		}
+		data.CredentialsCheckTimeout = credentialsCheckTimeout
+	}
 
 	return &data, nil
 }

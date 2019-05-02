@@ -5,7 +5,6 @@ import (
 
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/golang/mock/gomock"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -13,8 +12,6 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/mongo"
 	"github.com/codeamp/circuit/test"
-
-	atlas "github.com/Clever/atlas-api-client/gen-go/client"
 )
 
 type TestSuiteMongoExtension struct {
@@ -28,12 +25,8 @@ plugins:
   mongo:
     workers: 1
 `)
-	controller := gomock.NewController(suite.T())
-	_ = atlas.NewMockClient(controller)
-
-	// suite.MongoInterface = &MockMongoInterface{}
-	transistor.RegisterPlugin("Mongo", func() transistor.Plugin {
-		return &mongo.MongoExtension{}
+	transistor.RegisterPlugin("mongo", func() transistor.Plugin {
+		return &mongo.MongoExtension{MongoAtlasClientBuilder: &MockMongoAtlasClient{suite.Suite}}
 	}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -156,9 +149,11 @@ func (suite *TestSuiteMongoExtension) buildMongoExtPayload() plugins.ProjectExte
 }
 
 func (suite *TestSuiteMongoExtension) buildMongoExtArtifacts() []transistor.Artifact {
-	return []transistor.Artifact{}
-}
-
-func (suite *TestSuiteMongoExtension) buildMongoExtArtifactsBadCredentials() []transistor.Artifact {
-	return []transistor.Artifact{}
+	return []transistor.Artifact{
+		transistor.Artifact{Key: "mongo_username", Value: "", Secret: false},
+		transistor.Artifact{Key: "mongo_password", Value: "credentials.Password", Secret: false},
+		transistor.Artifact{Key: "mongo_host", Value: "data.Hostname", Secret: false},
+		transistor.Artifact{Key: "mongo_database_name", Value: "payloadSlug", Secret: false},
+		transistor.Artifact{Key: "mongo_credentials_check_timeout", Value: "data.Hostname", Secret: false},
+	}
 }

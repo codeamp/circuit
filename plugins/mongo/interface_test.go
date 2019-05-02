@@ -1,10 +1,18 @@
 package mongo_test
 
-import "github.com/codeamp/circuit/plugins/mongo"
+import (
+	atlas "github.com/Clever/atlas-api-client/gen-go/client"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/suite"
+)
 
-type MockMongoAPI struct {
-	MongoAPI mongo.MongoAPI
+type MockMongoAtlasClient struct {
+	suite.Suite
 }
 
-type MockMongoAtlasAPI struct {
+func (x *MockMongoAtlasClient) New(apiEndpoint string, publicKey string, privateKey string) atlas.Client {
+	controller := gomock.NewController(x.T())
+	atlasAPI := atlas.NewMockClient(controller)
+
+	return atlasAPI
 }

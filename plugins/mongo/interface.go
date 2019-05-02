@@ -1,26 +1,36 @@
 package mongo
 
-import atlas "github.com/Clever/atlas-api-client/gen-go/client"
+import (
+	"github.com/Clever/atlas-api-client/digestauth"
+	atlas "github.com/Clever/atlas-api-client/gen-go/client"
+)
+
+type MongoAtlasClientBuilder interface {
+	New(string, string, string) atlas.Client
+}
 
 type MongoAPI interface {
 }
 
 type Mongo struct {
 	MongoAPI
-	AtlasClient
+	MongoAtlasClient
 }
 
 func (x *Mongo) GetMongoInterface() MongoAPI {
 	return nil
 }
 
-type AtlasClient interface {
-	New(string) atlas.Client
+type MongoAtlasClient struct {
 }
 
-type Atlas struct {
-}
+func (x *MongoAtlasClient) New(apiEndpoint string, publicKey string, privateKey string) atlas.Client {
+	atlasAPI := atlas.New(apiEndpoint)
+	digestT := digestauth.NewTransport(
+		publicKey,
+		privateKey,
+	)
+	atlasAPI.SetTransport(&digestT)
 
-func (x *Mongo) New(apiEndpoint string) atlas.Client {
-	return atlas.New(apiEndpoint)
+	return atlasAPI
 }
