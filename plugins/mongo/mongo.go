@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -253,6 +254,7 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 	data, err := x.extractArtifacts(e)
 	if err != nil {
 		log.Error(err.Error())
+		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 
@@ -275,8 +277,6 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 			return err
 		}
-	} else {
-		log.Warn("NOT AN ERROR!")
 	}
 
 	var credentials *Credentials
@@ -389,10 +389,13 @@ func (x *MongoExtension) sendMongoResponse(e transistor.Event, action transistor
 func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error) {
 	var data MongoData
 
+	if e.Payload == nil {
+		return nil, errors.New("Missing payload!")
+	}
+
 	// MongoEndpoint
 	mongoEndpoint, err := e.GetArtifact("mongo_atlas_endpoint")
 	if err != nil {
-		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
 	}
 	data.Atlas.APIEndpoint = mongoEndpoint.String()
@@ -400,7 +403,6 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	// Mongo Public API Key
 	mongoAPIPublicKey, err := e.GetArtifact("mongo_atlas_public_key")
 	if err != nil {
-		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
 	}
 	data.Atlas.PublicKey = mongoAPIPublicKey.String()
@@ -408,7 +410,6 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	// Mongo Private API Key
 	mongoAPIPrivateKey, err := e.GetArtifact("mongo_atlas_private_key")
 	if err != nil {
-		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
 	}
 	data.Atlas.APIKey = mongoAPIPrivateKey.String()
@@ -416,7 +417,6 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	// Mongo Project ID (The slug from the url in mongo atlas)
 	mongoProjectID, err := e.GetArtifact("mongo_atlas_project_id")
 	if err != nil {
-		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
 	}
 	data.Atlas.ProjectID = mongoProjectID.String()
@@ -424,7 +424,6 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	// The hostname of the actual cluster (not the atlas api endpoint)
 	mongoHostname, err := e.GetArtifact("mongo_hostname")
 	if err != nil {
-		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
 	}
 	data.Hostname = mongoHostname.String()
@@ -433,13 +432,11 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	{
 		mongoCredentialsCheckTimeout, err := e.GetArtifact("mongo_credentials_check_timeout")
 		if err != nil {
-			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 			return nil, err
 		}
 
 		credentialsCheckTimeout, err := strconv.Atoi(mongoCredentialsCheckTimeout.String())
 		if err != nil {
-			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 			return nil, err
 		}
 		data.CredentialsCheckTimeout = credentialsCheckTimeout

@@ -69,7 +69,7 @@ func (suite *TestSuiteMongoExtension) TestCreateMongoExtSuccess() {
 }
 
 func (suite *TestSuiteMongoExtension) TestCreateMongoExtFailure() {
-	event := transistor.NewEvent(plugins.GetEventName("project:mongo"), transistor.GetAction("create"), suite.buildMongoExtPayload())
+	event := transistor.NewEvent(plugins.GetEventName("project:mongo"), transistor.GetAction("create"), nil)
 	event.Artifacts = suite.buildEmptyMongoExtArtifacts()
 	suite.transistor.Events <- event
 
