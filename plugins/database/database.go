@@ -123,15 +123,20 @@ func (x *Database) Process(e transistor.Event) error {
 	// Create DB within shared instance of the correct db variant (postgres/mysql)
 	switch e.Action {
 	case transistor.GetAction("create"):
-		dbUsername := genDBUser(projectExtensionEvent)
-		dbName := genDBName(projectExtensionEvent)
-		dbPassword, err := genDBPassword()
+		dbUsername, err := genRandomAlphabetStringWithLength(DB_USER_LENGTH)
 		if err != nil {
 			x.sendFailedStatusEvent(err)
 			return nil
 		}
 
-		dbMetadata, err := (*dbInstance).CreateDatabaseAndUser(dbName, dbUsername, *dbPassword)
+		dbName := genDBName(projectExtensionEvent)
+		dbPassword, err := genRandomAlphabetStringWithLength(DB_PASSWORD_LENGTH)
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
+
+		dbMetadata, err := (*dbInstance).CreateDatabaseAndUser(dbName, *dbUsername, *dbPassword)
 		if err != nil {
 			x.sendFailedStatusEvent(err)
 			return nil
