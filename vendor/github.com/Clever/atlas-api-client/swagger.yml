@@ -1,0 +1,1218 @@
+swagger: '2.0'
+info:
+  title: atlas-api-client
+  description: "Swagger description of the MongoDB Atlas API: https://docs.atlas.mongodb.com/reference/api-resources/. Used to generate client code to interact with the API."
+  version: 0.3.0
+  x-npm-package: atlas-api-client
+basePath: /api/atlas/v1.0
+schemes:
+  - http
+produces:
+  - application/json
+consumes:
+  - application/json
+responses:
+  Unauthorized:
+    description: "Unauthorized"
+    schema:
+      $ref: "#/definitions/Unauthorized"
+  NotFound:
+    description: "Not found"
+    schema:
+      $ref: "#/definitions/NotFound"
+  BadRequest:
+    description: "Bad Request"
+    schema:
+      $ref: "#/definitions/BadRequest"
+  InternalError:
+    description: "Internal Error"
+    schema:
+      $ref: "#/definitions/InternalError"
+paths:
+  /groups/{groupID}/clusters:
+    get:
+      operationId: getClusters
+      description: Get All Clusters
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetClustersResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    post:
+      operationId: createCluster
+      description: Create a Cluster
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: createOrUpdateClusterRequest
+          in: body
+          schema:
+            $ref: "#/definitions/CreateOrUpdateClusterRequest"
+          required: true
+      responses:
+        201:
+          description: "Created"
+          schema:
+            $ref: "#/definitions/Cluster"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/clusters/{clusterName}:
+    get:
+      operationId: getCluster
+      description: Gets a cluster
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: clusterName
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/Cluster"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    patch:
+      operationId: updateCluster
+      description: Update a Cluster
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: clusterName
+          in: path
+          required: true
+          type: string
+        - name: createOrUpdateClusterRequest
+          in: body
+          schema:
+            $ref: "#/definitions/CreateOrUpdateClusterRequest"
+          required: true
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/Cluster"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    delete:
+      operationId: deleteCluster
+      description: Deletes a cluster
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: clusterName
+          in: path
+          required: true
+          type: string
+      responses:
+        202:
+          description: "Accepted"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/databaseUsers:
+    get:
+      operationId: getDatabaseUsers
+      description: Get All DatabaseUsers
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetDatabaseUsersResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    post:
+      operationId: createDatabaseUser
+      description: Create a DatabaseUser
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: createDatabaseUserRequest
+          in: body
+          schema:
+            $ref: "#/definitions/CreateDatabaseUserRequest"
+          required: true
+      responses:
+        201:
+          description: "Created"
+          schema:
+            $ref: "#/definitions/DatabaseUser"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/databaseUsers/admin/{username}:
+    get:
+      operationId: getDatabaseUser
+      description: Gets a database user
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: username
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/DatabaseUser"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    patch:
+      operationId: updateDatabaseUser
+      description: Update a DatabaseUser
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: username
+          in: path
+          required: true
+          type: string
+        - name: updateDatabaseUserRequest
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateDatabaseUserRequest"
+          required: true
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/DatabaseUser"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    delete:
+      operationId: deleteDatabaseUser
+      description: Deletes a DatabaseUser
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: username
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Accepted"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/processes:
+    get:
+      operationId: getProcesses
+      description: Get All Processes
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetProcessesResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/processes/{host}:{port}/measurements:
+    get:
+      operationId: getProcessMeasurements
+      description: Get measurements for a specific Atlas MongoDB process (mongod or mongos).
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: host
+          in: path
+          required: true
+          type: string
+        - name: port
+          in: path
+          required: true
+          type: integer
+        - name: granularity
+          in: query
+          required: true
+          type: string
+          enum: &granularityStrings ["PT1M", "PT5M", "PT1H", "P1D"]
+        - name: period
+          in: query
+          required: false
+          type: string
+        - name: start
+          in: query
+          required: false
+          type: string
+          format: date-time
+        - name: end
+          in: query
+          required: false
+          type: string
+          format: date-time
+        - name: m
+          in: query
+          required: false
+          type: array
+          items:
+            type: string
+        - name: pageNum
+          in: query
+          required: false
+          type: integer
+        - name: itemsPerPage
+          in: query
+          required: false
+          type: integer
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetProcessMeasurementsResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/processes/{host}:{port}/databases:
+    get:
+      operationId: getProcessDatabases
+      description: Get the available databases for a Atlas MongoDB Process
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: host
+          in: path
+          required: true
+          type: string
+        - name: port
+          in: path
+          required: true
+          type: integer
+        - name: pageNum
+          in: query
+          required: false
+          type: integer
+        - name: itemsPerPage
+          in: query
+          required: false
+          type: integer
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetProcessDatabasesResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/processes/{host}:{port}/databases/{databaseID}/measurements:
+    get:
+      operationId: getProcessDatabaseMeasurements
+      description: Get the measurements of the specified database for a Atlas MongoDB process.
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: host
+          in: path
+          required: true
+          type: string
+        - name: port
+          in: path
+          required: true
+          type: integer
+        - name: databaseID
+          in: path
+          required: true
+          type: string
+        - name: granularity
+          in: query
+          required: true
+          type: string
+          enum: &granularityStrings ["PT1M", "PT5M", "PT1H", "P1D"]
+        - name: period
+          in: query
+          required: false
+          type: string
+        - name: start
+          in: query
+          required: false
+          type: string
+          format: date-time
+        - name: end
+          in: query
+          required: false
+          type: string
+          format: date-time
+        - name: m
+          in: query
+          required: false
+          type: array
+          items:
+            type: string
+        - name: pageNum
+          in: query
+          required: false
+          type: integer
+        - name: itemsPerPage
+          in: query
+          required: false
+          type: integer
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetProcessDatabaseMeasurementsResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+
+  /groups/{groupID}/processes/{host}:{port}/disks:
+    get:
+      operationId: getProcessDisks
+      description: Get the available disks for a Atlas MongoDB Process
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: host
+          in: path
+          required: true
+          type: string
+        - name: port
+          in: path
+          required: true
+          type: integer
+        - name: pageNum
+          in: query
+          required: false
+          type: integer
+        - name: itemsPerPage
+          in: query
+          required: false
+          type: integer
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetProcessDisksResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/processes/{host}:{port}/disks/{diskName}/measurements:
+    get:
+      operationId: getProcessDiskMeasurements
+      description: Get the measurements of the specified disk for a Atlas MongoDB process.
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: host
+          in: path
+          required: true
+          type: string
+        - name: port
+          in: path
+          required: true
+          type: integer
+        - name: diskName
+          in: path
+          required: true
+          type: string
+        - name: granularity
+          in: query
+          required: true
+          type: string
+          enum: &granularityStrings ["PT1M", "PT5M", "PT1H", "P1D"]
+        - name: period
+          in: query
+          required: false
+          type: string
+        - name: start
+          in: query
+          required: false
+          type: string
+          format: date-time
+        - name: end
+          in: query
+          required: false
+          type: string
+          format: date-time
+        - name: m
+          in: query
+          required: false
+          type: array
+          items:
+            type: string
+        - name: pageNum
+          in: query
+          required: false
+          type: integer
+        - name: itemsPerPage
+          in: query
+          required: false
+          type: integer
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetProcessDiskMeasurementsResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/containers:
+    get:
+      operationId: getContainers
+      description: Get All Containers
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/GetContainersResponse"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    post:
+      operationId: createContainer
+      description: Create a Container
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: createOrUpdateContainerRequest
+          in: body
+          schema:
+            $ref: "#/definitions/CreateOrUpdateContainerRequest"
+          required: true
+      responses:
+        201:
+          description: "Created"
+          schema:
+            $ref: "#/definitions/Container"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+  /groups/{groupID}/containers/{containerID}:
+    get:
+      operationId: getContainer
+      description: Gets a container
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: containerID
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/Container"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+    patch:
+      operationId: updateContainer
+      description: Update a Container
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          type: string
+        - name: containerID
+          in: path
+          required: true
+          type: string
+        - name: createOrUpdateContainerRequest
+          in: body
+          schema:
+            $ref: "#/definitions/CreateOrUpdateContainerRequest"
+          required: true
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/Container"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/Unauthorized"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/NotFound"
+
+definitions:
+  Unauthorized:
+    type: object
+    properties:
+      reason:
+        type: string
+      error:
+        x-go-name: errorCode
+        type: integer
+      detail:
+        x-go-name: message
+        type: string
+      message:
+        x-go-name: unused
+        type: string
+  NotFound:
+    type: object
+    properties:
+      reason:
+        type: string
+      error:
+        x-go-name: errorCode
+        type: integer
+      detail:
+        x-go-name: message
+        type: string
+      message:
+        x-go-name: unused
+        type: string
+  BadRequest:
+    type: object
+    properties:
+      reason:
+        type: string
+      error:
+        x-go-name: errorCode
+        type: integer
+      detail:
+        x-go-name: message
+        type: string
+      message:
+        x-go-name: unused
+        type: string
+  InternalError:
+    type: object
+    properties:
+      reason:
+        type: string
+      error:
+        x-go-name: errorCode
+        type: integer
+      detail:
+        x-go-name: message
+        type: string
+      message:
+        x-go-name: unused
+        type: string
+
+  GetClustersResponse:
+    type: object
+    properties:
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/Cluster'
+      totalCount:
+        type: integer
+
+  AutoScaling:
+    type: object
+    properties:
+      diskGBEnabled:
+        type: boolean
+
+  ProviderSettings:
+    type: object
+    properties:
+      backingProviderName:
+        type: string
+        enum:
+          - AWS
+      providerName:
+        type: string
+        enum:
+          - AWS
+          - TENANT
+      diskIOPS:
+        type: integer
+      encryptEBSVolume:
+        type: boolean
+      instanceSizeName:
+        type: string
+        enum:
+          - M2
+          - M5
+          - M10
+          - M20
+          - M30
+          - M40
+          - M50
+          - M60
+          - M100
+          - M200
+      regionName:
+        type: string
+        enum:
+          - US_WEST_1
+          - US_WEST_2
+          - US_EAST_1
+
+  ReplicationSpec:
+    type: object
+    properties:
+      US_EAST_1:
+        $ref: "#/definitions/ReplicationSpecItem"
+      US_WEST_1:
+        $ref: "#/definitions/ReplicationSpecItem"
+      US_WEST_2:
+        $ref: "#/definitions/ReplicationSpecItem"
+  ReplicationSpecItem:
+    type: object
+    properties:
+      electableNodes:
+        type: integer
+      priority:
+        type: number
+      readOnlyNodes:
+        type: integer
+
+  Cluster:
+    type: object
+    properties:
+      autoScaling:
+        $ref: "#/definitions/AutoScaling"
+      backupEnabled:
+        type: boolean
+      diskSizeGB:
+        type: number
+      groupId:
+        type: string
+      mongoDBVersion:
+        type: string
+      mongoURI:
+        type: string
+      mongoURIUpdated:
+        type: string
+      mongoURIWithOptions:
+        type: string
+      name:
+        type: string
+      numShards:
+        type: integer
+      paused:
+        type: boolean
+      providerSettings:
+        $ref: "#/definitions/ProviderSettings"
+      replicationFactor:
+        type: number
+      replicationSpec:
+        $ref: "#/definitions/ReplicationSpec"
+      stateName:
+        type: string
+
+  CreateOrUpdateClusterRequest:
+    type: object
+    required:
+      - name
+      - providerSettings
+      - backupEnabled
+    properties:
+      autoScaling:
+        $ref: "#/definitions/AutoScaling"
+      name:
+        type: string
+      mongoDBMajorVersion:
+        type: string
+        enum:
+          - "3.2"
+          - "3.4"
+          - "3.6"
+      numShards:
+        type: integer
+        default: 1
+        minimum: 1
+        maximum: 12
+      providerSettings:
+        $ref: "#/definitions/ProviderSettings"
+      replicationFactor:
+        type: integer
+      replicationSpec:
+        $ref: "#/definitions/ReplicationSpec"
+      diskSizeGB:
+        type: number
+        maximum: 4096
+      backupEnabled:
+        x-nullable: false
+        type: boolean
+
+  DatabaseUser:
+    type: object
+    properties:
+      databaseName:
+        type: string
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      groupId:
+        type: string
+      username:
+        type: string
+      roles:
+        type: array
+        items:
+          $ref: '#/definitions/Role'
+
+  Role:
+    type: object
+    properties:
+      databaseName:
+        type: string
+      collectionName:
+        type: string
+      roleName:
+        $ref: '#/definitions/RoleName'
+
+  RoleName:
+    type: string
+    enum:
+    - "atlasAdmin"
+    - "readWriteAnyDatabase"
+    - "readAnyDatabase"
+    - "backup"
+    - "clusterMonitor"
+    - "dbAdmin"
+    - "dbAdminAnyDatabase"
+    - "enableSharding"
+    - "read"
+    - "readWrite"
+
+  Link:
+    type: object
+    properties:
+      rel:
+        type: string
+      href:
+        type: string
+
+  GetDatabaseUsersResponse:
+    type: object
+    properties:
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/DatabaseUser'
+      totalCount:
+        type: integer
+
+  CreateDatabaseUserRequest:
+    type: object
+    allOf:
+      - $ref: '#/definitions/DatabaseUser'
+      - type: object
+        properties:
+          password:
+            type: string
+
+  UpdateDatabaseUserRequest:
+    type: object
+    properties:
+      roles:
+        type: array
+        items:
+          $ref: '#/definitions/Role'
+      password:
+        type: string
+
+  GetProcessesResponse:
+    type: object
+    properties:
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/Process'
+      totalCount:
+        type: integer
+
+  Process:
+    type: object
+    properties:
+      created:
+        type: string
+        format: date-time
+      groupId:
+        type: string
+      hostname:
+        type: string
+      id:
+        type: string
+      lastPing:
+        type: string
+        format: date-time
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      port:
+        type: integer
+      shardName:
+        type: string
+      replicaSetName:
+        type: string
+      typeName:
+        $ref: '#/definitions/ProcessType'
+      version:
+        type: string
+
+  ProcessType:
+    type: string
+    enum:
+    - "REPLICA_PRIMARY"
+    - "REPLICA_SECONDARY"
+    - "RECOVERING"
+    - "SHARD_MONGOS"
+    - "SHARD_CONFIG"
+    - "SHARD_STANDALONE"
+    - "SHARD_PRIMARY"
+    - "SHARD_SECONDARY"
+    - "NO_DATA"
+
+  GetProcessMeasurementsResponse:
+    type: object
+    properties:
+      end:
+        type: string
+        format: date-time
+      granularity:
+        $ref: '#/definitions/Granularity'
+      groupId:
+        type: string
+      hostId:
+        type: string
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      measurements:
+        type: array
+        items:
+          $ref: '#/definitions/Measurement'
+      processId:
+        type: string
+      start:
+        type: string
+        format: date-time
+
+  Granularity:
+    type: string
+    enum: *granularityStrings
+
+  Measurement:
+    type: object
+    properties:
+      dataPoints:
+        type: array
+        items:
+          $ref: '#/definitions/DataPoint'
+      name:
+        type: string
+      units:
+        $ref: '#/definitions/Units'
+
+  DataPoint:
+    type: object
+    #required: ["value"] # make value a pointer
+    properties:
+      timestamp:
+        type: string
+        format: date-time
+      value:
+        x-nullable: true
+        type: number
+
+  Units:
+    type: string
+    enum:
+    - "PERCENT"
+    - "MILLISECONDS"
+    - "BYTES"
+    - "GIGABYTES"
+    - "BYTES_PER_SECOND"
+    - "MEGABYTES_PER_SECOND"
+    - "GIGABYTES_PER_HOUR"
+    - "SCALAR_PER_SECOND"
+    - "SCALAR"
+
+  GetProcessDatabasesResponse:
+    type: object
+    properties:
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/Database'
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      totalCount:
+        type: integer
+
+  Database:
+    type: object
+    properties:
+      databaseName:
+        type: string
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+
+  GetProcessDatabaseMeasurementsResponse:
+    type: object
+    properties:
+      databaseName:
+        type: string
+      end:
+        type: string
+        format: date-time
+      granularity:
+        $ref: '#/definitions/Granularity'
+      groupId:
+        type: string
+      hostId:
+        type: string
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      measurements:
+        type: array
+        items:
+          $ref: '#/definitions/Measurement'
+      processId:
+        type: string
+      start:
+        type: string
+        format: date-time
+
+  GetProcessDisksResponse:
+    type: object
+    properties:
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/Disk'
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      totalCount:
+        type: integer
+
+  Disk:
+    type: object
+    properties:
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      partitionName:
+        type: string
+
+  GetProcessDiskMeasurementsResponse:
+    type: object
+    properties:
+      end:
+        type: string
+        format: date-time
+      granularity:
+        $ref: '#/definitions/Granularity'
+      groupId:
+        type: string
+      hostId:
+        type: string
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      measurements:
+        type: array
+        items:
+          $ref: '#/definitions/Measurement'
+      partitionName:
+        type: string
+      processId:
+        type: string
+      start:
+        type: string
+        format: date-time
+
+  GetContainersResponse:
+    type: object
+    properties:
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/Container'
+      links:
+        type: array
+        items:
+          $ref: '#/definitions/Link'
+      totalCount:
+        type: integer
+
+  CreateOrUpdateContainerRequest:
+    type: object
+    properties:
+      atlasCidrBlock:
+        type: string
+      providerName:
+        type: string
+        enum:
+        - "AWS"
+      regionName:
+        type: string
+  Container:
+    type: object
+    properties:
+      id:
+        type: string
+      providerName:
+        type: string
+      atlasCidrBlock:
+        type: string
+      regionName:
+        type: string
+      vpcId:
+        type: string
+      provisioned:
+        type: boolean

@@ -166,3 +166,7 @@
 [[constraint]]
   name = "github.com/go-sql-driver/mysql"
   version = "1.4.1"
+
+[[constraint]]
+  branch = "add-vpc-endpoints"
+  name = "github.com/Clever/atlas-api-client"
