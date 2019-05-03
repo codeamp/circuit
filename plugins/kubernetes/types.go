@@ -41,6 +41,7 @@ type Kubernetes struct {
 	BatchV1Jobber
 	CoreServicer
 	CoreSecreter
+	CoreDeploymenter
 
 	KubernetesConfig
 }
