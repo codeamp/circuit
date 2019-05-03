@@ -6,13 +6,15 @@ import (
 
 	atlas_models "github.com/Clever/atlas-api-client/gen-go/models"
 	"github.com/codeamp/circuit/plugins/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-type MockMongoAtlasClientBuilder struct {
+type MockMongoAtlasClientNamespace struct {
 	MockMongoAtlasClient
 }
 
-func (x *MockMongoAtlasClientBuilder) New(apiEndpoint string, publicKey string, privateKey string) mongo.MongoAtlasClient {
+func (x *MockMongoAtlasClientNamespace) New(apiEndpoint string, publicKey string, privateKey string) mongo.MongoAtlasClienter {
 	return &x.MockMongoAtlasClient
 }
 
@@ -71,4 +73,26 @@ func (x *MockMongoAtlasClient) DeleteDatabaseUser(ctx context.Context, input *at
 	}
 
 	return errors.New("No user with username")
+}
+
+type MockMongoClientNamespace struct {
+}
+
+func (x *MockMongoClientNamespace) NewClient(opts ...*options.ClientOptions) (mongo.MongoClienter, error) {
+	return &MockMongoClient{}, nil
+}
+
+type MockMongoClient struct {
+}
+
+func (x *MockMongoClient) Connect(context context.Context) error {
+	return nil
+}
+
+func (x *MockMongoClient) Ping(context context.Context, readpref *readpref.ReadPref) error {
+	return nil
+}
+
+func (x *MockMongoClient) ListDatabaseNames(context context.Context, filter interface{}, opts ...*options.ListDatabasesOptions) ([]string, error) {
+	return nil, nil
 }

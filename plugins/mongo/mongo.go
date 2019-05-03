@@ -9,17 +9,21 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/x/bsonx"
 
 	atlas_models "github.com/Clever/atlas-api-client/gen-go/models"
 )
 
 func init() {
 	transistor.RegisterPlugin("mongo", func() transistor.Plugin {
-		return &MongoExtension{MongoAtlasClientBuilder: &mongoAtlasClient{}}
+		return &MongoExtension{MongoAtlasClientNamespacer: &MongoAtlasClientNamespace{}, MongoClientNamespacer: &MongoClientNamespace{}}
 	}, plugins.ProjectExtension{})
 }
 
@@ -60,8 +64,8 @@ func (x *MongoExtension) Subscribe() []string {
 // Accepts:
 //
 //	mongo_atlas_endpoint
-//	mongo_atlas_api_public
-//	mongo_atlas_api_private
+//	mongo_atlas_api_public_key
+//	mongo_atlas_api_private_key
 //	mongo_atlas_project_id
 //  mongo_atlas_api_timeout
 //
@@ -91,15 +95,14 @@ func (x *MongoExtension) Process(e transistor.Event) error {
 	return nil
 }
 
-func (x *MongoExtension) listMongoUsers(atlasAPI MongoAtlasClient, data *MongoData) (*atlas_models.GetDatabaseUsersResponse, error) {
-	log.Error("listMongoUsers")
-
+// For debug purposes, dump the list of mongo users when the 'update' function is called
+func (x *MongoExtension) listMongoUsers(atlasAPI MongoAtlasClienter, data *MongoData) (*atlas_models.GetDatabaseUsersResponse, error) {
 	resp, err := atlasAPI.GetDatabaseUsers(context.Background(), data.Atlas.ProjectID)
 	if err == nil {
 		for _, databaseUser := range resp.Results {
-			log.Warn("User: ", databaseUser.Username)
-			log.Warn("DB: ", databaseUser.DatabaseName)
-			log.Warn("Roles (ct): ", len(databaseUser.Roles))
+			log.Info("User: ", databaseUser.Username)
+			log.Info("DB: ", databaseUser.DatabaseName)
+			log.Info("Roles (ct): ", len(databaseUser.Roles))
 		}
 	} else {
 		log.Error(err.Error())
@@ -109,8 +112,7 @@ func (x *MongoExtension) listMongoUsers(atlasAPI MongoAtlasClient, data *MongoDa
 	return resp, nil
 }
 
-func (x *MongoExtension) getMongoUser(atlasAPI MongoAtlasClient, data *MongoData, userName string) (*atlas_models.DatabaseUser, error) {
-	log.Error("getMongoUser")
+func (x *MongoExtension) getMongoUser(atlasAPI MongoAtlasClienter, data *MongoData, userName string) (*atlas_models.DatabaseUser, error) {
 	getUserInput := &atlas_models.GetDatabaseUserInput{
 		GroupID:  data.Atlas.ProjectID,
 		Username: userName,
@@ -124,9 +126,7 @@ func (x *MongoExtension) getMongoUser(atlasAPI MongoAtlasClient, data *MongoData
 	return resp, nil
 }
 
-func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClient, data *MongoData, databaseName string, userName string) (*Credentials, error) {
-	log.Error("createMongoUser")
-
+func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClienter, data *MongoData, databaseName string, userName string) (*Credentials, error) {
 	generatedPassword, err := x.genRandomAlpha(16)
 	if err != nil {
 		log.Error(err.Error())
@@ -152,6 +152,16 @@ func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClient, data *MongoD
 						DatabaseName:   databaseName,
 						RoleName:       "readWrite",
 					},
+					&atlas_models.Role{
+						CollectionName: "",
+						DatabaseName:   "admin",
+						RoleName:       "clusterMonitor",
+					},
+					&atlas_models.Role{
+						CollectionName: "",
+						DatabaseName:   "admin",
+						RoleName:       "read",
+					},
 				},
 				Username: userName,
 			},
@@ -167,9 +177,7 @@ func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClient, data *MongoD
 	return &credentials, nil
 }
 
-func (x *MongoExtension) deleteMongoUser(atlasAPI MongoAtlasClient, data *MongoData, userName string) error {
-	log.Error("deleteMongoUser")
-
+func (x *MongoExtension) deleteMongoUser(atlasAPI MongoAtlasClienter, data *MongoData, userName string) error {
 	_, err := x.getMongoUser(atlasAPI, data, userName)
 	if err != nil {
 		log.Error(err.Error())
@@ -191,33 +199,57 @@ func (x *MongoExtension) deleteMongoUser(atlasAPI MongoAtlasClient, data *MongoD
 	return nil
 }
 
-func (x *MongoExtension) verifyCredentials(data *MongoData, userName string, password string) error {
-	log.Warn("verifyCredentials")
-	// mongoConnection := fmt.Sprintf("mongodb+srv://%s:%s@%s", data.Username, data.Password, data.Hostname)
+func (x *MongoExtension) verifyCredentials(e transistor.Event, data *MongoData, credentials *Credentials, databaseName string) error {
+	mongoConnection := fmt.Sprintf("mongodb+srv://%s:%s@%s/%s?authMechanism=SCRAM-SHA-1", credentials.Username, credentials.Password, data.Hostname, databaseName)
 
-	// 	// Ensure we can construct a client interface with no issues
-	// 	log.Warn("Building a new client")
-	// 	client, err := mongo.NewClient(options.Client().ApplyURI(mongoConnection))
-	// 	if err != nil {
-	// 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Build Connection to Mongo", nil)
-	// 		return err
-	// 	}
+	// Ensure we can construct a client interface with no issues
+	client, err := x.MongoClientNamespacer.NewClient(options.Client().ApplyURI(mongoConnection))
+	if err != nil {
+		return err
+	}
 
-	// 	// Provide timeout value and attempt to connect to the mongo database
-	// 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	// 	err = client.Connect(ctx)
+	startedTime := time.Now()
+	currentTime := time.Now()
+	waitInterval := 5
 
-	// 	if err != nil {
-	// 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Build Connection to Mongo", nil)
-	// 		return err
-	// 	} else {
-	// 		log.Warn("Pinging client!")
-	// 		err = client.Ping(ctx, readpref.Primary())
-	// 		if err != nil {
-	// 			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "Failed to Ping Mongo", nil)
-	// 			return err
-	// 		}
-	// 	}
+	// Provide timeout value and attempt to connect to the mongo database
+	ctx, _ := context.WithTimeout(context.Background(), time.Duration(data.CredentialsCheckTimeout)*time.Second)
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Error(err.Error())
+		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+		return err
+	}
+
+	for {
+		log.Debug("Pinging client!")
+		err = client.Ping(ctx, readpref.Primary())
+		if err != nil {
+			log.Error(err.Error())
+		} else {
+			if _, err := client.ListDatabaseNames(ctx, bsonx.Doc{}); err != nil {
+				log.Error(err.Error())
+			} else {
+				return nil
+			}
+		}
+
+		time.Sleep(time.Duration(waitInterval) * time.Second)
+		currentTime = time.Now()
+
+		if currentTime.Sub(startedTime) >= (time.Duration(data.CredentialsCheckTimeout) * time.Second) {
+			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("Timed out when verifying permissions (%ds)", data.CredentialsCheckTimeout), nil)
+			return errors.New("Timed out when verifying permissions")
+		}
+
+		if err := ctx.Err(); err != nil {
+			x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+			return err
+		}
+
+		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("running"), fmt.Sprintf("Testing Permissions For Mongo (%v elapsed)", currentTime.Sub(startedTime)), nil)
+	}
+
 	return nil
 }
 
@@ -242,12 +274,12 @@ func (x *MongoExtension) genRandomAlpha(length int) (*string, error) {
 	return &randString, nil
 }
 
-func (x *MongoExtension) getAtlasClient(data *MongoData) MongoAtlasClient {
-	if x.MongoAtlasClientBuilder == nil {
+func (x *MongoExtension) getAtlasClient(data *MongoData) MongoAtlasClienter {
+	if x.MongoAtlasClientNamespacer == nil {
 		log.Panic("MongoAtlasClientBuilder should NOT be nil!")
 	}
 
-	return x.MongoAtlasClientBuilder.New(data.Atlas.APIEndpoint, data.Atlas.PublicKey, data.Atlas.APIKey)
+	return x.MongoAtlasClientNamespacer.New(data.Atlas.APIEndpoint, data.Atlas.PublicKey, data.Atlas.APIKey)
 }
 
 func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
@@ -279,6 +311,8 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 		}
 	}
 
+	// Create the mongo user if it doesn't exist
+	// otherwise report an error message for possible duplicate extension
 	var credentials *Credentials
 	if createMongoUser == true {
 		credentials, err = x.createMongoUser(atlasAPI, data, databaseName, userName)
@@ -290,6 +324,14 @@ func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 		}
 	} else {
 		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), "User Exists - Duplicate Extension?", nil)
+		return err
+	}
+
+	// Take the credentials we just received and try to verify they are actually valid
+	// before we send off a message declaring that they are ready for use
+	if err := x.verifyCredentials(e, data, credentials, payload.Project.Slug); err != nil {
+		log.Error(err.Error())
+		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 
@@ -312,11 +354,24 @@ func (x *MongoExtension) updateMongoExtension(e transistor.Event) error {
 		return err
 	}
 
+	payload := e.Payload.(plugins.ProjectExtension)
 	atlasAPI := x.getAtlasClient(data)
 
 	_, err = x.listMongoUsers(atlasAPI, data)
 	if err != nil {
 		log.Error(err.Error())
+		return err
+	}
+
+	userName := x.getArtifactIgnoreError(&e, "mongo_username")
+	password := x.getArtifactIgnoreError(&e, "mongo_password")
+	credentials := Credentials{
+		Username: userName.String(),
+		Password: password.String(),
+	}
+	if err := x.verifyCredentials(e, data, &credentials, payload.Project.Slug); err != nil {
+		log.Error(err.Error())
+		x.sendMongoResponse(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
 	}
 
@@ -401,14 +456,14 @@ func (x *MongoExtension) extractArtifacts(e transistor.Event) (*MongoData, error
 	data.Atlas.APIEndpoint = mongoEndpoint.String()
 
 	// Mongo Public API Key
-	mongoAPIPublicKey, err := e.GetArtifact("mongo_atlas_public_key")
+	mongoAPIPublicKey, err := e.GetArtifact("mongo_atlas_api_public_key")
 	if err != nil {
 		return nil, err
 	}
 	data.Atlas.PublicKey = mongoAPIPublicKey.String()
 
 	// Mongo Private API Key
-	mongoAPIPrivateKey, err := e.GetArtifact("mongo_atlas_private_key")
+	mongoAPIPrivateKey, err := e.GetArtifact("mongo_atlas_api_private_key")
 	if err != nil {
 		return nil, err
 	}

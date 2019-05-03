@@ -16,7 +16,8 @@ import (
 type TestSuiteMongoExtension struct {
 	suite.Suite
 	transistor *transistor.Transistor
-	MockMongoAtlasClientBuilder
+	MockMongoAtlasClientNamespace
+	MockMongoClientNamespace
 }
 
 func (suite *TestSuiteMongoExtension) SetupSuite() {
@@ -26,7 +27,10 @@ plugins:
     workers: 1
 `)
 	transistor.RegisterPlugin("mongo", func() transistor.Plugin {
-		return &mongo.MongoExtension{MongoAtlasClientBuilder: &suite.MockMongoAtlasClientBuilder}
+		return &mongo.MongoExtension{
+			MongoAtlasClientNamespacer: &suite.MockMongoAtlasClientNamespace,
+			MongoClientNamespacer:      &suite.MockMongoClientNamespace,
+		}
 	}, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
@@ -42,7 +46,7 @@ func (suite *TestSuiteMongoExtension) TearDownSuite() {
 }
 
 func (suite *TestSuiteMongoExtension) AfterTest(suiteName string, testName string) {
-	suite.MockMongoAtlasClientBuilder.Clear()
+	suite.MockMongoAtlasClientNamespace.Clear()
 }
 
 func (suite *TestSuiteMongoExtension) TestCreateMongoExtSuccess() {
@@ -216,8 +220,8 @@ func (suite *TestSuiteMongoExtension) buildMongoExtArtifacts() []transistor.Arti
 		transistor.Artifact{Key: "mongo_hostname", Value: "data.Hostname", Secret: false},
 		transistor.Artifact{Key: "mongo_database_name", Value: "payloadSlug", Secret: false},
 		transistor.Artifact{Key: "mongo_atlas_endpoint", Value: "payloadSlug", Secret: false},
-		transistor.Artifact{Key: "mongo_atlas_public_key", Value: "payloadSlug", Secret: false},
-		transistor.Artifact{Key: "mongo_atlas_private_key", Value: "payloadSlug", Secret: false},
+		transistor.Artifact{Key: "mongo_atlas_api_public_key", Value: "payloadSlug", Secret: false},
+		transistor.Artifact{Key: "mongo_atlas_api_private_key", Value: "payloadSlug", Secret: false},
 		transistor.Artifact{Key: "mongo_atlas_project_id", Value: "payloadSlug", Secret: false},
 		transistor.Artifact{Key: "mongo_atlas_api_timeout", Value: "10", Secret: false},
 		transistor.Artifact{Key: "mongo_credentials_check_timeout", Value: "120", Secret: false},
@@ -229,8 +233,8 @@ func (suite *TestSuiteMongoExtension) buildEmptyMongoExtArtifacts() []transistor
 		transistor.Artifact{Key: "mongo_hostname", Value: "data.Hostname", Secret: false},
 		transistor.Artifact{Key: "mongo_database_name", Value: "payloadSlug", Secret: false},
 		transistor.Artifact{Key: "mongo_atlas_endpoint", Value: "payloadSlug", Secret: false},
-		transistor.Artifact{Key: "mongo_atlas_public_key", Value: "payloadSlug", Secret: false},
-		transistor.Artifact{Key: "mongo_atlas_private_key", Value: "payloadSlug", Secret: false},
+		transistor.Artifact{Key: "mongo_atlas_api_public_key", Value: "payloadSlug", Secret: false},
+		transistor.Artifact{Key: "mongo_atlas_api_private_key", Value: "payloadSlug", Secret: false},
 		transistor.Artifact{Key: "mongo_atlas_project_id", Value: "payloadSlug", Secret: false},
 		transistor.Artifact{Key: "mongo_atlas_api_timeout", Value: "10", Secret: false},
 		transistor.Artifact{Key: "mongo_credentials_check_timeout", Value: "120", Secret: false},
