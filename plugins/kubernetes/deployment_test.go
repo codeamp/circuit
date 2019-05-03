@@ -294,6 +294,26 @@ func addBasicReleaseExtensionArtifacts(extension *plugins.ReleaseExtension, even
 	event.AddArtifact("certificate_authority", "", false)
 }
 
+func addBasicExtensionArtifacts(event *transistor.Event) {
+	kubeConfigPath := path.Join("testdata", "kubeconfig")
+	kubeConfig, _ := ioutil.ReadFile(kubeConfigPath)
+
+	event.AddArtifact("user", "test", false)
+	event.AddArtifact("password", "test", false)
+	event.AddArtifact("host", "test", false)
+	event.AddArtifact("email", "test", false)
+	event.AddArtifact("image", "nginx", false)
+
+	for idx := range event.Artifacts {
+		event.Artifacts[idx].Source = "dockerbuilder"
+	}
+
+	event.AddArtifact("kubeconfig", string(kubeConfig), false)
+	event.AddArtifact("client_certificate", "", false)
+	event.AddArtifact("client_key", "", false)
+	event.AddArtifact("certificate_authority", "", false)
+}
+
 func BasicReleaseEvent() transistor.Event {
 	extension := BasicReleaseExtensionJob()
 

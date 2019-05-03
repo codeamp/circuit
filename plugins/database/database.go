@@ -48,6 +48,7 @@ func (x *Database) Subscribe() []string {
 	return []string{
 		"project:database:create",
 		"project:database:delete",
+		"project:database:update",
 	}
 }
 
@@ -122,11 +123,20 @@ func (x *Database) Process(e transistor.Event) error {
 	// Create DB within shared instance of the correct db variant (postgres/mysql)
 	switch e.Action {
 	case transistor.GetAction("create"):
-		dbUsername := genDBUser(projectExtensionEvent)
-		dbName := genDBName(projectExtensionEvent)
-		dbPassword := genDBPassword()
+		dbUsername, err := genRandomAlphabetStringWithLength(DB_USER_LENGTH)
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
 
-		dbMetadata, err := (*dbInstance).CreateDatabaseAndUser(dbName, dbUsername, dbPassword)
+		dbName := genDBName(projectExtensionEvent)
+		dbPassword, err := genRandomAlphabetStringWithLength(DB_PASSWORD_LENGTH)
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
+
+		dbMetadata, err := (*dbInstance).CreateDatabaseAndUser(dbName, *dbUsername, *dbPassword)
 		if err != nil {
 			x.sendFailedStatusEvent(err)
 			return nil
@@ -140,6 +150,45 @@ func (x *Database) Process(e transistor.Event) error {
 			transistor.Artifact{Key: "DB_PORT", Value: (*dbInstance).GetInstanceMetadata().Port, Secret: false},
 		}
 
+		x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
+	case transistor.GetAction("update"):
+		dbUser, err := e.GetArtifact("DB_USER")
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
+
+		dbPassword, err := e.GetArtifact("DB_PASSWORD")
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
+
+		dbName, err := e.GetArtifact("DB_NAME")
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
+
+		dbEndpoint, err := e.GetArtifact("DB_ENDPOINT")
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
+
+		dbPort, err := e.GetArtifact("DB_PORT")
+		if err != nil {
+			x.sendFailedStatusEvent(err)
+			return nil
+		}
+
+		artifacts := []transistor.Artifact{
+			transistor.Artifact{Key: "DB_USER", Value: dbUser, Secret: false},
+			transistor.Artifact{Key: "DB_PASSWORD", Value: dbPassword, Secret: false},
+			transistor.Artifact{Key: "DB_NAME", Value: dbName, Secret: false},
+			transistor.Artifact{Key: "DB_ENDPOINT", Value: dbEndpoint, Secret: false},
+			transistor.Artifact{Key: "DB_PORT", Value: dbPort, Secret: false},
+		}
 		x.sendSuccessResponse(e, transistor.GetState("complete"), artifacts)
 	case transistor.GetAction("delete"):
 		dbName, err := e.GetArtifact("DB_NAME")

@@ -25,6 +25,7 @@ func GetEventName(s string) transistor.EventName {
 		"project:mongo",
 		"project:kubernetes:loadbalancer",
 		"project:kubernetes:deployment",
+		"project:kubernetes:redis",
 
 		"gitsync",
 		"gitsync:commit",

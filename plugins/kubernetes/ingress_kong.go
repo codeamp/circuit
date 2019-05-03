@@ -166,7 +166,11 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 
 	kongService := &gokong.Service{}
 	if existingKongService != nil {
-		kongService = existingKongService
+		kongService, err = kongClient.Services().UpdateServiceById(*existingKongService.Id, serviceRequest)
+		if err != nil {
+			log.Error(fmt.Sprintf("failed to update service: %s", err.Error()))
+			return err
+		}
 	} else {
 		kongService, err = kongClient.Services().Create(serviceRequest)
 		if err != nil {
