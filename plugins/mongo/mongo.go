@@ -95,7 +95,7 @@ func (x *MongoExtension) Process(e transistor.Event) error {
 	return nil
 }
 
-// For debug purposes, dump the list of mongo users when the 'update' function is called
+// For (mostly) debug purposes, dump the list of mongo users when the 'update' function is called
 func (x *MongoExtension) listMongoUsers(atlasAPI MongoAtlasClienter, data *MongoData) (*atlas_models.GetDatabaseUsersResponse, error) {
 	resp, err := atlasAPI.GetDatabaseUsers(context.Background(), data.Atlas.ProjectID)
 	if err == nil {
@@ -112,6 +112,9 @@ func (x *MongoExtension) listMongoUsers(atlasAPI MongoAtlasClienter, data *Mongo
 	return resp, nil
 }
 
+// Used to query the Mongo Atlas API to determine if the user is already there
+// This is used later to verify the user doesn't exist before creating it (and possibly overriding the password)
+// it's also used when an extension is created an additional time to prevent it from installing successfully if the user already exits
 func (x *MongoExtension) getMongoUser(atlasAPI MongoAtlasClienter, data *MongoData, userName string) (*atlas_models.DatabaseUser, error) {
 	getUserInput := &atlas_models.GetDatabaseUserInput{
 		GroupID:  data.Atlas.ProjectID,
@@ -126,6 +129,10 @@ func (x *MongoExtension) getMongoUser(atlasAPI MongoAtlasClienter, data *MongoDa
 	return resp, nil
 }
 
+// Used to create a Mongo Atlas user via their API because they do not allow
+// users to create other users through the mongo console.
+// It creates a user that has write access only to the associated database
+// it has read access to the cluster at large to determine the list of databases on the cluster
 func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClienter, data *MongoData, databaseName string, userName string) (*Credentials, error) {
 	generatedPassword, err := x.genRandomAlpha(16)
 	if err != nil {
@@ -147,16 +154,20 @@ func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClienter, data *Mong
 				GroupID:      data.Atlas.ProjectID,
 				Links:        []*atlas_models.Link{},
 				Roles: []*atlas_models.Role{
+					// Give them readWrite access to the database corresponding to the project
+					// the extension has been created for
 					&atlas_models.Role{
 						CollectionName: "",
 						DatabaseName:   databaseName,
 						RoleName:       "readWrite",
 					},
+					// This permission is necessary to list all the database names
 					&atlas_models.Role{
 						CollectionName: "",
 						DatabaseName:   "admin",
 						RoleName:       "clusterMonitor",
 					},
+					// This permission is necessary to list all the database names
 					&atlas_models.Role{
 						CollectionName: "",
 						DatabaseName:   "admin",
@@ -177,6 +188,9 @@ func (x *MongoExtension) createMongoUser(atlasAPI MongoAtlasClienter, data *Mong
 	return &credentials, nil
 }
 
+// Delete a mongo user from Mongo Atlas
+// This operation does not remove any data, it merely removes
+// the credentials that were creataed to access the data
 func (x *MongoExtension) deleteMongoUser(atlasAPI MongoAtlasClienter, data *MongoData, userName string) error {
 	_, err := x.getMongoUser(atlasAPI, data, userName)
 	if err != nil {
@@ -199,6 +213,10 @@ func (x *MongoExtension) deleteMongoUser(atlasAPI MongoAtlasClienter, data *Mong
 	return nil
 }
 
+// The purpose of this function is to verify that the credentials
+// that we have generated are valid and have a modicum of access
+// to the requested resources. This is purely to ensure that the
+// credentials changes have been proliferated throughout the cluster
 func (x *MongoExtension) verifyCredentials(e transistor.Event, data *MongoData, credentials *Credentials, databaseName string) error {
 	mongoConnection := fmt.Sprintf("mongodb+srv://%s:%s@%s/%s?authMechanism=SCRAM-SHA-1", credentials.Username, credentials.Password, data.Hostname, databaseName)
 
@@ -274,6 +292,7 @@ func (x *MongoExtension) genRandomAlpha(length int) (*string, error) {
 	return &randString, nil
 }
 
+// Wrapper for grabbing a new atlas client from the ClientBuilder interface
 func (x *MongoExtension) getAtlasClient(data *MongoData) MongoAtlasClienter {
 	if x.MongoAtlasClientNamespacer == nil {
 		log.Panic("MongoAtlasClientBuilder should NOT be nil!")
@@ -282,6 +301,10 @@ func (x *MongoExtension) getAtlasClient(data *MongoData) MongoAtlasClienter {
 	return x.MongoAtlasClientNamespacer.New(data.Atlas.APIEndpoint, data.Atlas.PublicKey, data.Atlas.APIKey)
 }
 
+// Creates a mongo extension
+// This interacts with the Mongo Atlas API (because thats how you create users)
+// It creates the user, then tries to verify the credentials, then reports the extension
+// as either success or failure depending on the result of the creds test
 func (x *MongoExtension) createMongoExtension(e transistor.Event) error {
 	data, err := x.extractArtifacts(e)
 	if err != nil {
