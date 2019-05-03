@@ -5,6 +5,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,6 +80,22 @@ func (l CoreService) Create(clientset kubernetes.Interface, namespace string, se
 
 func (l CoreService) Update(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
 	return clientset.Core().Services(namespace).Update(service)
+}
+
+///////////////////////////////////////////////////
+
+type CoreDeploymenter interface {
+	Create(kubernetes.Interface, string, *appsv1.Deployment) (*appsv1.Deployment, error)
+}
+
+type CoreDeployment struct{}
+
+func (l CoreDeployment) Create(clientset kubernetes.Interface, namespace string, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	return clientset.AppsV1().Deployments(namespace).Create(deployment)
+}
+
+func (l CoreDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {
+	return clientset.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
 }
 
 ///////////////////////////////////////////////////
