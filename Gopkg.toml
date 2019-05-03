@@ -162,3 +162,15 @@
 [[constraint]]
   name = "go.mongodb.org/mongo-driver"
   version = "~1.0.0"
+  
+[[constraint]]  
+  name = "github.com/prometheus/client_golang"
+  version = "0.9.2"
+
+[[constraint]]
+  name = "github.com/go-sql-driver/mysql"
+  version = "1.4.1"
+
+[[constraint]]
+  branch = "add-vpc-endpoints"
+  name = "github.com/Clever/atlas-api-client"
