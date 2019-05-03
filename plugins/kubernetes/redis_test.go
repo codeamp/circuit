@@ -7,6 +7,7 @@ import (
 	"github.com/codeamp/circuit/plugins/kubernetes"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -17,7 +18,7 @@ type TestSuiteRedis struct {
 	KubernetesPlugin kubernetes.Kubernetes
 }
 
-func (suite *TestSuiteRedis) SetupRedisSuite() {
+func (suite *TestSuiteRedis) SetupSuite() {
 	var viperConfig = []byte(`
 plugins:
   kubernetes:
@@ -31,9 +32,13 @@ plugins:
 		CoreDeploymenter: &MockCoreDeployment{},
 	}
 
-	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin { return &suite.KubernetesPlugin }, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
+	spew.Dump("HELLO I AM RUNNING")
+
+	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin { return &suite.KubernetesPlugin }, plugins.ProjectExtension{})
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
+
+	spew.Dump("DONE RUNNING")
 	go suite.transistor.Run()
 }
 
@@ -51,12 +56,15 @@ func (suite *TestSuiteRedis) TestBasicSuccessRedisDeployment() {
 
 	payload := transistor.NewEvent(plugins.GetEventName("project:kubernetes:redis"), transistor.GetAction("create"), projectExtension)
 
+	addBasicExtensionArtifacts(&payload)
+	payload.AddArtifact("redis_deployments_namespace", "test-ns", false)
+
 	suite.transistor.Events <- payload
 
 	var e transistor.Event
 	e, err := suite.transistor.GetTestEvent("project:kubernetes:redis", transistor.GetAction("status"), 30)
 	if err != nil {
-		assert.Nil(suite.T(), err, err.Error())
+		assert.NotNil(suite.T(), err, err.Error())
 		return
 	}
 

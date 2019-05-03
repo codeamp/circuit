@@ -206,10 +206,32 @@ func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, sv
 
 func genRedisDeploymentName(payload plugins.ProjectExtension) string {
 	uniqueID := uuid.NewV4()
-	return fmt.Sprintf("%s-%s-%s", payload.Environment[:10], payload.Project.Slug[:10], uniqueID.String()[:8])
+	env := payload.Environment
+	projectSlug := payload.Project.Slug
+
+	if len(payload.Environment) > 10 {
+		env = payload.Environment[:10]
+	}
+
+	if len(payload.Project.Slug) > 10 {
+		projectSlug = payload.Project.Slug[:10]
+	}
+
+	return fmt.Sprintf("%s-%s-%s", env, projectSlug, uniqueID.String()[:8])
 }
 
 func genRedisServiceName(payload plugins.ProjectExtension) string {
 	uniqueID := uuid.NewV4()
-	return fmt.Sprintf("%s-%s-%s", payload.Environment[:10], payload.Project.Slug[:10], uniqueID.String()[:8])
+	env := payload.Environment
+	projectSlug := payload.Project.Slug
+
+	if len(payload.Environment) > 10 {
+		env = payload.Environment[:10]
+	}
+
+	if len(payload.Project.Slug) > 10 {
+		projectSlug = payload.Project.Slug[:10]
+	}
+
+	return fmt.Sprintf("%s-%s-%s", env, projectSlug, uniqueID.String()[:8])
 }
