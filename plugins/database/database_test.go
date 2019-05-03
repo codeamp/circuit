@@ -1,7 +1,6 @@
 package database_test
 
 import (
-	"log"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
@@ -41,8 +40,6 @@ func (suite *DatabaseTestSuite) TearDownSuite() {
 }
 
 func (suite *DatabaseTestSuite) TestPostgresqlDatabase_Success() {
-	log.Println("TestPostgresqlDatabase_Success")
-
 	// inputs
 	dbInstanceHost := "postgres"
 	dbAdminUsername := "postgres"
@@ -94,7 +91,9 @@ func (suite *DatabaseTestSuite) TestPostgresqlDatabase_Success() {
 
 	assert.NotNil(suite.T(), dbName)
 	assert.NotNil(suite.T(), dbUser)
+	assert.Equal(suite.T(), len(dbUser.String()), database.DB_USER_LENGTH)
 	assert.NotNil(suite.T(), dbPassword)
+	assert.Equal(suite.T(), len(dbPassword.String()), database.DB_PASSWORD_LENGTH)
 
 	deleteDBEvent := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("delete"), payload)
 	deleteDBEvent.AddArtifact("SHARED_DATABASE_HOST", dbInstanceHost, false)
@@ -167,7 +166,9 @@ func (suite *DatabaseTestSuite) TestMySQLDatabase_Success() {
 
 	assert.NotNil(suite.T(), dbName)
 	assert.NotNil(suite.T(), dbUser)
+	assert.Equal(suite.T(), len(dbUser.String()), database.DB_USER_LENGTH)
 	assert.NotNil(suite.T(), dbPassword)
+	assert.Equal(suite.T(), len(dbPassword.String()), database.DB_PASSWORD_LENGTH)
 
 	deleteDBEvent := transistor.NewEvent(plugins.GetEventName("project:database"), transistor.GetAction("delete"), payload)
 	deleteDBEvent.AddArtifact("SHARED_DATABASE_HOST", dbInstanceHost, false)
