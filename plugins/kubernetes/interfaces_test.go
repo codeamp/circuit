@@ -8,6 +8,7 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,6 +78,18 @@ func (l MockCoreService) Create(clientset kubernetes.Interface, namespace string
 
 func (l MockCoreService) Update(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
 	return clientset.Core().Services(namespace).Update(service)
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+type MockCoreDeployment struct{}
+
+func (l MockCoreDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {
+	return clientset.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
+}
+
+func (l MockCoreDeployment) Create(clientset kubernetes.Interface, namespace string, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	return clientset.AppsV1().Deployments(namespace).Create(deployment)
 }
 
 /////////////////////////////////////////////////////////////////////////

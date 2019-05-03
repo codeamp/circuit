@@ -31,6 +31,7 @@ func init() {
 			BatchV1Jobber:        &BatchV1Job{},
 			CoreServicer:         &CoreService{},
 			CoreSecreter:         &CoreSecret{},
+			CoreDeploymenter:     &CoreDeployment{},
 		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
@@ -71,6 +72,9 @@ func (x *Kubernetes) Subscribe() []string {
 		"project:kubernetes:loadbalancer:create",
 		"project:kubernetes:loadbalancer:update",
 		"project:kubernetes:loadbalancer:delete",
+		"project:kubernetes:redis:create",
+		"project:kubernetes:redis:update",
+		"project:kubernetes:redis:delete",
 		"release:kubernetes:deployment:create",
 	}
 }
@@ -100,6 +104,11 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 
 	if e.Matches(".*kubernetes:ingresskong:") == true {
 		x.ProcessKongIngress(e)
+		return nil
+	}
+
+	if e.Matches(".*kubernetes:redis:") == true {
+		x.ProcessRedis(e)
 		return nil
 	}
 

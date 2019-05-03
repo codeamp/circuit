@@ -2,9 +2,12 @@ package database
 
 import (
 	"fmt"
-	"math/rand"
+	"log"
+	"regexp"
 	"strings"
-	"time"
+
+	"crypto/rand"
+	"encoding/base64"
 
 	"github.com/codeamp/circuit/plugins"
 	uuid "github.com/satori/go.uuid"
@@ -15,47 +18,37 @@ import (
 func genDBName(pe plugins.ProjectExtension) string {
 	projectSlugWithUnderscores := strings.Replace(pe.Project.Slug, "-", "_", -1)
 	envWithUnderscores := strings.Replace(pe.Environment, "-", "_", -1)
-	if len(projectSlugWithUnderscores) > 20 {
-		projectSlugWithUnderscores = projectSlugWithUnderscores[:20]
+	if len(projectSlugWithUnderscores) > 10 {
+		projectSlugWithUnderscores = projectSlugWithUnderscores[:10]
 	}
 
-	if len(envWithUnderscores) > 20 {
-		envWithUnderscores = envWithUnderscores[:20]
-	}
-
-	uniqueID := uuid.NewV4()
-
-	return fmt.Sprintf("%s_%s_%s", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:15], "-", "_", -1))
-}
-
-// genDBUsername creates a database username for the specified
-// project extension with the format <project.slug>-<environment>
-func genDBUser(pe plugins.ProjectExtension) string {
-	projectSlugWithUnderscores := strings.Replace(pe.Project.Slug, "-", "_", -1)
-	envWithUnderscores := strings.Replace(pe.Environment, "-", "_", -1)
-	if len(projectSlugWithUnderscores) > 20 {
-		projectSlugWithUnderscores = projectSlugWithUnderscores[:20]
-	}
-
-	if len(pe.Environment) > 20 {
-		envWithUnderscores = envWithUnderscores[:20]
+	if len(envWithUnderscores) > 10 {
+		envWithUnderscores = envWithUnderscores[:10]
 	}
 
 	uniqueID := uuid.NewV4()
 
-	return fmt.Sprintf("%s_%s_%s_user", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:11], "-", "_", -1))
+	return fmt.Sprintf("%s_%s_%s", projectSlugWithUnderscores, envWithUnderscores, strings.Replace(uniqueID.String()[:12], "-", "_", -1))
 }
 
-func genDBPassword() string {
-	var characters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-	rand.Seed(time.Now().UnixNano())
-
-	b := make([]rune, DB_PASSWORD_LENGTH)
-	for i := range b {
-		b[i] = characters[rand.Intn(len(characters))]
+func genRandomAlphabetStringWithLength(length int) (*string, error) {
+	b := make([]byte, length)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
 	}
-	return string(b)
+
+	// Make a Regex to say we only want letters and numbers
+	reg, err := regexp.Compile("[^a-zA-Z]+")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// a is an arbitrary char, no significance other than it being a placeholder
+	randString := reg.ReplaceAllString(base64.RawStdEncoding.EncodeToString(b), "a")[:length]
+
+	return &randString, nil
 }
 
 // initDBInstance finds the correct db instance type to initialize
@@ -67,6 +60,11 @@ func initDBInstance(dbType string, host string, username string, sslmode string,
 	switch dbType {
 	case POSTGRESQL:
 		dbInstance, err = initPostgresInstance(host, username, password, sslmode, port)
+		if err != nil {
+			return nil, err
+		}
+	case MYSQL:
+		dbInstance, err = initMySQLInstance(host, username, password, sslmode, port)
 		if err != nil {
 			return nil, err
 		}
