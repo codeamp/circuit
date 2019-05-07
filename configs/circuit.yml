@@ -34,6 +34,8 @@ plugins:
     workers: 1
   s3:
     workers: 1
+  mongo:
+    workers: 1
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"

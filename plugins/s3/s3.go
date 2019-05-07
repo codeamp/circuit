@@ -458,7 +458,6 @@ func (x *S3) updateS3(e transistor.Event) error {
 //		User Group Assignment
 //
 func (x *S3) deleteUserDependencies(data *S3Data, userName string) error {
-	log.Error("deleteUserDependencies")
 	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	// We need to know what access keys there are in order to enumerate and delete them
