@@ -53,7 +53,7 @@ func (p *Postgres) CreateDatabaseAndUser(dbName string, username string, passwor
 	}
 
 	// create user
-	if err := p.db.Exec(fmt.Sprintf(`CREATE USER "%s" with PASSWORD '%s';`, username, password)).Error; err != nil {
+	if err := p.db.Exec(fmt.Sprintf(`CREATE USER "%s" with ENCRYPTED PASSWORD '%s';`, username, password)).Error; err != nil {
 		return nil, err
 	}
 
