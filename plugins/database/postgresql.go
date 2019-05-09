@@ -48,17 +48,17 @@ func (p *Postgres) CreateDatabaseAndUser(dbName string, username string, passwor
 
 	// we have to use fmt.Sprintf here because of an issue with the underlying driver
 	// and properly sanitizing create database statements
-	if err := p.db.LogMode(true).Exec(fmt.Sprintf(`CREATE DATABASE "%s";`, dbName)).Error; err != nil {
+	if err := p.db.Exec(fmt.Sprintf(`CREATE DATABASE "%s";`, dbName)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user
-	if err := p.db.LogMode(true).Exec(fmt.Sprintf(`CREATE USER "%s" with PASSWORD '%s';`, username, password)).Error; err != nil {
+	if err := p.db.Exec(fmt.Sprintf(`CREATE USER "%s" with PASSWORD '%s';`, username, password)).Error; err != nil {
 		return nil, err
 	}
 
 	// create user permissions
-	if err := p.db.LogMode(true).Exec(fmt.Sprintf(`GRANT CONNECT ON DATABASE "%s" TO "%s";`, dbName, username)).Error; err != nil {
+	if err := p.db.Exec(fmt.Sprintf(`GRANT CONNECT ON DATABASE "%s" TO "%s";`, dbName, username)).Error; err != nil {
 		return nil, err
 	}
 
