@@ -108,8 +108,6 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 			return err
 		}
 
-		// TODO: Remove hardcoded time
-		log.Warn(timeScheduledToBuild.String())
 		t, err := time.Parse("15:04 -0700 MST", timeScheduledToBuild.String())
 		if err != nil {
 			log.Error(err.Error())

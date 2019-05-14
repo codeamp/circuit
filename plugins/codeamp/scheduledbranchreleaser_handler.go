@@ -116,7 +116,7 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 			// If this succeeds, send a message to the front end to make user refresh the 'settings' page if they are viewing it
 			{
 				event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), plugins.WebsocketMsg{
-					Event: fmt.Sprintf("project/branch-update"),
+					Event: "project/branch-update",
 				})
 				event.AddArtifact("event", "msg", false)
 				x.Events <- event
