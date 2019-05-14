@@ -143,9 +143,9 @@ func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.
 	var err error
 	var output []byte
 
-	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.gitsync.workdir"), projectRepository)
+	idRsaPath := fmt.Sprintf("%s/%s_id_rsa", viper.GetString("plugins.scheduledbranchreleaser.workdir"), projectRepository)
 	idRsa := fmt.Sprintf("GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s -F /dev/null", idRsaPath)
-	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.gitsync.workdir"), projectRepository, git.Branch)
+	repoPath := fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.scheduledbranchreleaser.workdir"), projectRepository, git.Branch)
 
 	// Git Env
 	env := os.Environ()
