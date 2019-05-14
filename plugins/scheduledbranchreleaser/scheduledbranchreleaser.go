@@ -9,11 +9,11 @@ import (
 	"github.com/codeamp/transistor"
 )
 
-const SCHEDULED_TIME_THRESHOLD = time.Duration(time.Minute * 45)
-
 const (
 	PULSE_MESSAGE   = "scheduledbranchreleaser:pulse"
 	RELEASE_MESSAGE = "scheduledbranchreleaser:release"
+
+	SCHEDULED_TIME_THRESHOLD = time.Duration(time.Minute * 45)
 )
 
 func init() {
@@ -73,7 +73,6 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 			return err
 		}
 	} else if e.Matches(PULSE_MESSAGE) {
-
 		payload := e.Payload.(plugins.ScheduledBranchReleaser)
 		timeScheduledToBuild, err := e.GetArtifact("schedule")
 		if err != nil {
@@ -82,14 +81,13 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 		}
 
 		log.Warn(timeScheduledToBuild.String())
-		t, err := time.Parse("15:04 -0700 MST", "21:00 -0700 UTC")
+		t, err := time.Parse("15:04 -0700 MST", "22:00 -0700 UTC")
 		if err != nil {
 			log.Error(err.Error())
 			return err
 		}
 
 		now := time.Now().UTC()
-
 		parsedDuration, err := time.ParseDuration(fmt.Sprintf("%dh%dm", t.Hour(), t.Minute()))
 		if err != nil {
 			log.Error(err.Error())
@@ -100,16 +98,10 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 		nowDiff := scheduledTime.Sub(now)
 
 		if nowDiff <= SCHEDULED_TIME_THRESHOLD {
-			log.Warn("WITHIN TIME THRESHOLD. DISPATCHING MESSAGE")
-
 			event := transistor.NewEvent(RELEASE_MESSAGE, transistor.GetAction("create"), payload)
 			event.Artifacts = e.Artifacts
 			x.events <- event
-		} else {
-			log.Error("OUTSIDE DURATION")
 		}
-
-		log.Warn("pulse")
 	}
 
 	return nil

@@ -22,10 +22,21 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	SCHEDULED_RELEASE_HANDLER_PLUGIN_NAME = "scheduledbranchreleaser"
+)
+
+// This is the handler that is automagically called when
+// CodeAmp receives a message with a 'ScheduleBranchReleaser' type payload
+//
+// It's job is to handle the message that is being received from the plugin itself.
+// If this function is executing, then the plugin has determined that the current
+// time matches the scheduled time for this project.
+//
+// The job of this function is to build a release with the desired branch
+// and to call the graphql function that is responsible for building a release
 func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 	payload := e.Payload.(plugins.ScheduledBranchReleaser)
-	log.Warn("ScheduledBranchReleaserEventHandler - ", e.Event())
-
 	desiredBranch, err := e.GetArtifact("branch")
 	if err != nil {
 		log.Error(err.Error())
@@ -36,8 +47,11 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 	var projectSettings model.ProjectSettings
 	if err := x.DB.Where("id = ?", payload.ProjectSettingsID).Find(&projectSettings).Error; err != nil {
 		log.Error(err.Error())
+		return
 	} else {
 		if projectSettings.GitBranch != desiredBranch.String() {
+			oldBranch := projectSettings.GitBranch
+
 			var environment model.Environment
 			if err := x.DB.Where("id = ?", payload.Environment).Find(&environment).Error; err != nil {
 				log.Error(err.Error())
@@ -46,11 +60,18 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 
 			// Switch to desired branch
 			{
-				log.Warn("WARNING: UPDATING GITBRANCH TO DESIRED BRANCH: ", projectSettings.GitBranch, " ", desiredBranch.String())
-
 				projectSettings.GitBranch = desiredBranch.String()
 				if err := x.DB.Save(&projectSettings).Error; err != nil {
 					log.Error(err.Error())
+					return
+				} else {
+					log.WarnWithFields("[AUDIT] Updated Project Branch (Automated)", log.Fields{
+						"project":     payload.Project.Slug,
+						"branch":      desiredBranch.String(),
+						"oldBranch":   oldBranch,
+						"user":        "scheduled builder",
+						"environment": payload.Environment},
+					)
 				}
 			}
 
@@ -78,16 +99,6 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 						return
 					}
 				} else {
-					if err := x.DB.Where("id = ?", release.HeadFeatureID).Find(&feature).Error; err != nil {
-						if gorm.IsRecordNotFoundError(err) {
-							log.InfoWithFields("can not find head feature", log.Fields{
-								"id": release.HeadFeatureID,
-							})
-						} else {
-							log.Error(err.Error())
-							return
-						}
-					}
 					headFeatureID = release.HeadFeatureID.String()
 				}
 			}
@@ -255,22 +266,14 @@ func (x *CodeAmp) toGitCommit(entry string, head bool) (plugins.GitCommit, error
 }
 
 func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
-	type Data struct {
-		Branch        string
-		EnvironmentID string
-		ExtensionID   string
-	}
-
-	data := Data{"master", "85d85e59-5260-42fb-ab6d-d5d5aafbfe4f", "f45d29ca-059e-4112-8b65-1001f06f9425"}
-
 	var extension model.Extension
-	if err := x.DB.Where("id = ?", data.ExtensionID).Find(&extension).Error; err != nil {
+	if err := x.DB.Where("key = ?", SCHEDULED_RELEASE_HANDLER_PLUGIN_NAME).Find(&extension).Error; err != nil {
 		log.Error(err.Error())
 		return err
 	}
 
 	var projectExtensions []model.ProjectExtension
-	if err := x.DB.Where("environment_id = ? AND extension_id = ?", data.EnvironmentID, data.ExtensionID).Find(&projectExtensions).Error; err != nil {
+	if err := x.DB.Where("extension_id = ?", extension.ID.String()).Find(&projectExtensions).Error; err != nil {
 		log.Error(err.Error())
 		return err
 	}
@@ -278,15 +281,7 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 	var projectSettings model.ProjectSettings
 	var project model.Project
 	for _, peResult := range projectExtensions {
-		if err := x.DB.Where("git_branch != ? AND environment_id = ? AND project_id = ?", data.Branch, data.EnvironmentID, peResult.ProjectID).Find(&projectSettings).Error; err != nil {
-			if gorm.IsRecordNotFoundError(err) == false {
-				log.Error(err.Error())
-			}
-
-			continue
-		}
-
-		err := x.DB.Where("id = ?", projectSettings.ProjectID).Find(&project).Error
+		err := x.DB.Where("id = ?", peResult.ProjectID).Find(&project).Error
 		if err != nil {
 			log.Error(err.Error())
 			continue
@@ -298,6 +293,30 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 			continue
 		}
 
+		desiredBranch := ""
+		for _, artifact := range artifacts {
+			if artifact.Key == "BRANCH" {
+				desiredBranch = artifact.String()
+			}
+		}
+
+		if desiredBranch == "" {
+			log.Error(errors.New("Coud not find desired branch in plugin extension configuration"))
+			continue
+		}
+
+		if err := x.DB.Where("git_branch != ? AND environment_id = ? AND project_id = ?", desiredBranch, peResult.EnvironmentID, peResult.ProjectID).Find(&projectSettings).Error; err != nil {
+			// It's okay if this comes back without finding any records.
+			// only report an error if there is an actual error other than no records found
+			if gorm.IsRecordNotFoundError(err) == false {
+				log.Error(err.Error())
+			}
+
+			// We need to continue regardless of the cause of the error condition
+			// because we don't have enough information to build out the ReleaseInput struct
+			continue
+		}
+
 		projectSchedulerExtension := plugins.ProjectExtension{
 			ID: peResult.Model.ID.String(),
 			Project: plugins.Project{
@@ -305,17 +324,16 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 				Slug:       project.Slug,
 				Repository: project.Repository,
 			},
-			Environment: data.EnvironmentID,
+			Environment: peResult.EnvironmentID.String(),
 		}
 
-		log.Warn("SENDING PULSE MESSAGE")
 		sbr := plugins.ScheduledBranchReleaser{
 			ProjectSettingsID: projectSettings.Model.ID.String(),
 			ProjectExtension:  projectSchedulerExtension,
 			Git: plugins.Git{
 				Url:           project.GitUrl,
 				Protocol:      project.GitProtocol,
-				Branch:        data.Branch,
+				Branch:        desiredBranch,
 				RsaPrivateKey: project.RsaPrivateKey,
 				RsaPublicKey:  project.RsaPublicKey,
 			},
