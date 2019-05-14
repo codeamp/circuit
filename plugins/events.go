@@ -23,9 +23,13 @@ func GetEventName(s string) transistor.EventName {
 		"project:database",
 		"project:s3",
 		"project:mongo",
+		"project:scheduledbranchreleaser",
 		"project:kubernetes:loadbalancer",
 		"project:kubernetes:deployment",
 		"project:kubernetes:redis",
+		"project:heartbeat",
+
+		"scheduledbranchreleaser:pulse",
 
 		"gitsync",
 		"gitsync:commit",
@@ -231,6 +235,19 @@ type Secret struct {
 type HeartBeat struct {
 	Tick string `json:"tick"`
 }
+
+// ScheduledBranchReleaserPulse data struct
+type ScheduledBranchReleaser struct {
+	ProjectExtension  `json:"projectextension"`
+	Git               `json:"git"`
+	ProjectSettingsID string `json:"projectSettingsID"`
+}
+
+// ScheduledBranchReleaserRElease data struct
+// type ScheduledBranchReleaserRelease struct {
+// 	ProjectExtension  `json:"projectextension"`
+// 	ProjectSettingsID string `json:"projectSettingsID"`
+// }
 
 // WebsocketMsg event data struct
 type WebsocketMsg struct {

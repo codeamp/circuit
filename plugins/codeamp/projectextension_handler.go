@@ -17,11 +17,16 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 	var project model.Project
 
 	if e.Matches("project:.*:status") {
-		if x.DB.Where("id = ?", receivedPayload.ID).Find(&extension).RecordNotFound() {
+		if x.DB.Unscoped().Where("id = ?", receivedPayload.ID).Find(&extension).RecordNotFound() {
 			log.ErrorWithFields("extension not found", log.Fields{
 				"id": receivedPayload.ID,
 			})
+
 			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because ProjectExtension not found given payload id: %s.", receivedPayload.ID))
+		} else {
+			if extension.DeletedAt != nil {
+				return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because ProjectExtension has been deleted id: %s.", receivedPayload.ID))
+			}
 		}
 
 		if x.DB.Where("id = ?", extension.ProjectID).Find(&project).RecordNotFound() {

@@ -10,8 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-
-	uuid "github.com/satori/go.uuid"
+	"github.com/jinzhu/gorm"
 )
 
 func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
@@ -49,13 +48,22 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 
 	user := model.User{}
 	email := ""
-	if release.UserID == uuid.FromStringOrNil(ContinuousDeployUUID) {
-		email = "Automated Deployment"
+
+	specialReleaseUsers := map[string]string{
+		ContinuousDeployUUID: "Automated Deployment",
+		ScheduledDeployUUID:  "Scheduled Deployment",
+	}
+	if val, ok := specialReleaseUsers[release.UserID.String()]; ok {
+		email = val
 	} else {
-		if x.DB.Where("id = ?", release.UserID).First(&user).RecordNotFound() {
-			log.InfoWithFields("user not found", log.Fields{
-				"id": release.UserID,
-			})
+		if err := x.DB.Where("id = ?", release.UserID).First(&user).Error; err != nil {
+			if gorm.IsRecordNotFoundError(err) {
+				log.InfoWithFields("user not found", log.Fields{
+					"id": release.UserID,
+				})
+			} else {
+				log.Error(err.Error())
+			}
 		} else {
 			email = user.Email
 		}
@@ -162,7 +170,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
-					"id": releaseExtension.ProjectExtensionID,
+					"id":                   releaseExtension.ProjectExtensionID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return
@@ -171,7 +179,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
-					"id": projectExtension.Model.ID,
+					"id":                   projectExtension.Model.ID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return
@@ -206,7 +214,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 				log.WarnWithFields("project extensions not found", log.Fields{
-					"id": releaseExtension.ProjectExtensionID,
+					"id":                   releaseExtension.ProjectExtensionID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return
@@ -215,7 +223,7 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 			extension := model.Extension{}
 			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 				log.WarnWithFields("extension not found", log.Fields{
-					"id": projectExtension.Model.ID,
+					"id":                   projectExtension.Model.ID,
 					"release_extension_id": releaseExtension.Model.ID,
 				})
 				return

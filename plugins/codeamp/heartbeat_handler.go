@@ -18,4 +18,9 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 			x.GitSync(&project)
 		}
 	}
+
+	switch payload.Tick {
+	case "minute":
+		x.scheduledBranchReleaserPulse(e)
+	}
 }
