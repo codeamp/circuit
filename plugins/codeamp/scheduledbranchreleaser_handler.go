@@ -334,6 +334,8 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 			continue
 		}
 
+		// We want to grab the project settings where the project and environment match what we're looking for
+		// but the currently configured branch is different than our desired branch we want to trigger a build on
 		if err := x.DB.Where("git_branch != ? AND environment_id = ? AND project_id = ?", desiredBranch, peResult.EnvironmentID, peResult.ProjectID).Find(&projectSettings).Error; err != nil {
 			// It's okay if this comes back without finding any records.
 			// only report an error if there is an actual error other than no records found
