@@ -66,33 +66,40 @@ func (x *ScheduledBranchReleaser) Subscribe() []string {
 // Once this plugin has decided that the schedule matches, it fires off an event
 // that is then again handled by the CodeAmp plugin. The second event handling
 // is the portion that is responsible for orchetrasting the release
-// and triggering the release process.
+// and triggering the release process
 //
 // Required Fields:
 // BRANCH		- Which branch should this project be automatically updated to?
 // SCHEDULE		- When should the branch be updated and a release created?
 func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 	var err error
+
+	// This message group is sent when a project extension
+	// is added or removed from panel
 	if e.Matches("project:scheduledbranchreleaser") {
 		log.InfoWithFields(fmt.Sprintf("Process ScheduledBranchReleaser event: %s", e.Event()), log.Fields{})
+
+		message := "Unhandled Error"
 		switch e.Action {
 		case transistor.GetAction("create"):
-			// err = x.createScheduledBranchReleaser(e)
+			message = "Successfully installed extension"
 		case transistor.GetAction("update"):
-			// err = x.updateScheduledBranchReleaser(e)
+			message = "Successfully updated extension"
 		case transistor.GetAction("delete"):
-			// err = x.deleteScheduledBranchReleaser(e)
+			message = "Deleted Extension"
 		default:
 			log.Warn(fmt.Sprintf("Unhandled ScheduledBranchReleaser event: %s", e.Event()))
-
 		}
 
-		x.sendResponse(e, transistor.GetAction("status"), transistor.GetState("complete"), "Nothing to Update. Removing this extension does not delete any data.", nil)
+		x.sendResponse(e, transistor.GetAction("status"), transistor.GetState("complete"), message, nil)
 
 		if err != nil {
 			log.Error(err.Error())
 			return err
 		}
+		// The pulse message is sent as a result of CodeAmp receiving a heartbeat message
+		// and forwarding it to SBR including the configuration of a project extension
+		// meeting our criteria (not the desired branch on the env the extension is configured for)
 	} else if e.Matches(PULSE_MESSAGE) {
 		payload := e.Payload.(plugins.ScheduledBranchReleaser)
 		timeScheduledToBuild, err := e.GetArtifact("schedule")
@@ -103,12 +110,15 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 
 		// TODO: Remove hardcoded time
 		log.Warn(timeScheduledToBuild.String())
-		t, err := time.Parse("15:04 -0700 MST", "22:00 -0700 UTC")
+		t, err := time.Parse("15:04 -0700 MST", timeScheduledToBuild.String())
 		if err != nil {
 			log.Error(err.Error())
 			return err
 		}
 
+		// Grab the current time and date, then truncate the time so we're left with only today's date
+		// Then add the time that we have from the SCHEDULE so we can calculate the duration between
+		// now and the scheduled time for today
 		now := time.Now().UTC()
 		parsedDuration, err := time.ParseDuration(fmt.Sprintf("%dh%dm", t.Hour(), t.Minute()))
 		if err != nil {
@@ -116,9 +126,11 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 			return err
 		}
 		scheduledTime := now.Truncate(time.Hour * 24).Add(parsedDuration)
-
 		nowDiff := scheduledTime.Sub(now)
 
+		// If the difference between the scheduled time and the now time
+		// is less than our time threshold, then send a message back to the CodeAmp plugin
+		// in order to create a release for this project
 		if nowDiff <= SCHEDULED_TIME_THRESHOLD {
 			event := transistor.NewEvent(RELEASE_MESSAGE, transistor.GetAction("create"), payload)
 			event.Artifacts = e.Artifacts

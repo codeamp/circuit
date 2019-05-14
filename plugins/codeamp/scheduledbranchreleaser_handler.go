@@ -22,6 +22,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// This has to be here because we need a way of referencing the extension
+// in order to get the extension ID and then grab all the project extensions
+// that have that extension id as their parent extension
 const (
 	SCHEDULED_RELEASE_HANDLER_PLUGIN_NAME = "scheduledbranchreleaser"
 )
@@ -52,13 +55,16 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 		if projectSettings.GitBranch != desiredBranch.String() {
 			oldBranch := projectSettings.GitBranch
 
+			// Try and find the envrionment that is associted with the environment id that was provided
+			// in the message. this is necessary so we can send a message to the front end to inform
+			// the user that the branch has been updated without their explicit input
 			var environment model.Environment
 			if err := x.DB.Where("id = ?", payload.Environment).Find(&environment).Error; err != nil {
 				log.Error(err.Error())
 				return
 			}
 
-			// Switch to desired branch
+			// Update the project settings DB entry to reflect the new branch selection
 			{
 				projectSettings.GitBranch = desiredBranch.String()
 				if err := x.DB.Save(&projectSettings).Error; err != nil {
@@ -75,7 +81,9 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 				}
 			}
 
-			// Pull in commits for this branch
+			// Pull in all commits for this branch. Don't rely on gitsync for this operation
+			// as that would require adding SBR specific events into the Gitsync plugin
+			// since only 1 receiver will handle any given message (no multi receives)
 			headFeatureID := ""
 			{
 				_, err := x.commits(payload.ProjectExtension.Project.Repository, payload.Git)
@@ -87,6 +95,8 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 				var release model.Release
 				var feature model.Feature
 
+				// Try to grab the latest release in order to determine the most recently deployed feature hash
+				// if that doesn't exist, then try and find the most recent commit for the branch in the list of features
 				if err := x.DB.Where("project_id = ? AND environment_id = ?", projectSettings.ProjectID, projectSettings.EnvironmentID).Order("created_at DESC").First(&release).Error; err != nil {
 					if gorm.IsRecordNotFoundError(err) {
 						if err := x.DB.Where("project_id = ? AND ref = ", projectSettings.ProjectID, fmt.Sprintf("refs/heads/%s", projectSettings.GitBranch)).Order("created_at DESC").First(&feature).Error; err != nil {
@@ -105,12 +115,9 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 
 			// If this succeeds, send a message to the front end to make user refresh the 'settings' page if they are viewing it
 			{
-				payload := plugins.WebsocketMsg{
+				event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), plugins.WebsocketMsg{
 					Event: fmt.Sprintf("project/branch-update"),
-				}
-
-				log.Warn("Sending Message: ", "project/branch-update")
-				event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+				})
 				event.AddArtifact("event", "msg", false)
 				x.Events <- event
 			}
@@ -139,6 +146,7 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 	}
 }
 
+// Pulled from the Gitsync plugin
 func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.GitCommit, error) {
 	var err error
 	var output []byte
@@ -229,6 +237,7 @@ func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.
 	return commits, nil
 }
 
+// Pulled from the Gitsync plugin
 func (x *CodeAmp) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 
@@ -247,6 +256,7 @@ func (x *CodeAmp) git(env []string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
+// Pulled from the Gitsync plugin
 func (x *CodeAmp) toGitCommit(entry string, head bool) (plugins.GitCommit, error) {
 	items := strings.Split(entry, "#@#")
 	commiterDate, err := time.Parse("2006-01-02T15:04:05-07:00", items[4])
@@ -265,19 +275,37 @@ func (x *CodeAmp) toGitCommit(entry string, head bool) (plugins.GitCommit, error
 	}, nil
 }
 
+// This function is called on receipt of a hearbeat message from the
+// hearbeat plugin. The purpose of this function is to gather
+// all configurations of all project extensions which have the SBR
+// as the base extension. From there, the function checks to see if the
+// desired branch is different from the current branch. If so, it sends a pulse
+// message to the SBR plugin, where we then will check the schedule to see if it's
+// the appropriate time to update the branch and create a release
 func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
+
+	// Unfortunately we have to rely on the name of the extension here to grab the base extension
+	// this is CRUCIAL and if the plugin is added to the codeamp extensions list then this handler
+	// WILL NOT FUNCTION. Seriously.
 	var extension model.Extension
 	if err := x.DB.Where("key = ?", SCHEDULED_RELEASE_HANDLER_PLUGIN_NAME).Find(&extension).Error; err != nil {
 		log.Error(err.Error())
 		return err
 	}
 
+	// Use the extension id to find all project extensions that have been setup
 	var projectExtensions []model.ProjectExtension
 	if err := x.DB.Where("extension_id = ?", extension.ID.String()).Find(&projectExtensions).Error; err != nil {
 		log.Error(err.Error())
 		return err
 	}
 
+	// Iterate over all the found project extensions and build the necessary configuration
+	// We'll need to pull the configuration from the project extension and the base extension
+	// and merge them together. From there we'll need to find the project settings
+	// where the environment and project id matches, but it is not currently set to our
+	// desired branch. In this case, send a pulse message to the plugin in order for the plugin
+	// to determine if it is the appropriate time to create a release
 	var projectSettings model.ProjectSettings
 	var project model.Project
 	for _, peResult := range projectExtensions {
@@ -287,6 +315,7 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 			continue
 		}
 
+		// Extract and merge the project extension, and extension artifacts
 		artifacts, err := graphql_resolver.ExtractArtifacts(peResult, extension, x.DB)
 		if err != nil {
 			log.Error(err.Error())
@@ -317,6 +346,9 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 			continue
 		}
 
+		// We'll need to build a project extension payload,
+		// as well as a Gitsync payload and the artifacts we've extracted
+		// to send off to the SBR plugin
 		projectSchedulerExtension := plugins.ProjectExtension{
 			ID: peResult.Model.ID.String(),
 			Project: plugins.Project{
