@@ -13,7 +13,7 @@ const (
 	PULSE_MESSAGE   = "scheduledbranchreleaser:pulse"
 	RELEASE_MESSAGE = "scheduledbranchreleaser:release"
 
-	SCHEDULED_TIME_THRESHOLD = time.Duration(time.Minute * 45)
+	SCHEDULED_TIME_THRESHOLD = time.Duration(time.Minute * 1)
 )
 
 func init() {
