@@ -177,6 +177,8 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 
 		x.DB.Save(release)
 
+		x.ComplainIfNotInStaging(release, &project)
+
 		x.SendNotifications("SUCCESS", release, &project)
 	} else {
 		x.SendNotifications("CANCELED", release, &project)
