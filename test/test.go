@@ -24,7 +24,7 @@ const InvalidUUID = "123e4567-z89b-12d3-a456-426655440000"
 // Load viper config, parse plugins, and setup log level/format
 // Configs in this case are loaded from a test yml file
 func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
-	return SetupResolverTestWithPath("../../configs/circuit.test.yml", migrators)
+	return SetupResolverTestWithPath("../../../configs/circuit.test.yml", migrators)
 }
 
 func SetupResolverTestWithPath(configFilePath string, migrators []interface{}) (*gorm.DB, error) {
