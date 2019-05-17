@@ -50,7 +50,7 @@ plugins:
       dbname: "codeamp_test"
       sslmode: "disable"
       password: ""
-    service_address: ":3011"
+    service_address: ":3012"
   scheduledbranchreleaser:
     workers: 1
     workdir: "/tmp/scheduledbranchreleaser"
