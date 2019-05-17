@@ -2,6 +2,7 @@ package scheduledbranchreleaser
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -10,8 +11,9 @@ import (
 )
 
 const (
-	PULSE_MESSAGE   = "scheduledbranchreleaser:pulse"
-	RELEASE_MESSAGE = "scheduledbranchreleaser:release"
+	PULSE_MESSAGE    = "scheduledbranchreleaser:pulse"
+	RELEASE_MESSAGE  = "scheduledbranchreleaser:release"
+	COMPLETE_MESSAGE = "scheduledbranchreleaser:scheduled"
 
 	SCHEDULED_TIME_THRESHOLD = time.Duration(time.Minute * 1)
 )
@@ -45,7 +47,8 @@ func (x *ScheduledBranchReleaser) Subscribe() []string {
 		"project:scheduledbranchreleaser:create",
 		"project:scheduledbranchreleaser:update",
 		"project:scheduledbranchreleaser:delete",
-		"scheduledbranchreleaser:pulse",
+		PULSE_MESSAGE,
+		COMPLETE_MESSAGE,
 	}
 }
 
@@ -101,6 +104,8 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 		// and forwarding it to SBR including the configuration of a project extension
 		// meeting our criteria (not the desired branch on the env the extension is configured for)
 	} else if e.Matches(PULSE_MESSAGE) {
+		log.InfoWithFields(fmt.Sprintf("Process ScheduledBranchReleaser event: %s", e.Event()), log.Fields{})
+
 		payload := e.Payload.(plugins.ScheduledBranchReleaser)
 		timeScheduledToBuild, err := e.GetArtifact("schedule")
 		if err != nil {
@@ -129,11 +134,13 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 		// If the difference between the scheduled time and the now time
 		// is less than our time threshold, then send a message back to the CodeAmp plugin
 		// in order to create a release for this project
-		if nowDiff <= SCHEDULED_TIME_THRESHOLD {
+		if math.Abs(nowDiff.Minutes()) <= SCHEDULED_TIME_THRESHOLD.Minutes() {
 			event := transistor.NewEvent(RELEASE_MESSAGE, transistor.GetAction("create"), payload)
 			event.Artifacts = e.Artifacts
 			x.events <- event
 		}
+	} else if e.Matches(COMPLETE_MESSAGE) {
+		log.Debug("Received complete message: ", e.Event())
 	}
 
 	return nil

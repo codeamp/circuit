@@ -30,6 +30,7 @@ func GetEventName(s string) transistor.EventName {
 		"project:heartbeat",
 
 		"scheduledbranchreleaser:pulse",
+		"scheduledbranchreleaser:scheduled",
 
 		"gitsync",
 		"gitsync:commit",

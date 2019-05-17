@@ -86,9 +86,15 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 			// since only 1 receiver will handle any given message (no multi receives)
 			headFeatureID := ""
 			{
-				_, err := x.commits(payload.ProjectExtension.Project.Repository, payload.Git)
+				commits, err := x.commits(payload.ProjectExtension.Project.Repository, payload.Git)
 				if err != nil {
-					log.Error(err)
+					log.Error(err.Error())
+					return
+				}
+
+				err = x.loadCommits(&payload, commits, environment.Name)
+				if err != nil {
+					log.Error(err.Error())
 					return
 				}
 
@@ -99,7 +105,7 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 				// if that doesn't exist, then try and find the most recent commit for the branch in the list of features
 				if err := x.DB.Where("project_id = ? AND environment_id = ?", projectSettings.ProjectID, projectSettings.EnvironmentID).Order("created_at DESC").First(&release).Error; err != nil {
 					if gorm.IsRecordNotFoundError(err) {
-						if err := x.DB.Where("project_id = ? AND ref = ", projectSettings.ProjectID, fmt.Sprintf("refs/heads/%s", projectSettings.GitBranch)).Order("created_at DESC").First(&feature).Error; err != nil {
+						if err := x.DB.Where("project_id = ? AND ref = ?", projectSettings.ProjectID, fmt.Sprintf("refs/heads/%s", projectSettings.GitBranch)).Order("created_at DESC").First(&feature).Error; err != nil {
 							log.Error(err.Error())
 							return
 						}
@@ -141,9 +147,60 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 					log.Error(err.Error())
 					return
 				}
+
+				event := transistor.NewEvent(plugins.GetEventName("scheduledbranchreleaser:scheduled"), transistor.GetAction("status"), payload)
+				event.State = transistor.GetState("complete")
+				event.StateMessage = "ScheduledBranchReleaser Scheduled Release"
+				x.Events <- event
 			}
 		}
 	}
+}
+
+func (x *CodeAmp) loadCommits(payload *plugins.ScheduledBranchReleaser, commits []plugins.GitCommit, environmentName string) error {
+	var project model.Project
+	if x.DB.Where("repository = ?", payload.Project.Repository).First(&project).RecordNotFound() {
+		log.ErrorWithFields("project not found", log.Fields{
+			"repository": payload.Project.Repository,
+		})
+		return nil
+	}
+
+	newFeatures := 0
+	for _, commit := range commits {
+		var feature model.Feature
+		if err := x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).Find(&feature).Error; err != nil {
+			if gorm.IsRecordNotFoundError(err) {
+				feature = model.Feature{
+					ProjectID:  project.ID,
+					Message:    commit.Message,
+					User:       commit.User,
+					Hash:       commit.Hash,
+					ParentHash: commit.ParentHash,
+					Ref:        commit.Ref,
+					Created:    commit.Created,
+				}
+
+				if err := x.DB.Save(&feature).Error; err != nil {
+					log.Error(err.Error())
+					return err
+				}
+				newFeatures += 1
+			} else {
+				log.Error(err.Error())
+			}
+		}
+	}
+
+	// Notify listeners there are new features found, but only for envs with this branch set
+	if newFeatures > 0 {
+		payload := plugins.WebsocketMsg{Event: fmt.Sprintf("projects/%s/%s/features", payload.Project.Slug, environmentName)}
+		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+
+		x.Events <- event
+	}
+
+	return nil
 }
 
 // Pulled from the Gitsync plugin
@@ -225,7 +282,7 @@ func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.
 		if i == 0 {
 			head = true
 		}
-		commit, err := x.toGitCommit(line, head)
+		commit, err := x.toGitCommit(line, head, git.Branch)
 		if err != nil {
 			log.Error(err)
 			return nil, err
@@ -257,7 +314,7 @@ func (x *CodeAmp) git(env []string, args ...string) ([]byte, error) {
 }
 
 // Pulled from the Gitsync plugin
-func (x *CodeAmp) toGitCommit(entry string, head bool) (plugins.GitCommit, error) {
+func (x *CodeAmp) toGitCommit(entry string, head bool, branch string) (plugins.GitCommit, error) {
 	items := strings.Split(entry, "#@#")
 	commiterDate, err := time.Parse("2006-01-02T15:04:05-07:00", items[4])
 
@@ -272,6 +329,7 @@ func (x *CodeAmp) toGitCommit(entry string, head bool) (plugins.GitCommit, error
 		User:       items[3],
 		Head:       head,
 		Created:    commiterDate,
+		Ref:        fmt.Sprintf("refs/heads/%s", branch),
 	}, nil
 }
 
@@ -283,7 +341,6 @@ func (x *CodeAmp) toGitCommit(entry string, head bool) (plugins.GitCommit, error
 // message to the SBR plugin, where we then will check the schedule to see if it's
 // the appropriate time to update the branch and create a release
 func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
-
 	// Unfortunately we have to rely on the name of the extension here to grab the base extension
 	// this is CRUCIAL and if the plugin is added to the codeamp extensions list then this handler
 	// WILL NOT FUNCTION. Seriously.
@@ -308,6 +365,7 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 	// to determine if it is the appropriate time to create a release
 	var projectSettings model.ProjectSettings
 	var project model.Project
+
 	for _, peResult := range projectExtensions {
 		err := x.DB.Where("id = ?", peResult.ProjectID).Find(&project).Error
 		if err != nil {
@@ -372,6 +430,7 @@ func (x *CodeAmp) scheduledBranchReleaserPulse(e transistor.Event) error {
 				RsaPublicKey:  project.RsaPublicKey,
 			},
 		}
+
 		event := transistor.NewEvent(plugins.GetEventName("scheduledbranchreleaser:pulse"), transistor.GetAction("status"), sbr)
 		event.Artifacts = artifacts
 

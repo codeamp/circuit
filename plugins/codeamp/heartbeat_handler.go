@@ -3,6 +3,7 @@ package codeamp
 import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
@@ -11,7 +12,9 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 
 	var projects []model.Project
 
-	x.DB.Find(&projects)
+	if err := x.DB.Find(&projects).Error; err != nil {
+		log.Error(err.Error())
+	}
 	for _, project := range projects {
 		switch payload.Tick {
 		case "minute":
@@ -21,6 +24,9 @@ func (x *CodeAmp) HeartBeatEventHandler(e transistor.Event) {
 
 	switch payload.Tick {
 	case "minute":
-		x.scheduledBranchReleaserPulse(e)
+		err := x.scheduledBranchReleaserPulse(e)
+		if err != nil {
+			log.Error(err.Error())
+		}
 	}
 }
