@@ -11,8 +11,6 @@ import (
 )
 
 func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) error {
-	fmt.Println("ComplainIfNotInStaging")
-
 	// get staging and production environments
 	stagingEnv := model.Environment{}
 	if err := x.DB.Where("key = ?", constants.StagingEnvironment).Find(&stagingEnv).Error; err != nil {
@@ -69,7 +67,7 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) err
 
 	if !releaseFoundInStaging {
 		// send notification
-		fmt.Println("send notification")
+		x.SendNotifications("Release deployed to production before being deployed to staging.", r, p)
 	}
 
 	return nil
