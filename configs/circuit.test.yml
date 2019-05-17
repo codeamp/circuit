@@ -12,7 +12,7 @@ plugins:
     oidc_uri: http://0.0.0.0:5556/dex
     oidc_client_id: example-app
     postgres:
-      host: "0.0.0.0"
+      host: "postgres"
       port: "5432"
       user: "postgres"
       dbname: "codeamp_test"
@@ -32,6 +32,9 @@ plugins:
     workers: 1
   slack:
     workers: 1
+  scheduledbranchreleaser:
+    workers: 1
+    workdir: "/tmp/scheduledbranchreleaser"
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"
