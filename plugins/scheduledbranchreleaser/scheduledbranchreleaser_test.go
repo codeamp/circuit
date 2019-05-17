@@ -34,7 +34,7 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) SetupSuite() {
 redis:
   username:
   password:
-  server: "0.0.0.0:6379"
+  server: "redis:6379"
   database: "0"
   pool: "30"
   process: "1"
@@ -44,7 +44,7 @@ plugins:
     oidc_uri: http://0.0.0.0:5556/dex
     oidc_client_id: example-app
     postgres:
-      host: "0.0.0.0"
+      host: "postgres"
       port: "5432"
       user: "postgres"
       dbname: "codeamp_test"
