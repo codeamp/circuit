@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+<<<<<<< HEAD
 // ComplainIfNotInStaging will send out a notification event
 // if the input release has been deployed to constants.ProductionEnvironment
 // without a corresponding release in constants.StagingEnvironment
@@ -25,6 +26,9 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 		return false, nil
 	}
 
+=======
+func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) error {
+>>>>>>> Add tests
 	// get staging and production environments
 	stagingEnv := model.Environment{}
 	if err := x.DB.Where("key = ?", parentEnvironment).Find(&stagingEnv).Error; err != nil {
@@ -86,6 +90,7 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 
 	if !releaseFoundInStaging {
 		// send notification
+<<<<<<< HEAD
 		complaint := fmt.Sprintf("This feature was deployed directly to %s without prior testing in %s.", prodEnv.Name, stagingEnv.Name)
 		log.InfoWithFields(complaint, log.Fields{
 			"ProjectID": p.Model.ID,
@@ -93,6 +98,9 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 		})
 		x.SendNotifications(complaint, r, p)
 		complained = true
+=======
+		x.SendNotifications("Release deployed to production before being deployed to staging.", r, p)
+>>>>>>> Add tests
 	}
 
 	return complained, nil
