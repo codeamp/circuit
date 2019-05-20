@@ -244,12 +244,6 @@ type ScheduledBranchReleaser struct {
 	ProjectSettingsID string `json:"projectSettingsID"`
 }
 
-// ScheduledBranchReleaserRElease data struct
-// type ScheduledBranchReleaserRelease struct {
-// 	ProjectExtension  `json:"projectextension"`
-// 	ProjectSettingsID string `json:"projectSettingsID"`
-// }
-
 // WebsocketMsg event data struct
 type WebsocketMsg struct {
 	Channel string      `json:"channel"`
