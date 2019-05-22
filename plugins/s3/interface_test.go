@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	amzS3 "github.com/aws/aws-sdk-go/service/s3"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/codeamp/circuit/plugins/s3"
 )
@@ -132,7 +131,6 @@ func (x *MockIAMClient) DeleteAccessKey(input *iam.DeleteAccessKeyInput) (*iam.D
 		delete(x.accessKeys, *input.UserName)
 	}
 
-	spew.Dump(x.accessKeys)
 	return &iam.DeleteAccessKeyOutput{}, nil
 }
 
@@ -167,15 +165,7 @@ func (x *MockIAMClient) DeleteUser(input *iam.DeleteUserInput) (*iam.DeleteUserO
 	}
 
 	if _, ok := x.accessKeys[*input.UserName]; ok == true {
-		spew.Dump(x.accessKeys)
 		return nil, errors.New("DeleteConflict - AccessKeys")
-	}
-
-	for idx, group := range x.groupMembers {
-		spew.Dump(group, idx)
-		for idx, member := range group {
-			spew.Dump(member, idx)
-		}
 	}
 
 	if _, ok := x.users[*input.UserName]; ok != true {
@@ -220,10 +210,29 @@ func (x *MockIAMClient) PutUserPolicy(input *iam.PutUserPolicyInput) (*iam.PutUs
 }
 
 type MockS3Client struct {
+	buckets []*amzS3.Bucket
 }
 
 func (x *MockS3Client) PutObject(input *amzS3.PutObjectInput) (*amzS3.PutObjectOutput, error) {
 	return &amzS3.PutObjectOutput{
 		ETag: aws.String("EASLDKJASLDKJASD"),
 	}, nil
+}
+
+func (x *MockS3Client) CreateBucket(input *amzS3.CreateBucketInput) (*amzS3.CreateBucketOutput, error) {
+	x.buckets = append(x.buckets, &amzS3.Bucket{
+		Name: input.Bucket,
+	})
+
+	return &amzS3.CreateBucketOutput{Location: aws.String("mock")}, nil
+}
+
+func (x *MockS3Client) ListBuckets(input *amzS3.ListBucketsInput) (*amzS3.ListBucketsOutput, error) {
+	return &amzS3.ListBucketsOutput{
+		Buckets: x.buckets,
+	}, nil
+}
+
+func (x *MockS3Client) PutBucketTagging(input *amzS3.PutBucketTaggingInput) (*amzS3.PutBucketTaggingOutput, error) {
+	return &amzS3.PutBucketTaggingOutput{}, nil
 }

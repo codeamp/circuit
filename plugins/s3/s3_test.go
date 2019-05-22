@@ -290,8 +290,7 @@ func (suite *TestSuiteS3Extension) buildS3ExtArtifacts() []transistor.Artifact {
 		transistor.Artifact{Key: "aws_access_key_id", Value: "", Secret: false},
 		transistor.Artifact{Key: "aws_secret_key", Value: "", Secret: false},
 		transistor.Artifact{Key: "aws_region", Value: "us-east-1", Secret: false},
-		transistor.Artifact{Key: "aws_bucket", Value: "us-east-1-checkr", Secret: false},
-		transistor.Artifact{Key: "aws_prefix", Value: "checkr-deploy-test", Secret: false},
+		transistor.Artifact{Key: "aws_bucket_prefix", Value: "us-east-1", Secret: false},
 		transistor.Artifact{Key: "aws_generated_user_prefix", Value: "codeamp-testing-", Secret: false},
 		transistor.Artifact{Key: "aws_user_group_name", Value: "codeamp-testing-", Secret: false},
 		transistor.Artifact{Key: "aws_credentials_timeout", Value: "10", Secret: false},
@@ -303,7 +302,6 @@ func (suite *TestSuiteS3Extension) buildS3ExtArtifactsBadCredentials() []transis
 		transistor.Artifact{Key: "aws_access_key_id", Value: "", Secret: false},
 		transistor.Artifact{Key: "aws_secret_key", Value: "", Secret: false},
 		transistor.Artifact{Key: "aws_region", Value: "us-east-1", Secret: false},
-		transistor.Artifact{Key: "aws_bucket", Value: "us-east-1-checkr", Secret: false},
-		transistor.Artifact{Key: "aws_prefix", Value: "checkr-deploy-test/", Secret: false},
+		transistor.Artifact{Key: "aws_bucket_prefix", Value: "testing-bucket", Secret: false},
 	}
 }
