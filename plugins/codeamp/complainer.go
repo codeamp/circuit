@@ -18,7 +18,7 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) err
 	}
 
 	prodEnv := model.Environment{}
-	if err := x.DB.Where("key = ?", constants.StagingEnvironment).Find(&prodEnv).Error; err != nil {
+	if err := x.DB.Where("key = ?", constants.ProductionEnvironment).Find(&prodEnv).Error; err != nil {
 		return err
 	}
 
