@@ -65,9 +65,14 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) err
 		}
 	}
 
+	releaseUser := model.User{}
+	if err := x.DB.Where("id = ?", r.UserID).Find(&releaseUser).Error; err != nil {
+		return err
+	}
+
 	if !releaseFoundInStaging {
 		// send notification
-		x.SendNotifications("Release deployed to production before being deployed to staging.", r, p)
+		x.SendNotifications(fmt.Sprintf("%s deployed this feature directly to %s without prior testing in %s.", releaseUser.Email, prodEnv.Name, stagingEnv.Name), r, p)
 	}
 
 	return nil
