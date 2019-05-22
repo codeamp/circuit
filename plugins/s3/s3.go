@@ -46,16 +46,6 @@ func RandStringBytes(n int) string {
 	return strings.ToLower(string(b))
 }
 
-//
-
-// func RandStringBytes(n int) string {
-// 	b := make([]byte, n)
-// 	for i := range b {
-// 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-// 	}
-// 	return string(b)
-// }
-
 const s3UserPolicyTemplate = `{
 	"Version": "2012-10-17",
 	"Statement": [
