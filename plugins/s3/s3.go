@@ -10,7 +10,6 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 
 	log "github.com/codeamp/logger"
 
@@ -261,10 +260,14 @@ func (x *S3) extractArtifacts(e transistor.Event) (*S3Data, error) {
 	// Generate a unique prefix for this instance of the project extension
 	awsBucketSuffix, err := e.GetArtifact("aws_bucket_suffix")
 	if err != nil {
-		spew.Dump(e.Artifacts)
 		data.AWSBucketGeneratedSuffix = RandStringBytes(8)
 	} else {
 		data.AWSBucketGeneratedSuffix = awsBucketSuffix.String()
+	}
+
+	awsGeneratedUserName, err := e.GetArtifact("aws_generated_user_name")
+	if err == nil {
+		data.AWSGeneratedUserName = awsGeneratedUserName.String()
 	}
 
 	return &data, nil

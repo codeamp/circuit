@@ -112,7 +112,7 @@ func (suite *TestSuiteS3Extension) TestUpdateS3ExtSuccess() {
 	suite.T().Log(e.StateMessage)
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
-	const expectedArtifactCount = 5
+	const expectedArtifactCount = 6
 	assert.Equal(suite.T(), expectedArtifactCount, len(e.Artifacts))
 
 	for _, artifact := range e.Artifacts {
@@ -120,48 +120,6 @@ func (suite *TestSuiteS3Extension) TestUpdateS3ExtSuccess() {
 			assert.FailNow(suite.T(), fmt.Sprintf("Artifact with key '%s' was nil!", artifact.Key))
 		}
 	}
-}
-
-func (suite *TestSuiteS3Extension) TestCreateS3ExtFailureDuplicate() {
-	event := transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), suite.buildS3ExtPayload())
-	event.Artifacts = suite.buildS3ExtArtifacts()
-	suite.transistor.Events <- event
-
-	var e transistor.Event
-	var err error
-	for {
-		e, err = suite.transistor.GetTestEvent("project:s3", transistor.GetAction("status"), 30)
-		if err != nil {
-			assert.Nil(suite.T(), err, err.Error())
-			return
-		}
-
-		if e.State != "running" {
-			break
-		}
-	}
-
-	suite.T().Log(e.StateMessage)
-	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
-
-	event = transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), suite.buildS3ExtPayload())
-	event.Artifacts = suite.buildS3ExtArtifacts()
-	suite.transistor.Events <- event
-
-	for {
-		e, err = suite.transistor.GetTestEvent("project:s3", transistor.GetAction("status"), 30)
-		if err != nil {
-			assert.Nil(suite.T(), err, err.Error())
-			return
-		}
-
-		if e.State != "running" {
-			break
-		}
-	}
-
-	suite.T().Log(e.StateMessage)
-	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
 }
 
 func (suite *TestSuiteS3Extension) TestDeleteS3ExtSuccess() {
@@ -187,7 +145,10 @@ func (suite *TestSuiteS3Extension) TestDeleteS3ExtSuccess() {
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 
 	event = transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("delete"), suite.buildS3ExtPayload())
-	event.Artifacts = suite.buildS3ExtArtifacts()
+
+	e.Artifacts = append(e.Artifacts, suite.buildS3ExtArtifacts()...)
+
+	event.Artifacts = e.Artifacts
 	suite.transistor.Events <- event
 
 	for {
@@ -232,28 +193,6 @@ func (suite *TestSuiteS3Extension) TestCreateS3ExtFailBadCredentials() {
 	event := transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), nil)
 
 	event.Artifacts = suite.buildS3ExtArtifactsBadCredentials()
-	suite.transistor.Events <- event
-
-	var e transistor.Event
-	var err error
-	for {
-		e, err = suite.transistor.GetTestEvent("project:s3", transistor.GetAction("status"), 30)
-		if err != nil {
-			assert.Nil(suite.T(), err, err.Error())
-			return
-		}
-
-		if e.State != "running" {
-			break
-		}
-	}
-
-	suite.T().Log(e.StateMessage)
-	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
-}
-
-func (suite *TestSuiteS3Extension) TestCreateS3ExtFailMultipleInstall() {
-	event := transistor.NewEvent(plugins.GetEventName("project:s3"), transistor.GetAction("create"), nil)
 	suite.transistor.Events <- event
 
 	var e transistor.Event
