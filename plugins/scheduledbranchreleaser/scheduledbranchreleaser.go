@@ -123,11 +123,15 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 		// Then add the time that we have from the SCHEDULE so we can calculate the duration between
 		// now and the scheduled time for today
 		now := time.Now().UTC()
-		parsedDuration, err := time.ParseDuration(fmt.Sprintf("%dh%dm", t.Hour(), t.Minute()))
+		utcT := t.UTC()
+		parsedDuration, err := time.ParseDuration(fmt.Sprintf("%dh%dm", utcT.Hour(), utcT.Minute()))
 		if err != nil {
 			log.Error(err.Error())
 			return err
 		}
+
+		// Chop off the hour component (by truncate) of today's date
+		// then re-add the parsed duration as hours to get to 'todays' time interval
 		scheduledTime := now.Truncate(time.Hour * 24).Add(parsedDuration)
 		nowDiff := scheduledTime.Sub(now)
 

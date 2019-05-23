@@ -83,7 +83,7 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) TearDownSuite() {
 	suite.transistor.Stop()
 }
 
-func (suite *TestSuiteScheduledBranchReleaserExtension) TestCreateMongoExtHandlePulseSuccess() {
+func (suite *TestSuiteScheduledBranchReleaserExtension) TestSBRExtHandlePulseSuccess() {
 	resolver := suite.Resolver
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -168,20 +168,7 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) TestCreateMongoExtHandle
 		return
 	}
 
-	// // Project Settings
-	// projectSettings := &model.ProjectSettings{
-	// 	EnvironmentID: environmentResolver.DBEnvironmentResolver.Environment.Model.ID,
-	// 	ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID,
-	// 	GitBranch:     "not-master",
-	// }
-	// if err := suite.Resolver.DB.Create(projectSettings).Error; err != nil {
-	// 	assert.FailNow(suite.T(), err.Error())
-	// 	return
-	// }
-	// suite.createdModels = append(suite.createdModels, projectSettings)
-
-	// // Secret
-
+	// Secret
 	branchSecretResolver, err := resolver.CreateSecret(ctx, &struct{ Secret *model.SecretInput }{
 		&model.SecretInput{
 			Key:           "BRANCH",
@@ -202,6 +189,7 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) TestCreateMongoExtHandle
 		},
 	})
 
+	// Extension
 	extensionConfig := fmt.Sprintf(`[
 	   {
 	      "key":"BRANCH",
@@ -214,8 +202,6 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) TestCreateMongoExtHandle
 	      "allowOverride":true
 	   }
 	]`, branchSecretResolver.ID(), scheduleSecretResolver.ID())
-
-	// Extension
 	extensionResolver, err := resolver.CreateExtension(&struct{ Extension *model.ExtensionInput }{
 		&model.ExtensionInput{
 			Name:          "scheduledbranchreleaser",
