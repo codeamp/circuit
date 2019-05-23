@@ -1,7 +1,6 @@
 package codeamp_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/codeamp/circuit/plugins/codeamp"
@@ -138,9 +137,13 @@ func (ts *CodeampTestSuite) TestComplainerAlertFail_CompletedReleaseInStagingAlr
 	assert.False(ts.T(), complained)
 }
 
-func (suite *CodeampTestSuite) TearDownTest() {
-	fmt.Println("TearDownTest")
-	suite.Resolver.DB.Close()
+func (ts *CodeampTestSuite) TearDownTest() {
+	ts.Resolver.DB.Delete(model.Release{})
+	ts.Resolver.DB.Delete(model.Environment{})
+	ts.Resolver.DB.Delete(model.Feature{})
+	ts.Resolver.DB.Delete(model.Project{})
+
+	ts.Resolver.DB.Close()
 }
 
 /* Test successful env. creation */
