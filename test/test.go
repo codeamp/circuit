@@ -25,7 +25,7 @@ const InvalidUUID = "123e4567-z89b-12d3-a456-426655440000"
 // Configs in this case are loaded from a test yml file
 func SetupResolverTest(migrators []interface{}) (*gorm.DB, error) {
 	viper.SetConfigType("yaml")
-	viper.SetConfigFile("../../../configs/circuit.test.yml")
+	viper.SetConfigFile("../../configs/circuit.test.yml")
 
 	setupViperEnvs()
 
