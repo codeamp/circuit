@@ -30,7 +30,7 @@ func (suite *CodeampTestSuite) SetupTest() {
 		&model.Release{},
 	}
 
-	db, err := test.SetupResolverTest(migrators)
+	db, err := test.SetupResolverTestWithPath("../../configs/circuit.test.yml", migrators)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
