@@ -7,6 +7,7 @@ import (
 
 	"github.com/codeamp/circuit/plugins/codeamp/constants"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 )
 
@@ -72,7 +73,12 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) err
 
 	if !releaseFoundInStaging {
 		// send notification
-		x.SendNotifications(fmt.Sprintf("%s deployed this feature directly to %s without prior testing in %s.", releaseUser.Email, prodEnv.Name, stagingEnv.Name), r, p)
+		complaint := fmt.Sprintf("This feature was deployed directly to %s without prior testing in %s.", prodEnv.Name, stagingEnv.Name)
+		log.InfoWithFields(complaint, log.Fields{
+			"ProjectID": p.Model.ID,
+			"ReleaseID": r.Model.ID,
+		})
+		x.SendNotifications(complaint, r, p)
 	}
 
 	return nil
