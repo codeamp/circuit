@@ -8,10 +8,12 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 
+	"github.com/codeamp/circuit/plugins/codeamp/constants"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -40,26 +42,100 @@ func (suite *CodeampTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 }
 
-func (suite *CodeampTestSuite) TestComplainerAlert() {
-	e := model.Environment{}
-	suite.Resolver.DB.Create(&e)
+func (ts *CodeampTestSuite) TestComplainerAlertSuccess() {
+	constants.StagingEnvironment = "staging"
+	constants.ProductionEnvironment = "production"
+
+	prodEnv := model.Environment{
+		Key:  "production",
+		Name: "Production",
+	}
+	ts.Resolver.DB.Create(&prodEnv)
+
+	stagingEnv := model.Environment{
+		Key:  "staging",
+		Name: "Staging",
+	}
+	ts.Resolver.DB.Create(&stagingEnv)
+
 	p := model.Project{}
-	suite.Resolver.DB.Create(&p)
+	ts.Resolver.DB.Create(&p)
 	f := model.Feature{
 		ProjectID: p.Model.ID,
 	}
-	suite.Resolver.DB.Create(&f)
+	ts.Resolver.DB.Create(&f)
+	u := model.User{
+		Email: "foo@foo.com",
+	}
+	ts.Resolver.DB.Create(&u)
 
 	r := model.Release{
-		EnvironmentID: e.Model.ID,
+		EnvironmentID: prodEnv.Model.ID,
 		HeadFeatureID: f.Model.ID,
 		TailFeatureID: f.Model.ID,
 		ProjectID:     p.Model.ID,
 		State:         "complete",
+		UserID:        u.Model.ID,
 	}
-	suite.Resolver.DB.Create(&r)
+	ts.Resolver.DB.Create(&r)
 
-	suite.CodeAmp.ComplainIfNotInStaging(&r, &p)
+	complained, err := ts.CodeAmp.ComplainIfNotInStaging(&r, &p)
+
+	assert.Nil(ts.T(), err)
+	assert.True(ts.T(), complained)
+}
+
+func (ts *CodeampTestSuite) TestComplainerAlertFail_CompletedReleaseInStagingAlready() {
+	constants.StagingEnvironment = "staging"
+	constants.ProductionEnvironment = "production"
+
+	prodEnv := model.Environment{
+		Key:  "production",
+		Name: "Production",
+	}
+	ts.Resolver.DB.Create(&prodEnv)
+
+	stagingEnv := model.Environment{
+		Key:  "staging",
+		Name: "Staging",
+	}
+
+	ts.Resolver.DB.Create(&stagingEnv)
+
+	p := model.Project{}
+	ts.Resolver.DB.Create(&p)
+	f := model.Feature{
+		ProjectID: p.Model.ID,
+	}
+	ts.Resolver.DB.Create(&f)
+	u := model.User{
+		Email: "foo@foo.com",
+	}
+	ts.Resolver.DB.Create(&u)
+
+	stagingRelease := model.Release{
+		EnvironmentID: stagingEnv.Model.ID,
+		HeadFeatureID: f.Model.ID,
+		TailFeatureID: f.Model.ID,
+		ProjectID:     p.Model.ID,
+		State:         "complete",
+		UserID:        u.Model.ID,
+	}
+	ts.Resolver.DB.Create(&stagingRelease)
+
+	prodRelease := model.Release{
+		EnvironmentID: prodEnv.Model.ID,
+		HeadFeatureID: f.Model.ID,
+		TailFeatureID: f.Model.ID,
+		ProjectID:     p.Model.ID,
+		State:         "complete",
+		UserID:        u.Model.ID,
+	}
+	ts.Resolver.DB.Create(&prodRelease)
+	complained, err := ts.CodeAmp.ComplainIfNotInStaging(&prodRelease, &p)
+
+	assert.Nil(ts.T(), err)
+	assert.False(ts.T(), complained)
 }
 
 func (suite *CodeampTestSuite) TearDownTest() {
