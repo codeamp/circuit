@@ -93,3 +93,6 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 		x.SendNotifications(complaint, r, p)
 		complained = true
 	}
+
+	return complained, nil
+}
