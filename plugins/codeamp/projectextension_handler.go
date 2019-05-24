@@ -17,18 +17,23 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 	var project model.Project
 
 	if e.Matches("project:.*:status") {
-		if x.DB.Where("id = ?", receivedPayload.ID).Find(&extension).RecordNotFound() {
+		if x.DB.Unscoped().Where("id = ?", receivedPayload.ID).Find(&extension).RecordNotFound() {
 			log.ErrorWithFields("extension not found", log.Fields{
 				"id": receivedPayload.ID,
 			})
-			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because ProjectExtension not found given payload id: %s.", receivedPayload.ID))
+
+			return fmt.Errorf("Could not handle ProjectExtension status event because ProjectExtension not found given payload id: %s.", receivedPayload.ID)
+		} else {
+			if extension.DeletedAt != nil {
+				return fmt.Errorf("Could not handle ProjectExtension status event because ProjectExtension has been deleted id: %s.", receivedPayload.ID)
+			}
 		}
 
 		if x.DB.Where("id = ?", extension.ProjectID).Find(&project).RecordNotFound() {
 			log.ErrorWithFields("project not found", log.Fields{
 				"id": extension.ProjectID,
 			})
-			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because Project not found given payload id: %s.", extension.ProjectID))
+			return fmt.Errorf("Could not handle ProjectExtension status event because Project not found given payload id: %s.", extension.ProjectID)
 		}
 
 		extension.State = transistor.GetState(string(e.State))

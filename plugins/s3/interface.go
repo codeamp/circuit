@@ -10,6 +10,10 @@ import (
 
 type S3API interface {
 	PutObject(*s3.PutObjectInput) (*s3.PutObjectOutput, error)
+	CreateBucket(*s3.CreateBucketInput) (*s3.CreateBucketOutput, error)
+	ListBuckets(*s3.ListBucketsInput) (*s3.ListBucketsOutput, error)
+
+	PutBucketTagging(*s3.PutBucketTaggingInput) (*s3.PutBucketTaggingOutput, error)
 }
 
 type IAMAPI interface {

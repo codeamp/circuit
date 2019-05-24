@@ -3,6 +3,7 @@ package s3
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,33 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+var src = rand.NewSource(time.Now().UnixNano())
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyz"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return string(b)
+}
+
 const s3UserPolicyTemplate = `{
 	"Version": "2012-10-17",
 	"Statement": [
@@ -31,7 +59,7 @@ const s3UserPolicyTemplate = `{
 	        	"s3:AbortMultipartUpload"
 	         ],
 	        "Resource": [
-	            "arn:aws:s3:::%s/%s/*"
+	            "arn:aws:s3:::%s/*"
 	        ]
 	    },
 	    {
@@ -54,13 +82,15 @@ type S3 struct {
 }
 
 type S3Data struct {
-	AWSAccessKeyID         string
-	AWSSecretKey           string
-	AWSRegion              string
-	AWSBucket              string
-	AWSGeneratedUserPrefix string
-	AWSUserGroupName       string
-	AWSCredentialsTimeout  int
+	AWSAccessKeyID           string
+	AWSSecretKey             string
+	AWSRegion                string
+	AWSBucketPrefix          string
+	AWSGeneratedUserPrefix   string
+	AWSGeneratedUserName     string
+	AWSUserGroupName         string
+	AWSCredentialsTimeout    int
+	AWSBucketGeneratedSuffix string
 }
 
 func init() {
@@ -115,7 +145,7 @@ func (x *S3) Subscribe() []string {
 //		aws_access_key_id			- Access to create users and update policies
 //		aws_secret_key
 //		aws_region					- The region of the bucket
-// 		aws_bucket					- Which bucket to be shared
+// 		aws_bucket_prefix			- Which bucket to be shared
 //		aws_generated_user_prefix	- What should the IAM users be prefixed with
 //		aws_user_group_name			- For organizational purposes, group users together to easily find later
 // 		aws_credentials_timeout		- How long should we wait to see if the IAM credentials were successfully created
@@ -181,13 +211,13 @@ func (x *S3) extractArtifacts(e transistor.Event) (*S3Data, error) {
 	}
 	data.AWSRegion = awsRegion.String()
 
-	// Bucket
-	awsBucket, err := e.GetArtifact("aws_bucket")
+	// Bucket Prefix
+	awsBucketPrefix, err := e.GetArtifact("aws_bucket_prefix")
 	if err != nil {
 		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return nil, err
 	}
-	data.AWSBucket = awsBucket.String()
+	data.AWSBucketPrefix = awsBucketPrefix.String()
 
 	// Generated User Prefix
 	awsGeneratedUserPrefix, err := e.GetArtifact("aws_generated_user_prefix")
@@ -216,6 +246,19 @@ func (x *S3) extractArtifacts(e transistor.Event) (*S3Data, error) {
 		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 	}
 	data.AWSCredentialsTimeout = credentialsTimeout
+
+	// Generate a unique prefix for this instance of the project extension
+	awsBucketSuffix, err := e.GetArtifact("aws_bucket_suffix")
+	if err != nil {
+		data.AWSBucketGeneratedSuffix = RandStringBytes(8)
+	} else {
+		data.AWSBucketGeneratedSuffix = awsBucketSuffix.String()
+	}
+
+	awsGeneratedUserName, err := e.GetArtifact("aws_generated_user_name")
+	if err == nil {
+		data.AWSGeneratedUserName = awsGeneratedUserName.String()
+	}
 
 	return &data, nil
 }
@@ -271,11 +314,83 @@ func (x *S3) addIAMUserToGroup(data *S3Data, userName string) error {
 	return nil
 }
 
+func (x *S3) getBucketFullName(bucketPrefix string, projectSlug string, suffix string) string {
+	return fmt.Sprintf("%s-%s", bucketPrefix, suffix)
+}
+
+// Create a bucket with a given name
+func (x *S3) createBucket(data *S3Data, bucketName string) error {
+	accessKey := &iam.AccessKey{
+		AccessKeyId:     &data.AWSAccessKeyID,
+		SecretAccessKey: &data.AWSSecretKey,
+	}
+	s3Svc := x.S3Interfaces.GetS3ServiceInterface(data, accessKey)
+	_, err := s3Svc.CreateBucket(&s3.CreateBucketInput{
+		Bucket: &bucketName,
+	})
+
+	return err
+}
+
+// Try to find the bucket if it already exists
+func (x *S3) findBucket(data *S3Data, bucketName string) (bool, error) {
+	accessKey := &iam.AccessKey{
+		AccessKeyId:     &data.AWSAccessKeyID,
+		SecretAccessKey: &data.AWSSecretKey,
+	}
+
+	s3Svc := x.S3Interfaces.GetS3ServiceInterface(data, accessKey)
+	resp, err := s3Svc.ListBuckets(&s3.ListBucketsInput{})
+	if err != nil {
+		return false, err
+	}
+
+	for _, bucket := range resp.Buckets {
+		if *bucket.Name == bucketName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (x *S3) tagBucket(data *S3Data, bucketName string, projectData *plugins.ProjectExtension, cleanup bool) error {
+	accessKey := &iam.AccessKey{
+		AccessKeyId:     &data.AWSAccessKeyID,
+		SecretAccessKey: &data.AWSSecretKey,
+	}
+	s3Svc := x.S3Interfaces.GetS3ServiceInterface(data, accessKey)
+
+	tagSet := []*s3.Tag{
+		&s3.Tag{
+			Key:   aws.String("Project"),
+			Value: &projectData.Project.Slug,
+		},
+	}
+
+	if cleanup == true {
+		tagSet = append(tagSet, &s3.Tag{
+			Key:   aws.String("DeletedAt"),
+			Value: aws.String(time.Now().UTC().String()),
+		})
+	}
+
+	_, err := s3Svc.PutBucketTagging(&s3.PutBucketTaggingInput{
+		Bucket: &bucketName,
+		Tagging: &s3.Tagging{
+			TagSet: tagSet,
+		},
+	})
+
+	return err
+}
+
 // Assign the below policy
-func (x *S3) assignUserIAMPolicyForS3(data *S3Data, userName string, prefix string) error {
+func (x *S3) assignUserIAMPolicyForS3(data *S3Data, userName string, projectData *plugins.ProjectExtension) error {
 	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
-	userPolicy := fmt.Sprintf(s3UserPolicyTemplate, data.AWSBucket, prefix, data.AWSBucket)
+	bucketName := x.getBucketFullName(data.AWSBucketPrefix, projectData.Project.Slug, data.AWSBucketGeneratedSuffix)
+	userPolicy := fmt.Sprintf(s3UserPolicyTemplate, bucketName, bucketName)
 	_, err := iamSvc.PutUserPolicy(&iam.PutUserPolicyInput{
 		UserName:       &userName,
 		PolicyName:     aws.String("codeamp-storage"),
@@ -294,13 +409,15 @@ func (x *S3) assignUserIAMPolicyForS3(data *S3Data, userName string, prefix stri
 //
 // Further sanity checks could include the ability to get and delete this file afterwards
 // but a simple PutObject request should suffice for now
-func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName string, accessKey *iam.AccessKey, prefix string) error {
-
+func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName string, accessKey *iam.AccessKey, projectData *plugins.ProjectExtension) error {
 	testS3Svc := x.S3Interfaces.GetS3ServiceInterface(data, accessKey)
+
+	payload := e.Payload.(plugins.ProjectExtension)
+	bucket := x.getBucketFullName(data.AWSBucketPrefix, payload.Project.Slug, data.AWSBucketGeneratedSuffix)
 	input := &s3.PutObjectInput{
 		Body:   strings.NewReader("This is a test file written by CodeAmp. You may delete it."),
-		Bucket: &data.AWSBucket,
-		Key:    aws.String(fmt.Sprintf("%s/%s", prefix, "codeamp-write-test.txt")),
+		Bucket: &bucket,
+		Key:    aws.String("codeamp-write-test.txt"),
 	}
 
 	startedTime := time.Now()
@@ -311,6 +428,11 @@ func (x *S3) verifyS3CredentialsValid(e transistor.Event, data *S3Data, userName
 
 		_, err := testS3Svc.PutObject(input)
 		if err != nil {
+			if strings.Contains(err.Error(), "NoSuchBucket") {
+				log.Error(err.Error())
+				x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+				return err
+			}
 			log.Warn(err.Error())
 		} else {
 			break
@@ -344,14 +466,16 @@ func (x *S3) generateAccessCredentials(data *S3Data, userName string) (*iam.Acce
 }
 
 // Prepare artifacts array to pass important information back to the front-end
-func (x *S3) buildResultArtifacts(data *S3Data, prefix string, accessKey *iam.AccessKey) []transistor.Artifact {
+func (x *S3) buildResultArtifacts(data *S3Data, accessKey *iam.AccessKey, projectSlug string) []transistor.Artifact {
 	// Stuff new credentials into artifacts to be used by the front-end
 	return []transistor.Artifact{
-		transistor.Artifact{Key: "s3_aws_access_key_id", Value: accessKey.AccessKeyId, Secret: false},
-		transistor.Artifact{Key: "s3_aws_secret_key", Value: accessKey.SecretAccessKey, Secret: false},
-		transistor.Artifact{Key: "s3_aws_region", Value: data.AWSRegion, Secret: false},
-		transistor.Artifact{Key: "s3_aws_bucket", Value: data.AWSBucket, Secret: false},
-		transistor.Artifact{Key: "s3_aws_prefix", Value: fmt.Sprintf("%s/", prefix), Secret: false},
+		transistor.Artifact{Key: "access_key_id", Value: *accessKey.AccessKeyId, Secret: false},
+		transistor.Artifact{Key: "secret_key", Value: *accessKey.SecretAccessKey, Secret: false},
+		transistor.Artifact{Key: "aws_region", Value: data.AWSRegion, Secret: false},
+		transistor.Artifact{Key: "aws_bucket_name", Value: x.getBucketFullName(data.AWSBucketPrefix, projectSlug, data.AWSBucketGeneratedSuffix), Secret: false},
+		transistor.Artifact{Key: "aws_bucket_prefix", Value: data.AWSBucketPrefix, Secret: true},
+		transistor.Artifact{Key: "aws_bucket_suffix", Value: data.AWSBucketGeneratedSuffix, Secret: true},
+		transistor.Artifact{Key: "aws_generated_user_name", Value: data.AWSGeneratedUserName, Secret: true},
 	}
 }
 
@@ -371,7 +495,39 @@ func (x *S3) createS3(e transistor.Event) error {
 	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("running"), "Creating S3 Configuration", nil)
 
 	payload := e.Payload.(plugins.ProjectExtension)
-	userName := fmt.Sprintf("%s%s", data.AWSGeneratedUserPrefix, payload.Project.Slug)
+	userName := fmt.Sprintf("%s%s-%s", data.AWSGeneratedUserPrefix, payload.Project.Slug, RandStringBytes(4))
+	data.AWSGeneratedUserName = userName
+
+	// Create the bucket if it does not exist
+	// If it DOES exist, report an error back to the front end!
+	bucketName := x.getBucketFullName(data.AWSBucketPrefix, payload.Project.Slug, data.AWSBucketGeneratedSuffix)
+	found, err := x.findBucket(data, bucketName)
+	if err != nil {
+		log.Error(err.Error())
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+		return err
+	} else {
+		if found == true {
+			err := errors.New(fmt.Sprintf("Found an existing bucket '%s'", bucketName))
+			log.Error(err.Error())
+			x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+			return err
+		} else {
+			err = x.createBucket(data, bucketName)
+			if err != nil {
+				log.Error(err.Error())
+				x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+				return err
+			}
+
+			err = x.tagBucket(data, bucketName, &payload, false)
+			if err != nil {
+				log.Error(err.Error())
+				x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+				return err
+			}
+		}
+	}
 
 	// Creates the user if they do not exist
 	err = x.createIAMUserIfNotExist(data, userName)
@@ -395,7 +551,7 @@ func (x *S3) createS3(e transistor.Event) error {
 	}
 
 	// Assign the user a policy that includes the bucket and prefix
-	err = x.assignUserIAMPolicyForS3(data, userName, payload.Project.Slug)
+	err = x.assignUserIAMPolicyForS3(data, userName, &payload)
 	if err != nil {
 		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
 		return err
@@ -405,7 +561,7 @@ func (x *S3) createS3(e transistor.Event) error {
 	log.Warn("Testing Permissions by Writing Sample File")
 
 	x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("running"), "Waiting for AWS to propagate credentials", nil)
-	err = x.verifyS3CredentialsValid(e, data, userName, accessCredentials, payload.Project.Slug)
+	err = x.verifyS3CredentialsValid(e, data, userName, accessCredentials, &payload)
 	if err != nil {
 		log.Error(err.Error())
 		return err
@@ -416,7 +572,7 @@ func (x *S3) createS3(e transistor.Event) error {
 	x.sendS3Response(e, transistor.GetAction("status"),
 		transistor.GetState("complete"),
 		"S3 Provisioning Complete.\nRemoving this extension does not delete any data.",
-		x.buildResultArtifacts(data, payload.Project.Slug, accessCredentials))
+		x.buildResultArtifacts(data, accessCredentials, payload.Project.Slug))
 
 	return nil
 }
@@ -426,6 +582,7 @@ func (x *S3) createS3(e transistor.Event) error {
 func (x *S3) getArtifactIgnoreError(e *transistor.Event, artifactName string) transistor.Artifact {
 	artifact, err := e.GetArtifact(artifactName)
 	if err != nil {
+		log.Error(err.Error(), artifactName)
 		return transistor.Artifact{}
 	}
 
@@ -438,11 +595,12 @@ func (x *S3) updateS3(e transistor.Event) error {
 
 	// Grab the artifacts from the previous run
 	ev.Artifacts = []transistor.Artifact{
-		x.getArtifactIgnoreError(&e, "s3_aws_access_key_id"),
-		x.getArtifactIgnoreError(&e, "s3_aws_secret_key"),
-		x.getArtifactIgnoreError(&e, "s3_aws_region"),
-		x.getArtifactIgnoreError(&e, "s3_aws_bucket"),
-		x.getArtifactIgnoreError(&e, "s3_aws_prefix"),
+		x.getArtifactIgnoreError(&e, "access_key_id"),
+		x.getArtifactIgnoreError(&e, "secret_key"),
+		x.getArtifactIgnoreError(&e, "aws_region"),
+		x.getArtifactIgnoreError(&e, "aws_bucket_prefix"),
+		x.getArtifactIgnoreError(&e, "aws_bucket_suffix"),
+		x.getArtifactIgnoreError(&e, "aws_generated_user_name"),
 	}
 
 	x.events <- ev
@@ -503,7 +661,16 @@ func (x *S3) deleteS3(e transistor.Event) error {
 	iamSvc := x.S3Interfaces.GetIAMServiceInterface(data)
 
 	payload := e.Payload.(plugins.ProjectExtension)
-	userName := fmt.Sprintf("%s%s", data.AWSGeneratedUserPrefix, payload.Project.Slug)
+	userName := data.AWSGeneratedUserName
+
+	// Tag the bucket so we know that its okay to clean up
+	bucketName := x.getBucketFullName(data.AWSBucketPrefix, payload.Project.Slug, data.AWSBucketGeneratedSuffix)
+	err = x.tagBucket(data, bucketName, &payload, true)
+	if err != nil {
+		log.Error(err.Error(), bucketName)
+		x.sendS3Response(e, transistor.GetAction("status"), transistor.GetState("failed"), err.Error(), nil)
+		return err
+	}
 
 	// Check to see if user exists before we delete
 	_, err = iamSvc.GetUser(&iam.GetUserInput{UserName: &userName})
