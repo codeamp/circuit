@@ -32,6 +32,9 @@ plugins:
     workers: 1
   slack:
     workers: 1
+  scheduledbranchreleaser:
+    workers: 1
+    workdir: "/tmp/scheduledbranchreleaser"
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"

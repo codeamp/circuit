@@ -967,10 +967,6 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					continue
 				}
 
-				log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d",
-					deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas,
-					deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
-
 				if deployment.Status.ObservedGeneration >= deployment.ObjectMeta.Generation &&
 					deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas &&
 					deployment.Status.AvailableReplicas >= deployment.Status.UpdatedReplicas &&
@@ -985,6 +981,10 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					log.Info(fmt.Sprintf("%s deploy: %d of %d deployments successful.", deploymentName, successfulDeploys, len(deploymentServices)))
 				} else if deployment.Status.UnavailableReplicas > 0 {
 					latestRevision := deployment.Annotations["deployment.kubernetes.io/revision"]
+
+					log.Info(fmt.Sprintf("Waiting for %s; ObservedGeneration: %d, Generation: %d, UpdatedReplicas: %d, Replicas: %d, AvailableReplicas: %d, UnavailableReplicas: %d",
+						deploymentName, deployment.Status.ObservedGeneration, deployment.ObjectMeta.Generation, deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas,
+						deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
 
 					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
 					replicaSetList, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
