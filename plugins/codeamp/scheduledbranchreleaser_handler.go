@@ -30,7 +30,7 @@ const (
 )
 
 // This is the handler that is automagically called when
-// CodeAmp receives a message with a 'ScheduleBranchReleaser' type payload
+// CodeAmp receives a message with a 'ScheduledBranchReleaser' type payload
 //
 // It's job is to handle the message that is being received from the plugin itself.
 // If this function is executing, then the plugin has determined that the current
@@ -59,7 +59,7 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 			// in the message. this is necessary so we can send a message to the front end to inform
 			// the user that the branch has been updated without their explicit input
 			var environment model.Environment
-			if err := x.DB.Where("id = ?", payload.Environment).Find(&environment).Error; err != nil {
+			if err := x.DB.Where("id = ?", payload.ProjectExtension.Environment).Find(&environment).Error; err != nil {
 				log.Error(err.Error())
 				return
 			}
@@ -76,7 +76,7 @@ func (x *CodeAmp) ScheduledBranchReleaserEventHandler(e transistor.Event) {
 						"branch":      desiredBranch.String(),
 						"oldBranch":   oldBranch,
 						"user":        "scheduled builder",
-						"environment": payload.Environment},
+						"environment": payload.ProjectExtension.Environment},
 					)
 				}
 			}

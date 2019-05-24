@@ -22,10 +22,10 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 				"id": receivedPayload.ID,
 			})
 
-			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because ProjectExtension not found given payload id: %s.", receivedPayload.ID))
+			return fmt.Errorf("Could not handle ProjectExtension status event because ProjectExtension not found given payload id: %s.", receivedPayload.ID)
 		} else {
 			if extension.DeletedAt != nil {
-				return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because ProjectExtension has been deleted id: %s.", receivedPayload.ID))
+				return fmt.Errorf("Could not handle ProjectExtension status event because ProjectExtension has been deleted id: %s.", receivedPayload.ID)
 			}
 		}
 
@@ -33,7 +33,7 @@ func (x *CodeAmp) ProjectExtensionEventHandler(e transistor.Event) error {
 			log.ErrorWithFields("project not found", log.Fields{
 				"id": extension.ProjectID,
 			})
-			return fmt.Errorf(fmt.Sprintf("Could not handle ProjectExtension status event because Project not found given payload id: %s.", extension.ProjectID))
+			return fmt.Errorf("Could not handle ProjectExtension status event because Project not found given payload id: %s.", extension.ProjectID)
 		}
 
 		extension.State = transistor.GetState(string(e.State))

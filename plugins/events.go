@@ -237,7 +237,7 @@ type HeartBeat struct {
 	Tick string `json:"tick"`
 }
 
-// ScheduledBranchReleaserPulse data struct
+// ScheduledBranchReleaser data struct
 type ScheduledBranchReleaser struct {
 	ProjectExtension  `json:"projectextension"`
 	Git               `json:"git"`
