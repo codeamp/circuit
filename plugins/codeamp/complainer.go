@@ -2,6 +2,7 @@ package codeamp
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/jinzhu/gorm"
 
@@ -9,6 +10,11 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/spf13/viper"
+)
+
+var (
+	PARENT_ENVIRONMENT = os.Getenv("PARENT_ENVIRONMENT")
+	CHILD_ENVIRONMENT  = os.Getenv("CHILD_ENVIRONMENT")
 )
 
 // ComplainIfNotInStaging will send out a notification event
