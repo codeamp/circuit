@@ -2,13 +2,18 @@ package codeamp
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/jinzhu/gorm"
 
-	"github.com/codeamp/circuit/plugins/codeamp/constants"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+)
+
+var (
+	PARENT_ENVIRONMENT = os.Getenv("PARENT_ENVIRONMENT")
+	CHILD_ENVIRONMENT  = os.Getenv("CHILD_ENVIRONMENT")
 )
 
 // ComplainIfNotInStaging will send out a notification event
@@ -20,12 +25,12 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 
 	// get staging and production environments
 	stagingEnv := model.Environment{}
-	if err := x.DB.Where("key = ?", constants.StagingEnvironment).Find(&stagingEnv).Error; err != nil {
+	if err := x.DB.Where("key = ?", PARENT_ENVIRONMENT).Find(&stagingEnv).Error; err != nil {
 		return complained, err
 	}
 
 	prodEnv := model.Environment{}
-	if err := x.DB.Where("key = ?", constants.ProductionEnvironment).Find(&prodEnv).Error; err != nil {
+	if err := x.DB.Where("key = ?", CHILD_ENVIRONMENT).Find(&prodEnv).Error; err != nil {
 		return complained, err
 	}
 
