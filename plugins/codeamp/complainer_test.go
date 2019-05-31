@@ -85,8 +85,8 @@ func (ts *CodeampTestSuite) TestComplainerAlertSuccess() {
 }
 
 func (ts *CodeampTestSuite) TestComplainerAlertFail_CompletedReleaseInStagingAlready() {
-	constants.StagingEnvironment = "staging"
-	constants.ProductionEnvironment = "production"
+	codeamp.PARENT_ENVIRONMENT = "staging"
+	codeamp.CHILD_ENVIRONMENT = "production"
 
 	prodEnv := model.Environment{
 		Key:  "production",
