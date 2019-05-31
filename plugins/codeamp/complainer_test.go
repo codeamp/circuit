@@ -7,7 +7,6 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 
-	"github.com/codeamp/circuit/plugins/codeamp/constants"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
