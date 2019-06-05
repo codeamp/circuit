@@ -586,7 +586,7 @@ func parseUpstreamRoutes(a transistor.Artifact) ([]UpstreamRoute, error) {
 		if pathsString == "" {
 			paths = []string{}
 		} else {
-			paths = strings.Split(strings.ToLower(pathsString), ",")
+			paths = strings.Split(pathsString, ",")
 		}
 
 		domains := upstream.(map[string]interface{})["domains"]
