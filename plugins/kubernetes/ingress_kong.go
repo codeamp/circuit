@@ -81,7 +81,19 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 			}
 
 		}
-
+		// Find kong service
+		existingKongService, err := kongClient.Services().GetServiceByName(inputs.Service.ID)
+		if err != nil {
+			log.Error(err)
+		}
+		// delete service if it exists
+		if existingKongService != nil {
+			err = kongClient.Services().DeleteServiceById(*existingKongService.Id)
+			if err != nil {
+				log.Error(fmt.Sprintf("failed to delete service: %s", err.Error()))
+				return err
+			}
+		}
 	}
 
 	return nil
