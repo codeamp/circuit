@@ -2,13 +2,13 @@ package codeamp
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/jinzhu/gorm"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/spf13/viper"
 )
 
 var (
