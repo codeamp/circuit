@@ -19,6 +19,9 @@ plugins:
       sslmode: "disable"
       password: ""
     service_address: ":3011"
+    environments:
+      parent: "production"
+      child: "staging"
   gitsync:
     workers: 1
     workdir: "/tmp/gitsync" 
