@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	PARENT_ENVIRONMENT = viper.GetString("plugins.codeamp.environments.parent")
-	CHILD_ENVIRONMENT  = viper.GetString("plugins.codeamp.environments.child")
+	PARENT_ENVIRONMENT = viper.GetString("plugins.codeamp.complainer.environments.parent")
+	CHILD_ENVIRONMENT  = viper.GetString("plugins.codeamp.complainer.environments.child")
+	ENABLED            = viper.GetString("plugins.codeamp.complainer.enabled")
 )
 
 // ComplainIfNotInStaging will send out a notification event
@@ -27,6 +28,10 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 	childEnvironment := viper.GetString("plugins.codeamp.complainer.environments.child")
 
 	if !enabled {
+		return false, nil
+	}
+
+	if !ENABLED {
 		return false, nil
 	}
 
