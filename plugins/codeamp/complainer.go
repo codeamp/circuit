@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	PARENT_ENVIRONMENT = os.Getenv("PARENT_ENVIRONMENT")
-	CHILD_ENVIRONMENT  = os.Getenv("CHILD_ENVIRONMENT")
+	PARENT_ENVIRONMENT = viper.GetString("plugins.codeamp.environments.parent")
+	CHILD_ENVIRONMENT  = viper.GetString("plugins.codeamp.environments.child")
 )
 
 // ComplainIfNotInStaging will send out a notification event
