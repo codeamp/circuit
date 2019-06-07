@@ -2,7 +2,6 @@ package codeamp
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/jinzhu/gorm"
 
