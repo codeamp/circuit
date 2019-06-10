@@ -2,7 +2,6 @@ package codeamp
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/jinzhu/gorm"
 
@@ -10,12 +9,6 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/spf13/viper"
-)
-
-var (
-	PARENT_ENVIRONMENT = viper.GetString("plugins.codeamp.complainer.environments.parent")
-	CHILD_ENVIRONMENT  = viper.GetString("plugins.codeamp.complainer.environments.child")
-	ENABLED            = viper.GetString("plugins.codeamp.complainer.enabled")
 )
 
 // ComplainIfNotInStaging will send out a notification event
@@ -32,12 +25,7 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 		return false, nil
 	}
 
-	boolEnabled, err := strconv.ParseBool(ENABLED)
-	if err != nil {
-		return false, err
-	}
-
-	if !boolEnabled {
+	if !enabled {
 		return false, nil
 	}
 
