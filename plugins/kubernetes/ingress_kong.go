@@ -241,6 +241,9 @@ func (x *Kubernetes) createKongIngress(e transistor.Event) error {
 
 		if len(route.Methods) > 0 {
 			methods := strings.Split(strings.ToUpper(strings.Join(route.Methods, ",")), ",")
+			for i := range methods {
+				methods[i] = strings.TrimSpace(methods[i])
+			}
 			routeRequest.Methods = gokong.StringSlice(methods)
 		}
 
@@ -595,7 +598,7 @@ func parseUpstreamRoutes(a transistor.Artifact) ([]UpstreamRoute, error) {
 		if pathsString == "" {
 			paths = []string{}
 		} else {
-			paths = strings.Split(strings.ToLower(pathsString), ",")
+			paths = strings.Split(pathsString, ",")
 		}
 
 		domains := upstream.(map[string]interface{})["domains"]
