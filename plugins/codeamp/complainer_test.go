@@ -41,9 +41,6 @@ func (suite *CodeampTestSuite) SetupTest() {
 }
 
 func (ts *CodeampTestSuite) TestComplainerAlertSuccess() {
-	codeamp.PARENT_ENVIRONMENT = "staging"
-	codeamp.CHILD_ENVIRONMENT = "production"
-
 	prodEnv := model.Environment{
 		Key:  "production",
 		Name: "Production",
@@ -84,9 +81,6 @@ func (ts *CodeampTestSuite) TestComplainerAlertSuccess() {
 }
 
 func (ts *CodeampTestSuite) TestComplainerAlertFail_CompletedReleaseInStagingAlready() {
-	codeamp.PARENT_ENVIRONMENT = "staging"
-	codeamp.CHILD_ENVIRONMENT = "production"
-
 	prodEnv := model.Environment{
 		Key:  "production",
 		Name: "Production",

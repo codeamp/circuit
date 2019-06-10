@@ -2,7 +2,6 @@ package codeamp
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/jinzhu/gorm"
 
@@ -12,36 +11,28 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	PARENT_ENVIRONMENT = viper.GetString("plugins.codeamp.complainer.environments.parent")
-	CHILD_ENVIRONMENT  = viper.GetString("plugins.codeamp.complainer.environments.child")
-	ENABLED            = viper.GetString("plugins.codeamp.complainer.enabled")
-)
-
 // ComplainIfNotInStaging will send out a notification event
 // if the input release has been deployed to constants.ProductionEnvironment
 // without a corresponding release in constants.StagingEnvironment
 // returns true/false on whether the function "complained" or not
 func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bool, error) {
 	complained := false
+	enabled := viper.GetBool("plugins.codeamp.complainer.enabled")
+	parentEnvironment := viper.GetString("plugins.codeamp.complainer.environments.parent")
+	childEnvironment := viper.GetString("plugins.codeamp.complainer.environments.child")
 
-	boolEnabled, err := strconv.ParseBool(ENABLED)
-	if err != nil {
-		return false, err
-	}
-
-	if !boolEnabled {
+	if !enabled {
 		return false, nil
 	}
 
 	// get staging and production environments
 	stagingEnv := model.Environment{}
-	if err := x.DB.Where("key = ?", PARENT_ENVIRONMENT).Find(&stagingEnv).Error; err != nil {
+	if err := x.DB.Where("key = ?", parentEnvironment).Find(&stagingEnv).Error; err != nil {
 		return complained, err
 	}
 
 	prodEnv := model.Environment{}
-	if err := x.DB.Where("key = ?", CHILD_ENVIRONMENT).Find(&prodEnv).Error; err != nil {
+	if err := x.DB.Where("key = ?", childEnvironment).Find(&prodEnv).Error; err != nil {
 		return complained, err
 	}
 

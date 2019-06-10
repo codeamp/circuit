@@ -20,10 +20,10 @@ plugins:
       password: ""
     service_address: ":3011"
     complainer:
-      enabled: true    
+      enabled: true
       environments:
-        parent: "production"
-        child: "staging"    
+        parent: "staging"
+        child: "production"
   gitsync:
     workers: 1
     workdir: "/tmp/gitsync" 
