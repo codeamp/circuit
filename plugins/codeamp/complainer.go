@@ -2,6 +2,7 @@ package codeamp
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/jinzhu/gorm"
 
@@ -31,7 +32,12 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 		return false, nil
 	}
 
-	if !ENABLED {
+	boolEnabled, err := strconv.ParseBool(ENABLED)
+	if err != nil {
+		return false, err
+	}
+
+	if !boolEnabled {
 		return false, nil
 	}
 
