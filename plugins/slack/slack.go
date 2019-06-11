@@ -122,7 +122,7 @@ func (x *Slack) HandleSendNotification(e *transistor.Event) error {
 	// header := fmt.Sprintf("Deployed %s", payload.Project.Repository)
 	resultAttachments := slack.Attachment{
 		Color:     resultColor,
-		Title:     fmt.Sprintf("Release on %s - %s", payload.Environment, strings.ToUpper(messageStatus.String())),
+		Title:     fmt.Sprintf("Release on %s - %s", payload.Environment, messageStatus.String()),
 		TitleLink: fmt.Sprintf("%s/projects/%s/%s/releases", dashboardURL.String(), payload.Project.Slug, payload.Environment),
 		Text:      fmt.Sprintf("<%s|%s> - _%s_", compareUrl, releaseFeatureHash, payload.Release.HeadFeature.Message),
 		// Use "FooterIcon" here instead of "Footer" because there is a serialization bug in the slack webhook lib
