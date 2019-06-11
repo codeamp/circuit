@@ -24,7 +24,6 @@ jobs:
           command: |
             set -x
             docker-compose up -d postgres redis mysql kong
-            docker-compose logs kong
       - run:
           name: Build Docker Container
           command: |

@@ -67,6 +67,7 @@ services:
       - codeamp
   kong:
     command: /bin/sh -c "kong migrations bootstrap -v && kong start"
+    restart: on-failure
     image: kong
     ports:
       - 8001:8001
