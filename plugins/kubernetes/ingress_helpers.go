@@ -27,7 +27,6 @@ func parseController(ingressController string) (*IngressController, error) {
 
 func parseUpstreamDomains(a transistor.Artifact) ([]Domain, error) {
 	var upstreamFQDNs []Domain
-
 	domains, ok := a.Value.([]interface{})
 	if !ok {
 		return nil, fmt.Errorf(fmt.Sprintf("Expected type []interface{} but got %T", domains))
