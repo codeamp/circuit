@@ -53,7 +53,7 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 		return err
 	}
 
-	service, err := parseService(e)
+	service, err := ParseService(e)
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func getIngressInputs(e transistor.Event) (*IngressInput, error) {
 	}
 	input.Type = serviceType.String()
 
-	service, err := parseService(e)
+	service, err := ParseService(e)
 	if err != nil {
 		return nil, err
 	}

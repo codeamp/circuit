@@ -57,7 +57,7 @@ func getTableViewFromDomains(domains []Domain) string {
 }
 
 // Service should be in the format servicename:port
-func parseService(e transistor.Event) (Service, error) {
+func ParseService(e transistor.Event) (Service, error) {
 	payload := e.Payload.(plugins.ProjectExtension)
 
 	protocol, err := e.GetArtifact("protocol")
