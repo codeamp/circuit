@@ -103,7 +103,7 @@ func getIngressRouteInputs(e transistor.Event) (*IngressRouteInput, error) {
 	}
 	input.Type = serviceType.String()
 
-	service, err := parseService(e)
+	service, err := ParseService(e)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (x *Kubernetes) deleteIngressRoute(e transistor.Event) error {
 		return err
 	}
 
-	service, err := parseService(e)
+	service, err := ParseService(e)
 	if err != nil {
 		return err
 	}

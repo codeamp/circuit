@@ -41,11 +41,13 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 	// delete routes
 	err := x.deleteK8sService(e)
 	if err != nil {
+		x.sendErrorResponse(e, "failed to delete service")
 		return fmt.Errorf(fmt.Sprintf("Failed to delete K8s Service: %s", err.Error()))
 	}
 
 	inputs, err := getKongIngressInputs(e)
 	if err != nil {
+		x.sendErrorResponse(e, "failed to delete service")
 		return err
 	}
 
@@ -57,17 +59,20 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 	if err != nil {
 		log.Error(err)
 		log.Error(status)
+		x.sendErrorResponse(e, "failed to delete service")
 		return err
 	}
 
 	ingType, err := e.GetArtifact("type")
 	if err != nil {
+		x.sendErrorResponse(e, "failed to delete service")
 		return fmt.Errorf("Failed to retrieve service type")
 	}
 
 	if ingType.String() == "loadbalancer" {
 		inputs, err := getKongIngressInputs(e)
 		if err != nil {
+			x.sendErrorResponse(e, "failed to delete service")
 			return err
 		}
 
@@ -77,6 +82,7 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 			err := kongClient.Routes().DeleteByName(routeName)
 			if err != nil {
 				log.Error(err)
+				x.sendErrorResponse(e, "failed to delete service")
 				return err
 			}
 
@@ -85,16 +91,21 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 		existingKongService, err := kongClient.Services().GetServiceByName(inputs.Service.ID)
 		if err != nil {
 			log.Error(err)
+			x.sendErrorResponse(e, fmt.Sprintf("failed to delete service: %s", err.Error()))
+			return err
 		}
 		// delete service if it exists
 		if existingKongService != nil {
 			err = kongClient.Services().DeleteServiceById(*existingKongService.Id)
 			if err != nil {
 				log.Error(fmt.Sprintf("failed to delete service: %s", err.Error()))
+				x.sendErrorResponse(e, "failed to delete service")
 				return err
 			}
 		}
 	}
+
+	x.sendSuccessResponse(e, transistor.GetState("complete"), nil)
 
 	return nil
 }
@@ -362,7 +373,7 @@ func (x *Kubernetes) deleteK8sService(e transistor.Event) error {
 		return err
 	}
 
-	service, err := parseService(e)
+	service, err := ParseService(e)
 	if err != nil {
 		return err
 	}
@@ -506,7 +517,7 @@ func getKongIngressInputs(e transistor.Event) (*KongIngressInput, error) {
 	}
 	input.Type = serviceType.String()
 
-	service, err := parseService(e)
+	service, err := ParseService(e)
 	if err != nil {
 		return nil, err
 	}
@@ -561,6 +572,7 @@ func getKongIngressInputs(e transistor.Event) (*KongIngressInput, error) {
 		}
 		input.Controller = selectedController
 	}
+
 	return &input, nil
 }
 
@@ -577,7 +589,6 @@ func parseKongControllers(ingressControllers string) ([]KongIngressController, e
 
 func parseUpstreamRoutes(a transistor.Artifact) ([]UpstreamRoute, error) {
 	var upstreamRoutes []UpstreamRoute
-
 	upstreams, ok := a.Value.([]interface{})
 	if !ok {
 		return nil, fmt.Errorf(fmt.Sprintf("Expected type []interface{} but got %T", upstreams))
