@@ -65,8 +65,8 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 
 	ingType, err := e.GetArtifact("type")
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve service type")
 		x.sendErrorResponse(e, "failed to delete service")
+		return fmt.Errorf("Failed to retrieve service type")
 	}
 
 	if ingType.String() == "loadbalancer" {
@@ -91,7 +91,8 @@ func (x *Kubernetes) deleteKongIngress(e transistor.Event) error {
 		existingKongService, err := kongClient.Services().GetServiceByName(inputs.Service.ID)
 		if err != nil {
 			log.Error(err)
-			x.sendErrorResponse(e, "failed to delete service")
+			x.sendErrorResponse(e, fmt.Sprintf("failed to delete service: %s", err.Error()))
+			return err
 		}
 		// delete service if it exists
 		if existingKongService != nil {
