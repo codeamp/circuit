@@ -25,7 +25,7 @@ plugins:
         parent: "staging"
         child: "production"
   gitsync:
-    workers: 0
+    workers: 1
     workdir: "/tmp/gitsync" 
   heartbeat:
     workers: 0
