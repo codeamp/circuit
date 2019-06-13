@@ -25,10 +25,6 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 		return false, nil
 	}
 
-	if !enabled {
-		return false, nil
-	}
-
 	// get staging and production environments
 	stagingEnv := model.Environment{}
 	if err := x.DB.Where("key = ?", parentEnvironment).Find(&stagingEnv).Error; err != nil {
