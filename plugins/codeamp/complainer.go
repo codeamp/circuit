@@ -86,7 +86,7 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 
 	if !releaseFoundInStaging {
 		// send notification
-		complaint := fmt.Sprintf("This feature was deployed directly to %s without prior testing in %s.", prodEnv.Name, stagingEnv.Name)
+		complaint := fmt.Sprintf("This feature was deployed directly to %s without a prior deployment in %s.", prodEnv.Name, stagingEnv.Name)
 		log.InfoWithFields(complaint, log.Fields{
 			"ProjectID": p.Model.ID,
 			"ReleaseID": r.Model.ID,
