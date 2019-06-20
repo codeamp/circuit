@@ -25,10 +25,10 @@ plugins:
         parent: "staging"
         child: "production"
   gitsync:
-    workers: 1
+    workers: 0
     workdir: "/tmp/gitsync" 
   heartbeat:
-    workers: 1
+    workers: 0
   kubernetes:
     workers: 1
   githubstatus:

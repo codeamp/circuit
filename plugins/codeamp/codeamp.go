@@ -171,22 +171,26 @@ func (x *CodeAmp) initRedis() {
 }
 
 func (x *CodeAmp) Start(events chan transistor.Event) error {
+	log.Warn("Starting Postgres")
 	_, err := x.initPostGres()
 	if err != nil {
 		return err
 	}
 
+	log.Warn("Starting Redis")
 	x.initRedis()
 
 	x.Events = events
 
 	x.Resolver = &graphql_resolver.Resolver{DB: x.DB, Events: x.Events, Redis: x.Redis}
+	log.Warn("Starting GraphQL")
 	x.Schema, err = x.InitGraphQL(x.Resolver)
 
 	if err != nil {
 		return err
 	}
 
+	log.Warn("GraphQL Listening")
 	go x.GraphQLListen()
 
 	log.Info("Starting CodeAmp service")

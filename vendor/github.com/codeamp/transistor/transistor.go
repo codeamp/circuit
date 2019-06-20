@@ -78,6 +78,7 @@ func NewTestTransistor(config Config) (*Transistor, error) {
 func (t *Transistor) LoadPlugins() error {
 	var err error
 	for name := range t.Config.Plugins {
+		log.Warn("Adding plugin: ", name)
 		if err = t.addPlugin(name); err != nil {
 			return fmt.Errorf("Error parsing %s, %s", name, err)
 		}
@@ -203,6 +204,7 @@ func (t *Transistor) flusher() {
 
 							workers.EnqueueWithOptions(plugin.Name, "Event", e, options)
 						} else {
+							log.Warn("GoFunc Process")
 							go func() {
 								plugin.Plugin.Process(e)
 							}()
@@ -217,7 +219,7 @@ func (t *Transistor) flusher() {
 				log.WarnWithFields("Event not handled by any plugin", log.Fields{
 					"event_name": e.Name,
 				})
-				e.Dump()
+				// e.Dump()
 			}
 		}
 	}
@@ -249,6 +251,7 @@ func (t *Transistor) Run() error {
 		})
 	}
 
+	defer t.stopPlugins()
 	for _, plugin := range t.Plugins {
 		if !plugin.Enabled {
 			continue
@@ -257,17 +260,23 @@ func (t *Transistor) Run() error {
 		// Start service of any Plugins
 		switch p := plugin.Plugin.(type) {
 		case Plugin:
-			if err := p.Start(t.Events); err != nil {
-				log.InfoWithFields("Service failed to start", log.Fields{
-					"plugin_name": plugin.Name,
-					"error":       err,
-				})
-				return err
-			}
-			defer p.Stop()
+			if plugin.Workers > 0 {
+				log.Debug(fmt.Sprintf("Starting plugin: %s", plugin.Name))
+				if err := p.Start(t.Events); err != nil {
+					log.InfoWithFields("Service failed to start", log.Fields{
+						"plugin_name": plugin.Name,
+						"error":       err,
+					})
+					p.Stop()
+					return err
+				}
+				plugin.Started = true
 
-			if t.Config.Queueing {
-				workers.Process(plugin.Name, plugin.Work, plugin.Workers)
+				if t.Config.Queueing {
+					workers.Process(plugin.Name, plugin.Work, plugin.Workers)
+				}
+			} else {
+				log.Warn(fmt.Sprintf("Plugin '%s' specified, but 0 workers requested", plugin.Name))
 			}
 		}
 	}
@@ -297,8 +306,25 @@ func (t *Transistor) Run() error {
 	return nil
 }
 
+func (t *Transistor) stopPlugins() {
+	for _, plugin := range t.Plugins {
+		if !plugin.Enabled || plugin.Started == false {
+			log.Warn("Skipping shutdown of plugin. Not enabled or not started: ", plugin.Name)
+			continue
+		}
+
+		switch p := plugin.Plugin.(type) {
+		case Plugin:
+			log.Debug(fmt.Sprintf("Stopping Plugin: %s", plugin.Name))
+			p.Stop()
+			plugin.Started = false
+		}
+	}
+}
+
 // Shutdown the transistor daemon
 func (t *Transistor) Stop() {
+	log.Warn("Stopping 'shutdown' channel")
 	close(t.Shutdown)
 }
 

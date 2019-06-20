@@ -41,10 +41,10 @@ func SliceContains(name string, list []string) bool {
 	// regardless of if we found the match in the haystack or not.
 	// This way it only prints a debug if the regex didn't match ALL of the candidates
 	// ADB
-	log.DebugWithFields("SliceContains regex not matched", log.Fields{
-		"string": name,
-		"list":   list,
-	})
+	// log.DebugWithFields("SliceContains regex not matched", log.Fields{
+	// 	"string": name,
+	// 	"list":   list,
+	// })
 
 	return false
 }

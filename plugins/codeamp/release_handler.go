@@ -2,6 +2,7 @@ package codeamp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,107 +11,257 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/jinzhu/gorm"
 )
 
 func (x *CodeAmp) ReleaseEventHandler(e transistor.Event) error {
-	var err error
-	payload := e.Payload.(plugins.Release)
-	release := model.Release{}
-	releaseExtensions := []model.ReleaseExtension{}
-
-	if x.DB.Where("id = ?", payload.ID).First(&release).RecordNotFound() {
-		log.InfoWithFields("release not found", log.Fields{
-			"id": payload.ID,
-		})
-		return fmt.Errorf("release %s not found", payload.ID)
-	}
+	log.Error("RELEASE EVENT HANDLER")
 
 	if e.Matches("release:create") {
-		x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
+		releaseEvent := e.Payload.(plugins.Release)
+		release := model.Release{}
 
-		for _, releaseExtension := range releaseExtensions {
-			projectExtension := model.ProjectExtension{}
-			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
-				log.InfoWithFields("project extensions not found", log.Fields{
-					"id":                   releaseExtension.ProjectExtensionID,
-					"release_extension_id": releaseExtension.Model.ID,
-				})
-				return fmt.Errorf("project extension %s not found", releaseExtension.ProjectExtensionID)
+		if x.DB.Where("id = ?", releaseEvent.ID).Find(&release).RecordNotFound() {
+			log.InfoWithFields("release not found", log.Fields{
+				"id": releaseEvent.ID,
+			})
+			return fmt.Errorf("release %s not found", releaseEvent.ID)
+		}
+
+		startableRelease, startableReleaseEvent, err := x.GetStartableRelease(&release, &releaseEvent)
+		if err == nil {
+			err := x.StartRelease(startableRelease, startableReleaseEvent)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+		} else {
+			log.Error(err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (x *CodeAmp) GetStartableRelease(release *model.Release, releaseEvent *plugins.Release) (*model.Release, *plugins.Release, error) {
+	var queuedRelease model.Release
+	if err := x.DB.
+		Where("project_id = ? and environment_id = ? and state IN ('running', 'waiting')", release.ProjectID, release.EnvironmentID).
+		Order("created_at asc").
+		First(&queuedRelease).
+		Error; err != nil {
+		log.Error(err)
+		return nil, nil, err
+	}
+	if queuedRelease.State == transistor.GetState("waiting") {
+		if release == nil || queuedRelease.ID != release.ID {
+			log.Warn("Forced to rebuild release event!")
+
+			releaseMutation := graphql_resolver.ReleaseResolverMutation{DB: x.DB}
+
+			// Do not provide a releaseID here unless this is a redeploy (it's not, just queued release)
+			releaseComponents, err := releaseMutation.PrepRelease(queuedRelease.ProjectID.String(), queuedRelease.EnvironmentID.String(),
+				queuedRelease.HeadFeatureID.String(), nil)
+			if err != nil {
+				return nil, nil, err
 			}
 
-			extension := model.Extension{}
-			if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
-				log.InfoWithFields("extension not found", log.Fields{
-					"id":                   projectExtension.Model.ID,
-					"release_extension_id": releaseExtension.Model.ID,
-				})
-				return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
+			log.Warn("GetStartableRelease: ", releaseComponents.Services[0].Count)
+
+			_releaseEvent, err := releaseMutation.BuildReleaseEvent(&queuedRelease, releaseComponents)
+			if err != nil {
+				return nil, nil, err
 			}
+			pluginReleaseEvent := _releaseEvent.Payload.(plugins.Release)
+			releaseEvent = &pluginReleaseEvent
+		}
 
-			if plugins.Type(extension.Type) == plugins.GetType("workflow") {
-				// check if the last release extension has the same
-				// ServicesSignature and SecretsSignature. If so,
-				// mark the action as completed before sending the event
-				lastReleaseExtension := model.ReleaseExtension{}
-				artifacts := []transistor.Artifact{}
+		return &queuedRelease, releaseEvent, nil
+	}
+	return nil, nil, errors.New("No releases startable")
+}
 
-				eventAction := transistor.GetAction("create")
-				eventState := transistor.GetState("waiting")
-				eventStateMessage := ""
-				needsExtract := true
+func (x *CodeAmp) StartRelease(release *model.Release, releaseEvent *plugins.Release) error {
+	err := x.CreateReleaseExtensionsForRelease(release, releaseEvent)
+	if err != nil {
+		return err
+	}
 
-				if !release.ForceRebuild && extension.Cacheable {
-					// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
-					err = x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
-						projectExtension.Model.ID, releaseExtension.ServicesSignature,
-						releaseExtension.SecretsSignature, releaseExtension.FeatureHash,
-						[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
-					if err != nil {
-						log.Error(err.Error())
-					} else {
-						eventAction = transistor.GetAction("status")
-						eventState = lastReleaseExtension.State
-						eventStateMessage = fmt.Sprintf("Using cache from previous release: %s", lastReleaseExtension.StateMessage)
+	err = x.StartWorkflowExtensions(release, releaseEvent)
+	if err != nil {
+		return err
+	}
 
-						err := json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &artifacts)
-						if err != nil {
-							log.Error(err.Error())
-							return nil
-						}
+	release.Started = time.Now()
+	release.State = transistor.GetState("running")
+	release.StateMessage = "Running Release"
 
-						needsExtract = false
-					}
-				}
+	if err := x.DB.Save(&release).Error; err != nil {
+		log.Error(err)
+		return err
+	}
 
-				if needsExtract {
-					artifacts, err = graphql_resolver.ExtractArtifacts(projectExtension, extension, x.DB)
-					if err != nil {
-						log.Error(err.Error())
-						return nil
-					}
-				}
+	payload := plugins.WebsocketMsg{
+		Event:   fmt.Sprintf("projects/%s/%s/releases", releaseEvent.Project.Slug, releaseEvent.Environment),
+		Payload: release,
+	}
 
-				payload := plugins.ReleaseExtension{
-					ID:      releaseExtension.Model.ID.String(),
-					Release: payload,
-				}
+	// Send event to websocket plugin to forward message to client
+	// Tell the client to refetch its data re: this release
+	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
+	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", releaseEvent.Project.Slug, releaseEvent.Environment), false)
+	x.Events <- event
 
-				ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), eventAction, payload)
-				ev.State = eventState
-				ev.StateMessage = eventStateMessage
-				ev.Artifacts = artifacts
+	return nil
+}
 
-				releaseExtension.Started = time.Now()
-				x.DB.Save(&releaseExtension)
+func (x *CodeAmp) StartWorkflowExtensions(release *model.Release, releaseEvent *plugins.Release) error {
+	log.Debug("StartWorkflowExtensions")
+	var workflowExtensions []model.ReleaseExtension
+	if err := x.DB.
+		Where("release_id = ? and type = 'workflow'", release.Model.ID).
+		Find(&workflowExtensions).Error; err != nil {
+		log.Error(err)
+		return err
+	}
 
-				x.Events <- ev
+	for _, re := range workflowExtensions {
+		projectExtension := model.ProjectExtension{}
+		if x.DB.Where("id = ?", re.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
+			log.InfoWithFields("project extensions not found", log.Fields{
+				"id": re.ProjectExtensionID,
+				"release_extension_id": re.Model.ID,
+			})
+			return fmt.Errorf("project extension %s not found", re.ProjectExtensionID)
+		}
+
+		extension := model.Extension{}
+		if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+			log.InfoWithFields("extension not found", log.Fields{
+				"id": projectExtension.Model.ID,
+				"release_extension_id": re.Model.ID,
+			})
+			return fmt.Errorf("extension %s not found", projectExtension.ExtensionID)
+		}
+
+		re.Started = time.Now()
+		re.State = "running"
+		re.StateMessage = "Release Extension Started"
+		if err := x.DB.Save(&re).Error; err != nil {
+			return err
+		}
+
+		log.Warn("Sending events for release extension: ", re.Model.ID)
+		x.Events <- *x.createReleaseWorkflowExtensionEvent(&extension, release, &projectExtension, &re, releaseEvent)
+	}
+
+	return nil
+}
+
+func (x *CodeAmp) createReleaseWorkflowExtensionEvent(extension *model.Extension, release *model.Release,
+	projectExtension *model.ProjectExtension, re *model.ReleaseExtension, releaseEvent *plugins.Release) *transistor.Event {
+	// Support caching
+	payload := plugins.ReleaseExtension{
+		ID:      re.Model.ID.String(),
+		Release: *releaseEvent,
+	}
+
+	if !release.ForceRebuild && extension.Cacheable {
+		lastReleaseExtension := model.ReleaseExtension{}
+		// query for the most recent complete release extension that has the same services, secrets and feature hash as this one
+		err := x.DB.Where("project_extension_id = ? and services_signature = ? and secrets_signature = ? and feature_hash = ? and state in (?)",
+			projectExtension.Model.ID, re.ServicesSignature,
+			re.SecretsSignature, re.FeatureHash,
+			[]string{"complete"}).Order("created_at desc").First(&lastReleaseExtension).Error
+		if err != nil {
+			log.Error(err.Error())
+			if gorm.IsRecordNotFoundError(err) == false {
+				log.Error(fmt.Sprintf("Bailing from caching extension, %s. Database error", extension.Key))
+			}
+		} else {
+			ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("status"), payload)
+			ev.State = lastReleaseExtension.State
+			ev.StateMessage = fmt.Sprintf("Using cache from previous release: %s", lastReleaseExtension.StateMessage)
+
+			err = json.Unmarshal(lastReleaseExtension.Artifacts.RawMessage, &ev.Artifacts)
+			if err != nil {
+				log.Error(err.Error())
+				log.Error(fmt.Sprintf("Bailing from caching extension, %s. Could not marshall artifacts", extension.Key))
+			} else {
+				return &ev
 			}
 		}
 	}
+
+	// Hit this workflow if no artifact to utilize for cache
+	artifacts, err := graphql_resolver.ExtractArtifacts(*projectExtension, *extension, x.DB)
+	if err != nil {
+		log.Error(err.Error())
+		return nil
+	}
+
+	ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), transistor.GetAction("create"), payload)
+	ev.State = transistor.GetState("waiting")
+	ev.StateMessage = ""
+	ev.Artifacts = artifacts
+
+	return &ev
+}
+
+func (x *CodeAmp) CreateReleaseExtensionsForRelease(release *model.Release, releaseEvent *plugins.Release) error {
+	log.Debug("CreateReleaseExtensionsForRelease")
+
+	var err error
+	var projectExtensions []model.ProjectExtension
+	err = json.Unmarshal(release.ProjectExtensions.RawMessage, &projectExtensions)
+	if err != nil {
+		return err
+	}
+
+	for _, projectExtension := range projectExtensions {
+		extension := model.Extension{}
+		if x.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
+			log.ErrorWithFields("extension spec not found", log.Fields{
+				"id": projectExtension.ExtensionID,
+			})
+			return errors.New("extension spec not found")
+		}
+
+		if plugins.Type(extension.Type) == plugins.GetType("workflow") || plugins.Type(extension.Type) == plugins.GetType("deployment") {
+			var headFeature model.Feature
+			if x.DB.Where("id = ?", release.HeadFeatureID).First(&headFeature).RecordNotFound() {
+				log.ErrorWithFields("head feature not found", log.Fields{
+					"id": release.HeadFeatureID,
+				})
+				return errors.New("head feature not found")
+			}
+
+			// create ReleaseExtension
+			releaseExtension := model.ReleaseExtension{
+				State:              transistor.GetState("waiting"),
+				StateMessage:       "",
+				ReleaseID:          release.Model.ID,
+				FeatureHash:        headFeature.Hash,
+				ServicesSignature:  fmt.Sprintf("%x", "servicesSig"),
+				SecretsSignature:   fmt.Sprintf("%x", "secretsSig"),
+				ProjectExtensionID: projectExtension.Model.ID,
+				Type:               extension.Type,
+			}
+
+			if err := x.DB.Create(&releaseExtension).Error; err != nil {
+				log.Error(err)
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
 func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
+	log.Warn("ReleaseFailed")
+	// Update DB to reflect release has failed
 	release.State = transistor.GetState("failed")
 	release.StateMessage = stateMessage
 	release.Finished = time.Now()
@@ -118,15 +269,21 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 	project := model.Project{}
 	environment := model.Environment{}
 
-	x.DB.Save(release)
+	if err := x.DB.Save(release).Error; err != nil {
+		log.Error(err)
+	}
 
+	// Mark all release extensions as failed
 	releaseExtensions := []model.ReleaseExtension{}
 	x.DB.Where("release_id = ? AND state <> ?", release.Model.ID, transistor.GetState("complete")).Find(&releaseExtensions)
 	for _, re := range releaseExtensions {
 		re.State = transistor.GetState("failed")
-		x.DB.Save(&re)
+		if err := x.DB.Save(&re).Error; err != nil {
+			log.Error(err)
+		}
 	}
 
+	// Gather environment and project ID to send websocket message
 	if x.DB.Where("id = ?", release.EnvironmentID).First(&environment).RecordNotFound() {
 		log.WarnWithFields("Environment not found", log.Fields{
 			"id": release.EnvironmentID,
@@ -139,6 +296,7 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 		})
 	}
 
+	// Notify all listeners release has failed
 	x.SendNotifications("FAILED", release, &project)
 
 	payload := plugins.WebsocketMsg{
@@ -146,17 +304,23 @@ func (x *CodeAmp) ReleaseFailed(release *model.Release, stateMessage string) {
 		Payload: release,
 	}
 
+	// Send event to websocket plugin to forward message to client
+	// Tell the client to refetch its data re: this release
 	event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), payload)
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
 	x.Events <- event
 
+	// Continue on and run other releases if they are queued and waiting
 	x.RunQueuedReleases(release)
 }
 
 func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
+	log.Warn("Release Completed")
+
 	project := model.Project{}
 	environment := model.Environment{}
 
+	// Find project and environment names to build websocket message
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.WarnWithFields("project not found", log.Fields{
 			"release": release,
@@ -175,7 +339,9 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 		release.StateMessage = "Completed"
 		release.Finished = time.Now()
 
-		x.DB.Save(release)
+		if err := x.DB.Save(release).Error; err != nil {
+			log.Error(err)
+		}
 
 		complained, err := x.ComplainIfNotInStaging(release, &project)
 		if err != nil {
@@ -201,181 +367,25 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 	event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases", project.Slug, environment.Key), false)
 	x.Events <- event
 
+	// Try to run any queued releases once this one is handled
 	x.RunQueuedReleases(release)
 }
 
 func (x *CodeAmp) RunQueuedReleases(release *model.Release) error {
-	var nextQueuedRelease model.Release
+	log.Warn("RunQueuedReleases")
 
-	if x.DB.Where("id != ? and state = ? and project_id = ? and environment_id = ? and created_at > ?", release.Model.ID, "waiting", release.ProjectID, release.EnvironmentID, release.CreatedAt).Order("created_at asc").First(&nextQueuedRelease).RecordNotFound() {
-		log.WarnWithFields("No queued releases found.", log.Fields{
-			"id":             release.Model.ID,
-			"state":          "waiting",
-			"project_id":     release.ProjectID,
-			"environment_id": release.EnvironmentID,
-			"created_at":     release.CreatedAt,
-		})
-		return nil
-	}
-
-	var project model.Project
-	var services []model.Service
-	var secrets []model.Secret
-
-	projectSecrets := []model.Secret{}
-	// get all the env vars related to this release and store
-	x.DB.Where("environment_id = ? AND project_id = ? AND scope = ?", nextQueuedRelease.EnvironmentID, nextQueuedRelease.ProjectID, "project").Find(&projectSecrets)
-	for _, secret := range projectSecrets {
-		var secretValue model.SecretValue
-		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		secret.Value = secretValue
-		secrets = append(secrets, secret)
-	}
-
-	globalSecrets := []model.Secret{}
-	x.DB.Where("environment_id = ? AND scope = ?", nextQueuedRelease.EnvironmentID, "global").Find(&globalSecrets)
-	for _, secret := range globalSecrets {
-		var secretValue model.SecretValue
-		x.DB.Where("secret_id = ?", secret.Model.ID).Order("created_at desc").First(&secretValue)
-		secret.Value = secretValue
-		secrets = append(secrets, secret)
-	}
-
-	x.DB.Where("project_id = ? and environment_id = ?", nextQueuedRelease.ProjectID, nextQueuedRelease.EnvironmentID).Find(&services)
-	if len(services) == 0 {
-		log.WarnWithFields("no services found", log.Fields{
-			"project_id": nextQueuedRelease.ProjectID,
-		})
-		return nil
-	}
-
-	if x.DB.Where("id = ?", nextQueuedRelease.ProjectID).First(&project).RecordNotFound() {
-		log.WarnWithFields("project not found", log.Fields{
-			"id": nextQueuedRelease.ProjectID,
-		})
-		return nil
-	}
-
-	for i, service := range services {
-		ports := []model.ServicePort{}
-		x.DB.Where("service_id = ?", service.Model.ID).Find(&ports)
-		services[i].Ports = ports
-	}
-
-	if x.DB.Where("id = ?", nextQueuedRelease.ProjectID).First(&project).RecordNotFound() {
-		log.WarnWithFields("project not found", log.Fields{
-			"id": nextQueuedRelease.ProjectID,
-		})
-		return nil
-	}
-
-	// get all branches relevant for the project
-	var branch string
-	var projectSettings model.ProjectSettings
-
-	if x.DB.Where("environment_id = ? and project_id = ?", nextQueuedRelease.EnvironmentID, nextQueuedRelease.ProjectID).First(&projectSettings).RecordNotFound() {
-		log.WarnWithFields("no env project branch found", log.Fields{})
-	} else {
-		branch = projectSettings.GitBranch
-	}
-
-	var environment model.Environment
-	if x.DB.Where("id = ?", nextQueuedRelease.EnvironmentID).Find(&environment).RecordNotFound() {
-		log.WarnWithFields("no env found", log.Fields{
-			"id": nextQueuedRelease.EnvironmentID,
-		})
-		return nil
-	}
-
-	var headFeature model.Feature
-	if x.DB.Where("id = ?", nextQueuedRelease.HeadFeatureID).First(&headFeature).RecordNotFound() {
-		log.WarnWithFields("head feature not found", log.Fields{
-			"id": nextQueuedRelease.HeadFeatureID,
-		})
-		return nil
-	}
-
-	var tailFeature model.Feature
-	if x.DB.Where("id = ?", nextQueuedRelease.TailFeatureID).First(&tailFeature).RecordNotFound() {
-		log.WarnWithFields("tail feature not found", log.Fields{
-			"id": nextQueuedRelease.TailFeatureID,
-		})
-		return nil
-	}
-
-	var pluginServices []plugins.Service
-	for _, service := range services {
-		var spec model.ServiceSpec
-		if x.DB.Where("service_id = ?", service.Model.ID).First(&spec).RecordNotFound() {
-			log.WarnWithFields("servicespec not found", log.Fields{
-				"service_id": service.Model.ID,
-			})
-			return nil
+	startableRelease, startableReleaseEvent, err := x.GetStartableRelease(release, nil)
+	if err == nil {
+		// spew.Dump(startableReleaseEvent)
+		err := x.StartRelease(startableRelease, startableReleaseEvent)
+		if err != nil {
+			log.Error(err)
+			return err
 		}
-
-		pluginServices = graphql_resolver.AppendPluginService(pluginServices, service, spec)
+	} else {
+		log.Error(err)
+		return err
 	}
 
-	var pluginSecrets []plugins.Secret
-	for _, secret := range secrets {
-		pluginSecrets = append(pluginSecrets, plugins.Secret{
-			Key:   secret.Key,
-			Value: secret.Value.Value,
-			Type:  secret.Type,
-		})
-	}
-
-	// insert CodeAmp envs
-	slugSecret := plugins.Secret{
-		Key:   "CODEAMP_SLUG",
-		Value: project.Slug,
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, slugSecret)
-
-	hashSecret := plugins.Secret{
-		Key:   "CODEAMP_HASH",
-		Value: headFeature.Hash[0:7],
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, hashSecret)
-
-	timeSecret := plugins.Secret{
-		Key:   "CODEAMP_CREATED_AT",
-		Value: time.Now().Format(time.RFC3339),
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, timeSecret)
-
-	// insert Codeflow envs - remove later
-	_slugSecret := plugins.Secret{
-		Key:   "CODEFLOW_SLUG",
-		Value: project.Slug,
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _slugSecret)
-
-	_hashSecret := plugins.Secret{
-		Key:   "CODEFLOW_HASH",
-		Value: headFeature.Hash[0:7],
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _hashSecret)
-
-	_timeSecret := plugins.Secret{
-		Key:   "CODEFLOW_CREATED_AT",
-		Value: time.Now().Format(time.RFC3339),
-		Type:  plugins.GetType("env"),
-	}
-	pluginSecrets = append(pluginSecrets, _timeSecret)
-
-	releasePayload := graphql_resolver.BuildReleasePayload(nextQueuedRelease, project, environment, branch, headFeature, tailFeature, pluginServices, pluginSecrets)
-
-	nextQueuedRelease.Started = time.Now()
-	nextQueuedRelease.State = transistor.GetState("running")
-	nextQueuedRelease.StateMessage = "Running Release"
-	x.DB.Save(&nextQueuedRelease)
-
-	x.Events <- transistor.NewEvent(plugins.GetEventName("release"), transistor.GetAction("create"), releasePayload)
 	return nil
 }
