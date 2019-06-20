@@ -66,6 +66,24 @@ services:
       - redis
     networks:
       - codeamp
+  kong:
+    command: /bin/sh -c "kong migrations bootstrap -v && kong start"
+    restart: on-failure
+    image: kong
+    ports:
+      - 8001:8001
+    environment:
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: postgres
+      KONG_PG_USER: kong
+      KONG_PG_DATABASE: kong
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+    depends_on:
+      - postgres
+    networks:
+      - codeamp
 networks:
   codeamp:
     driver: bridge

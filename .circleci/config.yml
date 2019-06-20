@@ -23,7 +23,7 @@ jobs:
           name: Start Dependent Containers
           command: |
             set -x
-            docker-compose up -d postgres redis mysql
+            docker-compose up -d postgres redis mysql kong
       - run:
           name: Build Docker Container
           command: |

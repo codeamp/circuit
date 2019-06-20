@@ -19,6 +19,11 @@ plugins:
       sslmode: "disable"
       password: ""
     service_address: ":3011"
+    complainer:
+      enabled: true      
+      environments:
+        parent: "staging"
+        child: "production"
   gitsync:
     workers: 0
     workdir: "/tmp/gitsync" 
@@ -36,6 +41,9 @@ plugins:
     workers: 1
   mongo:
     workers: 1
+  scheduledbranchreleaser:
+    workers: 1
+    workdir: "/tmp/scheduledbranchreleaser"
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"

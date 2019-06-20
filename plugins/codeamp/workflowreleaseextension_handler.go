@@ -11,108 +11,9 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm"
-	"github.com/jinzhu/gorm/dialects/postgres"
 )
 
-func (x *CodeAmp) ReleaseExtensionEventHandler(e transistor.Event) error {
-	log.Warn("ReleaseExtensionEventHandler")
-	payload := e.Payload.(plugins.ReleaseExtension)
-
-	var releaseExtension model.ReleaseExtension
-	var release model.Release
-
-	if e.Matches("release:.*:status") {
-		if x.DB.Where("id = ?", payload.Release.ID).Find(&release).RecordNotFound() {
-			log.InfoWithFields("release", log.Fields{
-				"id": payload.Release.ID,
-			})
-			return fmt.Errorf("Release %s not found", payload.Release.ID)
-		}
-
-		if x.DB.Where("id = ?", payload.ID).Find(&releaseExtension).RecordNotFound() {
-			log.InfoWithFields("release extension not found", log.Fields{
-				"id": payload.ID,
-			})
-			return fmt.Errorf("Release extension %s not found", payload.ID)
-		}
-
-		releaseExtension.State = e.State
-		releaseExtension.StateMessage = e.StateMessage
-		marshalledReArtifacts, err := json.Marshal(e.Artifacts)
-		if err != nil {
-			log.Error(err.Error())
-			return err
-		}
-
-		releaseExtension.Artifacts = postgres.Jsonb{marshalledReArtifacts}
-		releaseExtension.Finished = time.Now()
-		if err := x.DB.Save(&releaseExtension).Error; err != nil {
-			log.Error(err)
-			return err
-		}
-
-		switch e.State {
-		case transistor.GetState("complete"):
-			x.ReleaseExtensionCompleted(&payload, &releaseExtension)
-		case transistor.GetState("failed"):
-			x.ReleaseFailed(&release, e.StateMessage)
-		case transistor.GetState("running"):
-			break
-		default:
-			log.Error("RELEASE IN ERROR STATE: ", e.State)
-		}
-	}
-
-	return nil
-}
-
-func (x *CodeAmp) ReleaseExtensionCompleted(payload *plugins.ReleaseExtension, re *model.ReleaseExtension) {
-	log.Warn("ReleaseExtensionCompleted")
-
-	releaseExtensions := []model.ReleaseExtension{}
-	if x.DB.Where("release_id = ?", re.ReleaseID).Find(&releaseExtensions).RecordNotFound() {
-		log.ErrorWithFields("release extensions not found", log.Fields{
-			"releaseExtension": re,
-		})
-		return
-	}
-
-	// Notify clientside a release extension has completed
-	{
-		wssPayload := plugins.WebsocketMsg{
-			Event: fmt.Sprintf("projects/%s/%s/releases/reCompleted", payload.Release.Project.Slug, payload.Release.Environment),
-		}
-		event := transistor.NewEvent(plugins.GetEventName("websocket"), transistor.GetAction("status"), wssPayload)
-		event.AddArtifact("event", fmt.Sprintf("projects/%s/%s/releases/reCompleted", payload.Release.Project.Slug, payload.Release.Environment), false)
-
-		x.Events <- event
-	}
-
-	// loop through and check if all same-type release extensions are completed
-	for _, releaseExtension := range releaseExtensions {
-		if releaseExtension.Type == re.Type && releaseExtension.State != transistor.GetState("complete") {
-			return
-		}
-	}
-
-	var release model.Release
-	if x.DB.Where("id = ?", payload.Release.ID).First(&release).RecordNotFound() {
-		log.WarnWithFields("release not found", log.Fields{
-			"release": release,
-		})
-		return
-	}
-
-	switch re.Type {
-	case plugins.GetType("workflow"):
-		x.WorkflowReleaseExtensionsCompleted(payload, &release)
-	case plugins.GetType("deployment"):
-		log.Warn("Releases completed")
-		x.ReleaseCompleted(&release)
-	}
-}
-
-func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExtension, release *model.Release) {
+func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(release *model.Release) {
 	project := model.Project{}
 	if x.DB.Where("id = ?", release.ProjectID).First(&project).RecordNotFound() {
 		log.InfoWithFields("project not found", log.Fields{
@@ -259,18 +160,12 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 	pluginSecrets = append(pluginSecrets, _timeSecret)
 
 	releaseExtensionDeploymentsCount := 0
-	/**************************************
-	*
-	* COLLECT WORKFLOW ARTIFACTS
-	*
-	/*************************************/
 	releaseExtensions := []model.ReleaseExtension{}
 	artifacts := []transistor.Artifact{}
 
-	if err := x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions).Error; err != nil {
-		log.Error(err)
-	}
+	x.DB.Where("release_id = ?", release.Model.ID).Find(&releaseExtensions)
 	for _, releaseExtension := range releaseExtensions {
+		// collect workflow artifacts
 		if releaseExtension.Type == plugins.GetType("workflow") {
 			projectExtension := model.ProjectExtension{}
 			if x.DB.Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
@@ -304,11 +199,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 		}
 	}
 
-	/**************************************
-	*
-	* SEND 'DEPLOYMENT' TYPE RE EVENTS
-	*
-	**************************************/
 	for _, releaseExtension := range releaseExtensions {
 		releaseExtensionAction := transistor.GetAction("create")
 		if releaseExtension.Type == plugins.GetType("deployment") {
@@ -319,12 +209,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 				releaseExtensionAction = transistor.GetAction("status")
 				releaseExtension.State = transistor.GetState("failed")
 				releaseExtension.StateMessage = release.StateMessage
-
-				if err := x.DB.Save(&releaseExtension); err != nil {
-					log.Error(err)
-				}
-				log.Error("RELEASE IN FAILED STATE")
-				continue
 			}
 
 			projectExtension := model.ProjectExtension{}
@@ -352,11 +236,6 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 
 			for _, artifact := range projectExtensionArtifacts {
 				_artifacts = append(_artifacts, artifact)
-			}
-
-			releaseExtension.Started = time.Now()
-			if err := x.DB.Save(&releaseExtension).Error; err != nil {
-				log.Error(err)
 			}
 
 			releaseExtensionEvent := plugins.ReleaseExtension{
@@ -398,13 +277,16 @@ func (x *CodeAmp) WorkflowReleaseExtensionsCompleted(payload *plugins.ReleaseExt
 
 			ev := transistor.NewEvent(transistor.EventName(fmt.Sprintf("release:%s", extension.Key)), releaseExtensionAction, releaseExtensionEvent)
 			ev.Artifacts = _artifacts
+
+			releaseExtension.Started = time.Now()
+			x.DB.Save(&releaseExtension)
+
 			x.Events <- ev
 
 			releaseExtensionDeploymentsCount++
 		}
 	}
 
-	log.Warn("releaseExtensionDeploymentsCount ", releaseExtensionDeploymentsCount)
 	if releaseExtensionDeploymentsCount == 0 {
 		x.ReleaseCompleted(release)
 	}

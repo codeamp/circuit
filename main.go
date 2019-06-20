@@ -12,6 +12,7 @@ import (
 	_ "github.com/codeamp/circuit/plugins/mongo"
 	_ "github.com/codeamp/circuit/plugins/route53"
 	_ "github.com/codeamp/circuit/plugins/s3"
+	_ "github.com/codeamp/circuit/plugins/scheduledbranchreleaser"
 	_ "github.com/codeamp/circuit/plugins/slack"
 )
 

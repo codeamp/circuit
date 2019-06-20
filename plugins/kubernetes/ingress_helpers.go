@@ -27,7 +27,6 @@ func parseController(ingressController string) (*IngressController, error) {
 
 func parseUpstreamDomains(a transistor.Artifact) ([]Domain, error) {
 	var upstreamFQDNs []Domain
-
 	domains, ok := a.Value.([]interface{})
 	if !ok {
 		return nil, fmt.Errorf(fmt.Sprintf("Expected type []interface{} but got %T", domains))
@@ -58,7 +57,7 @@ func getTableViewFromDomains(domains []Domain) string {
 }
 
 // Service should be in the format servicename:port
-func parseService(e transistor.Event) (Service, error) {
+func ParseService(e transistor.Event) (Service, error) {
 	payload := e.Payload.(plugins.ProjectExtension)
 
 	protocol, err := e.GetArtifact("protocol")

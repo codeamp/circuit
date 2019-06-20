@@ -37,6 +37,9 @@ import (
 // If it is, we proceed as if it was an automated deployment
 const ContinuousDeployUUID = "59ee0229-9814-4d9b-be83-7921fe6069c1"
 
+// This one is for scheduled deploys
+const ScheduledDeployUUID = "d7183422-768a-11e9-8f9e-2a86e4085a59"
+
 func init() {
 	transistor.RegisterPlugin("codeamp", func() transistor.Plugin {
 		return &CodeAmp{}
@@ -202,9 +205,10 @@ func (x *CodeAmp) Subscribe() []string {
 	return []string{
 		"gitsync:status",
 		"heartbeat",
+		"scheduledbranchreleaser:release",
 		"websocket",
-		"project",
-		"release",
+		"^project",
+		"^release",
 	}
 }
 
