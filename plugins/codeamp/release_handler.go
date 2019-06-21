@@ -176,13 +176,11 @@ func (x *CodeAmp) ReleaseCompleted(release *model.Release) {
 		release.Finished = time.Now()
 
 		x.DB.Save(release)
-
 		complained, err := x.ComplainIfNotInStaging(release, &project)
 		if err != nil {
 			log.InfoWithFields(err.Error(), log.Fields{
 				"release": release,
 			})
-			return
 		}
 
 		if !complained {
