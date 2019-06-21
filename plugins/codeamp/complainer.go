@@ -45,7 +45,7 @@ func (x *CodeAmp) ComplainIfNotInStaging(r *model.Release, p *model.Project) (bo
 	}
 
 	if inputReleaseEnv.Key != prodEnv.Key {
-		return complained, fmt.Errorf("Desired prod env %s does not match input release env %s", prodEnv.Key, inputReleaseEnv.Key)
+		return complained, nil
 	}
 
 	f := model.Feature{}
