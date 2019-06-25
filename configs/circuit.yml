@@ -33,6 +33,8 @@ plugins:
     workers: 1
   githubstatus:
     workers: 1
+  drone:
+    workers: 1
   route53:
     workers: 1
   slack:

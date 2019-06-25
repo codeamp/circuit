@@ -17,8 +17,10 @@ func GetEventName(s string) transistor.EventName {
 		"release:kubernetes:deployment",
 		"release:dockerbuilder",
 		"release:githubstatus",
+		"release:drone",
 
 		"project:githubstatus",
+		"project:drone",
 		"project:dockerbuilder",
 		"project:database",
 		"project:s3",
