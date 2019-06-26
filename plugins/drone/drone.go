@@ -1,6 +1,7 @@
 package drone
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/machinebox/graphql"
 
 	log "github.com/codeamp/logger"
 )
@@ -72,6 +75,7 @@ type DroneConfig struct {
 	Token      string
 	Repository string
 	Branch     string
+	GraphqlUrl string
 }
 
 type Build struct {
@@ -234,10 +238,25 @@ func (x *Drone) Process(e transistor.Event) error {
 		return err
 	}
 
+	graphqlUrl, err := e.GetArtifact("graphql_url")
+	if err != nil {
+		log.Error(err.Error())
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
+		return err
+	}
+
+	graphqlToken, err := e.GetArtifact("internal_bearer_token")
+	if err != nil {
+		log.Error(err.Error())
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
+		return err
+	}
+
 	droneConfig := DroneConfig{
-		Url:    droneUrl.String(),
-		Token:  droneToken.String(),
-		Branch: droneBranch.String(),
+		Url:        droneUrl.String(),
+		GraphqlUrl: graphqlUrl.String(),
+		Token:      droneToken.String(),
+		Branch:     droneBranch.String(),
 	}
 
 	if e.Matches("project:drone") {
@@ -285,6 +304,40 @@ func (x *Drone) Process(e transistor.Event) error {
 			log.InfoWithFields(fmt.Sprintf("Process Drone event: %s", e.Event()), log.Fields{
 				"hash": payload.Release.HeadFeature.Hash,
 			})
+
+			// Check if sha is deployed in child environment
+
+			graphqlClient := graphql.NewClient(fmt.Sprintf("http://0.0.0.0:3011/query"))
+
+			// make a request
+			req := graphql.NewRequest(`
+				query{
+					project(name: "codeamp/panel"){
+				  		id
+					}
+			  	}
+			`)
+
+			// set header fields
+			req.Header.Set("Cache-Control", "no-cache")
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", graphqlToken.String()))
+
+			type response struct {
+				Project struct {
+					Id string
+				}
+			}
+
+			// run it and capture the response
+			var respData response
+
+			if err := graphqlClient.Run(context.Background(), req, &respData); err != nil {
+				log.Fatal(err)
+			}
+
+			spew.Dump(respData)
+
+			return nil
 
 			// Find latest sucessful build
 			successfulbuild, err := getLatestSuccessfulBuild(e, droneConfig)

@@ -42,6 +42,8 @@ type Query {
   releaseExtensions(): [ReleaseExtension]!
   # Permissions
   permissions(): JSON!
+  # Deployed
+  deployed(hash: String): [Environment]!
 }
 
 # Mutation

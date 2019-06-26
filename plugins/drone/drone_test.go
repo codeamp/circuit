@@ -33,8 +33,8 @@ func (suite *TestSuite) TearDownSuite() {
 }
 
 func (suite *TestSuite) TestDrone() {
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
+	//httpmock.Activate()
+	httpmock.DeactivateAndReset()
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
 
@@ -323,9 +323,11 @@ func (suite *TestSuite) TestDrone() {
 	ev := transistor.NewEvent(plugins.GetEventName("release:drone"), transistor.GetAction("create"), dronePayload)
 	ev.AddArtifact("timeout_seconds", "100", false)
 	ev.AddArtifact("timeout_interval", "5", false)
-	ev.AddArtifact("drone_token", "token", false)
+	ev.AddArtifact("drone_token", "token", true)
 	ev.AddArtifact("drone_branch", "drone", false)
 	ev.AddArtifact("drone_url", droneUrl, false)
+	ev.AddArtifact("graphql_url", "http://0.0.0.0:3011", false)
+	ev.AddArtifact("internal_bearer_token", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE1NjE1MTgwNjMsImV4cCI6MTU5MzA1NDA3MCwiYXVkIjoiY29kZWFtcCIsInN1YiI6IkNnMHdMVE00TlMweU9EQTRPUzB3RWdSdGIyTnIiLCJlbWFpbCI6ImNvZGVhbXBAY29kZWFtcC5vcmciLCJyb2xlIjoibG9jYWwifQ.A_l36r6Nh6-iUTJ2c8OQ0C-4T-ZXmT2CquzultbTk5I", true)
 	ev.AddArtifact("repository", repository, false)
 
 	suite.transistor.Events <- ev
