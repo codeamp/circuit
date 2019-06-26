@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
@@ -27,6 +28,8 @@ import (
 type ProjectResolverMutation struct {
 	DB *gorm.DB
 }
+
+const GITHUB_REPO_API string = "https://api.github.com/repos"
 
 // CreateProject Create project
 func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struct {
@@ -58,6 +61,14 @@ func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struc
 		})
 	} else {
 		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
+	}
+
+	// Check if project exists in github
+	if protocol == "HTTPS" { // now only check for public repo
+		resp, err := http.Get(fmt.Sprintf("%s/%s/%s", GITHUB_REPO_API, res["owner"], res["repo"]))
+		if err != nil || resp.StatusCode != 200 {
+			return nil, fmt.Errorf("This repository does not exist on Github. Try again with a different git url.")
+		}
 	}
 
 	project = model.Project{

@@ -119,7 +119,7 @@ func (x *CodeAmp) initPostGres() (*gorm.DB, error) {
 	}
 
 	// DEBUG
-	//db.LogMode(false)
+	// db.LogMode(true)
 
 	x.DB = db
 	return db, nil
