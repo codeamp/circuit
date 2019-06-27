@@ -153,10 +153,9 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 }
 
 // IsDeployed
-func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
+func (r *ProjectResolver) DeployedIn(ctx context.Context, args *struct {
 	GitHash string
 }) ([]*EnvironmentResolver, error) {
-	fmt.Println("db IsDeployedIn")
 	var environments []*EnvironmentResolver
 	var feature model.Feature
 	var allReleases []model.Release
@@ -167,15 +166,15 @@ func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
 	}
 
 	// get descendant features to check if they've been deployed too since that implies this one has been deployed too
-	descendantFeatures := []model.Feature{}
-	if err := r.DB.Where("created_at >= ?", feature.Model.CreatedAt).Find(&descendantFeatures).Error; err != nil {
+	features := []model.Feature{}
+	if err := r.DB.Where("created_at >= ? and project_id = ?", feature.Model.CreatedAt, feature.ProjectID.String()).Find(&features).Error; err != nil {
 		return []*EnvironmentResolver{}, err
 	}
 
-	for _, descFeature := range descendantFeatures {
+	for _, tmpFeature := range features {
 		var releases []model.Release
 		// get releases where head_feature_id matches this feature
-		if err := r.DB.Where("head_feature_id = ? and state = ?", descFeature.Model.ID, transistor.GetState("complete")).Find(&releases).Error; err != nil {
+		if err := r.DB.Where("head_feature_id = ? and state = ?", tmpFeature.Model.ID.String(), transistor.GetState("complete")).Find(&releases).Error; err != nil {
 			return []*EnvironmentResolver{}, err
 		}
 
