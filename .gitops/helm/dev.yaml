@@ -5,7 +5,7 @@ env:
 - name: CODEAMP_PLUGINS_CODEAMP_POSTGRES_PASSWORD
   value: password
 - name: CODEAMP_PLUGINS_CODEAMP_OIDC_URI
-  value: http://circuit-dex/dex
+  value: http://circuit-dex:8080/dex
 
 ingress:
   enabled: true
@@ -64,4 +64,4 @@ dex:
       - http://codeamp.local/login/callback
       name: 'Development'
       secret: ZXhhbXBsZS1hcHAtc2VjcmV0
-    issuer: http://codeamp-dex.local/dex
+    issuer: http://circuit-dex:8080/dex

@@ -39,7 +39,6 @@ dex:
       format: "text" # can also be "json"
     web:
       allowedOrigins: ['*']
-    issuer: http://codeamp-dex.local/dex
     #frontend:
     # dir: /etc/dex/bootstrap/dex/web
     # theme: coreos
