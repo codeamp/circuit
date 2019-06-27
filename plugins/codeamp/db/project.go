@@ -159,21 +159,32 @@ func (r *ProjectResolver) IsDeployedIn(ctx context.Context, args *struct {
 	fmt.Println("db IsDeployedIn")
 	var environments []*EnvironmentResolver
 	var feature model.Feature
-	var releases []model.Release
+	var allReleases []model.Release
 
 	// get feature
 	if err := r.DB.Where("project_id = ? and hash = ?", r.Project.Model.ID, args.GitHash).Find(&feature).Error; err != nil {
 		return []*EnvironmentResolver{}, err
 	}
 
-	// get releases where head_feature_id matches this feature
-	if err := r.DB.Where("head_feature_id = ? and state = ?", feature.Model.ID, transistor.GetState("complete")).Find(&releases).Error; err != nil {
+	// get descendant features to check if they've been deployed too since that implies this one has been deployed too
+	descendantFeatures := []model.Feature{}
+	if err := r.DB.Where("created_at >= ?", feature.Model.CreatedAt).Find(&descendantFeatures).Error; err != nil {
 		return []*EnvironmentResolver{}, err
+	}
+
+	for _, descFeature := range descendantFeatures {
+		var releases []model.Release
+		// get releases where head_feature_id matches this feature
+		if err := r.DB.Where("head_feature_id = ? and state = ?", descFeature.Model.ID, transistor.GetState("complete")).Find(&releases).Error; err != nil {
+			return []*EnvironmentResolver{}, err
+		}
+
+		allReleases = append(releases)
 	}
 
 	// get unique environment_ids associated in list of releases
 	uniqueEnvironmentIDs := map[string]bool{}
-	for _, release := range releases {
+	for _, release := range allReleases {
 		if !uniqueEnvironmentIDs[release.EnvironmentID.String()] {
 			uniqueEnvironmentIDs[release.EnvironmentID.String()] = true
 		}
