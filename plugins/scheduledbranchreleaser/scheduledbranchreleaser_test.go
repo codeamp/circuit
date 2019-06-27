@@ -11,6 +11,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/test"
@@ -73,6 +74,11 @@ plugins:
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/aballman/helloworld-node", httpmock.NewStringResponder(200, "{}"))
 }
 
 func TestScheduledBranchReleaserExtension(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
@@ -51,6 +52,14 @@ func (suite *ProjectTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestProject")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dp", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/go", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dl", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/example", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (suite *ProjectTestSuite) TestProjectInterface() {
