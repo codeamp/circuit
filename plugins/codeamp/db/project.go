@@ -153,7 +153,7 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 }
 
 // IsDeployed
-func (r *ProjectResolver) IsDeployedIn(ctx context.Context, args *struct {
+func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
 	GitHash string
 }) ([]*EnvironmentResolver, error) {
 	fmt.Println("db IsDeployedIn")

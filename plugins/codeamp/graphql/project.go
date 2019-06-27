@@ -3,7 +3,6 @@ package graphql_resolver
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -61,13 +60,12 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 // IsDeployed
-func (r *ProjectResolver) IsDeployedIn(ctx context.Context, args *struct {
+func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
 	GitHash string
-}) []*EnvironmentResolver {
-	fmt.Println("graphql IsDeployedIn")
-	db_resolvers, err := r.DBProjectResolver.IsDeployedIn(ctx, args)
+}) ([]*EnvironmentResolver, error) {
+	db_resolvers, err := r.DBProjectResolver.EnvsDeployedIn(ctx, args)
 	if err != nil {
-		return []*EnvironmentResolver{}
+		return nil, err
 	}
 
 	gql_resolvers := make([]*EnvironmentResolver, 0, len(db_resolvers))
@@ -76,7 +74,7 @@ func (r *ProjectResolver) IsDeployedIn(ctx context.Context, args *struct {
 		gql_resolvers = append(gql_resolvers, &EnvironmentResolver{DBEnvironmentResolver: i})
 	}
 
-	return gql_resolvers
+	return gql_resolvers, nil
 }
 
 // Features
