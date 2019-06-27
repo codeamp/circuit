@@ -167,7 +167,7 @@ func (r *ProjectResolver) IsDeployedIn(ctx context.Context, args *struct {
 	}
 
 	// get releases where head_feature_id matches this feature
-	if err := r.DB.Where("head_feature_id = ?", feature.Model.ID).Find(&releases).Error; err != nil {
+	if err := r.DB.Where("head_feature_id = ? and state = ?", feature.Model.ID, transistor.GetState("complete")).Find(&releases).Error; err != nil {
 		return []*EnvironmentResolver{}, err
 	}
 
