@@ -1,7 +1,4 @@
-FROM quay.io/coreos/dex:v2.10.0
 FROM golang:1.10.4-alpine
-
-COPY --from=0 /usr/local/bin/dex /usr/local/bin/dex
 
 ENV APP_PATH /go/src/github.com/codeamp/circuit
 
@@ -9,10 +6,22 @@ RUN apk -U add alpine-sdk git gcc openssh docker
 RUN mkdir -p $APP_PATH
 
 WORKDIR $APP_PATH
-COPY . $APP_PATH
 
+# Install build deps
 RUN go get -u github.com/cespare/reflex
 RUN go get -u github.com/jteeuwen/go-bindata/...
-RUN mkdir -p assets/
-RUN /go/bin/go-bindata -pkg assets -o assets/assets.go plugins/codeamp/graphql/schema.graphql
-RUN go build -i -v -o /go/bin/codeamp-circuit .
+
+# Static Assets
+RUN mkdir -p /tmp/assets/
+COPY plugins/codeamp/graphql/schema.graphql /tmp/assets/schema.graphql
+COPY plugins/codeamp/graphql/static /tmp/assets/static
+RUN /go/bin/go-bindata -pkg /tmp/assets -o /tmp/assets/assets.go /tmp/assets/schema.graphql
+
+# Dex
+#RUN mkdir -p /etc/dex/bootstrap/dex
+#COPY bootstrap/dex /etc/dex/bootstrap/dex
+
+# Compiled files
+COPY . $APP_PATH
+RUN mv /tmp/assets $APP_PATH/assets
+RUN go build -o /go/bin/codeamp-circuit .

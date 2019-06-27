@@ -1,0 +1,15 @@
+dependencies:
+- name: kong
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 0.12.1
+- name: postgresql
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 5.3.9
+- name: redis
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 8.0.8
+- name: dex
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 1.4.0
+digest: sha256:ce3bdee90769849a0fe06a6acfc959a33c619bd4b347f04dba1471c5e8921eee
+generated: "2019-06-27T09:07:49.392918-07:00"
