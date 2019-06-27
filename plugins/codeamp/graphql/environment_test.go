@@ -129,12 +129,6 @@ func (suite *EnvironmentTestSuite) TestEnvironmentInterface() {
 	// Environment
 	envResolver := suite.helper.CreateEnvironment(suite.T())
 
-	// NonExistant Project
-	_, err := suite.helper.CreateProjectWithRepo(suite.T(), envResolver, "https://github.com/foo/goo.git")
-	if err == nil {
-		assert.FailNow(suite.T(), err.Error())
-	}
-
 	// Project
 	projectResolver, err := suite.helper.CreateProject(suite.T(), envResolver)
 	if err != nil {

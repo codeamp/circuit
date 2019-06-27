@@ -150,6 +150,9 @@ func (suite *TestSuite) TestGithubStatus() {
 	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
 	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/go", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/example", httpmock.NewStringResponder(200, "{}"))
 }
 
 func TestGithubStatus(t *testing.T) {
