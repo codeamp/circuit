@@ -60,7 +60,7 @@ func (r *ProjectResolver) RsaPublicKey() string {
 }
 
 // IsDeployed
-func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
+func (r *ProjectResolver) DeployedIn(ctx context.Context, args *struct {
 	GitHash string
 }) ([]*EnvironmentResolver, error) {
 	db_resolvers, err := r.DBProjectResolver.EnvsDeployedIn(ctx, args)
