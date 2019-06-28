@@ -53,9 +53,8 @@ func (suite *ProjectTestSuite) SetupTest() {
 	suite.helper.SetResolver(suite.Resolver, "TestProject")
 	suite.helper.SetContext(test.ResolverAuthContext())
 
+	// add in mock to prevent exceeding github api limit
 	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
 	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dp", httpmock.NewStringResponder(200, "{}"))
 	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/go", httpmock.NewStringResponder(200, "{}"))
 	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dl", httpmock.NewStringResponder(200, "{}"))
@@ -1012,9 +1011,11 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	fmt.Println("TearDownTest")
 	suite.helper.TearDownTest(suite.T())
 	suite.Resolver.DB.Close()
+
 }
 
 func TestProjectTestSuite(t *testing.T) {

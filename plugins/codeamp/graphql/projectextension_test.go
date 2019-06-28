@@ -8,6 +8,7 @@ import (
 	. "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/transistor"
 	uuid "github.com/satori/go.uuid"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -44,6 +45,9 @@ func (suite *ProjectExtensionTestSuite) SetupTest() {
 	suite.Resolver = &Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestProjectExtension")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/example", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *ProjectExtensionTestSuite) TestCreateProjectExtensionSuccess() {
@@ -538,6 +542,7 @@ func (ts *ProjectExtensionTestSuite) TestHandleExtensionRoute53DuplicateFailure(
 }
 
 func (ts *ProjectExtensionTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
 }
