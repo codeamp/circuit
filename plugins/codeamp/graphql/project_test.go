@@ -55,7 +55,7 @@ func (suite *ProjectTestSuite) SetupTest() {
 
 	// add in mock to prevent exceeding github api limit
 	httpmock.Activate()
-	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dp", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dep", httpmock.NewStringResponder(200, "{}"))
 	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/go", httpmock.NewStringResponder(200, "{}"))
 	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dl", httpmock.NewStringResponder(200, "{}"))
 	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/example", httpmock.NewStringResponder(200, "{}"))
@@ -959,8 +959,12 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 
 	envResolver := suite.helper.CreateEnvironment(suite.T())
 	for _, projectName := range projectNames {
+		// 	projectResolver, err := suite.helper.CreateProjectWithRepo(suite.T(), envResolver, fmt.Sprintf("https://github.com/golang/%s.git", projectName))
+		// 	assert.Nil(suite.T(), err)
 		projectResolver, err := suite.helper.CreateProjectWithRepo(suite.T(), envResolver, fmt.Sprintf("https://github.com/golang/%s.git", projectName))
-		assert.Nil(suite.T(), err)
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
 		suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
 	}
 
