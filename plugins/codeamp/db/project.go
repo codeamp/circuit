@@ -174,25 +174,17 @@ func (r *ProjectResolver) DeployedIn(ctx context.Context, args *struct {
 	for _, tmpFeature := range features {
 		var releases []model.Release
 		// get releases where head_feature_id matches this feature
-		if err := r.DB.Debug().Where("head_feature_id = ? and state = ?", tmpFeature.Model.ID.String(), string(transistor.GetState("complete"))).Find(&releases).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+		if err := r.DB.Select("distinct(environment_id), state, created_at, deleted_at, state_message, ").Where("head_feature_id = ? and state = ?", tmpFeature.Model.ID.String(), string(transistor.GetState("complete"))).Find(&releases).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
 			return []*EnvironmentResolver{}, err
 		}
 
 		allReleases = append(allReleases, releases...)
 	}
 
-	// get unique environment_ids associated in list of releases
-	uniqueEnvironmentIDs := map[string]bool{}
-	for _, release := range allReleases {
-		if !uniqueEnvironmentIDs[release.EnvironmentID.String()] {
-			uniqueEnvironmentIDs[release.EnvironmentID.String()] = true
-		}
-	}
-
 	// find env associated with each environment_id
-	for envID := range uniqueEnvironmentIDs {
+	for _, release := range allReleases {
 		var tmpEnv model.Environment
-		if err := r.DB.Where("id = ?", envID).Find(&tmpEnv).Error; err != nil {
+		if err := r.DB.Where("id = ?", release.EnvironmentID).Find(&tmpEnv).Error; err != nil {
 			return []*EnvironmentResolver{}, err
 		}
 
