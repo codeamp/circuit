@@ -65,9 +65,9 @@ func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struc
 
 	// Check if project exists in github
 	if protocol == "HTTPS" { // now only check for public repo
-		resp, err := http.Get(fmt.Sprintf("%s/%s/%s", GITHUB_REPO_API, res["owner"], res["repo"]))
+		resp, err := http.Get(args.Project.GitUrl)
 		if err != nil || resp.StatusCode != 200 {
-			return nil, fmt.Errorf("This repository does not exist on Github. Try again with a different git url.")
+			return nil, fmt.Errorf("This repository does not exist on %s. Try again with a different git url.", res["host"])
 		}
 	}
 
