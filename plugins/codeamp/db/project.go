@@ -152,7 +152,7 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 	}
 }
 
-// IsDeployed
+// DeployedIn
 func (r *ProjectResolver) DeployedIn(ctx context.Context, args *struct {
 	GitHash string
 }) ([]*EnvironmentResolver, error) {
