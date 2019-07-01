@@ -5,6 +5,7 @@ import (
 	"time"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -44,6 +45,9 @@ func (suite *ServiceSpecTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestServiceSpec")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/example", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *ServiceSpecTestSuite) TestCreateServiceSpecSuccess() {
@@ -56,39 +60,39 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 	serviceSpecResolver2 := ts.helper.CreateServiceSpec(ts.T(), false)
 
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
-	
+
 	serviceSpecResolverID := string(serviceSpecResolver.ID())
-	serviceSpecResolver2ID := string(serviceSpecResolver2.ID())	
+	serviceSpecResolver2ID := string(serviceSpecResolver2.ID())
 
 	// update 1st service spec with default true
 	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
+		ID:                     &serviceSpecResolverID,
 		Name:                   serviceSpecResolver.Name(),
 		CpuRequest:             serviceSpecResolver.CpuRequest(),
 		CpuLimit:               serviceSpecResolver.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: true,
-	}	
+		IsDefault:              true,
+	}
 
 	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
 	assert.Nil(ts.T(), err)
-	
+
 	// update 2nd service spec with default true
 	serviceSpecInput = model.ServiceSpecInput{
-		ID: 					&serviceSpecResolver2ID,
+		ID:                     &serviceSpecResolver2ID,
 		Name:                   serviceSpecResolver2.Name(),
 		CpuRequest:             serviceSpecResolver2.CpuRequest(),
 		CpuLimit:               serviceSpecResolver2.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver2.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver2.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver2.TerminationGracePeriod(),
-		IsDefault: true,
-	}		
+		IsDefault:              true,
+	}
 	serviceSpecResolver2, err = ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	
+
 	// 1st service spec is now default = false
 	serviceSpec := model.ServiceSpec{}
 	ts.helper.Resolver.DB.Where("id = ?", string(serviceSpecResolver.ID())).First(&serviceSpec)
@@ -100,47 +104,47 @@ func (ts *ServiceSpecTestSuite) TestCreateServiceSpecWithNewDefaultSuccess() {
 
 func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultSuccess() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
-	serviceSpecResolverID := string(serviceSpecResolver.ID())	
+	serviceSpecResolverID := string(serviceSpecResolver.ID())
 	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
+		ID:                     &serviceSpecResolverID,
 		Name:                   serviceSpecResolver.Name(),
 		CpuRequest:             serviceSpecResolver.CpuRequest(),
 		CpuLimit:               serviceSpecResolver.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: serviceSpecResolver.IsDefault(),
-	}	
+		IsDefault:              serviceSpecResolver.IsDefault(),
+	}
 
 	_, err := ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	assert.Nil(ts.T(), err)	
+	assert.Nil(ts.T(), err)
 }
 
 func (ts *ServiceSpecTestSuite) TestDeleteServiceSpecOnDefaultFailure() {
 	serviceSpecResolver := ts.helper.CreateServiceSpec(ts.T(), false)
 
 	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
-	
+
 	serviceSpecResolverID := string(serviceSpecResolver.ID())
 
 	// update 1st service spec with default true
 	serviceSpecInput := model.ServiceSpecInput{
-		ID: 					&serviceSpecResolverID,
+		ID:                     &serviceSpecResolverID,
 		Name:                   serviceSpecResolver.Name(),
 		CpuRequest:             serviceSpecResolver.CpuRequest(),
 		CpuLimit:               serviceSpecResolver.CpuLimit(),
 		MemoryRequest:          serviceSpecResolver.MemoryRequest(),
 		MemoryLimit:            serviceSpecResolver.MemoryLimit(),
 		TerminationGracePeriod: serviceSpecResolver.TerminationGracePeriod(),
-		IsDefault: true,
-	}	
+		IsDefault:              true,
+	}
 
 	serviceSpecResolver, err := ts.helper.Resolver.UpdateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	assert.Equal(ts.T(), true, serviceSpecResolver.IsDefault())
 	assert.Nil(ts.T(), err)
 
 	_, err = ts.helper.Resolver.DeleteServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
-	assert.NotNil(ts.T(), err)	
+	assert.NotNil(ts.T(), err)
 }
 
 func (ts *ServiceSpecTestSuite) TestUpdateServiceSpecSuccess() {
@@ -216,7 +220,7 @@ func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 	assert.Equal(ts.T(), "300", serviceSpecResolver.MemoryRequest())
 	assert.Equal(ts.T(), "400", serviceSpecResolver.MemoryLimit())
 	assert.Equal(ts.T(), "500", serviceSpecResolver.TerminationGracePeriod())
-	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())	
+	assert.Equal(ts.T(), false, serviceSpecResolver.IsDefault())
 
 	data, err := serviceSpecResolver.MarshalJSON()
 	assert.Nil(ts.T(), err)
@@ -236,6 +240,7 @@ func (ts *ServiceSpecTestSuite) TestServiceSpecInterface() {
 }
 
 func (ts *ServiceSpecTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
 }
