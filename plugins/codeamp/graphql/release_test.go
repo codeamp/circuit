@@ -82,7 +82,7 @@ func (suite *ReleaseTestSuite) SetupTest() {
 	suite.helper.SetContext(test.ResolverAuthContext())
 
 	httpmock.Activate()
-	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/example", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {

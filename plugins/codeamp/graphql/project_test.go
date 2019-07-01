@@ -53,12 +53,12 @@ func (suite *ProjectTestSuite) SetupTest() {
 	suite.helper.SetResolver(suite.Resolver, "TestProject")
 	suite.helper.SetContext(test.ResolverAuthContext())
 
-	// add in mock to prevent exceeding github api limit
+	// add http mock to prevent exceeding github api limit
 	httpmock.Activate()
-	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dep", httpmock.NewStringResponder(200, "{}"))
-	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/go", httpmock.NewStringResponder(200, "{}"))
-	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/dl", httpmock.NewStringResponder(200, "{}"))
-	httpmock.RegisterResponder("GET", "https://api.github.com/repos/golang/example", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/dl.git", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/go.git", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/dep.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (suite *ProjectTestSuite) TestProjectInterface() {
