@@ -13,6 +13,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/jarcoal/httpmock.v1"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -35,6 +36,9 @@ func (suite *SecretTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestSecret")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *SecretTestSuite) TestCreateSecret() {
@@ -802,6 +806,7 @@ func (ts *SecretTestSuite) TestSecretsExport_Fail_InvalidEnvironmentID() {
 }
 
 func (ts *SecretTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
 }

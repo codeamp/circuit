@@ -13,6 +13,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	uuid "github.com/satori/go.uuid"
@@ -51,6 +52,13 @@ func (suite *ProjectTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestProject")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	// add http mock to prevent exceeding github api limit
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/dl.git", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/go.git", httpmock.NewStringResponder(200, "{}"))
+	httpmock.RegisterResponder("GET", "https://github.com/golang/dep.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (suite *ProjectTestSuite) TestProjectInterface() {
@@ -158,7 +166,7 @@ func (suite *ProjectTestSuite) TestProjectInterface() {
 	_ = projectResolver.Repository()
 	_ = projectResolver.Secret()
 
-	assert.Equal(suite.T(), "https://github.com/foo/goo.git", projectResolver.GitUrl())
+	assert.Equal(suite.T(), "https://github.com/golang/example.git", projectResolver.GitUrl())
 	assert.Equal(suite.T(), "HTTPS", projectResolver.GitProtocol())
 
 	_ = projectResolver.RsaPrivateKey()
@@ -225,6 +233,16 @@ func (suite *ProjectTestSuite) TestCreateProjectSuccess() {
 	projectResolver, err := suite.helper.CreateProject(suite.T(), environmentResolver)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), projectResolver)
+}
+
+func (suite *ProjectTestSuite) TestCreateProjectFailureNonExistant() {
+	// Environment
+	environmentResolver := suite.helper.CreateEnvironment(suite.T())
+
+	// Project
+	projectResolver, err := suite.helper.CreateProjectWithRepo(suite.T(), environmentResolver, "https://github.com/foo/goo.git")
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), projectResolver)
 }
 
 func (suite *ProjectTestSuite) TestCreateProjectFailureNoEnvironments() {
@@ -537,7 +555,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSMismatchSuccess() {
 
 	envID := string(environmentResolver.ID())
 	projectInput := model.ProjectInput{
-		GitUrl:        "git@github.com:foo/goo.git",
+		GitUrl:        "git@github.com:golang/go.git",
 		GitProtocol:   "HTTPS",
 		EnvironmentID: &envID,
 	}
@@ -562,7 +580,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectHTTPSMismatchSuccess() {
 	assert.NotNil(suite.T(), updatedProjectResolver)
 
 	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
-	assert.Equal(suite.T(), "git@github.com:foo/goo.git", updatedProjectResolver.GitUrl())
+	assert.Equal(suite.T(), "git@github.com:golang/go.git", updatedProjectResolver.GitUrl())
 }
 
 func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccess() {
@@ -610,7 +628,8 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHMismatchSuccess() {
 
 	envID := string(environmentResolver.ID())
 	projectInput := model.ProjectInput{
-		GitUrl:        "git@github.com:foo/goo.git",
+		// GitUrl:        "git@github.com:foo/goo.git",
+		GitUrl:        "git@github.com:golang/example.git",
 		GitProtocol:   "HTTP",
 		EnvironmentID: &envID,
 	}
@@ -625,9 +644,10 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHMismatchSuccess() {
 	branch := "master"
 	continuousDeploy := false
 	updatedProjectInput := model.ProjectInput{
-		ID:               &projectID,
-		GitProtocol:      "HTTPS",
-		GitUrl:           "git@github.com:goo/foo.git",
+		ID:          &projectID,
+		GitProtocol: "HTTPS",
+		// GitUrl:           "git@github.com:goo/foo.git",
+		GitUrl:           "git@github.com:golang/example.git",
 		GitBranch:        &branch,
 		EnvironmentID:    &envID,
 		ContinuousDeploy: &continuousDeploy,
@@ -643,7 +663,7 @@ func (suite *ProjectTestSuite) TestUpdateProjectSSHMismatchSuccess() {
 	}
 
 	assert.Equal(suite.T(), updatedProjectInput.GitProtocol, updatedProjectResolver.GitProtocol())
-	assert.Equal(suite.T(), "https://github.com/foo/goo.git", updatedProjectResolver.GitUrl())
+	assert.Equal(suite.T(), "https://github.com/golang/example.git", updatedProjectResolver.GitUrl())
 }
 
 func (suite *ProjectTestSuite) TestUpdateProjectSSHSuccessNoEnvironment() {
@@ -935,12 +955,16 @@ func (suite *ProjectTestSuite) TestRemoveBookmarkSuccess() {
 
 func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	// init 3 projects into db
-	projectNames := []string{"foo", "foobar", "boo"}
+	projectNames := []string{"dep", "go", "dl"}
 
 	envResolver := suite.helper.CreateEnvironment(suite.T())
 	for _, projectName := range projectNames {
-		projectResolver, err := suite.helper.CreateProjectWithRepo(suite.T(), envResolver, fmt.Sprintf("https://github.com/username/%s.git", projectName))
-		assert.Nil(suite.T(), err)
+		// 	projectResolver, err := suite.helper.CreateProjectWithRepo(suite.T(), envResolver, fmt.Sprintf("https://github.com/golang/%s.git", projectName))
+		// 	assert.Nil(suite.T(), err)
+		projectResolver, err := suite.helper.CreateProjectWithRepo(suite.T(), envResolver, fmt.Sprintf("https://github.com/golang/%s.git", projectName))
+		if err != nil {
+			assert.FailNow(suite.T(), err.Error())
+		}
 		suite.Resolver.BookmarkProject(test.ResolverAuthContext(), &struct{ ID graphql.ID }{projectResolver.ID()})
 	}
 
@@ -962,9 +986,8 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	}
 
 	assert.Equal(suite.T(), 3, len(entries))
-
-	// do a search for 'foo'
-	searchQuery := "foo"
+	// do a search for names containing 'd'
+	searchQuery := "d"
 	projectList, err = suite.Resolver.Projects(test.ResolverAuthContext(), &struct {
 		ProjectSearch *model.ProjectSearchInput
 		Params        *model.PaginatorInput
@@ -984,13 +1007,19 @@ func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 		log.Fatal(err.Error())
 	}
 
+	for _, entry := range entries {
+		fmt.Println(entry.Name())
+	}
+
 	assert.Equal(suite.T(), 2, len(entries))
 }
 
 func (suite *ProjectTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	fmt.Println("TearDownTest")
 	suite.helper.TearDownTest(suite.T())
 	suite.Resolver.DB.Close()
+
 }
 
 func TestProjectTestSuite(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/codeamp/circuit/test"
 	log "github.com/codeamp/logger"
@@ -33,6 +34,9 @@ func (ts *PaginatorTestSuite) SetupTest() {
 	ts.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	ts.helper.SetResolver(ts.Resolver, "TestProject")
 	ts.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *PaginatorTestSuite) TestReleaseListPaginator() {
@@ -357,6 +361,7 @@ func (ts *PaginatorTestSuite) TestProjectListPaginatorNoInput() {
 }
 
 func (ts *PaginatorTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
 }

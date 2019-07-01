@@ -13,6 +13,7 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/jinzhu/gorm/dialects/postgres"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/assert"
@@ -79,6 +80,9 @@ func (suite *ReleaseTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestRelease")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *ReleaseTestSuite) TestCreateReleaseSuccess() {
@@ -2008,6 +2012,7 @@ func (ts *ReleaseTestSuite) TestCreateRollbackReleaseSuccess() {
 }
 
 func (ts *ReleaseTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
 }

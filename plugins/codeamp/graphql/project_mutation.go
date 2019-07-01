@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/codeamp/circuit/plugins"
@@ -58,6 +59,14 @@ func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struc
 		})
 	} else {
 		return nil, fmt.Errorf("This repository already exists. Try again with a different git url.")
+	}
+
+	// Check if project exists in github
+	if protocol == "HTTPS" && !strings.Contains(args.Project.GitUrl, "@") { // now only check for public repo
+		resp, err := http.Get(args.Project.GitUrl)
+		if err != nil || resp.StatusCode != 200 {
+			return nil, fmt.Errorf("This repository does not exist: %s. Try again with a different git url.", args.Project.GitUrl)
+		}
 	}
 
 	project = model.Project{

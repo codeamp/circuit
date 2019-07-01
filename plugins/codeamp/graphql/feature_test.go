@@ -8,6 +8,7 @@ import (
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/transistor"
 	graphql "github.com/graph-gophers/graphql-go"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	_ "github.com/codeamp/circuit/plugins/gitsync"
@@ -46,6 +47,9 @@ func (suite *FeatureTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestFeature")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (suite *FeatureTestSuite) TestCreateFeature() {
@@ -165,6 +169,7 @@ func (suite *FeatureTestSuite) TestGetGitCommits() {
 }
 
 func (suite *FeatureTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	suite.helper.TearDownTest(suite.T())
 	suite.Resolver.DB.Close()
 }

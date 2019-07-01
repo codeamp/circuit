@@ -10,6 +10,7 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	_ "github.com/satori/go.uuid"
+	"gopkg.in/jarcoal/httpmock.v1"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -191,6 +192,9 @@ func (suite *ServiceTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestService")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *ServiceTestSuite) TestCreateServiceNoDefaultServiceSpecFailure() {
@@ -1551,6 +1555,7 @@ func (ts *ServiceTestSuite) TestExportServices_Fail_InvalidEnvironmentID() {
 }
 
 func (ts *ServiceTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	ts.helper.TearDownTest(ts.T())
 	ts.Resolver.DB.Close()
 }

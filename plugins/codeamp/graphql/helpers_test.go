@@ -78,7 +78,7 @@ func (helper *Helper) CreateEnvironmentWithError(name string) (*EnvironmentResol
 }
 
 func (helper *Helper) CreateProject(t *testing.T, envResolver *EnvironmentResolver) (*ProjectResolver, error) {
-	projectResolver, err := helper.CreateProjectWithRepo(t, envResolver, "https://github.com/foo/goo.git")
+	projectResolver, err := helper.CreateProjectWithRepo(t, envResolver, "https://github.com/golang/example.git")
 	if err == nil {
 		projectResolver.DBProjectResolver.Environment = envResolver.DBEnvironmentResolver.Environment
 	}
@@ -422,7 +422,7 @@ func (helper *Helper) CreateServiceSpec(t *testing.T, isDefault bool) *ServiceSp
 		MemoryRequest:          "300",
 		MemoryLimit:            "400",
 		TerminationGracePeriod: "500",
-		IsDefault: isDefault,
+		IsDefault:              isDefault,
 	}
 	serviceSpecResolver, err := helper.Resolver.CreateServiceSpec(&struct{ ServiceSpec *model.ServiceSpecInput }{ServiceSpec: &serviceSpecInput})
 	if err != nil {
@@ -432,7 +432,6 @@ func (helper *Helper) CreateServiceSpec(t *testing.T, isDefault bool) *ServiceSp
 	helper.cleanupServiceSpecIDs = append(helper.cleanupServiceSpecIDs, serviceSpecResolver.DBServiceSpecResolver.ServiceSpec.Model.ID)
 	return serviceSpecResolver
 }
-
 
 func (helper *Helper) CreateService(t *testing.T,
 	projectResolver *ProjectResolver,

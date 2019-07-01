@@ -5,6 +5,7 @@ import (
 	"time"
 
 	log "github.com/codeamp/logger"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -35,6 +36,9 @@ func (suite *EnvironmentTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db}
 	suite.helper.SetResolver(suite.Resolver, "TestEnvironment")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 /* Test successful env. creation */
@@ -268,6 +272,7 @@ func (suite *EnvironmentTestSuite) TestCreate2EnvsUpdateFirstEnvironmentIsDefaul
 }
 
 func (suite *EnvironmentTestSuite) TearDownTest() {
+	httpmock.DeactivateAndReset()
 	suite.helper.TearDownTest(suite.T())
 	suite.Resolver.DB.Close()
 }
