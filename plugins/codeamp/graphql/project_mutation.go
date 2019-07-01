@@ -65,7 +65,6 @@ func (r *ProjectResolverMutation) CreateProject(ctx context.Context, args *struc
 	if protocol == "HTTPS" && !strings.Contains(args.Project.GitUrl, "@") { // now only check for public repo
 		resp, err := http.Get(args.Project.GitUrl)
 		if err != nil || resp.StatusCode != 200 {
-			fmt.Printf("#############resp.StatusCode: %d\n", resp.StatusCode)
 			return nil, fmt.Errorf("This repository does not exist on %s. Try again with a different git url.", res["host"])
 		}
 	}
