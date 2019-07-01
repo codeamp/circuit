@@ -158,7 +158,7 @@ func (r *ProjectResolver) DeployedIn(ctx context.Context, args *struct {
 }) ([]*EnvironmentResolver, error) {
 	var environments []*EnvironmentResolver
 	var feature model.Feature
-	var allReleases []model.Release
+	allReleases := []model.Release{}
 
 	// get feature
 	if err := r.DB.Where("project_id = ? and hash = ?", r.Project.Model.ID, args.GitHash).Find(&feature).Error; err != nil {
@@ -174,11 +174,11 @@ func (r *ProjectResolver) DeployedIn(ctx context.Context, args *struct {
 	for _, tmpFeature := range features {
 		var releases []model.Release
 		// get releases where head_feature_id matches this feature
-		if err := r.DB.Where("head_feature_id = ? and state = ?", tmpFeature.Model.ID.String(), transistor.GetState("complete")).Find(&releases).Error; err != nil {
+		if err := r.DB.Debug().Where("head_feature_id = ? and state = ?", tmpFeature.Model.ID.String(), string(transistor.GetState("complete"))).Find(&releases).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
 			return []*EnvironmentResolver{}, err
 		}
 
-		allReleases = append(releases)
+		allReleases = append(allReleases, releases...)
 	}
 
 	// get unique environment_ids associated in list of releases
