@@ -73,8 +73,8 @@ func (x *Kubernetes) doRedis(e transistor.Event) error {
 
 	payload := e.Payload.(plugins.ProjectExtension)
 
-	deploymentName := genRedisDeploymentName(payload)
-	redisDeployment, err := x.createRedisDeploymentSpec(deploymentName)
+	deploymentName, projectName := genRedisDeploymentName(payload)
+	redisDeployment, err := x.createRedisDeploymentSpec(deploymentName, projectName)
 	if err != nil {
 		x.sendErrorResponse(e, err.Error())
 		return err
@@ -148,10 +148,14 @@ func deleteRedis(e transistor.Event, x *Kubernetes) error {
 	return nil
 }
 
-func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string) (*v1.Deployment, error) {
+func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string, projectName string) (*v1.Deployment, error) {
 	return &v1.Deployment{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name: deploymentName,
+			Labels: map[string]string{
+				"app":         deploymentName,
+				"projectName": projectName,
+			},
 		},
 		Spec: v1.DeploymentSpec{
 			Selector: &meta_v1.LabelSelector{
@@ -162,7 +166,8 @@ func (x *Kubernetes) createRedisDeploymentSpec(deploymentName string) (*v1.Deplo
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Labels: map[string]string{
-						"app": deploymentName,
+						"app":         deploymentName,
+						"projectName": projectName,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -204,20 +209,21 @@ func (x *Kubernetes) createRedisServiceSpec(payload plugins.ProjectExtension, sv
 	}, nil
 }
 
-func genRedisDeploymentName(payload plugins.ProjectExtension) string {
+func genRedisDeploymentName(payload plugins.ProjectExtension) (string, string) {
 	uniqueID := uuid.NewV4()
 	env := payload.Environment
 	projectSlug := payload.Project.Slug
+	shortProjectSlug := payload.Project.Slug
 
 	if len(payload.Environment) > 10 {
 		env = payload.Environment[:10]
 	}
 
 	if len(payload.Project.Slug) > 10 {
-		projectSlug = payload.Project.Slug[:10]
+		shortProjectSlug = payload.Project.Slug[:10]
 	}
 
-	return fmt.Sprintf("%s-%s-%s", env, projectSlug, uniqueID.String()[:8])
+	return fmt.Sprintf("%s-%s-%s", env, shortProjectSlug, uniqueID.String()[:8]), projectSlug
 }
 
 func genRedisServiceName(payload plugins.ProjectExtension) string {
