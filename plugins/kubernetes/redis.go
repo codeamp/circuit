@@ -213,17 +213,17 @@ func genRedisDeploymentName(payload plugins.ProjectExtension) (string, string) {
 	uniqueID := uuid.NewV4()
 	env := payload.Environment
 	projectSlug := payload.Project.Slug
-	shortProjectSlug := payload.Project.Slug
 
 	if len(payload.Environment) > 10 {
 		env = payload.Environment[:10]
 	}
 
-	if len(payload.Project.Slug) > 10 {
-		shortProjectSlug = payload.Project.Slug[:10]
+	projectSlugLength := len(projectSlug)
+	if projectSlugLength > 10 {
+		projectSlugLength = 10
 	}
 
-	return fmt.Sprintf("%s-%s-%s", env, shortProjectSlug, uniqueID.String()[:8]), projectSlug
+	return fmt.Sprintf("%s-%s-%s", env, projectSlug[:projectSlugLength], uniqueID.String()[:8]), projectSlug
 }
 
 func genRedisServiceName(payload plugins.ProjectExtension) string {
