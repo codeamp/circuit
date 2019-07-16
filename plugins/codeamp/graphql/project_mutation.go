@@ -297,6 +297,30 @@ func (r *ProjectResolverMutation) UpdateProjectEnvironments(ctx context.Context,
 				EnvironmentID: environment.Model.ID,
 				ProjectID:     project.Model.ID,
 			}
+
+			// Save branch if this is a new environment
+			if r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Find(&projectEnvironment).RecordNotFound() {
+				projectID := fmt.Sprint(project.ID)
+				gitBranch := "master"
+				bookmarked := false
+				continuousDeploy := false
+				environmentID := fmt.Sprint(environment.Model.ID)
+
+				r.UpdateProject(ctx, &struct {
+					Project *model.ProjectInput
+				}{
+					&model.ProjectInput{
+						ID:               &projectID,
+						GitProtocol:      project.GitProtocol,
+						GitUrl:           project.GitUrl,
+						GitBranch:        &gitBranch,
+						Bookmarked:       &bookmarked,
+						ContinuousDeploy: &continuousDeploy,
+						EnvironmentID:    &environmentID,
+					},
+				})
+			}
+
 			r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).FirstOrCreate(&projectEnvironment)
 			results = append(results, &EnvironmentResolver{DBEnvironmentResolver: &db_resolver.EnvironmentResolver{DB: r.DB, Environment: environment}})
 		} else {
