@@ -300,6 +300,7 @@ func (r *ProjectResolverMutation) UpdateProjectEnvironments(ctx context.Context,
 
 			// Save branch if this is a new environment
 			if r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Find(&projectEnvironment).RecordNotFound() {
+				// default project
 				projectID := project.ID.String()
 				gitBranch := "master"
 				bookmarked := false
@@ -307,7 +308,13 @@ func (r *ProjectResolverMutation) UpdateProjectEnvironments(ctx context.Context,
 				environmentID := environment.Model.ID.String()
 
 				var projectSettings model.ProjectSettings
-				if !r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).First(&projectSettings).RecordNotFound() {
+				if err := r.DB.Where("environment_id = ? and project_id = ?", environment.Model.ID, project.Model.ID).Find(&projectSettings).Error; err != nil {
+					// if not a simple record not found, log the error
+					if !gorm.IsRecordNotFoundError(err) {
+						log.Error(err.Error())
+						return nil, err
+					}
+				} else {
 					gitBranch = projectSettings.GitBranch
 					continuousDeploy = projectSettings.ContinuousDeploy
 				}
