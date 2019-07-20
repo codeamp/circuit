@@ -14,6 +14,8 @@ type Query {
   users(): [User]!
   # Project
   project(id: ID, slug: String, name: String, environmentID: String): Project
+  # ExportProject
+  exportProject(id: String!, environmentID: String!): String
   # Projects
   projects(projectSearch: ProjectSearchInput, params: PaginatorInput): ProjectList!
   # Features
