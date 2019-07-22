@@ -193,6 +193,8 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 				default:
 					return fmt.Sprintf("Pod '%s' is waiting because '%s'", pod.Name, waitingReason), false
 				}
+			} else if containerStatus.RestartCount != 0 {
+				return fmt.Sprintf("Detected Pod '%s' has restarted during deployment", pod.Name), true
 			}
 		}
 	}
