@@ -92,6 +92,16 @@ func (r *ReleaseResolver) Finished() graphql.Time {
 	return graphql.Time{Time: r.DBReleaseResolver.Release.Finished}
 }
 
+// Redeployable
+func (r *ReleaseResolver) Redeployable() bool {
+	return r.DBReleaseResolver.Release.Redeployable
+}
+
+// RedeployableMessage
+func (r *ReleaseResolver) RedeployableMessage() string {
+	return r.DBReleaseResolver.Release.RedeployableMessage
+}
+
 func (r *ReleaseResolver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&r.DBReleaseResolver.Release)
 }

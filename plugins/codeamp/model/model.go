@@ -84,6 +84,9 @@ type Release struct {
 	// ForceRebuild
 	ForceRebuild bool `json:"forceRebuild"`
 	IsRollback   bool `json:"isRollback"`
+	// Redployable
+	Redeployable        bool   `json:"redeployable" gorm:"default:true;not null"`
+	RedeployableMessage string `json:"redeployableMessage"`
 }
 
 // ServiceSpec

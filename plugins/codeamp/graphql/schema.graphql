@@ -233,6 +233,8 @@ type Release {
   started: Time!
   finished: Time!
   isRollback: Boolean!
+  redeployable: Boolean!
+  redeployableMessage: String!
 }
 
 # Project

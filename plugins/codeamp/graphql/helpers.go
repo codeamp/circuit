@@ -127,9 +127,11 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 			Branch:        branch,
 			RsaPrivateKey: project.RsaPrivateKey,
 		},
-		Secrets:    secrets,
-		Services:   services,
-		IsRollback: release.IsRollback,
+		Secrets:             secrets,
+		Services:            services,
+		IsRollback:          release.IsRollback,
+		Redeployable:        release.Redeployable,
+		RedeployableMessage: release.RedeployableMessage,
 	}
 }
 

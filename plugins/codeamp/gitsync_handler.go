@@ -81,6 +81,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 	var project model.Project
 	var projectSettings []model.ProjectSettings
+	var features []model.Feature
 
 	if e.State == transistor.GetState("complete") {
 		if x.DB.Where("repository = ?", payload.Project.Repository).First(&project).RecordNotFound() {
@@ -118,10 +119,10 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 						if gorm.IsRecordNotFoundError(err) {
 							log.ErrorWithFields("No project settings found", log.Fields{
 								"project_id": project.Model.ID,
-							})	
+							})
 						} else {
 							log.Error(err.Error())
-						}						
+						}
 					} else {
 						// Create an automated release if specified by the projects configuration/settings
 						// call CreateRelease for each env that has cd turned on
@@ -145,7 +146,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 										UserID:      uuid.FromStringOrNil(ContinuousDeployUUID).String(),
 										Email:       "codeamp@codeamp.com",
 										Permissions: []string{"admin"},
-									})								
+									})
 
 									x.Resolver.CreateRelease(adminContext, &struct {
 										Release *model.ReleaseInput
@@ -162,6 +163,43 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 								}
 							}
 						}
+					}
+				}
+			}
+		}
+
+		if x.DB.Where("project_id = ?", project.ID).Find(&features).RecordNotFound() {
+			log.ErrorWithFields("Feature not found", log.Fields{
+				"project_id": project.ID,
+			})
+			return nil
+		}
+
+		// handle forced push commits
+		for _, feature := range features {
+			hash := feature.Hash
+			found := false
+			for _, commit := range payload.Commits {
+				if commit.Hash == hash {
+					found = true
+				}
+			}
+			if !found {
+				// set deleted_at for the unfound feature
+				// deletedAt := time.Now()
+				// feature.DeletedAt = &deletedAt
+				// if err := x.DB.Save(&feature).Error; err != nil {
+				// 	log.Error(err.Error())
+				// }
+
+				var release model.Release
+				// found a related release
+				if !x.DB.Where("project_id = ? AND head_feature_id = ?", project.ID, feature.ID).First(&release).RecordNotFound() {
+					release.Redeployable = false
+					release.RedeployableMessage = "The feature is deleted."
+
+					if err := x.DB.Save(&release).Error; err != nil {
+						log.Error(err.Error())
 					}
 				}
 			}

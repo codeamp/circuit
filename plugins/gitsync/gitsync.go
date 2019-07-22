@@ -220,9 +220,9 @@ func (x *GitSync) Process(e transistor.Event) error {
 
 			_commits = append(_commits, c)
 
-			if c.Hash == payload.From {
-				break
-			}
+			// if c.Hash == payload.From {
+			// 	break
+			// }
 		}
 
 		payload.Commits = _commits

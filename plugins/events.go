@@ -279,16 +279,18 @@ type NotificationExtension struct {
 
 // Release event data struct
 type Release struct {
-	ID          string    `json:"id"`
-	Project     Project   `json:"project"`
-	Git         Git       `json:"git"`
-	HeadFeature Feature   `json:"headFeature"`
-	User        string    `json:"user"`
-	TailFeature Feature   `json:"tailFeature"`
-	Services    []Service `json:"services"`
-	Secrets     []Secret  `json:"secrets" role:"secret"`
-	Environment string    `json:"environment"`
-	IsRollback  bool      `json:"isRollback"`
+	ID                  string    `json:"id"`
+	Project             Project   `json:"project"`
+	Git                 Git       `json:"git"`
+	HeadFeature         Feature   `json:"headFeature"`
+	User                string    `json:"user"`
+	TailFeature         Feature   `json:"tailFeature"`
+	Services            []Service `json:"services"`
+	Secrets             []Secret  `json:"secrets" role:"secret"`
+	Environment         string    `json:"environment"`
+	IsRollback          bool      `json:"isRollback"`
+	Redeployable        bool      `json:"redeployable"`
+	RedeployableMessage string    `json:"redeployableMessage"`
 }
 
 // Project event data struct
