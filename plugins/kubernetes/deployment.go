@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-errors/errors"
 
 	"github.com/codeamp/circuit/plugins"
@@ -184,6 +185,9 @@ func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kube
 func detectPodFailure(pod v1.Pod) (string, bool) {
 	if len(pod.Status.ContainerStatuses) > 0 {
 		for _, containerStatus := range pod.Status.ContainerStatuses {
+			if containerStatus.State.Terminated != nil {
+				spew.Dump(containerStatus.State.Terminated)
+			}
 			if containerStatus.State.Waiting != nil {
 				switch waitingReason := containerStatus.State.Waiting.Reason; waitingReason {
 				case "CrashLoopBackOff", "ImageInspectError", "ErrImageNeverPull", "RegistryUnavilable", "InvalidImageName":
