@@ -389,6 +389,8 @@ type Feature struct {
 	Ref string `json:"ref"`
 	// Created
 	Created time.Time `json:"created"`
+	// NotFoundSince
+	NotFoundSince time.Time `json:"notFoundSince"`
 }
 
 // ExtConfig

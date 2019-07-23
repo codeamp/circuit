@@ -137,12 +137,13 @@ type GitSync struct {
 
 // Feature event data struct
 type Feature struct {
-	ID         string    `json:"id"`
-	Hash       string    `json:"hash"`
-	ParentHash string    `json:"parentHash"`
-	User       string    `json:"user"`
-	Message    string    `json:"message"`
-	Created    time.Time `json:"created"`
+	ID            string    `json:"id"`
+	Hash          string    `json:"hash"`
+	ParentHash    string    `json:"parentHash"`
+	User          string    `json:"user"`
+	Message       string    `json:"message"`
+	Created       time.Time `json:"created"`
+	NotFoundSince time.Time `json:"notFoundSince"`
 }
 
 // Listener event data struct

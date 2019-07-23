@@ -52,6 +52,11 @@ func (r *FeatureResolver) Created() graphql.Time {
 	return graphql.Time{Time: r.DBFeatureResolver.Feature.Created}
 }
 
+// NotFoundSince
+func (r *FeatureResolver) NotFoundSince() graphql.Time {
+	return graphql.Time{Time: r.DBFeatureResolver.Feature.NotFoundSince}
+}
+
 func (r *FeatureResolver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&r.DBFeatureResolver.Feature)
 }

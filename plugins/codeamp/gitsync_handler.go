@@ -3,6 +3,7 @@ package codeamp
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -185,19 +186,19 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 				}
 			}
 			if !found {
-				// set deleted_at for the unfound feature
-				// deletedAt := time.Now()
-				// feature.DeletedAt = &deletedAt
-				// if err := x.DB.Save(&feature).Error; err != nil {
-				// 	log.Error(err.Error())
-				// }
+				// set NotFoundSince for the unfound feature
+				if feature.NotFoundSince.IsZero() {
+					feature.NotFoundSince = time.Now()
+					if err := x.DB.Save(&feature).Error; err != nil {
+						log.Error(err.Error())
+					}
+				}
 
 				var release model.Release
 				// found a related release
 				if !x.DB.Where("project_id = ? AND head_feature_id = ?", project.ID, feature.ID).First(&release).RecordNotFound() {
 					release.Redeployable = false
-					release.RedeployableMessage = "The feature is deleted."
-
+					release.RedeployableMessage = "This feature cannot be found."
 					if err := x.DB.Save(&release).Error; err != nil {
 						log.Error(err.Error())
 					}
