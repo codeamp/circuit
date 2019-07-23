@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-errors/errors"
 
 	"github.com/codeamp/circuit/plugins"
@@ -185,20 +184,19 @@ func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kube
 func detectPodFailure(pod v1.Pod) (string, bool) {
 	if len(pod.Status.ContainerStatuses) > 0 {
 		for _, containerStatus := range pod.Status.ContainerStatuses {
-			if containerStatus.State.Terminated != nil {
-				spew.Dump(containerStatus.State.Terminated)
-			}
 			if containerStatus.State.Waiting != nil {
 				switch waitingReason := containerStatus.State.Waiting.Reason; waitingReason {
 				case "CrashLoopBackOff", "ImageInspectError", "ErrImageNeverPull", "RegistryUnavilable", "InvalidImageName":
-					failmessage := fmt.Sprintf("Detected Pod '%s' is waiting forever because of '%s'", pod.Name, waitingReason)
+					failmessage := fmt.Sprintf("Pod '%s' is waiting forever because of '%s'", pod.Name, waitingReason)
 					// Pod is waiting forever
 					return failmessage, true
 				default:
 					return fmt.Sprintf("Pod '%s' is waiting because '%s'", pod.Name, waitingReason), false
 				}
+			} else if containerStatus.State.Terminated != nil {
+				return fmt.Sprintf("Pod '%s' has terminated during deployment. %s", pod.Name, containerStatus.State.Terminated.Reason), true
 			} else if containerStatus.RestartCount != 0 {
-				return fmt.Sprintf("Detected Pod '%s' has restarted during deployment", pod.Name), true
+				return fmt.Sprintf("Pod '%s' has restarted during deployment", pod.Name), true
 			}
 		}
 	}
