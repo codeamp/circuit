@@ -187,12 +187,16 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 			if containerStatus.State.Waiting != nil {
 				switch waitingReason := containerStatus.State.Waiting.Reason; waitingReason {
 				case "CrashLoopBackOff", "ImageInspectError", "ErrImageNeverPull", "RegistryUnavilable", "InvalidImageName":
-					failmessage := fmt.Sprintf("Detected Pod '%s' is waiting forever because of '%s'", pod.Name, waitingReason)
+					failmessage := fmt.Sprintf("Pod '%s' is waiting forever because of '%s'", pod.Name, waitingReason)
 					// Pod is waiting forever
 					return failmessage, true
 				default:
 					return fmt.Sprintf("Pod '%s' is waiting because '%s'", pod.Name, waitingReason), false
 				}
+			} else if containerStatus.State.Terminated != nil {
+				return fmt.Sprintf("Pod '%s' has terminated during deployment. %s", pod.Name, containerStatus.State.Terminated.Reason), true
+			} else if containerStatus.RestartCount != 0 {
+				return fmt.Sprintf("Pod '%s' has restarted during deployment", pod.Name), true
 			}
 		}
 	}
