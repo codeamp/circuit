@@ -169,7 +169,14 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 			}
 		}
 
-		if x.DB.Where("project_id = ?", project.ID).Find(&features).RecordNotFound() {
+		// put payload commits' hash in a map for quicker query below
+		payloadCommits := make(map[string]bool)
+		for _, commit := range payload.Commits {
+			payloadCommits[commit.Hash] = true
+		}
+
+		// limit the features array to 50, becaues payload.Commits is also of max length 50
+		if x.DB.Where("project_id = ?", project.ID).Limit(50).Find(&features).RecordNotFound() {
 			log.ErrorWithFields("Feature not found", log.Fields{
 				"project_id": project.ID,
 			})
@@ -178,15 +185,8 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 		// handle forced push commits
 		for _, feature := range features {
-			hash := feature.Hash
-			found := false
-			for _, commit := range payload.Commits {
-				if commit.Hash == hash {
-					found = true
-				}
-			}
-			if !found {
-				// set NotFoundSince for the unfound feature
+			// set NotFoundSince for the unfound feature
+			if !payloadCommits[feature.Hash] {
 				if feature.NotFoundSince.IsZero() {
 					feature.NotFoundSince = time.Now()
 					if err := x.DB.Save(&feature).Error; err != nil {
@@ -194,8 +194,8 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 					}
 				}
 
-				var release model.Release
 				// found a related release
+				var release model.Release
 				if !x.DB.Where("project_id = ? AND head_feature_id = ?", project.ID, feature.ID).First(&release).RecordNotFound() {
 					release.Redeployable = false
 					release.RedeployableMessage = "This feature cannot be found."
