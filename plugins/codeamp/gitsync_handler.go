@@ -185,25 +185,26 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 		// handle forced push commits
 		for _, feature := range features {
+			if _, ok := payloadCommits[feature.Hash]; ok {
+				continue
+			}
 
 			// set NotFoundSince for the unfound feature
-			if _, ok := payloadCommits[feature.Hash]; !ok {
-				if feature.NotFoundSince == nil {
-					notFoundSince := time.Now()
-					feature.NotFoundSince = &notFoundSince
-					if err := x.DB.Save(&feature).Error; err != nil {
-						log.Error(err.Error())
-					}
+			if feature.NotFoundSince == nil {
+				notFoundSince := time.Now()
+				feature.NotFoundSince = &notFoundSince
+				if err := x.DB.Save(&feature).Error; err != nil {
+					log.Error(err.Error())
 				}
+			}
 
-				// found a related release
-				var release model.Release
-				if !x.DB.Where("project_id = ? AND head_feature_id = ?", project.ID, feature.ID).First(&release).RecordNotFound() {
-					release.Redeployable = false
-					release.RedeployableMessage = "This feature cannot be found."
-					if err := x.DB.Save(&release).Error; err != nil {
-						log.Error(err.Error())
-					}
+			// found a related release
+			var release model.Release
+			if !x.DB.Where("project_id = ? AND head_feature_id = ?", project.ID, feature.ID).First(&release).RecordNotFound() {
+				release.Redeployable = false
+				release.RedeployableMessage = "This feature cannot be found."
+				if err := x.DB.Save(&release).Error; err != nil {
+					log.Error(err.Error())
 				}
 			}
 		}
