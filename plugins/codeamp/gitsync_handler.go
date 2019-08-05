@@ -176,7 +176,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		}
 
 		// limit the features array to 50, becaues payload.Commits is also of max length 50
-		if x.DB.Where("project_id = ?", project.ID).Limit(50).Find(&features).RecordNotFound() {
+		if x.DB.Where("project_id = ? AND ref = ? AND not_found_since IS NULL", project.ID, fmt.Sprintf("refs/heads/%s", payload.Git.Branch)).Order("created desc").Limit(50).Find(&features).RecordNotFound() {
 			log.ErrorWithFields("Feature not found", log.Fields{
 				"project_id": project.ID,
 			})
@@ -185,10 +185,12 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 		// handle forced push commits
 		for _, feature := range features {
+
 			// set NotFoundSince for the unfound feature
-			if !payloadCommits[feature.Hash] {
-				if feature.NotFoundSince.IsZero() {
-					feature.NotFoundSince = time.Now()
+			if _, ok := payloadCommits[feature.Hash]; !ok {
+				if feature.NotFoundSince == nil {
+					notFoundSince := time.Now()
+					feature.NotFoundSince = &notFoundSince
 					if err := x.DB.Save(&feature).Error; err != nil {
 						log.Error(err.Error())
 					}

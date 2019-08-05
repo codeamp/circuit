@@ -390,7 +390,7 @@ type Feature struct {
 	// Created
 	Created time.Time `json:"created"`
 	// NotFoundSince
-	NotFoundSince time.Time `json:"notFoundSince"`
+	NotFoundSince *time.Time `json:"notFoundSince"`
 }
 
 // ExtConfig

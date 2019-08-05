@@ -163,7 +163,7 @@ func (r *FeatureListResolver) Entries() ([]*FeatureResolver, error) {
 	var results []*FeatureResolver
 
 	limit, offset := GetPaginatorLimitAndOffset(r.PaginatorInput)
-	err := r.DB.Order("created desc").Limit(limit).Offset(offset).Find(&rows).Error
+	err := r.DB.Where("not_found_since IS NULL").Order("created desc").Limit(limit).Offset(offset).Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}

@@ -84,7 +84,7 @@ func pluginsCodeampGraphqlSchemaGraphql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "plugins/codeamp/graphql/schema.graphql", size: 10336, mode: os.FileMode(420), modTime: time.Unix(1563837970, 0)}
+	info := bindataFileInfo{name: "plugins/codeamp/graphql/schema.graphql", size: 10336, mode: os.FileMode(420), modTime: time.Unix(1564776705, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

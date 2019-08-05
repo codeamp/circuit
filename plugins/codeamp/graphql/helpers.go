@@ -107,7 +107,7 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 			User:          headFeature.User,
 			Message:       headFeature.Message,
 			Created:       headFeature.Created,
-			NotFoundSince: headFeature.NotFoundSince,
+			NotFoundSince: *headFeature.NotFoundSince,
 		},
 		TailFeature: plugins.Feature{
 			ID:            tailFeature.Model.ID.String(),
@@ -116,7 +116,7 @@ func BuildReleasePayload(release model.Release, project model.Project, environme
 			User:          tailFeature.User,
 			Message:       tailFeature.Message,
 			Created:       tailFeature.Created,
-			NotFoundSince: tailFeature.NotFoundSince,
+			NotFoundSince: *tailFeature.NotFoundSince,
 		},
 		User: release.User.Email,
 		Project: plugins.Project{
