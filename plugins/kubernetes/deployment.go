@@ -195,6 +195,8 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 				}
 			} else if containerStatus.State.Terminated != nil {
 				return fmt.Sprintf("Pod '%s' has terminated during deployment. %s", pod.Name, containerStatus.State.Terminated.Reason), true
+			} else if containerStatus.RestartCount != 0 {
+				return fmt.Sprintf("Pod '%s' has restarted during deployment", pod.Name), true
 			}
 		}
 	}

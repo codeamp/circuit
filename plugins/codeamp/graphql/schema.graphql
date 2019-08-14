@@ -157,6 +157,7 @@ type Feature {
   parentHash: String!
   ref: String!
   created: Time!
+  notFoundSince: Time!
 }
 
 # Service
@@ -233,6 +234,8 @@ type Release {
   started: Time!
   finished: Time!
   isRollback: Boolean!
+  redeployable: Boolean!
+  redeployableMessage: String!
 }
 
 # Project
