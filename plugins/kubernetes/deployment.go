@@ -208,7 +208,7 @@ func detectPodRestart(pod v1.Pod) (string, int) {
 	if len(pod.Status.ContainerStatuses) > 0 {
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			if containerStatus.RestartCount != 0 {
-				restartCount += containerStatus.RestartCount
+				restartCount += int(containerStatus.RestartCount)
 			}
 		}
 	}
@@ -216,7 +216,7 @@ func detectPodRestart(pod v1.Pod) (string, int) {
 	if restartCount > 0 {
 		return fmt.Sprintf("Pod '%s' has restarted during deployment", pod.Name), restartCount
 	} else {
-		return "", false
+		return "", 0
 	}
 }
 
@@ -1034,18 +1034,20 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					totalPodsForDeployment := len(allPods.Items)
 					totalPodRestarts := 0
 
-					const allowedPodRestartsRatio = 0.25
-					maxRestartsAllowed := totalPodsForDeployment * allowedPodRestartsRatio
+					allowedPodRestartsRatio := 0.25
+					maxRestartsAllowed := int(float64(totalPodsForDeployment) * allowedPodRestartsRatio)
 					if maxRestartsAllowed < 1 {
 						maxRestartsAllowed = 1
 					}
+
 				AllPods:
 					for _, pod := range allPods.Items {
 						for _, ref := range pod.ObjectMeta.OwnerReferences {
 							if ref.Kind == "ReplicaSet" {
 								if ref.Name == currentReplica.Name {
 									// This is a pod we want to check status for
-									totalPodRestarts += detectPodRestart(pod)
+									_, podRestarts := detectPodRestart(pod)
+									totalPodRestarts += podRestarts
 									if message, result := detectPodFailure(pod); result {
 										// Pod is waiting forever, fail the deployment.
 										log.Error(fmt.Errorf(message))
@@ -1101,7 +1103,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 
 					servicesFailed = append(servicesFailed, deploymentServices...)
 					errorsReported = append(errorsReported, errors.New(ErrDeployPodRestartLoop))
-					break AllPods
+					break
 				}
 
 				time.Sleep(deploySleepTime)
