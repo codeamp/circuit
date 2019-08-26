@@ -1034,7 +1034,7 @@ func (suite *ProjectTestSuite) TestGetDeployedInSuccess() {
 	suite.Resolver.DB.Save(&productionRelease.DBReleaseResolver.Release)
 
 	// call deployedIn(featurehash) and check that environments returned are both production and staging
-	envs, err := projectResolver.DeployedIn(test.ResolverAuthContext(), &struct {
+	envs, err := projectResolver.EnvsDeployedIn(test.ResolverAuthContext(), &struct {
 		GitHash string
 	}{
 		GitHash: feature.Hash(),
