@@ -152,8 +152,8 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 	}
 }
 
-// DeployedIn
-func (r *ProjectResolver) DeployedIn(ctx context.Context, args *struct {
+// EnvsDeployedIn
+func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
 	GitHash string
 }) ([]*EnvironmentResolver, error) {
 	var environments []*EnvironmentResolver
