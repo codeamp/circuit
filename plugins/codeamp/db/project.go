@@ -174,7 +174,7 @@ func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
 	for _, tmpFeature := range features {
 		var releases []model.Release
 		// get releases where head_feature_id matches this feature
-		if err := r.DB.Select("distinct(environment_id), state, created_at, deleted_at, state_message, ").Where("head_feature_id = ? and state = ?", tmpFeature.Model.ID.String(), string(transistor.GetState("complete"))).Find(&releases).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+		if err := r.DB.Select("distinct(environment_id), state, created_at, deleted_at, state_message").Where("head_feature_id = ? and state = ?", tmpFeature.Model.ID.String(), string(transistor.GetState("complete"))).Find(&releases).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
 			return []*EnvironmentResolver{}, err
 		}
 
