@@ -61,7 +61,8 @@ func (r *ProjectResolver) RsaPublicKey() string {
 
 // IsDeployed
 func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
-	GitHash string
+	GitHash       string
+	DesiredStates []string
 }) ([]*EnvironmentResolver, error) {
 	db_resolvers, err := r.DBProjectResolver.EnvsDeployedIn(ctx, args)
 	if err != nil {

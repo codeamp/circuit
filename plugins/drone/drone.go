@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
+	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/machinebox/graphql"
 
 	log "github.com/codeamp/logger"
@@ -203,6 +203,13 @@ func (x *Drone) Process(e transistor.Event) error {
 		}
 	}
 
+	childEnvironment, err := e.GetArtifact("child_environment")
+	if err != nil {
+		log.Error(err.Error())
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
+		return err
+	}
+
 	timeoutLimit, err := e.GetArtifact("timeout_seconds")
 	if err != nil {
 		log.Error(err.Error())
@@ -306,38 +313,87 @@ func (x *Drone) Process(e transistor.Event) error {
 			})
 
 			// Check if sha is deployed in child environment
-
-			graphqlClient := graphql.NewClient(fmt.Sprintf("http://0.0.0.0:3011/query"))
-
+			graphqlClient := graphql.NewClient(fmt.Sprintf("%s/query", graphqlUrl.String()))
 			// make a request
-			req := graphql.NewRequest(`
-				query{
-					project(name: "codeamp/panel"){
-				  		id
-					}
-			  	}
-			`)
+			req := graphql.NewRequest(fmt.Sprintf(`
+			query {
+				complete: project(id:"%s") {
+				  id
+				  envsDeployedIn(gitHash:"%s", desiredStates: ["complete"] ) {
+					id
+					key
+					name
+				  }
+				},
+				running: project(id:"%s") {
+				  id
+				  envsDeployedIn(gitHash:"%s", desiredStates: ["running", "waiting"] ) {
+					id
+					key
+					name
+				  }
+				}
+			  }
+			`, payload.Release.Project.ID, payload.Release.HeadFeature.Hash, payload.Release.Project.ID, payload.Release.HeadFeature.Hash))
 
 			// set header fields
 			req.Header.Set("Cache-Control", "no-cache")
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", graphqlToken.String()))
 
+			type Project struct {
+				ID             string
+				EnvsDeployedIn []model.Environment
+			}
+
 			type response struct {
-				Project struct {
-					Id string
-				}
+				Complete Project `json:"complete"`
+				Running  Project `json:"running"`
 			}
 
 			// run it and capture the response
 			var respData response
 
-			if err := graphqlClient.Run(context.Background(), req, &respData); err != nil {
-				log.Fatal(err)
+			timeout := 600
+			currentTimeout := 0
+			deployedInChildEnvironment := false
+
+			for {
+				if err := graphqlClient.Run(context.Background(), req, &respData); err != nil {
+					log.Error(err)
+					x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
+					return nil
+				}
+
+				for _, env := range respData.Running.EnvsDeployedIn {
+					if currentTimeout >= timeout {
+						break
+					}
+
+					if env.Key == childEnvironment.String() {
+						currentTimeout++
+						time.Sleep(time.Second * 1)
+						x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"),
+							fmt.Sprintf("Waiting on deploy in %s environment to finish", childEnvironment.String()))
+					}
+				}
+
+				for _, env := range respData.Complete.EnvsDeployedIn {
+					if env.Key == childEnvironment.String() {
+						deployedInChildEnvironment = true
+						break
+					}
+				}
+
+				if deployedInChildEnvironment {
+					break
+				}
 			}
 
-			spew.Dump(respData)
-
-			return nil
+			if !deployedInChildEnvironment {
+				log.Error(fmt.Sprintf("Not deployed in child environment %s", childEnvironment.String()))
+				x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("Not deployed in child environment %s", childEnvironment.String()))
+				return nil
+			}
 
 			// Find latest sucessful build
 			successfulbuild, err := getLatestSuccessfulBuild(e, droneConfig)
@@ -361,7 +417,7 @@ func (x *Drone) Process(e transistor.Event) error {
 				return nil
 			}
 
-			timeout := 0
+			timeout = 0
 			for {
 				var evt transistor.Event
 				var breakTheLoop bool
