@@ -327,7 +327,7 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) TestSBRExtHandlePulseSuc
 		}
 	}
 
-	event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "minute"})
+	event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "second"})
 	suite.transistor.Events <- event
 
 	e, err := suite.transistor.GetTestEvent("scheduledbranchreleaser:scheduled", transistor.GetAction("status"), 10)
