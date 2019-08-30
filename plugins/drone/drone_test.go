@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/codeamp/circuit/plugins"
+	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/test"
 	"github.com/codeamp/transistor"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 type TestSuite struct {
 	suite.Suite
 	transistor *transistor.Transistor
+	Resolver   *graphql_resolver.Resolver
 }
 
 var viperConfig = []byte(`
@@ -40,30 +42,6 @@ func (suite *TestSuite) TestDrone() {
 
 	var e transistor.Event
 	var err error
-
-	dronePayload := plugins.ReleaseExtension{
-		Release: plugins.Release{
-			Project: plugins.Project{
-				Slug:       "drone",
-				Repository: "checkr/deploy-test",
-			},
-			Git: plugins.Git{
-				Url:           "https://github.com/checkr/deploy-test.git",
-				Protocol:      "HTTPS",
-				Branch:        "master",
-				RsaPrivateKey: "",
-				RsaPublicKey:  "",
-				Workdir:       "/tmp/something",
-			},
-			HeadFeature: plugins.Feature{
-				Hash:       deploytestHash,
-				ParentHash: deploytestHash,
-				User:       "",
-				Message:    "Test",
-			},
-			Environment: "testing",
-		},
-	}
 
 	droneBuildsResponse := `
 	[
@@ -320,6 +298,48 @@ func (suite *TestSuite) TestDrone() {
 	httpmock.RegisterResponder("POST", fmt.Sprintf("%s/api/repos/%s/builds/17", droneUrl, repository),
 		httpmock.NewStringResponder(200, droneNewBuildResponse))
 
+	graphqlResponse := fmt.Sprintf(`
+	{
+		"data": {
+		  "complete": {
+			"id": "foo-project-id",
+			"envsDeployedIn": [
+			  {
+				"id": "foo-env-id",
+				"key": "staging",
+				"name": "staging"
+			  }
+			]
+		  }
+		}
+	}	
+	`)
+	httpmock.RegisterResponder("POST", "http://0.0.0.0:3011/query",
+		httpmock.NewStringResponder(200, graphqlResponse))
+
+	dronePayload := plugins.ReleaseExtension{
+		Release: plugins.Release{
+			Project: plugins.Project{
+				ID: "foo-project-id",
+			},
+			Git: plugins.Git{
+				Url:           "https://github.com/checkr/deploy-test.git",
+				Protocol:      "HTTPS",
+				Branch:        "master",
+				RsaPrivateKey: "",
+				RsaPublicKey:  "",
+				Workdir:       "/tmp/something",
+			},
+			HeadFeature: plugins.Feature{
+				Hash:       deploytestHash,
+				ParentHash: deploytestHash,
+				User:       "",
+				Message:    "Test",
+			},
+			Environment: "testing",
+		},
+	}
+
 	ev := transistor.NewEvent(plugins.GetEventName("release:drone"), transistor.GetAction("create"), dronePayload)
 	ev.AddArtifact("timeout_seconds", "100", false)
 	ev.AddArtifact("timeout_interval", "5", false)
@@ -329,6 +349,7 @@ func (suite *TestSuite) TestDrone() {
 	ev.AddArtifact("graphql_url", "http://0.0.0.0:3011", false)
 	ev.AddArtifact("internal_bearer_token", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE1NjE1MTgwNjMsImV4cCI6MTU5MzA1NDA3MCwiYXVkIjoiY29kZWFtcCIsInN1YiI6IkNnMHdMVE00TlMweU9EQTRPUzB3RWdSdGIyTnIiLCJlbWFpbCI6ImNvZGVhbXBAY29kZWFtcC5vcmciLCJyb2xlIjoibG9jYWwifQ.A_l36r6Nh6-iUTJ2c8OQ0C-4T-ZXmT2CquzultbTk5I", true)
 	ev.AddArtifact("repository", repository, false)
+	ev.AddArtifact("child_environment", "staging", false)
 
 	suite.transistor.Events <- ev
 
@@ -338,14 +359,14 @@ func (suite *TestSuite) TestDrone() {
 		return
 	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), transistor.GetState("running"), e.State)
+	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("%s/api/repos/%s/builds/19", droneUrl, repository),
 		httpmock.NewStringResponder(200, droneSuccessBuildResponse))
 
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:drone"), transistor.GetAction("status"), 10)
 	if err != nil {
-		assert.Nil(suite.T(), err, err.Error)
+		assert.Nil(suite.T(), err, err.Error())
 		return
 	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
