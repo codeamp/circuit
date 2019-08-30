@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/codeamp/circuit/plugins"
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
 	"github.com/codeamp/circuit/test"
@@ -35,8 +37,8 @@ func (suite *TestSuite) TearDownSuite() {
 }
 
 func (suite *TestSuite) TestDrone() {
-	//httpmock.Activate()
-	httpmock.DeactivateAndReset()
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
 
 	deploytestHash := "4930db36d9ef6ef4e6a986b6db2e40ec477c7bc9"
 
@@ -298,14 +300,16 @@ func (suite *TestSuite) TestDrone() {
 	httpmock.RegisterResponder("POST", fmt.Sprintf("%s/api/repos/%s/builds/17", droneUrl, repository),
 		httpmock.NewStringResponder(200, droneNewBuildResponse))
 
+	projectID := uuid.NewV4()
+	envID := uuid.NewV4()
 	graphqlResponse := fmt.Sprintf(`
 	{
 		"data": {
 		  "complete": {
-			"id": "foo-project-id",
+			"id": "%s",
 			"envsDeployedIn": [
 			  {
-				"id": "foo-env-id",
+				"id": "%s",
 				"key": "staging",
 				"name": "staging"
 			  }
@@ -313,14 +317,14 @@ func (suite *TestSuite) TestDrone() {
 		  }
 		}
 	}	
-	`)
+	`, projectID.String(), envID.String())
 	httpmock.RegisterResponder("POST", "http://0.0.0.0:3011/query",
 		httpmock.NewStringResponder(200, graphqlResponse))
 
 	dronePayload := plugins.ReleaseExtension{
 		Release: plugins.Release{
 			Project: plugins.Project{
-				ID: "foo-project-id",
+				ID: projectID.String(),
 			},
 			Git: plugins.Git{
 				Url:           "https://github.com/checkr/deploy-test.git",
@@ -359,7 +363,7 @@ func (suite *TestSuite) TestDrone() {
 		return
 	}
 	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
-	assert.Equal(suite.T(), transistor.GetState("failed"), e.State)
+	assert.Equal(suite.T(), transistor.GetState("running"), e.State)
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("%s/api/repos/%s/builds/19", droneUrl, repository),
 		httpmock.NewStringResponder(200, droneSuccessBuildResponse))
