@@ -119,9 +119,9 @@ func getLatestSuccessfulBuild(e transistor.Event, c DroneConfig) (Build, error) 
 		}
 
 		return Build{}, errors.New("No successful build found")
-	} else {
-		return Build{}, errors.New(fmt.Sprintf("Unhandled status code: %d", resp.StatusCode))
 	}
+
+	return Build{}, errors.New(fmt.Sprintf("Unhandled status code: %d", resp.StatusCode))
 }
 
 func startBuild(e transistor.Event, c DroneConfig, buildNumber int) (Build, error) {
