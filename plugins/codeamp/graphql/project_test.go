@@ -1035,9 +1035,11 @@ func (suite *ProjectTestSuite) TestGetDeployedInSuccess() {
 
 	// call deployedIn(featurehash) and check that environments returned are both production and staging
 	envs, err := projectResolver.EnvsDeployedIn(test.ResolverAuthContext(), &struct {
-		GitHash string
+		GitHash       string
+		DesiredStates []string
 	}{
-		GitHash: feature.Hash(),
+		GitHash:       feature.Hash(),
+		DesiredStates: []string{"staging", "prod"},
 	})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
