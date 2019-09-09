@@ -392,6 +392,8 @@ func (x *Drone) Process(e transistor.Event) error {
 				for _, env := range respData.Complete.EnvsDeployedIn {
 					if env.Key == childEnvironment.String() {
 						deployedInChildEnvironment = true
+						x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"),
+							fmt.Sprintf("Verified deploy in %s environment", childEnvironment.String()))
 						break
 					}
 				}
@@ -469,6 +471,7 @@ func (x *Drone) Process(e transistor.Event) error {
 
 				x.events <- evt
 
+				// check if we can exit the loop or if block_deploys is false
 				if breakTheLoop || !blockDeployBool {
 					break
 				}

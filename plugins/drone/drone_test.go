@@ -354,6 +354,7 @@ func (suite *TestSuite) TestDrone() {
 	ev.AddArtifact("internal_bearer_token", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE1NjE1MTgwNjMsImV4cCI6MTU5MzA1NDA3MCwiYXVkIjoiY29kZWFtcCIsInN1YiI6IkNnMHdMVE00TlMweU9EQTRPUzB3RWdSdGIyTnIiLCJlbWFpbCI6ImNvZGVhbXBAY29kZWFtcC5vcmciLCJyb2xlIjoibG9jYWwifQ.A_l36r6Nh6-iUTJ2c8OQ0C-4T-ZXmT2CquzultbTk5I", true)
 	ev.AddArtifact("repository", repository, false)
 	ev.AddArtifact("child_environment", "staging", false)
+	ev.AddArtifact("block_deploy", "true", false)
 
 	suite.transistor.Events <- ev
 
@@ -367,6 +368,14 @@ func (suite *TestSuite) TestDrone() {
 
 	httpmock.RegisterResponder("GET", fmt.Sprintf("%s/api/repos/%s/builds/19", droneUrl, repository),
 		httpmock.NewStringResponder(200, droneSuccessBuildResponse))
+
+	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:drone"), transistor.GetAction("status"), 10)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
+	assert.Equal(suite.T(), transistor.GetAction("status"), e.Action)
+	assert.Equal(suite.T(), transistor.GetState("running"), e.State)
 
 	e, err = suite.transistor.GetTestEvent(plugins.GetEventName("release:drone"), transistor.GetAction("status"), 10)
 	if err != nil {
