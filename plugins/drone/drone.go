@@ -462,6 +462,9 @@ func (x *Drone) Process(e transistor.Event) error {
 				} else if status.Status == "pending" {
 					breakTheLoop = false
 					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("waiting"), "One or more status checks are pending.")
+				} else if !blockDeployBool {
+					breakTheLoop = true
+					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "Don't block deploys on this step.")
 				} else {
 					breakTheLoop = false
 					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("running"), "One or more status checks are running.")
@@ -472,7 +475,7 @@ func (x *Drone) Process(e transistor.Event) error {
 				x.events <- evt
 
 				// check if we can exit the loop or if block_deploys is false
-				if breakTheLoop || !blockDeployBool {
+				if breakTheLoop {
 					break
 				}
 
