@@ -1038,8 +1038,8 @@ func (suite *ProjectTestSuite) TestGetDeployedInSuccess() {
 		GitHash       string
 		DesiredStates []string
 	}{
-		GitHash:       feature.Hash(),
-		DesiredStates: []string{"staging", "prod"},
+		GitHash:       feature.DBFeatureResolver.Feature.Hash,
+		DesiredStates: []string{"complete"},
 	})
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
