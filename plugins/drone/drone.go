@@ -259,6 +259,20 @@ func (x *Drone) Process(e transistor.Event) error {
 		return err
 	}
 
+	blockDeploy, err := e.GetArtifact("block_deploy")
+	if err != nil {
+		log.Error(err.Error())
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
+		return err
+	}
+
+	blockDeployBool, err := strconv.ParseBool(blockDeploy.String())
+	if err != nil {
+		log.Error(err.Error())
+		x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
+		return err
+	}
+
 	droneConfig := DroneConfig{
 		Url:        droneUrl.String(),
 		GraphqlUrl: graphqlUrl.String(),
@@ -353,10 +367,12 @@ func (x *Drone) Process(e transistor.Event) error {
 			// run it and capture the response
 			var respData response
 
-			timeout := 600
 			currentTimeout := 0
+			timeout := 600
 			deployedInChildEnvironment := false
 
+			// check if deployed in child environment
+			// if not, wait for 10 minutes until it has been deployed
 			for {
 				if err := graphqlClient.Run(context.Background(), req, &respData); err != nil {
 					log.Error(err)
@@ -365,10 +381,6 @@ func (x *Drone) Process(e transistor.Event) error {
 				}
 
 				for _, env := range respData.Running.EnvsDeployedIn {
-					if currentTimeout >= timeout {
-						break
-					}
-
 					if env.Key == childEnvironment.String() {
 						currentTimeout++
 						time.Sleep(time.Second * 1)
@@ -384,7 +396,7 @@ func (x *Drone) Process(e transistor.Event) error {
 					}
 				}
 
-				if deployedInChildEnvironment {
+				if deployedInChildEnvironment || currentTimeout >= timeout {
 					break
 				}
 			}
@@ -457,7 +469,7 @@ func (x *Drone) Process(e transistor.Event) error {
 
 				x.events <- evt
 
-				if breakTheLoop {
+				if breakTheLoop || !blockDeployBool {
 					break
 				}
 
