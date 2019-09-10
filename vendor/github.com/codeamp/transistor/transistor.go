@@ -183,8 +183,7 @@ func (t *Transistor) flusher() {
 		case e := <-t.Events:
 			ev_handled := false
 
-			for idx, _ := range t.Plugins {
-				plugin := t.Plugins[idx]
+			for _, plugin := range t.Plugins {
 				if plugin.Workers > 0 {
 					subscribedTo := plugin.Plugin.Subscribe()
 					if SliceContains(e.Event(), subscribedTo) {
