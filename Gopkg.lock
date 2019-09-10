@@ -17,11 +17,9 @@
   digest = "1:5aca08677b57ab890ead10ef30ad5366cbce0368623ab4b33982c2cecc50bbdb"
   name = "github.com/Clever/atlas-api-client"
   packages = [
-    ".",
     "digestauth",
     "gen-go/client",
     "gen-go/models",
-    "limits",
   ]
   pruneopts = ""
   revision = "5d35a4bd0f6461d16ebfbb992f5c2c0ba55ad2b6"
@@ -452,20 +450,20 @@
   version = "v6.10.2"
 
 [[projects]]
-  digest = "1:a01080d20c45c031c13f3828c56e58f4f51d926a482ad10cc0316225097eb7ea"
-  name = "github.com/go-stack/stack"
-  packages = ["."]
-  pruneopts = ""
-  revision = "72cd26f257d44c1114970e19afddcd812016007e"
-  version = "v1.4.1"
-  
-[[projects]]
   digest = "1:e692d16fdfbddb94e9e4886aaf6c08bdbae5cb4ac80651445de9181b371c6e46"
   name = "github.com/go-sql-driver/mysql"
   packages = ["."]
   pruneopts = ""
   revision = "72cd26f257d44c1114970e19afddcd812016007e"
   version = "v1.4.1"
+
+[[projects]]
+  digest = "1:a01080d20c45c031c13f3828c56e58f4f51d926a482ad10cc0316225097eb7ea"
+  name = "github.com/go-stack/stack"
+  packages = ["."]
+  pruneopts = ""
+  revision = "2fee6af1a9795aafbe0253a0cfbdf668e1fb8a9a"
+  version = "v1.8.0"
 
 [[projects]]
   digest = "1:0a3f6a0c68ab8f3d455f8892295503b179e571b7fefe47cc6c556405d1f83411"
@@ -727,6 +725,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "a52fd449b27dcdd75cf069c5d6ac5749653d801a"
+
+[[projects]]
+  digest = "1:953a3dedbd5d1c988528b0aa45b6fae0e449e342adec639ad398dd858804c5ca"
+  name = "github.com/machinebox/graphql"
+  packages = ["."]
+  pruneopts = ""
+  revision = "05b17f3157491bbfa5d6fc2006443a272d960d15"
+  version = "v0.2.2"
 
 [[projects]]
   digest = "1:d244eb7b2d8e9f4c9355d215d65159c176603874ba10bfb7cbe6dcbd212813f5"
@@ -1031,7 +1037,15 @@
   packages = ["."]
   pruneopts = ""
   revision = "7eeb5667e42c09cb51bf7b7c28aea8c56767da90"
-  
+
+[[projects]]
+  branch = "master"
+  digest = "1:62f6eb06f6f39d18fc961956116a50a0e52b89961ed8a83bbb950b4cfb09fe67"
+  name = "github.com/xdg/stringprep"
+  packages = ["."]
+  pruneopts = ""
+  revision = "73f8eece6fdcd902c185bf651de50f3828bed5ed"
+
 [[projects]]
   branch = "master"
   digest = "1:e6338f2518362ff701a556bd76afd90a2168d1c658ec5d1ea1e9c5ef30a7d157"
@@ -1042,19 +1056,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:62f6eb06f6f39d18fc961956116a50a0e52b89961ed8a83bbb950b4cfb09fe67"
-  name = "github.com/xdg/stringprep"
-  packages = ["."]
-  pruneopts = ""
-  revision = "73f8eece6fdcd902c185bf651de50f3828bed5ed"
-  
-[[projects]]
-  branch = "master"
   digest = "1:604f98a38394d2805a78c462396a4992b93fdd5b7306130add330f1a99ac6b0a"
   name = "github.com/xeipuuv/gojsonreference"
   packages = ["."]
   pruneopts = ""
   revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
+
+[[projects]]
+  branch = "master"
+  digest = "1:5aaacbf23aa7b1a1541457ccf2afd83a4a8b3c75565daa93f1badda5aab6b1c7"
+  name = "github.com/xeipuuv/gojsonschema"
+  packages = ["."]
+  pruneopts = ""
+  revision = "be0936907f66b716b8a0410d12dcaf72070a5fc7"
 
 [[projects]]
   digest = "1:4254eaf53b3bca53481df99b570612d4b57f73a0dd185e313558b6421e748211"
@@ -1458,7 +1472,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/Clever/atlas-api-client",
+    "github.com/Clever/atlas-api-client/digestauth",
+    "github.com/Clever/atlas-api-client/gen-go/client",
+    "github.com/Clever/atlas-api-client/gen-go/models",
     "github.com/aws/aws-sdk-go/aws",
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
@@ -1470,7 +1486,6 @@
     "github.com/codeamp/logger",
     "github.com/codeamp/transistor",
     "github.com/coreos/go-oidc",
-    "github.com/davecgh/go-spew/spew",
     "github.com/extemporalgenome/slug",
     "github.com/fsouza/go-dockerclient",
     "github.com/go-errors/errors",
@@ -1486,6 +1501,7 @@
     "github.com/jinzhu/gorm/dialects/postgres",
     "github.com/kevholditch/gokong",
     "github.com/lytics/slackhook",
+    "github.com/machinebox/graphql",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/rk/go-cron",
@@ -1496,10 +1512,14 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/suite",
     "go.mongodb.org/mongo-driver/mongo",
+    "go.mongodb.org/mongo-driver/mongo/options",
+    "go.mongodb.org/mongo-driver/mongo/readpref",
+    "go.mongodb.org/mongo-driver/x/bsonx",
     "golang.org/x/crypto/ssh",
     "gopkg.in/gormigrate.v1",
     "gopkg.in/jarcoal/httpmock.v1",
     "gopkg.in/yaml.v2",
+    "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
