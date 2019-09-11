@@ -1,0 +1,44 @@
+replicaCount: 1
+image: "codeamp-circuit"
+imagePullPolicy: IfNotPresent
+nameOverride: ""
+fullnameOverride: ""
+
+containerPort: 3011
+command:
+- "sh"
+- "-c"
+- "--"
+args:
+- "reflex -c reflex.conf"
+
+service:
+  type: ClusterIP
+  port: 80
+
+redis:
+  enabled: false
+kong:
+  enabled: false
+postgresql:
+  enabled: false
+postgres:
+  enabled: false
+
+dex:
+  enabled: true
+  config:
+    enablePasswordDB: false
+    connectors:
+    - type: mockCallback
+      id: mock
+      name: Example
+    oauth2:
+      responseTypes: ["code", "token", "id_token"]
+    logger:
+      format: "text" # can also be "json"
+    web:
+      allowedOrigins: ['*']
+    #frontend:
+    # dir: /etc/dex/bootstrap/dex/web
+    # theme: coreos

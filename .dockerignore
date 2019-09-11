@@ -1,3 +1,9 @@
+README.md
 .DS_Store
 configs/dev.codeflow.yml
 configs/codeflow.dev.yml
+.gitops/**/*
+.gitops
+bootstrap/postgres
+skaffold.yaml
+docker-compose.yml

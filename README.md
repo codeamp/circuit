@@ -7,3 +7,11 @@ This is the API layer of the overall Codeamp project. It is built with Golang, G
 2. `cp configs/circuit.yml configs/circuit.dev.yml`
 3. `make up`
 4. Go to `localhost:3011` once you see events being processed in your command line. If all is well, you should see a GraphiQL client.
+
+## Dev with skaffold
+
+1. Run `skaffold run`
+
+2. Init circuit db `cat .gitops/db-backups/circuit-dev-backup.tar | kubectl exec -n codeamp -i postgres-0 -- pg_restore --dbname=postgresql://postgres:password@127.0.0.1:5432/codeamp -v`
+
+3. Need to port-forward for dex because browser needs to talk to same host as circuit app ````kubectl port-forward `kubectl get po -l app=circuit -o name` 5556:5556```

@@ -1,0 +1,18 @@
+dependencies:
+  - name: kong
+    condition: kong.enabled
+    version: 0.12.1
+    repository: "@stable"
+  - name: postgresql
+    condition: postgres.enabled
+    alias: postgres
+    version: 5.3.9
+    repository: "@stable"
+  - name: redis
+    condition: redis.enabled
+    version: 8.0.8
+    repository: "@stable"
+  - name: dex
+    condition: dex.enabled
+    version: 1.4.0
+    repository: "@stable"

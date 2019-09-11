@@ -1,0 +1,22 @@
+apiVersion: skaffold/v1beta11
+kind: Config
+build:
+  local:
+    useDockerCLI: true
+    push: false
+  tagPolicy:
+    sha256: {}
+  artifacts:
+  - image: codeamp-circuit
+    context: .
+deploy:
+  helm:
+    releases:
+    - name: circuit
+      chartPath: .gitops/helm
+      skipBuildDependencies: true
+      values:
+        image: codeamp-circuit
+      valuesFiles:
+      - .gitops/helm/dev.yaml
+      namespace: codeamp

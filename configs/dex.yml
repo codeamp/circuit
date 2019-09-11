@@ -12,8 +12,8 @@ storage:
   config:
     host: postgres
     database: dex
-    user: dex
-    password: 
+    user: $DEX_POSTGRES_USER
+    password: $DEX_POSTGRES_PASSWORD
     ssl:
       mode: disable
 
@@ -60,7 +60,8 @@ oauth2:
 staticClients:
 - id: example-app
   redirectURIs:
-  - 'http://localhost:3010/login/callback'
+  - http://codeamp.local/login/callback
+  - http://localhost:3011/login/callback
   name: 'Development'
   secret: ZXhhbXBsZS1hcHAtc2VjcmV0
 

@@ -1,0 +1,67 @@
+imagePullPolicy: Never
+env:
+- name: CODEAMP_REDIS_SERVER
+  value: circuit-redis-master:6379
+- name: CODEAMP_PLUGINS_CODEAMP_POSTGRES_PASSWORD
+  value: password
+- name: CODEAMP_PLUGINS_CODEAMP_OIDC_URI
+  value: http://circuit-dex:8080/dex
+
+ingress:
+  enabled: true
+  annotations:
+    ingress.kubernetes.io/ingress.class: nginx
+  hosts:
+  - host: codeamp-circuit.local
+    paths:
+    - path: /
+      port: http
+
+# Postgres db from upstream helm chart
+postgres:
+  enabled: true
+  fullnameOverride: postgres
+  postgresqlPassword: password
+  persistence:
+    size: 1Gi
+
+# Redis upstream helm chart
+redis:
+  enabled: true
+  imageTag: 3.0
+  usePassword: false
+  cluster:
+    enabled: false
+  securityContext:
+    enabled: true
+  master:
+    persistence:
+      enabled: false  
+
+# Kong upstream helm chart
+kong:
+  enabled: true
+  postgresql:
+    enabled: false
+  env:
+    pg_user: postgres
+    pg_password: password
+    pg_host: postgres
+
+dex:
+  inMinikube: true
+  ingress:
+    enabled: true
+    annotations:
+      ingress.kubernetes.io/ingress.class: nginx
+    path: /
+    hosts:
+    - codeamp-dex.local
+  config:
+    staticClients:
+    - id: example-app
+      redirectURIs:
+      - http://codeamp.local/login/callback
+      name: 'Development'
+      secret: ZXhhbXBsZS1hcHAtc2VjcmV0
+    issuer: http://circuit-dex:8080/dex
