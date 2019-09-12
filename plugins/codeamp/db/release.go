@@ -65,7 +65,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (model.JSON, error) {
 		projectExtension := model.ProjectExtension{}
 		if r.DB.Unscoped().Where("id = ?", releaseExtension.ProjectExtensionID).Find(&projectExtension).RecordNotFound() {
 			log.InfoWithFields("project extensions not found", log.Fields{
-				"id":                   releaseExtension.ProjectExtensionID,
+				"id": releaseExtension.ProjectExtensionID,
 				"release_extension_id": releaseExtension.Model.ID,
 			})
 			return model.JSON{[]byte("[]")}, errors.New("release extension not found")
@@ -74,7 +74,7 @@ func (r *ReleaseResolver) Artifacts(ctx context.Context) (model.JSON, error) {
 		extension := model.Extension{}
 		if r.DB.Where("id= ?", projectExtension.ExtensionID).Find(&extension).RecordNotFound() {
 			log.InfoWithFields("extension not found", log.Fields{
-				"id":                   projectExtension.Model.ID,
+				"id": projectExtension.Model.ID,
 				"release_extension_id": releaseExtension.Model.ID,
 			})
 			return model.JSON{[]byte("[]")}, errors.New("project extension not found")
@@ -166,14 +166,4 @@ func (r *ReleaseResolver) Environment() (*EnvironmentResolver, error) {
 		return nil, fmt.Errorf("Environment not found.")
 	}
 	return &EnvironmentResolver{DB: r.DB, Environment: environment}, nil
-}
-
-// Redeployable
-func (r *ReleaseResolver) Redeployable() bool {
-	return r.Release.Redeployable
-}
-
-// RedeployableMessage
-func (r *ReleaseResolver) RedeployableMessage() string {
-	return r.Release.RedeployableMessage
 }

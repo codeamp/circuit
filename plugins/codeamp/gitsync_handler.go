@@ -3,7 +3,6 @@ package codeamp
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
@@ -82,7 +81,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 	var project model.Project
 	var projectSettings []model.ProjectSettings
-	var features []model.Feature
 
 	if e.State == transistor.GetState("complete") {
 		if x.DB.Where("repository = ?", payload.Project.Repository).First(&project).RecordNotFound() {
@@ -120,10 +118,10 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 						if gorm.IsRecordNotFoundError(err) {
 							log.ErrorWithFields("No project settings found", log.Fields{
 								"project_id": project.Model.ID,
-							})
+							})	
 						} else {
 							log.Error(err.Error())
-						}
+						}						
 					} else {
 						// Create an automated release if specified by the projects configuration/settings
 						// call CreateRelease for each env that has cd turned on
@@ -147,7 +145,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 										UserID:      uuid.FromStringOrNil(ContinuousDeployUUID).String(),
 										Email:       "codeamp@codeamp.com",
 										Permissions: []string{"admin"},
-									})
+									})								
 
 									x.Resolver.CreateRelease(adminContext, &struct {
 										Release *model.ReleaseInput
@@ -165,46 +163,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 							}
 						}
 					}
-				}
-			}
-		}
-
-		// put payload commits' hash in a map for quicker query below
-		payloadCommits := make(map[string]bool)
-		for _, commit := range payload.Commits {
-			payloadCommits[commit.Hash] = true
-		}
-
-		// limit the features array to 50, becaues payload.Commits is also of max length 50
-		if x.DB.Where("project_id = ? AND ref = ? AND not_found_since IS NULL", project.ID, fmt.Sprintf("refs/heads/%s", payload.Git.Branch)).Order("created desc").Limit(50).Find(&features).RecordNotFound() {
-			log.ErrorWithFields("Feature not found", log.Fields{
-				"project_id": project.ID,
-			})
-			return nil
-		}
-
-		// handle forced push commits
-		for _, feature := range features {
-			if _, ok := payloadCommits[feature.Hash]; ok {
-				continue
-			}
-
-			// set NotFoundSince for the unfound feature
-			if feature.NotFoundSince == nil {
-				notFoundSince := time.Now()
-				feature.NotFoundSince = &notFoundSince
-				if err := x.DB.Save(&feature).Error; err != nil {
-					log.Error(err.Error())
-				}
-			}
-
-			// found a related release
-			var release model.Release
-			if !x.DB.Where("project_id = ? AND head_feature_id = ?", project.ID, feature.ID).First(&release).RecordNotFound() {
-				release.Redeployable = false
-				release.RedeployableMessage = "This feature cannot be found."
-				if err := x.DB.Save(&release).Error; err != nil {
-					log.Error(err.Error())
 				}
 			}
 		}
