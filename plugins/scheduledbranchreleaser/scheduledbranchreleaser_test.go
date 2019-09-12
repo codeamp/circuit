@@ -59,9 +59,7 @@ plugins:
 `)
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	transistor.RegisterPlugin("scheduledbranchreleaser", func() transistor.Plugin {
-		return &scheduledbranchreleaser.ScheduledBranchReleaser{
-			Events: suite.transistor.Events,
-		}
+		return &scheduledbranchreleaser.ScheduledBranchReleaser{}
 	}, plugins.ProjectExtension{})
 
 	migrators := []interface{}{
