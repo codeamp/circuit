@@ -33,7 +33,7 @@ func (x *ScheduledBranchReleaser) SampleConfig() string {
 }
 
 func (x *ScheduledBranchReleaser) Start(e chan transistor.Event) error {
-	x.events = e
+	x.Events = e
 	log.Info("Started ScheduledBranchReleaser")
 	return nil
 }
@@ -141,7 +141,7 @@ func (x *ScheduledBranchReleaser) Process(e transistor.Event) error {
 		if math.Abs(nowDiff.Minutes()) <= SCHEDULED_TIME_THRESHOLD.Minutes() {
 			event := transistor.NewEvent(RELEASE_MESSAGE, transistor.GetAction("create"), payload)
 			event.Artifacts = e.Artifacts
-			x.events <- event
+			x.Events <- event
 		}
 	} else if e.Matches(COMPLETE_MESSAGE) {
 		log.Debug("Received complete message: ", e.Event())
@@ -155,5 +155,5 @@ func (x *ScheduledBranchReleaser) sendResponse(e transistor.Event, action transi
 	event := e.NewEvent(action, state, stateMessage)
 	event.Artifacts = artifacts
 
-	x.events <- event
+	x.Events <- event
 }

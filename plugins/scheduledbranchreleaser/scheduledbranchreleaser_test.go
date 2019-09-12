@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -45,7 +46,7 @@ plugins:
     oidc_uri: http://0.0.0.0:5556/dex
     oidc_client_id: example-app
     postgres:
-      host: postgres
+      host: "postgres"
       port: "5432"
       user: "postgres"
       dbname: "codeamp"
@@ -56,8 +57,11 @@ plugins:
     workers: 1
     workdir: "/tmp/scheduledbranchreleaser"
 `)
+	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	transistor.RegisterPlugin("scheduledbranchreleaser", func() transistor.Plugin {
-		return &scheduledbranchreleaser.ScheduledBranchReleaser{}
+		return &scheduledbranchreleaser.ScheduledBranchReleaser{
+			Events: suite.transistor.Events,
+		}
 	}, plugins.ProjectExtension{})
 
 	migrators := []interface{}{
@@ -67,11 +71,10 @@ plugins:
 
 	db, err := test.SetupResolverTestWithPath("../../configs/circuit.test.yml", migrators)
 	if err != nil {
-		assert.FailNow(suite.T(), err.Error())
+		log.Fatal(err.Error())
 	}
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 
-	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
 
 	httpmock.Activate()
@@ -326,17 +329,17 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) TestSBRExtHandlePulseSuc
 		}
 	}
 
-	// event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "minute"})
-	// suite.transistor.Events <- event
+	event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "minute"})
+	suite.transistor.Events <- event
 
-	// e, err := suite.transistor.GetTestEvent("scheduledbranchreleaser:scheduled", transistor.GetAction("status"), 61)
-	// if err != nil {
-	// 	assert.Nil(suite.T(), err, err.Error())
-	// 	return
-	// }
+	e, err := suite.transistor.GetTestEvent("scheduledbranchreleaser:scheduled", transistor.GetAction("status"), 10)
+	if err != nil {
+		assert.Nil(suite.T(), err, err.Error())
+		return
+	}
 
-	// suite.T().Log(e.StateMessage)
-	// assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
+	suite.T().Log(e.StateMessage)
+	assert.Equal(suite.T(), transistor.GetState("complete"), e.State)
 }
 
 func (suite *TestSuiteScheduledBranchReleaserExtension) AfterTest(suiteName string, testName string) {
