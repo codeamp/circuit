@@ -137,13 +137,12 @@ type GitSync struct {
 
 // Feature event data struct
 type Feature struct {
-	ID            string    `json:"id"`
-	Hash          string    `json:"hash"`
-	ParentHash    string    `json:"parentHash"`
-	User          string    `json:"user"`
-	Message       string    `json:"message"`
-	Created       time.Time `json:"created"`
-	NotFoundSince time.Time `json:"notFoundSince"`
+	ID         string    `json:"id"`
+	Hash       string    `json:"hash"`
+	ParentHash string    `json:"parentHash"`
+	User       string    `json:"user"`
+	Message    string    `json:"message"`
+	Created    time.Time `json:"created"`
 }
 
 // Listener event data struct
@@ -280,18 +279,16 @@ type NotificationExtension struct {
 
 // Release event data struct
 type Release struct {
-	ID                  string    `json:"id"`
-	Project             Project   `json:"project"`
-	Git                 Git       `json:"git"`
-	HeadFeature         Feature   `json:"headFeature"`
-	User                string    `json:"user"`
-	TailFeature         Feature   `json:"tailFeature"`
-	Services            []Service `json:"services"`
-	Secrets             []Secret  `json:"secrets" role:"secret"`
-	Environment         string    `json:"environment"`
-	IsRollback          bool      `json:"isRollback"`
-	Redeployable        bool      `json:"redeployable"`
-	RedeployableMessage string    `json:"redeployableMessage"`
+	ID          string    `json:"id"`
+	Project     Project   `json:"project"`
+	Git         Git       `json:"git"`
+	HeadFeature Feature   `json:"headFeature"`
+	User        string    `json:"user"`
+	TailFeature Feature   `json:"tailFeature"`
+	Services    []Service `json:"services"`
+	Secrets     []Secret  `json:"secrets" role:"secret"`
+	Environment string    `json:"environment"`
+	IsRollback  bool      `json:"isRollback"`
 }
 
 // Project event data struct
