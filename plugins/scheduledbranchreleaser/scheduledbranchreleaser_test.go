@@ -32,26 +32,7 @@ type TestSuiteScheduledBranchReleaserExtension struct {
 
 func (suite *TestSuiteScheduledBranchReleaserExtension) SetupSuite() {
 	var viperConfig = []byte(`
-redis:
-  username:
-  password:
-  server: "redis:6379"
-  database: "0"
-  pool: "30"
-  process: "1"
 plugins:
-  codeamp:
-    workers: 1
-    oidc_uri: http://0.0.0.0:5556/dex
-    oidc_client_id: example-app
-    postgres:
-      host: "postgres"
-      port: "5432"
-      user: "postgres"
-      dbname: "codeamp"
-      sslmode: "disable"
-      password: ""
-    service_address: ":3012"
   scheduledbranchreleaser:
     workers: 1
     workdir: "/tmp/scheduledbranchreleaser"
@@ -69,10 +50,11 @@ plugins:
 	if err != nil {
 		assert.FailNow(suite.T(), err.Error())
 	}
-	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 
 	suite.transistor, _ = test.SetupPluginTest(viperConfig)
 	go suite.transistor.Run()
+
+	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: suite.transistor.Events}
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -329,7 +311,7 @@ func (suite *TestSuiteScheduledBranchReleaserExtension) TestSBRExtHandlePulseSuc
 	event := transistor.NewEvent(plugins.GetEventName("heartbeat"), transistor.GetAction("status"), plugins.HeartBeat{Tick: "minute"})
 	suite.transistor.Events <- event
 
-	e, err := suite.transistor.GetTestEvent("scheduledbranchreleaser:scheduled", transistor.GetAction("status"), 10)
+	e, err := suite.transistor.GetTestEvent("scheduledbranchreleaser", transistor.GetAction("status"), 10)
 	if err != nil {
 		assert.Nil(suite.T(), err, err.Error())
 		return
