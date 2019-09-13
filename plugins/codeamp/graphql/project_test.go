@@ -953,6 +953,101 @@ func (suite *ProjectTestSuite) TestRemoveBookmarkSuccess() {
 	assert.False(suite.T(), bookmarked)
 }
 
+func (suite *ProjectTestSuite) TestGetDeployedInSuccess() {
+	// create environment
+	prodEnvironmentResolver := suite.helper.CreateEnvironmentWithName(suite.T(), "prod")
+	stagingEnvironmentResolver := suite.helper.CreateEnvironmentWithName(suite.T(), "staging")
+
+	// create project
+	projectResolver, err := suite.helper.CreateProject(suite.T(), prodEnvironmentResolver)
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	// add staging environment to prod as well
+	suite.Resolver.DB.Create(&model.ProjectEnvironment{
+		ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID,
+		EnvironmentID: stagingEnvironmentResolver.DBEnvironmentResolver.Environment.Model.ID,
+	})
+
+	// create feature
+	feature := suite.helper.CreateFeature(suite.T(), projectResolver)
+
+	// Extension
+	prodExtensionResolver := suite.helper.CreateExtension(suite.T(), prodEnvironmentResolver)
+	stagingExtensionResolver := suite.helper.CreateExtension(suite.T(), stagingEnvironmentResolver)
+
+	// Project Extension
+	projectResolver.DBProjectResolver.Environment = prodEnvironmentResolver.DBEnvironmentResolver.Environment
+	prodProjectExtensionResolver := suite.helper.CreateProjectExtension(suite.T(), prodExtensionResolver, projectResolver)
+
+	projectResolver.DBProjectResolver.Environment = stagingEnvironmentResolver.DBEnvironmentResolver.Environment
+	stagingProjectExtensionResolver := suite.helper.CreateProjectExtension(suite.T(), stagingExtensionResolver, projectResolver)
+
+	suite.helper.CreateServiceSpec(suite.T(), true)
+	stagingSvc := &model.Service{
+		ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID,
+		EnvironmentID: stagingEnvironmentResolver.DBEnvironmentResolver.Environment.Model.ID,
+	}
+	suite.helper.Resolver.DB.Create(stagingSvc)
+	suite.helper.Resolver.DB.Create(&model.ServiceSpec{
+		ServiceID: stagingSvc.Model.ID,
+	})
+
+	prodSvc := &model.Service{
+		ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID,
+		EnvironmentID: prodEnvironmentResolver.DBEnvironmentResolver.Environment.Model.ID,
+	}
+	suite.helper.Resolver.DB.Create(prodSvc)
+	suite.helper.Resolver.DB.Create(&model.ServiceSpec{
+		ServiceID: prodSvc.Model.ID,
+	})
+
+	// Force to set to 'complete' state for testing purposes
+	stagingProjectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	stagingProjectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	suite.Resolver.DB.Save(&stagingProjectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	prodProjectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.State = "complete"
+	prodProjectExtensionResolver.DBProjectExtensionResolver.ProjectExtension.StateMessage = "Forced Completion via Test"
+	suite.Resolver.DB.Save(&prodProjectExtensionResolver.DBProjectExtensionResolver.ProjectExtension)
+
+	// create release in staging with head_feature_id as feature and state complete
+	stagingRelease := suite.helper.CreateReleaseWithInput(suite.T(), projectResolver, &model.ReleaseInput{
+		EnvironmentID: stagingEnvironmentResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		HeadFeatureID: feature.DBFeatureResolver.Feature.Model.ID.String(),
+		ForceRebuild:  true,
+		ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+	})
+
+	stagingRelease.DBReleaseResolver.Release.State = "complete"
+	suite.Resolver.DB.Save(&stagingRelease.DBReleaseResolver.Release)
+
+	// create release in production with head_feature_id as feature and state complete
+	productionRelease := suite.helper.CreateReleaseWithInput(suite.T(), projectResolver, &model.ReleaseInput{
+		EnvironmentID: prodEnvironmentResolver.DBEnvironmentResolver.Environment.Model.ID.String(),
+		HeadFeatureID: feature.DBFeatureResolver.Feature.Model.ID.String(),
+		ForceRebuild:  true,
+		ProjectID:     projectResolver.DBProjectResolver.Project.Model.ID.String(),
+	})
+	productionRelease.DBReleaseResolver.Release.State = "complete"
+	suite.Resolver.DB.Save(&productionRelease.DBReleaseResolver.Release)
+
+	// call deployedIn(featurehash) and check that environments returned are both production and staging
+	envs, err := projectResolver.EnvsDeployedIn(test.ResolverAuthContext(), &struct {
+		GitHash       string
+		DesiredStates []string
+	}{
+		GitHash:       feature.DBFeatureResolver.Feature.Hash,
+		DesiredStates: []string{"complete"},
+	})
+	if err != nil {
+		assert.FailNow(suite.T(), err.Error())
+	}
+
+	assert.Len(suite.T(), envs, 2)
+}
+
 func (suite *ProjectTestSuite) TestGetBookmarkedAndQueryProjects() {
 	// init 3 projects into db
 	projectNames := []string{"dep", "go", "dl"}

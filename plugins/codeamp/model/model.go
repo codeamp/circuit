@@ -350,6 +350,11 @@ type Environment struct {
 	Color string `json:"color"`
 }
 
+type DeployedEnvironment struct {
+	Environment `json:",inline"`
+	State       transistor.State `json:"state"`
+}
+
 // Extension spec
 type Extension struct {
 	Model `json:",inline"`

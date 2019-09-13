@@ -152,6 +152,54 @@ func (r *ProjectResolver) ContinuousDeploy() bool {
 	}
 }
 
+// EnvsDeployedIn
+func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
+	GitHash       string
+	DesiredStates []string
+}) ([]*EnvironmentResolver, error) {
+	var environments []*EnvironmentResolver
+	var feature model.Feature
+	allReleases := []model.Release{}
+
+	// get feature
+	if err := r.DB.Where("project_id = ? and hash = ?", r.Project.Model.ID, args.GitHash).Find(&feature).Error; err != nil {
+		return []*EnvironmentResolver{}, err
+	}
+
+	// get descendant features to check if they've been deployed too since that implies this one has been deployed too
+	features := []model.Feature{}
+	if err := r.DB.Where("created_at >= ? and project_id = ?", feature.Model.CreatedAt, feature.ProjectID.String()).Find(&features).Error; err != nil {
+		return []*EnvironmentResolver{}, err
+	}
+
+	for _, tmpFeature := range features {
+		var releases []model.Release
+		// get releases where head_feature_id matches this feature
+		if err := r.DB.Select("distinct(environment_id), head_feature_id, state, created_at, deleted_at, state_message").Where("head_feature_id = ? and state in (?)", tmpFeature.Model.ID.String(), args.DesiredStates).Find(&releases).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+			return []*EnvironmentResolver{}, err
+		}
+
+		allReleases = append(allReleases, releases...)
+	}
+
+	// find env associated with each environment_id
+	for _, release := range allReleases {
+		var tmpEnv model.Environment
+		if err := r.DB.Where("id = ?", release.EnvironmentID).Find(&tmpEnv).Error; err != nil {
+			return []*EnvironmentResolver{}, err
+		}
+
+		environments = append(environments, &EnvironmentResolver{
+			Project:     r.Project,
+			Environment: tmpEnv,
+			DB:          r.DB,
+		})
+	}
+
+	// return that list
+	return environments, nil
+}
+
 // Environments
 func (r *ProjectResolver) Environments() []*EnvironmentResolver {
 	var permissions []model.ProjectEnvironment

@@ -247,6 +247,7 @@ type Project {
   rsaPrivateKey: String!
   rsaPublicKey: String!
   features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
+  envsDeployedIn(gitHash: String!, desiredStates: [String!]!): [Environment]!
   currentRelease: Release
   releases(params: PaginatorInput): ReleaseList!
   services(params: PaginatorInput, searchKey: String): ServiceList!
