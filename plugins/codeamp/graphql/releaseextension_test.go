@@ -6,6 +6,7 @@ import (
 	"time"
 
 	graphql_resolver "github.com/codeamp/circuit/plugins/codeamp/graphql"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	"github.com/codeamp/circuit/test"
@@ -45,6 +46,9 @@ func (suite *ReleaseExtensionTestSuite) SetupTest() {
 	suite.Resolver = &graphql_resolver.Resolver{DB: db, Events: make(chan transistor.Event, 10)}
 	suite.helper.SetResolver(suite.Resolver, "TestReleaseExtension")
 	suite.helper.SetContext(test.ResolverAuthContext())
+
+	httpmock.Activate()
+	httpmock.RegisterResponder("GET", "https://github.com/golang/example.git", httpmock.NewStringResponder(200, "{}"))
 }
 
 func (ts *ReleaseExtensionTestSuite) TestReleaseExtensionInterface() {

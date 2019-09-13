@@ -11,11 +11,16 @@ import (
 )
 
 var (
-	upGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: "ext_service",
+	serviceUpGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "service",
 		Name:      "up",
-		Help:      "To show if we can connect to external service",
-	}, []string{"service"})
+		Help:      "To show if service is up",
+	}, []string{"environment", "project"})
+	dependenciesUpGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "dependencies",
+		Name:      "up",
+		Help:      "To show if external dependencies are up",
+	}, []string{"name", "environment", "project"})
 
 	environmentGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "project",
@@ -35,6 +40,8 @@ var (
 		Help:      "To show if project uses master branch",
 	}, []string{"project", "environment", "branch"})
 )
+
+var degraded []int
 
 type RedisCollectorOpts struct {
 	Host     string
@@ -70,18 +77,29 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
-	upGauge.Reset()
+	serviceUpGauge.Reset()
+	dependenciesUpGauge.Reset()
 	environmentGauge.Reset()
 	continuousDeploymentGauge.Reset()
 	onMasterGauge.Reset()
 
 	c.collectRedis()
 	c.collectPostgres()
+	c.collectSelf()
 
-	upGauge.Collect(ch)
-	environmentGauge.Collect(ch)
-	continuousDeploymentGauge.Collect(ch)
-	onMasterGauge.Collect(ch)
+	dependenciesUpGauge.Collect(ch)
+	serviceUpGauge.Collect(ch)
+	//environmentGauge.Collect(ch)
+	//continuousDeploymentGauge.Collect(ch)
+	//onMasterGauge.Collect(ch)
+}
+
+func (c *Collector) collectSelf() {
+	if len(degraded) > 0 {
+		serviceUpGauge.WithLabelValues("", "codeamp/circuit").Set(float64(0))
+	} else {
+		serviceUpGauge.WithLabelValues("", "codeamp/circuit").Set(float64(1))
+	}
 }
 
 func (c *Collector) collectRedis() {
@@ -90,13 +108,13 @@ func (c *Collector) collectRedis() {
 		Password: c.RedisOpts.Password,
 		DB:       c.RedisOpts.DB,
 	})
-
 	if _, err := redisClient.Ping().Result(); err != nil {
-		upGauge.WithLabelValues("redis").Set(0)
+		dependenciesUpGauge.WithLabelValues("redis", "", "codeamp/circuit").Set(float64(0))
+		degraded = append(degraded, 1)
 		return
 	}
 
-	upGauge.WithLabelValues("redis").Set(1)
+	dependenciesUpGauge.WithLabelValues("redis", "", "codeamp/circuit").Set(float64(1))
 }
 
 func (c *Collector) collectPostgres() {
@@ -109,11 +127,12 @@ func (c *Collector) collectPostgres() {
 		c.PostgresOpts.Password,
 	))
 	if err != nil {
-		upGauge.WithLabelValues("postgres").Set(float64(0))
+		dependenciesUpGauge.WithLabelValues("postgres", "", "codeamp/circuit").Set(float64(0))
+		degraded = append(degraded, 1)
 		return
 	}
 
-	upGauge.WithLabelValues("postgres").Set(float64(1))
+	dependenciesUpGauge.WithLabelValues("postgres", "", "codeamp/circuit").Set(float64(1))
 
 	//db.LogMode(true)
 
