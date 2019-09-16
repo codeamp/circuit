@@ -185,7 +185,9 @@ func (r *ProjectResolverMutation) UpdateProject(ctx context.Context, args *struc
 		}
 	}
 
-	if args.Project.GitBranch != nil {
+	// Check if user has "admin" level permissions and whether GitBranch is not nil
+	_, noAdminPermissionErr := auth.CheckAuth(ctx, []string{"admin"})
+	if args.Project.GitBranch != nil && noAdminPermissionErr != nil {
 		projectID, err := uuid.FromString(*args.Project.ID)
 		if err != nil {
 			return nil, fmt.Errorf("Couldn't parse project ID")
