@@ -185,9 +185,9 @@ func (r *ProjectResolverMutation) UpdateProject(ctx context.Context, args *struc
 		}
 	}
 
-	// Check if user has "admin" level permissions and whether GitBranch is not nil
-	_, noAdminPermissionErr := auth.CheckAuth(ctx, []string{"admin"})
-	if args.Project.GitBranch != nil && noAdminPermissionErr == nil {
+	oldBranchName := ""
+	var projectSettings model.ProjectSettings
+	if args.Project.GitBranch != nil {
 		projectID, err := uuid.FromString(*args.Project.ID)
 		if err != nil {
 			return nil, fmt.Errorf("Couldn't parse project ID")
@@ -198,47 +198,45 @@ func (r *ProjectResolverMutation) UpdateProject(ctx context.Context, args *struc
 			return nil, fmt.Errorf("Couldn't parse environment ID")
 		}
 
-		oldBranchName := ""
-		var projectSettings model.ProjectSettings
 		if r.DB.Where("environment_id = ? and project_id = ?", environmentID, projectID).First(&projectSettings).RecordNotFound() {
 			projectSettings.EnvironmentID = environmentID
 			projectSettings.ProjectID = projectID
-			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
 		} else {
 			oldBranchName = projectSettings.GitBranch
-			projectSettings.GitBranch = *args.Project.GitBranch
 			projectSettings.ContinuousDeploy = *args.Project.ContinuousDeploy
 		}
 
-		_userID, err := auth.CheckAuth(ctx, []string{})
-		if err != nil {
-			return nil, err
-		}
+		// Check whether GitBranch is nil and
+		// if user has "admin" level permissions to allow the user to make the change
+		_userID, noAdminPermissionErr := auth.CheckAuth(ctx, []string{"admin"})
+		if noAdminPermissionErr == nil {
+			projectSettings.GitBranch = *args.Project.GitBranch
 
-		userID, err := uuid.FromString(_userID)
-		if err != nil {
-			return nil, err
-		}
+			userID, err := uuid.FromString(_userID)
+			if err != nil {
+				return nil, err
+			}
 
-		log.WarnWithFields("[AUDIT] Updated Project Branch", log.Fields{
-			"project":     project.Slug,
-			"branch":      *args.Project.GitBranch,
-			"oldBranch":   oldBranchName,
-			"user":        userID,
-			"environment": environmentID},
-		)
+			log.WarnWithFields("[AUDIT] Updated Project Branch", log.Fields{
+				"project":     project.Slug,
+				"branch":      *args.Project.GitBranch,
+				"oldBranch":   oldBranchName,
+				"user":        userID,
+				"environment": environmentID},
+			)
+		}
 
 		// Save after all error conditions have passed
 		if err = r.DB.Save(&projectSettings).Error; err != nil {
 			log.Error(err)
 			return nil, err
 		}
-	}
 
-	if err := r.DB.Save(&project).Error; err != nil {
-		log.Error(err)
-		return nil, err
+		if err := r.DB.Save(&project).Error; err != nil {
+			log.Error(err)
+			return nil, err
+		}
 	}
 
 	return &ProjectResolver{DBProjectResolver: &db_resolver.ProjectResolver{DB: r.DB, Project: project}}, nil
