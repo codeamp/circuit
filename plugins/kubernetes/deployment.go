@@ -199,6 +199,23 @@ func detectPodFailure(pod v1.Pod) (string, bool) {
 	return "", false
 }
 
+func detectPodRestart(pod v1.Pod) (string, int) {
+	restartCount := 0
+	if len(pod.Status.ContainerStatuses) > 0 {
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			if containerStatus.RestartCount != 0 {
+				restartCount += int(containerStatus.RestartCount)
+			}
+		}
+	}
+
+	if restartCount > 0 {
+		return fmt.Sprintf("Pod '%s' has restarted during deployment", pod.Name), restartCount
+	} else {
+		return "", 0
+	}
+}
+
 func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.DeploymentStrategy {
 	var defaultDeploymentStrategy = v1beta1.DeploymentStrategy{
 		Type: v1beta1.RollingUpdateDeploymentStrategyType,
@@ -956,6 +973,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 			servicesFailed = nil
 			errorsReported = nil
 
+			deployFailedDueToRestarts := false
 			for index, service := range deploymentServices {
 				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
 
@@ -1009,12 +1027,23 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 						continue
 					}
 
+					totalPodsForDeployment := len(allPods.Items)
+					totalPodRestarts := 0
+
+					allowedPodRestartsRatio := 0.25
+					maxRestartsAllowed := int(float64(totalPodsForDeployment) * allowedPodRestartsRatio)
+					if maxRestartsAllowed < 1 {
+						maxRestartsAllowed = 1
+					}
+
 				AllPods:
 					for _, pod := range allPods.Items {
 						for _, ref := range pod.ObjectMeta.OwnerReferences {
 							if ref.Kind == "ReplicaSet" {
 								if ref.Name == currentReplica.Name {
 									// This is a pod we want to check status for
+									_, podRestarts := detectPodRestart(pod)
+									totalPodRestarts += podRestarts
 									if message, result := detectPodFailure(pod); result {
 										// Pod is waiting forever, fail the deployment.
 										log.Error(fmt.Errorf(message))
@@ -1027,6 +1056,10 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 								}
 							}
 						}
+					}
+
+					if totalPodRestarts >= maxRestartsAllowed {
+						deployFailedDueToRestarts = true
 					}
 				}
 			}
@@ -1060,6 +1093,12 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 					log.Info(fmt.Sprintf("Succeeded: '%s'", deploymentSucceededReport))
 					log.Info(fmt.Sprintf("Failed: '%s'", deploymentFailedReport))
 
+					break
+				} else if deployFailedDueToRestarts {
+					log.Warn("Too many restarts detected when deploying: ", namespace)
+
+					servicesFailed = append(servicesFailed, deploymentServices...)
+					errorsReported = append(errorsReported, errors.New(ErrDeployPodRestartLoop))
 					break
 				}
 
