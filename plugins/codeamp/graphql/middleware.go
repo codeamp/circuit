@@ -11,6 +11,7 @@ import (
 	log "github.com/codeamp/logger"
 	oidc "github.com/coreos/go-oidc"
 	"github.com/go-redis/redis"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 )
 
@@ -32,6 +33,17 @@ func (middleware *Middleware) Auth(next http.Handler) http.Handler {
 		}
 
 		bearerToken := authString[7:]
+
+		// pass if internal token
+		internalBearerToken := viper.GetString("plugins.codeamp.internal_bearer_token")
+		if bearerToken == internalBearerToken {
+			claims.UserID = uuid.FromStringOrNil("").String()
+			claims.Email = "codeamp@codeamp.org"
+			claims.Permissions = []string{"admin"}
+			claims.Verified = true
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "jwt", claims)))
+			return
+		}
 
 		// Initialize a provider by specifying dex's issuer URL.
 		provider, err := oidc.NewProvider(ctx, viper.GetString("plugins.codeamp.oidc_uri"))

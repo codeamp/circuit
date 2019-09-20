@@ -59,6 +59,25 @@ func (r *ProjectResolver) RsaPublicKey() string {
 	return r.DBProjectResolver.Project.RsaPublicKey
 }
 
+// IsDeployed
+func (r *ProjectResolver) EnvsDeployedIn(ctx context.Context, args *struct {
+	GitHash       string
+	DesiredStates []string
+}) ([]*EnvironmentResolver, error) {
+	db_resolvers, err := r.DBProjectResolver.EnvsDeployedIn(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	gql_resolvers := make([]*EnvironmentResolver, 0, len(db_resolvers))
+
+	for _, i := range db_resolvers {
+		gql_resolvers = append(gql_resolvers, &EnvironmentResolver{DBEnvironmentResolver: i})
+	}
+
+	return gql_resolvers, nil
+}
+
 // Features
 func (r *ProjectResolver) Features(args *struct {
 	ShowDeployed *bool

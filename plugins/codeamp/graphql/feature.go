@@ -2,7 +2,6 @@ package graphql_resolver
 
 import (
 	"encoding/json"
-	"time"
 
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	graphql "github.com/graph-gophers/graphql-go"
@@ -51,14 +50,6 @@ func (r *FeatureResolver) Ref() string {
 // Created
 func (r *FeatureResolver) Created() graphql.Time {
 	return graphql.Time{Time: r.DBFeatureResolver.Feature.Created}
-}
-
-// NotFoundSince
-func (r *FeatureResolver) NotFoundSince() graphql.Time {
-	if r.DBFeatureResolver.Feature.NotFoundSince == nil {
-		return graphql.Time{Time: time.Time{}}
-	}
-	return graphql.Time{Time: *r.DBFeatureResolver.Feature.NotFoundSince}
 }
 
 func (r *FeatureResolver) MarshalJSON() ([]byte, error) {

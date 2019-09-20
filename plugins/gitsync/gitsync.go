@@ -219,6 +219,10 @@ func (x *GitSync) Process(e transistor.Event) error {
 			c.Ref = fmt.Sprintf("refs/heads/%s", payload.Git.Branch)
 
 			_commits = append(_commits, c)
+
+			if c.Hash == payload.From {
+				break
+			}
 		}
 
 		payload.Commits = _commits

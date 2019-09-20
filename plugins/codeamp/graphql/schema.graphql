@@ -157,7 +157,6 @@ type Feature {
   parentHash: String!
   ref: String!
   created: Time!
-  notFoundSince: Time!
 }
 
 # Service
@@ -234,8 +233,6 @@ type Release {
   started: Time!
   finished: Time!
   isRollback: Boolean!
-  redeployable: Boolean!
-  redeployableMessage: String!
 }
 
 # Project
@@ -250,6 +247,7 @@ type Project {
   rsaPrivateKey: String!
   rsaPublicKey: String!
   features(showDeployed: Boolean, params: PaginatorInput): FeatureList!
+  envsDeployedIn(gitHash: String!, desiredStates: [String!]!): [Environment]!
   currentRelease: Release
   releases(params: PaginatorInput): ReleaseList!
   services(params: PaginatorInput, searchKey: String): ServiceList!

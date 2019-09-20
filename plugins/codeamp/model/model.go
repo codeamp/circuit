@@ -84,9 +84,6 @@ type Release struct {
 	// ForceRebuild
 	ForceRebuild bool `json:"forceRebuild"`
 	IsRollback   bool `json:"isRollback"`
-	// Redployable
-	Redeployable        bool   `json:"redeployable" gorm:"default:true;not null"`
-	RedeployableMessage string `json:"redeployableMessage"`
 }
 
 // ServiceSpec
@@ -353,6 +350,11 @@ type Environment struct {
 	Color string `json:"color"`
 }
 
+type DeployedEnvironment struct {
+	Environment `json:",inline"`
+	State       transistor.State `json:"state"`
+}
+
 // Extension spec
 type Extension struct {
 	Model `json:",inline"`
@@ -389,8 +391,6 @@ type Feature struct {
 	Ref string `json:"ref"`
 	// Created
 	Created time.Time `json:"created"`
-	// NotFoundSince
-	NotFoundSince *time.Time `json:"notFoundSince"`
 }
 
 // ExtConfig
