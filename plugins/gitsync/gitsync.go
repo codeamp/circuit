@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -72,7 +73,10 @@ func (x *GitSync) Subscribe() []string {
 
 func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	defer cmd.Wait()
+	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
@@ -120,7 +124,9 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	env = append(env, idRsa)
 
 	cmd := exec.Command("mkdir", "-p", filepath.Dir(repoPath))
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	defer cmd.Wait()
+	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
 	_, err = cmd.CombinedOutput()
 	if err != nil {
