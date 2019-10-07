@@ -76,6 +76,7 @@ func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Start()
 
+	defer cmd.Wait()
 	defer func() {
 		pgid, err := syscall.Getpgid(cmd.Process.Pid)
 		if err == nil {
@@ -92,10 +93,12 @@ func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	if err != nil {
 		if ee, ok := err.(*exec.Error); ok {
 			if ee.Err == exec.ErrNotFound {
+				log.Error(errors.New("Git executable not found in $PATH").Error())
 				return nil, errors.New("Git executable not found in $PATH")
 			}
 		}
 
+		log.Error(err.Error())
 		return nil, errors.New(string(bytes.TrimSpace(out)))
 	}
 
