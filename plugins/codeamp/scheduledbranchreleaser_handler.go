@@ -216,7 +216,10 @@ func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
+	cmd := exec.Command("mkdir", "-p", filepath.Dir(repoPath))
+	defer cmd.Wait()
+
+	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
@@ -297,6 +300,7 @@ func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.
 // Pulled from the Gitsync plugin
 func (x *CodeAmp) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
+	defer cmd.Wait()
 
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()

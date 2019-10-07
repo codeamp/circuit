@@ -77,6 +77,7 @@ func (x *DockerBuilder) Subscribe() []string {
 
 func (x *DockerBuilder) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
+	defer cmd.Wait()
 
 	log.DebugWithFields("executing command", log.Fields{
 		"path": cmd.Path,
@@ -114,7 +115,10 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
+	cmd := exec.Command("mkdir", "-p", filepath.Dir(repoPath))
+	defer cmd.Wait()
+
+	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return err
 	}
@@ -186,6 +190,8 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 
 	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), payload.Release.Project.Repository, payload.Release.Git.Branch)
 	gitArchive := exec.Command("git", "archive", payload.Release.HeadFeature.Hash)
+	defer gitArchive.Wait()
+
 	gitArchive.Dir = repoPath
 	gitArchiveOut, err := gitArchive.StdoutPipe()
 	if err != nil {

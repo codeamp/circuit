@@ -72,6 +72,7 @@ func (x *GitSync) Subscribe() []string {
 
 func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
+	defer cmd.Wait()
 
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
@@ -118,7 +119,10 @@ func (x *GitSync) commits(project plugins.Project, git plugins.Git) ([]plugins.G
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
+	cmd := exec.Command("mkdir", "-p", filepath.Dir(repoPath))
+	defer cmd.Wait()
+
+	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
