@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -216,10 +217,7 @@ func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	cmd := exec.Command("mkdir", "-p", filepath.Dir(repoPath))
-	defer cmd.Wait()
-
-	_, err = cmd.CombinedOutput()
+	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +298,10 @@ func (x *CodeAmp) commits(projectRepository string, git plugins.Git) ([]plugins.
 // Pulled from the Gitsync plugin
 func (x *CodeAmp) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	defer cmd.Wait()
+	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()

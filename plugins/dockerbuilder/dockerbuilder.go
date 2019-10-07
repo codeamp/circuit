@@ -9,8 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -77,7 +77,10 @@ func (x *DockerBuilder) Subscribe() []string {
 
 func (x *DockerBuilder) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	defer cmd.Wait()
+	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
 	log.DebugWithFields("executing command", log.Fields{
 		"path": cmd.Path,
@@ -115,8 +118,11 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	cmd := exec.Command("mkdir", "-p", filepath.Dir(repoPath))
+	cmd := exec.Command("git", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	defer cmd.Wait()
+	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
 	_, err = cmd.CombinedOutput()
 	if err != nil {
@@ -190,7 +196,10 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 
 	repoPath = fmt.Sprintf("%s/%s_%s", viper.GetString("plugins.dockerbuilder.workdir"), payload.Release.Project.Repository, payload.Release.Git.Branch)
 	gitArchive := exec.Command("git", "archive", payload.Release.HeadFeature.Hash)
+	gitArchive.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	defer gitArchive.Wait()
+	defer syscall.Kill(-gitArchive.Process.Pid, syscall.SIGKILL)
 
 	gitArchive.Dir = repoPath
 	gitArchiveOut, err := gitArchive.StdoutPipe()

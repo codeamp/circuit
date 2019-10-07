@@ -76,7 +76,7 @@ func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	defer cmd.Wait()
-	//defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
