@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -77,10 +78,7 @@ func (x *DockerBuilder) Subscribe() []string {
 
 func (x *DockerBuilder) git(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
 	defer cmd.Wait()
-	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
 	log.DebugWithFields("executing command", log.Fields{
 		"path": cmd.Path,
@@ -118,13 +116,7 @@ func (x *DockerBuilder) bootstrap(repoPath string, event transistor.Event) error
 	env := os.Environ()
 	env = append(env, idRsa)
 
-	cmd := exec.Command("git", args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	defer cmd.Wait()
-	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-
-	_, err = cmd.CombinedOutput()
+	_, err = exec.Command("mkdir", "-p", filepath.Dir(repoPath)).CombinedOutput()
 	if err != nil {
 		return err
 	}
