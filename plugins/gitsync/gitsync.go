@@ -72,15 +72,12 @@ func (x *GitSync) Subscribe() []string {
 }
 
 func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
-	log.Info("Queueing command: ")
 	cmd := exec.Command("git", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Start()
 
 	defer func() {
-		log.Info("cmd.Process.Pid: ", cmd.Process.Pid)
 		pgid, err := syscall.Getpgid(cmd.Process.Pid)
-		log.Info("cmd.Process.PgID: ", pgid)
 		if err == nil {
 			if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
 				log.Error(err.Error())
@@ -91,7 +88,6 @@ func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 	}()
 
 	cmd.Env = env
-	log.Info("Executing")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if ee, ok := err.(*exec.Error); ok {
@@ -103,7 +99,6 @@ func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
 		return nil, errors.New(string(bytes.TrimSpace(out)))
 	}
 
-	log.Info("Returning result")
 	return out, nil
 }
 
