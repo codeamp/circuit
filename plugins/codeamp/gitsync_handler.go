@@ -77,7 +77,7 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	}
 
 	if hasProjectSettings == false {
-		log.Warn("PROJECT HAS NO PROJECT SETTINGS ASSIGNED!")
+		log.Warn("PROJECT HAS NO PROJECT SETTINGS ASSIGNED! - ", project.Name)
 		payload := plugins.GitSync{
 			Project: plugins.Project{
 				ID:         project.Model.ID.String(),
