@@ -10,7 +10,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/codeamp/circuit/plugins"
@@ -72,33 +71,18 @@ func (x *GitSync) Subscribe() []string {
 }
 
 func (x *GitSync) git(env []string, args ...string) ([]byte, error) {
+	log.Error("DOING GIT WORK IN GITSYNC:  ", args)
 	cmd := exec.Command("git", args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Start()
-
-	defer cmd.Wait()
-	defer func() {
-		pgid, err := syscall.Getpgid(cmd.Process.Pid)
-		if err == nil {
-			if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
-				log.Error(err.Error())
-			}
-		} else {
-			log.Error(err.Error())
-		}
-	}()
 
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if ee, ok := err.(*exec.Error); ok {
 			if ee.Err == exec.ErrNotFound {
-				log.Error(errors.New("Git executable not found in $PATH").Error())
 				return nil, errors.New("Git executable not found in $PATH")
 			}
 		}
 
-		log.Error(err.Error())
 		return nil, errors.New(string(bytes.TrimSpace(out)))
 	}
 
