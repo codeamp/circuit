@@ -34,26 +34,24 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	}
 
 	// get branches of entire environments
-	projectSettingsCollection := []model.ProjectSettings{}
-	if x.DB.Where("project_id = ?", project.Model.ID.String()).Find(&projectSettingsCollection).RecordNotFound() {
-		payload := plugins.GitSync{
-			Project: plugins.Project{
-				ID:         project.Model.ID.String(),
-				Repository: project.Repository,
-			},
-			Git: plugins.Git{
-				Url:           project.GitUrl,
-				Protocol:      project.GitProtocol,
-				Branch:        "master",
-				RsaPrivateKey: project.RsaPrivateKey,
-				RsaPublicKey:  project.RsaPublicKey,
-			},
-			From: hash,
-		}
+	// projectSettingsCollection := []model.ProjectSettings{}
+	projectSettings := model.ProjectSettings{}
+	environmentsList := []model.Environment{}
 
-		x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
-	} else {
-		for _, projectSettings := range projectSettingsCollection {
+	if err := x.DB.Find(&environmentsList).Error; err != nil {
+		log.Error(err.Error())
+	}
+
+	hasProjectSettings := false
+	for _, environment := range environmentsList {
+		if err := x.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID.String(), environment.ID.String()).
+			Order("created_at").First(&projectSettings).Error; err != nil {
+
+			if gorm.IsRecordNotFoundError(err) == false {
+				log.Error(err.Error())
+			}
+
+		} else {
 			payload := plugins.GitSync{
 				Project: plugins.Project{
 					ID:         project.Model.ID.String(),
@@ -70,7 +68,29 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 			}
 
 			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
+
+			hasProjectSettings = true
 		}
+	}
+
+	if hasProjectSettings == false {
+		log.Warn("PROJECT HAS NO PROJECT SETTINGS ASSIGNED! - ", project.Name)
+		payload := plugins.GitSync{
+			Project: plugins.Project{
+				ID:         project.Model.ID.String(),
+				Repository: project.Repository,
+			},
+			Git: plugins.Git{
+				Url:           project.GitUrl,
+				Protocol:      project.GitProtocol,
+				Branch:        "master",
+				RsaPrivateKey: project.RsaPrivateKey,
+				RsaPublicKey:  project.RsaPublicKey,
+			},
+			From: hash,
+		}
+
+		x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
 	}
 
 	return nil
@@ -118,10 +138,10 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 						if gorm.IsRecordNotFoundError(err) {
 							log.ErrorWithFields("No project settings found", log.Fields{
 								"project_id": project.Model.ID,
-							})	
+							})
 						} else {
 							log.Error(err.Error())
-						}						
+						}
 					} else {
 						// Create an automated release if specified by the projects configuration/settings
 						// call CreateRelease for each env that has cd turned on
@@ -145,7 +165,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 										UserID:      uuid.FromStringOrNil(ContinuousDeployUUID).String(),
 										Email:       "codeamp@codeamp.com",
 										Permissions: []string{"admin"},
-									})								
+									})
 
 									x.Resolver.CreateRelease(adminContext, &struct {
 										Release *model.ReleaseInput
