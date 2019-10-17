@@ -267,6 +267,7 @@ func (x *DockerBuilder) build(repoPath string, event transistor.Event, dockerBui
 		InputStream:  dockerBuildIn,
 		BuildArgs:    buildArgs,
 		AuthConfigs:  authConfigs,
+		NoCache:      true,
 	}
 
 	dockerClient, err := x.Dockerer.NewClient(x.Socket)
