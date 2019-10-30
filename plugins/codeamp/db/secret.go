@@ -19,10 +19,8 @@ func (r *SecretResolver) IsSecret() bool {
 
 // Value
 func (r *SecretResolver) Value() string {
-	if r.IsSecret() {
-		if r.IsAdmin == false {
-			return "******"
-		}
+	if r.IsSecret() && r.IsAdmin == false {
+		return "******"
 	}
 
 	if r.SecretValue != (model.SecretValue{}) {
