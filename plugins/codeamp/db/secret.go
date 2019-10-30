@@ -8,7 +8,8 @@ import (
 type SecretResolver struct {
 	model.Secret
 	model.SecretValue
-	DB *gorm.DB
+	DB      *gorm.DB
+	IsAdmin bool
 }
 
 // IsSecret
@@ -18,7 +19,7 @@ func (r *SecretResolver) IsSecret() bool {
 
 // Value
 func (r *SecretResolver) Value() string {
-	if r.IsSecret() {
+	if r.IsSecret() && r.IsAdmin == false {
 		return "******"
 	}
 

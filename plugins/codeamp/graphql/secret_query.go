@@ -6,6 +6,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/auth"
 	db_resolver "github.com/codeamp/circuit/plugins/codeamp/db"
 	"github.com/codeamp/circuit/plugins/codeamp/model"
+	log "github.com/codeamp/logger"
 	"github.com/jinzhu/gorm"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -38,7 +39,15 @@ func (r *SecretResolverQuery) Secret(ctx context.Context, args *struct {
 		return nil, err
 	}
 
-	resolver := SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB}}
+	isAdmin := false
+	if userID, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
+		log.Error(err.Error())
+	} else {
+		if userID != "" {
+			isAdmin = true
+		}
+	}
+	resolver := SecretResolver{DBSecretResolver: &db_resolver.SecretResolver{DB: r.DB, IsAdmin: isAdmin}}
 
 	r.DB.Where("id = ?", args.ID).First(&resolver.DBSecretResolver.Secret)
 	return &resolver, nil
