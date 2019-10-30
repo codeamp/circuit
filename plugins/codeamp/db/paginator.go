@@ -79,6 +79,7 @@ func (r *ReleaseListResolver) Count() (int32, error) {
 type SecretListResolver struct {
 	PaginatorInput *model.PaginatorInput
 	DB             *gorm.DB
+	IsAdmin        bool
 }
 
 // Entries
@@ -95,8 +96,9 @@ func (r *SecretListResolver) Entries() ([]*SecretResolver, error) {
 	unscoped_db := r.DB.New()
 	for _, row := range rows {
 		results = append(results, &SecretResolver{
-			Secret: row,
-			DB:     unscoped_db,
+			Secret:  row,
+			DB:      unscoped_db,
+			IsAdmin: r.IsAdmin,
 		})
 	}
 

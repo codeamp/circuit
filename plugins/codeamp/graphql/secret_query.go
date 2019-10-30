@@ -23,11 +23,21 @@ func (r *SecretResolverQuery) Secrets(ctx context.Context, args *struct {
 		return nil, err
 	}
 
+	isAdmin := false
+	if userID, err := auth.CheckAuth(ctx, []string{"admin"}); err != nil {
+		log.Error(err.Error())
+	} else {
+		if userID != "" {
+			isAdmin = true
+		}
+	}
+
 	db := r.DB.Where("scope != ?", "project").Order("environment_id desc, key asc, scope asc")
 	return &SecretListResolver{
 		DBSecretListResolver: &db_resolver.SecretListResolver{
 			DB:             db,
 			PaginatorInput: args.Params,
+			IsAdmin:        isAdmin,
 		},
 	}, nil
 }
