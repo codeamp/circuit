@@ -20,7 +20,7 @@ func (r *SecretResolver) IsSecret() bool {
 // Value
 func (r *SecretResolver) Value() string {
 	if r.IsSecret() {
-		if IsAdmin == false {
+		if r.IsAdmin == false {
 			return "******"
 		}
 	}
