@@ -678,6 +678,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 
 		// expose codeamp service name via env variable
 		reData := e.Payload.(plugins.ReleaseExtension)
+
 		podEnvVars := append(
 			envVars,
 			v1.EnvVar{
@@ -689,6 +690,39 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				Value: reData.Release.Environment,
 			},
 		)
+
+		if strings.ToLower(reData.Release.Environment) != "production" {
+			podEnvVars = append(
+				podEnvVars,
+				v1.EnvVar{
+					Name: "DATADOG_TRACE_AGENT_HOSTNAME",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "spec.nodeName",
+						},
+					},
+				},
+				v1.EnvVar{
+					Name: "DD_AGENT_HOST",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "spec.nodeName",
+						},
+					},
+				},
+				v1.EnvVar{
+					Name: "STATSD_URL",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "spec.nodeName",
+						},
+					},
+				},
+			)
+		}
 
 		simplePod := SimplePodSpec{
 			Name:          oneShotServiceName,
@@ -842,6 +876,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 
 		// expose codeamp service name via env variable
 		reData := e.Payload.(plugins.ReleaseExtension)
+
 		podEnvVars := append(
 			envVars,
 			v1.EnvVar{
@@ -853,6 +888,39 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 				Value: reData.Release.Environment,
 			},
 		)
+
+		if strings.ToLower(reData.Release.Environment) != "production" {
+			podEnvVars = append(
+				podEnvVars,
+				v1.EnvVar{
+					Name: "DATADOG_TRACE_AGENT_HOSTNAME",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "spec.nodeName",
+						},
+					},
+				},
+				v1.EnvVar{
+					Name: "DD_AGENT_HOST",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "spec.nodeName",
+						},
+					},
+				},
+				v1.EnvVar{
+					Name: "STATSD_URL",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "spec.nodeName",
+						},
+					},
+				},
+			)
+		}
 
 		var preStopHook v1.Handler
 		if service.PreStopHook != "" {
