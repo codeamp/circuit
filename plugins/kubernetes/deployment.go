@@ -688,6 +688,33 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				Name:  "CODEAMP_RELEASE_ENV",
 				Value: reData.Release.Environment,
 			},
+			v1.EnvVar{
+				Name: "DATADOG_TRACE_AGENT_HOSTNAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "spec.nodeName",
+					},
+				},
+			},
+			v1.EnvVar{
+				Name: "DD_AGENT_HOST",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "spec.nodeName",
+					},
+				},
+			},
+			v1.EnvVar{
+				Name: "STATSD_URL",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "spec.nodeName",
+					},
+				},
+			},
 		)
 
 		simplePod := SimplePodSpec{
@@ -851,6 +878,33 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			v1.EnvVar{
 				Name:  "CODEAMP_RELEASE_ENV",
 				Value: reData.Release.Environment,
+			},
+			v1.EnvVar{
+				Name: "DATADOG_TRACE_AGENT_HOSTNAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "spec.nodeName",
+					},
+				},
+			},
+			v1.EnvVar{
+				Name: "DD_AGENT_HOST",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "spec.nodeName",
+					},
+				},
+			},
+			v1.EnvVar{
+				Name: "STATSD_URL",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "spec.nodeName",
+					},
+				},
 			},
 		)
 
