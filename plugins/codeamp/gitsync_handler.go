@@ -116,7 +116,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		newFeatures := 0
 		for _, commit := range payload.Commits {
 			var feature model.Feature
-			if x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
+			if x.DB.Where("project_id = ? AND hash = ? AND ref = ?", project.ID, commit.Hash, commit.Ref).First(&feature).RecordNotFound() {
 				feature = model.Feature{
 					ProjectID:  project.ID,
 					Message:    commit.Message,
