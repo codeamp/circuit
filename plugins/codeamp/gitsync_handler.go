@@ -27,8 +27,6 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 		x.DB.Where("project_id = ?", project.ID).Order("created_at DESC").First(&feature)
 
 		log.Warn("there was no release found for the project: ", project.ID)
-		spew.Dump(feature)
-
 		hash = feature.Hash
 	} else {
 		log.Warn("Looking for head feature: ", release.HeadFeatureID)
@@ -49,11 +47,13 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	if err := x.DB.Find(&environmentsList).Error; err != nil {
 		log.Error(err.Error())
 	}
-	spew.Dump(environmentsList)
 
 	hasProjectSettings := false
 	for _, environment := range environmentsList {
 		log.Warn("looping through env: ", environment.Key)
+
+		x.DB.LogMode(true)
+		defer x.DB.LogMode(false)
 		if err := x.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID.String(), environment.ID.String()).
 			Order("created_at").First(&projectSettings).Error; err != nil {
 
@@ -83,6 +83,8 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 			hasProjectSettings = true
 		}
 	}
+
+	x.DB.LogMode(false)
 
 	if hasProjectSettings == false {
 		log.Warn("PROJECT HAS NO PROJECT SETTINGS ASSIGNED! - ", project.Name)
