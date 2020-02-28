@@ -8,6 +8,7 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jinzhu/gorm"
@@ -20,11 +21,17 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	hash := ""
 
 	// Get latest release and deployed feature hash
+	log.Debug("Grabbing a gitsync")
 	if x.DB.Where("project_id = ?", project.ID).Order("created_at DESC").First(&release).RecordNotFound() {
 		// get latest feature if there is no releases
 		x.DB.Where("project_id = ?", project.ID).Order("created_at DESC").First(&feature)
+
+		log.Warn("there was no release found for the project: ", project.ID)
+		spew.Dump(feature)
+
 		hash = feature.Hash
 	} else {
+		log.Warn("Looking for head feature: ", release.HeadFeatureID)
 		if x.DB.Where("id = ?", release.HeadFeatureID).Find(&headFeature).RecordNotFound() {
 			log.InfoWithFields("can not find head feature", log.Fields{
 				"id": release.HeadFeatureID,
@@ -38,18 +45,22 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	projectSettings := model.ProjectSettings{}
 	environmentsList := []model.Environment{}
 
+	log.Warn("Finding environments list")
 	if err := x.DB.Find(&environmentsList).Error; err != nil {
 		log.Error(err.Error())
 	}
+	spew.Dump(environmentsList)
 
 	hasProjectSettings := false
 	for _, environment := range environmentsList {
+		log.Warn("looping through env: ", environment.Key.String())
 		if err := x.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID.String(), environment.ID.String()).
 			Order("created_at").First(&projectSettings).Error; err != nil {
 
 			if gorm.IsRecordNotFoundError(err) == false {
 				log.Error(err.Error())
 			}
+			spew.Dump(err)
 
 		} else {
 			payload := plugins.GitSync{
@@ -116,6 +127,8 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		newFeatures := 0
 		for _, commit := range payload.Commits {
 			var feature model.Feature
+			x.DB.LogMode(true)
+			defer x.DB.LogMode(false)
 			if x.DB.Where("project_id = ? AND hash = ? AND ref = ?", project.ID, commit.Hash, commit.Ref).First(&feature).RecordNotFound() {
 				feature = model.Feature{
 					ProjectID:  project.ID,
@@ -129,6 +142,8 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 				if err := x.DB.Save(&feature).Error; err != nil {
 					log.Error(err.Error())
+				} else {
+					log.Warn("Saving feature for ", commit.Ref)
 				}
 
 				newFeatures = newFeatures + 1
@@ -143,6 +158,9 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 							log.Error(err.Error())
 						}
 					} else {
+						spew.Dump(projectSettings)
+
+						log.Warn("checking for automated release status")
 						// Create an automated release if specified by the projects configuration/settings
 						// call CreateRelease for each env that has cd turned on
 						for _, setting := range projectSettings {
@@ -185,6 +203,8 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 					}
 				}
 			}
+
+			x.DB.LogMode(false)
 		}
 
 		log.Debug(fmt.Sprintf("Sync: [%s] - Found %d features. %d were new.", project.GitUrl, foundFeatures, newFeatures))
