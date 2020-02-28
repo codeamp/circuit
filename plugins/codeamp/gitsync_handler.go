@@ -53,7 +53,7 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 
 	hasProjectSettings := false
 	for _, environment := range environmentsList {
-		log.Warn("looping through env: ", environment.Key.String())
+		log.Warn("looping through env: ", environment.Key)
 		if err := x.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID.String(), environment.ID.String()).
 			Order("created_at").First(&projectSettings).Error; err != nil {
 
