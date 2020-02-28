@@ -81,7 +81,7 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 				From: hash,
 			}
 
-			spew.DUmp(payload)
+			spew.Dump(payload)
 			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
 
 			hasProjectSettings = true
