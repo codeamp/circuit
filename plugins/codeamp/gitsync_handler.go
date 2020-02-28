@@ -81,6 +81,7 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 				From: hash,
 			}
 
+			spew.DUmp(payload)
 			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
 
 			hasProjectSettings = true
@@ -132,8 +133,8 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		newFeatures := 0
 		for _, commit := range payload.Commits {
 			var feature model.Feature
-			x.DB.LogMode(true)
-			defer x.DB.LogMode(false)
+			// x.DB.LogMode(true)
+			// defer x.DB.LogMode(false)
 			if x.DB.Where("project_id = ? AND hash = ? AND ref = ?", project.ID, commit.Hash, commit.Ref).First(&feature).RecordNotFound() {
 				feature = model.Feature{
 					ProjectID:  project.ID,
@@ -209,7 +210,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 				}
 			}
 
-			x.DB.LogMode(false)
+			// x.DB.LogMode(false)
 		}
 
 		log.Debug(fmt.Sprintf("Sync: [%s] - Found %d features. %d were new.", project.GitUrl, foundFeatures, newFeatures))
