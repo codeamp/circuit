@@ -63,6 +63,9 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 			spew.Dump(err)
 
 		} else {
+			log.Warn("FOUND RECORD FROM PROJECT SETTINGS")
+			spew.Dump(projectSettings)
+
 			payload := plugins.GitSync{
 				Project: plugins.Project{
 					ID:         project.Model.ID.String(),
