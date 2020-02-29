@@ -60,11 +60,11 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 			if gorm.IsRecordNotFoundError(err) == false {
 				log.Error(err.Error())
 			}
-			spew.Dump(err)
+			log.Warn("DID NOT FIND RECORD FOR ", environment.Key)
 
 		} else {
 			log.Warn("FOUND RECORD FROM PROJECT SETTINGS")
-			spew.Dump(projectSettings)
+			// spew.Dump(projectSettings)
 
 			payload := plugins.GitSync{
 				Project: plugins.Project{
