@@ -40,7 +40,6 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 
 	// get branches of entire environments
 	// projectSettingsCollection := []model.ProjectSettings{}
-	projectSettings := model.ProjectSettings{}
 	environmentsList := []model.Environment{}
 
 	log.Warn("Finding environments list")
@@ -50,6 +49,7 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 
 	hasProjectSettings := false
 	for _, environment := range environmentsList {
+		projectSettings := model.ProjectSettings{}
 		log.Warn("looping through env: ", environment.Key)
 
 		x.DB.LogMode(true)
