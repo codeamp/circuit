@@ -21,15 +21,11 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	hash := ""
 
 	// Get latest release and deployed feature hash
-	log.Debug("Grabbing a gitsync")
 	if x.DB.Where("project_id = ?", project.ID).Order("created_at DESC").First(&release).RecordNotFound() {
 		// get latest feature if there is no releases
 		x.DB.Where("project_id = ?", project.ID).Order("created_at DESC").First(&feature)
-
-		log.Warn("there was no release found for the project: ", project.ID)
 		hash = feature.Hash
 	} else {
-		log.Warn("Looking for head feature: ", release.HeadFeatureID)
 		if x.DB.Where("id = ?", release.HeadFeatureID).Find(&headFeature).RecordNotFound() {
 			log.InfoWithFields("can not find head feature", log.Fields{
 				"id": release.HeadFeatureID,
@@ -42,7 +38,6 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	// projectSettingsCollection := []model.ProjectSettings{}
 	environmentsList := []model.Environment{}
 
-	log.Warn("Finding environments list")
 	if err := x.DB.Find(&environmentsList).Error; err != nil {
 		log.Error(err.Error())
 	}
@@ -50,22 +45,15 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	hasProjectSettings := false
 	for _, environment := range environmentsList {
 		projectSettings := model.ProjectSettings{}
-		log.Warn("looping through env: ", environment.Key)
 
-		x.DB.LogMode(true)
-		defer x.DB.LogMode(false)
 		if err := x.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID.String(), environment.ID.String()).
 			Order("created_at").First(&projectSettings).Error; err != nil {
 
 			if gorm.IsRecordNotFoundError(err) == false {
 				log.Error(err.Error())
 			}
-			log.Warn("DID NOT FIND RECORD FOR ", environment.Key)
 
 		} else {
-			log.Warn("FOUND RECORD FROM PROJECT SETTINGS")
-			// spew.Dump(projectSettings)
-
 			payload := plugins.GitSync{
 				Project: plugins.Project{
 					ID:         project.Model.ID.String(),
@@ -81,17 +69,13 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 				From: hash,
 			}
 
-			spew.Dump(payload)
 			x.Events <- transistor.NewEvent(plugins.GetEventName("gitsync"), transistor.GetAction("create"), payload)
 
 			hasProjectSettings = true
 		}
 	}
 
-	x.DB.LogMode(false)
-
 	if hasProjectSettings == false {
-		log.Warn("PROJECT HAS NO PROJECT SETTINGS ASSIGNED! - ", project.Name)
 		payload := plugins.GitSync{
 			Project: plugins.Project{
 				ID:         project.Model.ID.String(),
@@ -133,8 +117,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		newFeatures := 0
 		for _, commit := range payload.Commits {
 			var feature model.Feature
-			// x.DB.LogMode(true)
-			// defer x.DB.LogMode(false)
 			if x.DB.Where("project_id = ? AND hash = ? AND ref = ?", project.ID, commit.Hash, commit.Ref).First(&feature).RecordNotFound() {
 				feature = model.Feature{
 					ProjectID:  project.ID,
