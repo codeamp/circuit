@@ -8,7 +8,6 @@ import (
 	"github.com/codeamp/circuit/plugins/codeamp/model"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
-	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jinzhu/gorm"
@@ -130,8 +129,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 
 				if err := x.DB.Save(&feature).Error; err != nil {
 					log.Error(err.Error())
-				} else {
-					log.Warn("Saving feature for ", commit.Ref)
 				}
 
 				newFeatures = newFeatures + 1
@@ -146,9 +143,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 							log.Error(err.Error())
 						}
 					} else {
-						spew.Dump(projectSettings)
-
-						log.Warn("checking for automated release status")
 						// Create an automated release if specified by the projects configuration/settings
 						// call CreateRelease for each env that has cd turned on
 						for _, setting := range projectSettings {
@@ -192,7 +186,6 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 				}
 			}
 
-			// x.DB.LogMode(false)
 		}
 
 		log.Debug(fmt.Sprintf("Sync: [%s] - Found %d features. %d were new.", project.GitUrl, foundFeatures, newFeatures))
