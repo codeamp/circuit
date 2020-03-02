@@ -35,7 +35,6 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 
 	// get branches of entire environments
 	// projectSettingsCollection := []model.ProjectSettings{}
-	projectSettings := model.ProjectSettings{}
 	environmentsList := []model.Environment{}
 
 	if err := x.DB.Find(&environmentsList).Error; err != nil {
@@ -44,6 +43,8 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 
 	hasProjectSettings := false
 	for _, environment := range environmentsList {
+		projectSettings := model.ProjectSettings{}
+
 		if err := x.DB.Where("project_id = ? AND environment_id = ?", project.Model.ID.String(), environment.ID.String()).
 			Order("created_at").First(&projectSettings).Error; err != nil {
 
@@ -74,7 +75,6 @@ func (x *CodeAmp) GitSync(project *model.Project) error {
 	}
 
 	if hasProjectSettings == false {
-		log.Warn("PROJECT HAS NO PROJECT SETTINGS ASSIGNED! - ", project.Name)
 		payload := plugins.GitSync{
 			Project: plugins.Project{
 				ID:         project.Model.ID.String(),
@@ -116,7 +116,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 		newFeatures := 0
 		for _, commit := range payload.Commits {
 			var feature model.Feature
-			if x.DB.Where("project_id = ? AND hash = ?", project.ID, commit.Hash).First(&feature).RecordNotFound() {
+			if x.DB.Where("project_id = ? AND hash = ? AND ref = ?", project.ID, commit.Hash, commit.Ref).First(&feature).RecordNotFound() {
 				feature = model.Feature{
 					ProjectID:  project.ID,
 					Message:    commit.Message,
@@ -185,6 +185,7 @@ func (x *CodeAmp) GitSyncEventHandler(e transistor.Event) error {
 					}
 				}
 			}
+
 		}
 
 		log.Debug(fmt.Sprintf("Sync: [%s] - Found %d features. %d were new.", project.GitUrl, foundFeatures, newFeatures))
