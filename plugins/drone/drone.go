@@ -377,7 +377,7 @@ func (x *Drone) Process(e transistor.Event) error {
 				log.DebugWithFields("Waiting in check for child environment", log.Fields{
 					"project":     payload.Release.Project.ID,
 					"release":     payload.Release.HeadFeature.Hash,
-					"environment": payload.Release.Environment.Key,
+					"environment": payload.Release.Environment,
 				})
 				if err := graphqlClient.Run(context.Background(), req, &respData); err != nil {
 					log.Error(err)
@@ -430,7 +430,7 @@ func (x *Drone) Process(e transistor.Event) error {
 				"buildNumber": successfulbuild.Number,
 				"project":     payload.Release.Project.ID,
 				"release":     payload.Release.HeadFeature.Hash,
-				"environment": payload.Release.Environment.Key,
+				"environment": payload.Release.Environment,
 			})
 			build, err := startBuild(e, droneConfig, successfulbuild.Number)
 			if err != nil {
