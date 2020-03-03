@@ -374,6 +374,11 @@ func (x *Drone) Process(e transistor.Event) error {
 			// check if deployed in child environment
 			// if not, wait for 10 minutes until it has been deployed
 			for {
+				log.DebugWithFields("Waiting in check for child environment", log.Fields{
+					"project":     payload.Release.Project.ID,
+					"release":     payload.Release.HeadFeature.Hash,
+					"environment": payload.Release.Environment,
+				})
 				if err := graphqlClient.Run(context.Background(), req, &respData); err != nil {
 					log.Error(err)
 					x.events <- e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), err.Error())
@@ -421,6 +426,12 @@ func (x *Drone) Process(e transistor.Event) error {
 			}
 
 			// Create a new build
+			log.InfoWithFields("Starting build on Drone", log.Fields{
+				"buildNumber": successfulbuild.Number,
+				"project":     payload.Release.Project.ID,
+				"release":     payload.Release.HeadFeature.Hash,
+				"environment": payload.Release.Environment,
+			})
 			build, err := startBuild(e, droneConfig, successfulbuild.Number)
 			if err != nil {
 				log.ErrorWithFields(err.Error(), log.Fields{
@@ -436,7 +447,7 @@ func (x *Drone) Process(e transistor.Event) error {
 				var evt transistor.Event
 				var breakTheLoop bool
 
-				log.DebugWithFields("Checking build status", log.Fields{
+				log.DebugWithFields("Waiting in checking build status", log.Fields{
 					"hash": payload.Release.HeadFeature.Hash,
 				})
 
@@ -450,15 +461,19 @@ func (x *Drone) Process(e transistor.Event) error {
 					return nil
 				}
 
-				if status.Status == "success" {
+				log.DebugWithFields("Waiting in check for build status", log.Fields{
+					"status": status.Status,
+				})
+
+				if timeout >= timeoutLimitInt {
+					breakTheLoop = true
+					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt))
+				} else if status.Status == "success" {
 					breakTheLoop = true
 					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("complete"), "All status checks successful.")
 				} else if status.Status == "failure" {
 					breakTheLoop = true
 					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), "One or more status checks failed.")
-				} else if timeout >= timeoutLimitInt {
-					breakTheLoop = true
-					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("failed"), fmt.Sprintf("%d seconds timeout reached", timeoutLimitInt))
 				} else if status.Status == "pending" {
 					breakTheLoop = false
 					evt = e.NewEvent(transistor.GetAction("status"), transistor.GetState("waiting"), "One or more status checks are pending.")
