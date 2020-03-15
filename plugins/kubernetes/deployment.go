@@ -871,20 +871,6 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			)
 		}
 
-		if strings.ToLower(reData.Release.Environment) != "production" {
-			podEnvVars = append(
-				podEnvVars,
-				v1.EnvVar{
-					Name: "STATSD_URL",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "status.hostIP",
-						},
-					},
-				},
-			)
-		}
 		var preStopHook v1.Handler
 		if service.PreStopHook != "" {
 			preStopHook = v1.Handler{
