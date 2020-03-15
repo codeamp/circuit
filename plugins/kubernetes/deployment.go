@@ -691,39 +691,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 			},
 		)
 
-		if strings.ToLower(reData.Release.Environment) != "production" {
-			podEnvVars = append(
-				podEnvVars,
-				v1.EnvVar{
-					Name: "DATADOG_TRACE_AGENT_HOSTNAME",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-				v1.EnvVar{
-					Name: "DD_AGENT_HOST",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-				v1.EnvVar{
-					Name: "STATSD_URL",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-			)
-		}
-
 		simplePod := SimplePodSpec{
 			Name:          oneShotServiceName,
 			RestartPolicy: v1.RestartPolicyNever,
@@ -888,40 +855,36 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 				Value: reData.Release.Environment,
 			},
 		)
-
+		// host, host:8125, host:8126
 		if strings.ToLower(reData.Release.Environment) != "production" {
 			podEnvVars = append(
 				podEnvVars,
-				v1.EnvVar{
-					Name: "DATADOG_TRACE_AGENT_HOSTNAME",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-				v1.EnvVar{
-					Name: "DD_AGENT_HOST",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
 				v1.EnvVar{
 					Name: "STATSD_URL",
 					ValueFrom: &v1.EnvVarSource{
 						FieldRef: &v1.ObjectFieldSelector{
 							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
+							FieldPath:  "status.hostIP",
 						},
 					},
 				},
 			)
 		}
 
+		if strings.ToLower(reData.Release.Environment) != "production" {
+			podEnvVars = append(
+				podEnvVars,
+				v1.EnvVar{
+					Name: "STATSD_URL",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "status.hostIP",
+						},
+					},
+				},
+			)
+		}
 		var preStopHook v1.Handler
 		if service.PreStopHook != "" {
 			preStopHook = v1.Handler{
