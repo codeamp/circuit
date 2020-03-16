@@ -570,6 +570,7 @@ func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets []plug
 			"BGCCORE_DATADOG_STATSD_ADDR",
 			"HTTPLOGR_STATSD_HOST",
 			"DATADOG_TRACE_AGENT_HOSTNAME",
+			"DATADOG_STATSD_URL",
 		}
 
 		if secret.Type == plugins.GetType("env") || secret.Type == plugins.GetType("protected-env") {
