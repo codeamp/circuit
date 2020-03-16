@@ -537,6 +537,16 @@ func (x *Kubernetes) createSecretsForDeploy(clientset kubernetes.Interface, name
 	return secretResult.Name, nil
 }
 
+// Quickly check if a slice of strings contains another string
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
 // Build the configuration needed for the environment of the deploy
 func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets []plugins.Secret) ([]v1.EnvVar, []v1.VolumeMount, []v1.Volume, []v1.KeyToPath, error) {
 	if secrets == nil {
@@ -547,19 +557,63 @@ func (x *Kubernetes) setupEnvironmentForDeploy(secretName string, secrets []plug
 	// as ENVs
 	var envVars []v1.EnvVar
 	for _, secret := range secrets {
+		envKeysToAlter := []string{
+			"APP_DATADOG_TRACER_ADDR",
+			"PHVERD_DATADOG_STATSD_ADDR",
+			"PHVERD_DATADOG_TRACER_ADDR",
+			"PHVERD_DATADOG_TRACER_ADDR",
+			"STATSD_HOST",
+			"STATSD_URL",
+			"DD_AGENT_HOST",
+			"FLAGR_STATSD_HOST",
+			"BGCCORE_DATADOG_TRACER_ADDR",
+			"BGCCORE_DATADOG_STATSD_ADDR",
+			"HTTPLOGR_STATSD_HOST",
+			"DATADOG_TRACE_AGENT_HOSTNAME",
+		}
+
 		if secret.Type == plugins.GetType("env") || secret.Type == plugins.GetType("protected-env") {
-			newEnv := v1.EnvVar{
-				Name: secret.Key,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: secretName,
+
+			if contains(envKeysToAlter, secret.Key) {
+				newEnvHost := v1.EnvVar{
+					Name: "KUBE_HOST_IP",
+					ValueFrom: &v1.EnvVarSource{
+						FieldRef: &v1.ObjectFieldSelector{
+							FieldPath: "status.hostIP",
 						},
-						Key: secret.Key,
 					},
-				},
+				}
+				envVars = append(envVars, newEnvHost)
+
+				// https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#envvar-v1-core
+				statsdURL := "$(KUBE_HOST_IP)"
+
+				switch {
+				case strings.Contains(secret.Value, ":8125"):
+					statsdURL = "$(KUBE_HOST_IP):8125"
+				case strings.Contains(secret.Value, ":8126"):
+					statsdURL = "$(KUBE_HOST_IP):8126"
+				}
+				newEnv := v1.EnvVar{
+					Name:  secret.Key,
+					Value: statsdURL,
+				}
+				envVars = append(envVars, newEnv)
+			} else {
+				// Fall back to the old way of setting secrets for values
+				newEnv := v1.EnvVar{
+					Name: secret.Key,
+					ValueFrom: &v1.EnvVarSource{
+						SecretKeyRef: &v1.SecretKeySelector{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: secretName,
+							},
+							Key: secret.Key,
+						},
+					},
+				}
+				envVars = append(envVars, newEnv)
 			}
-			envVars = append(envVars, newEnv)
 		}
 	}
 	// expose pod details to running container via env variables
@@ -690,39 +744,6 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				Value: reData.Release.Environment,
 			},
 		)
-
-		if strings.ToLower(reData.Release.Environment) != "production" {
-			podEnvVars = append(
-				podEnvVars,
-				v1.EnvVar{
-					Name: "DATADOG_TRACE_AGENT_HOSTNAME",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-				v1.EnvVar{
-					Name: "DD_AGENT_HOST",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-				v1.EnvVar{
-					Name: "STATSD_URL",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-			)
-		}
 
 		simplePod := SimplePodSpec{
 			Name:          oneShotServiceName,
@@ -888,34 +909,16 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 				Value: reData.Release.Environment,
 			},
 		)
-
+		// host, host:8125, host:8126
 		if strings.ToLower(reData.Release.Environment) != "production" {
 			podEnvVars = append(
 				podEnvVars,
-				v1.EnvVar{
-					Name: "DATADOG_TRACE_AGENT_HOSTNAME",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
-				v1.EnvVar{
-					Name: "DD_AGENT_HOST",
-					ValueFrom: &v1.EnvVarSource{
-						FieldRef: &v1.ObjectFieldSelector{
-							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
-						},
-					},
-				},
 				v1.EnvVar{
 					Name: "STATSD_URL",
 					ValueFrom: &v1.EnvVarSource{
 						FieldRef: &v1.ObjectFieldSelector{
 							APIVersion: "v1",
-							FieldPath:  "spec.nodeName",
+							FieldPath:  "status.hostIP",
 						},
 					},
 				},
