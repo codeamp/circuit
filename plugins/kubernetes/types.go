@@ -31,6 +31,7 @@ type SimplePodSpec struct {
 	Env            []v1.EnvVar
 	VolumeMounts   []v1.VolumeMount
 	Volumes        []v1.Volume
+	Tolerations    []v1.Toleration
 }
 
 // Kubernetes

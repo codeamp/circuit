@@ -25,6 +25,8 @@ import (
 
 	"github.com/google/shlex"
 	"github.com/spf13/viper"
+
+	"hash/crc32"
 )
 
 var deploySleepTime = 5 * time.Second
@@ -934,6 +936,27 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 					Command: strings.Split(service.PreStopHook, " "),
 				},
 			}
+		}
+
+		tolerations := make([]v1.Toleration, 0, 0)
+
+		// ADB Priority Fix: Temporary from 3/20/20 until tolerations
+		// built into Panel project and Graphql interface
+		crc32q := crc32.MakeTable(0xD5828281)
+		namespaceCRC := fmt.Sprintf("%08x\n", crc32.Checksum([]byte(namespace), crc32q))
+		if namespaceCRC == "c102f299" {
+			log.Info("Adding additional settings for namespace: ", namespace)
+
+			dataTeamToleration := v1.Toleration{
+				Key:      "data-team",
+				Operator: v1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   v1.TaintEffectNoSchedule,
+			}
+			tolerations = append(tolerations, dataTeamToleration)
+
+			nodeSelector = make(map[string]string)
+			nodeSelector["kops.k8s.io/instancegroup"] = "data-team"
 		}
 
 		simplePod := SimplePodSpec{
