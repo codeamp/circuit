@@ -970,6 +970,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			Env:            podEnvVars,
 			VolumeMounts:   volumeMounts,
 			Volumes:        deployVolumes,
+			Tolerations:    tolerations,
 		}
 		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Deployment")
 
