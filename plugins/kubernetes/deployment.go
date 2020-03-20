@@ -25,8 +25,6 @@ import (
 
 	"github.com/google/shlex"
 	"github.com/spf13/viper"
-
-	"hash/crc32"
 )
 
 var deploySleepTime = 5 * time.Second
@@ -943,9 +941,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 
 		// ADB Priority Fix: Temporary from 3/20/20 until tolerations
 		// built into Panel project and Graphql interface
-		crc32q := crc32.MakeTable(0xD5828281)
-		namespaceCRC := fmt.Sprintf("%08x\n", crc32.Checksum([]byte(namespace), crc32q))
-		if namespaceCRC == "c102f299" {
+		if namespace == "production-checkr-preston" {
 			log.Info("Adding additional settings for namespace: ", namespace)
 
 			dataTeamToleration := v1.Toleration{
