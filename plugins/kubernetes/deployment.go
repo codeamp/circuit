@@ -492,6 +492,7 @@ func genPodTemplateSpec(e transistor.Event, podConfig SimplePodSpec, kind string
 			Volumes:       podConfig.Volumes,
 			RestartPolicy: podConfig.RestartPolicy,
 			DNSPolicy:     v1.DNSClusterFirst,
+			Tolerations:   podConfig.Tolerations,
 		},
 	}
 	return podTemplateSpec
