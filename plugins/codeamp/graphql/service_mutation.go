@@ -160,7 +160,7 @@ func (r *ServiceResolverMutation) DeleteService(args *struct{ Service *model.Ser
 		return nil, err
 	}
 
-	if serviceID == "" {
+	if serviceID.String() == "" {
 		return nil, fmt.Errorf("Required: serviceID")
 	}
 
