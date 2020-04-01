@@ -177,6 +177,10 @@ func (r *ServiceResolverMutation) DeleteService(args *struct{ Service *model.Ser
 		return nil, err
 	}
 
+	if service.ID.String() == "" {
+		return nil, fmt.Errorf("Service with ID %s was not found!", serviceID)
+	}
+
 	if err := r.DB.Delete(&service).Error; err != nil {
 		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
 		return nil, err
