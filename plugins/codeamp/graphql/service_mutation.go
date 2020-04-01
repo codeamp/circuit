@@ -205,7 +205,7 @@ func (r *ServiceResolverMutation) DeleteService(args *struct{ Service *model.Ser
 	}
 
 	var healthProbes []model.ServiceHealthProbe
-	if err := r.DB.Where("service_id = ?", serviceID).Find(&healthProbes).Error; gorm.IsRecordNotFoundError(err) == false {
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&healthProbes).Error; err != nil && gorm.IsRecordNotFoundError(err) == false {
 		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
 		return nil, err
 	}
@@ -213,33 +213,33 @@ func (r *ServiceResolverMutation) DeleteService(args *struct{ Service *model.Ser
 		var headers []model.ServiceHealthProbeHttpHeader
 
 		err := r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers).Error
-		if gorm.IsRecordNotFoundError(err) == false {
+		if err != nil && gorm.IsRecordNotFoundError(err) == false {
 			log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "probeID": probe.ID})
 			return nil, err
 		}
 
 		for _, header := range headers {
 			err := r.DB.Delete(&header).Error
-			if gorm.IsRecordNotFoundError(err) == false {
+			if err != nil && gorm.IsRecordNotFoundError(err) == false {
 				log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "probeID": probe.ID})
 				return nil, err
 			}
 		}
 
 		err = r.DB.Delete(&probe).Error
-		if gorm.IsRecordNotFoundError(err) == false {
+		if err != nil && gorm.IsRecordNotFoundError(err) == false {
 			log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "probeID": probe.ID})
 			return nil, err
 		}
 	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
-	if err := r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy).Error; gorm.IsRecordNotFoundError(err) == false {
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy).Error; err != nil && gorm.IsRecordNotFoundError(err) == false {
 		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
 		return nil, err
 	}
 
-	if err := r.DB.Delete(&deploymentStrategy).Error; gorm.IsRecordNotFoundError(err) == false {
+	if err := r.DB.Delete(&deploymentStrategy).Error; err != nil && gorm.IsRecordNotFoundError(err) == false {
 		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "DeploymentStrategyID": deploymentStrategy.ID})
 		return nil, err
 	}
