@@ -198,6 +198,7 @@ func (r *ServiceResolverMutation) DeleteService(args *struct{ Service *model.Ser
 			if err := r.DB.Delete(&cp).Error; err != nil {
 				if gorm.IsRecordNotFoundError(err) == false {
 					log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "ServicePortID": cp.ID})
+					return nil, err
 				}
 			}
 		}
