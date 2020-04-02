@@ -102,7 +102,54 @@ func (x *CodeAmp) GraphQLListen() {
 	http.Handle("/metrics", metrics.Handler())
 
 	log.Info(fmt.Sprintf("Running GraphQL server on %v", x.ServiceAddress))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)))
+
+	handler := handlers.LoggingHandler(os.Stdout, http.DefaultServeMux)
+	if logFormat := viper.GetString("log_format"); logFormat != "" {
+		switch strings.ToLower(logFormat) {
+		case "standard":
+			break
+		case "json":
+			fallthrough
+		default:
+			handler = x.logRequestHandler(http.DefaultServeMux)
+		}
+	}
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s", x.ServiceAddress), handler))
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{w, http.StatusOK}
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (x *CodeAmp) wrapHandlerWithLogging(wrappedHandler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		lrw := NewLoggingResponseWriter(w)
+		wrappedHandler.ServeHTTP(lrw, req)
+	})
+}
+
+func (x *CodeAmp) logRequestHandler(h http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		lrw := NewLoggingResponseWriter(w)
+		h.ServeHTTP(lrw, r)
+
+		log.InfoWithFields("", log.Fields{"uri": r.URL.String(), "method": r.Method, "status_code": lrw.statusCode})
+	}
+
+	// http.HandlerFunc wraps a function so that it
+	// implements http.Handler interface
+	return http.HandlerFunc(fn)
 }
 
 func (x *CodeAmp) initPostGres() (*gorm.DB, error) {

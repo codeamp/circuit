@@ -75,7 +75,11 @@ func initConfig() {
 		case "json":
 			fallthrough
 		default:
-			log.SetLogFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
+			log.SetLogFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano, FieldMap: logrus.FieldMap{
+				logrus.FieldKeyTime:  "@timestamp",
+				logrus.FieldKeyLevel: "level",
+				logrus.FieldKeyMsg:   "msg",
+			}})
 		}
 	}
 }
