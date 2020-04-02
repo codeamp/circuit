@@ -160,34 +160,89 @@ func (r *ServiceResolverMutation) DeleteService(args *struct{ Service *model.Ser
 		return nil, err
 	}
 
+	if serviceID.String() == "" {
+		return nil, fmt.Errorf("Required: serviceID")
+	}
+
 	var service model.Service
 
-	r.DB.Where("id = ?", serviceID).Find(&service)
-	r.DB.Delete(&service)
+	if err := r.DB.Where("id = ?", serviceID).Find(&service).Error; err != nil {
+		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
+
+		if gorm.IsRecordNotFoundError(err) {
+			return nil, fmt.Errorf("Service with ID %s was not found!", serviceID)
+		}
+
+		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
+		return nil, err
+	}
+
+	if service.ID.String() == "" {
+		return nil, fmt.Errorf("Service with ID %s was not found!", serviceID)
+	}
+
+	if err := r.DB.Delete(&service).Error; err != nil {
+		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
+		return nil, err
+	}
 
 	// delete all previous container ports
 	var servicePorts []model.ServicePort
-	r.DB.Where("service_id = ?", serviceID).Find(&servicePorts)
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&servicePorts).Error; err != nil {
+		log.Error(err.Error())
+		return nil, err
+	} else {
 
-	// delete all container ports
-	for _, cp := range servicePorts {
-		r.DB.Delete(&cp)
+		// delete all container ports
+		for _, cp := range servicePorts {
+			if err := r.DB.Delete(&cp).Error; err != nil {
+				if gorm.IsRecordNotFoundError(err) == false {
+					log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "ServicePortID": cp.ID})
+					return nil, err
+				}
+			}
+		}
 	}
 
 	var healthProbes []model.ServiceHealthProbe
-	r.DB.Where("service_id = ?", serviceID).Find(&healthProbes)
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&healthProbes).Error; err != nil && gorm.IsRecordNotFoundError(err) == false {
+		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
+		return nil, err
+	}
 	for _, probe := range healthProbes {
 		var headers []model.ServiceHealthProbeHttpHeader
-		r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers)
-		for _, header := range headers {
-			r.DB.Delete(&header)
+
+		err := r.DB.Where("health_probe_id = ?", probe.ID).Find(&headers).Error
+		if err != nil && gorm.IsRecordNotFoundError(err) == false {
+			log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "probeID": probe.ID})
+			return nil, err
 		}
-		r.DB.Delete(&probe)
+
+		for _, header := range headers {
+			err := r.DB.Delete(&header).Error
+			if err != nil && gorm.IsRecordNotFoundError(err) == false {
+				log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "probeID": probe.ID})
+				return nil, err
+			}
+		}
+
+		err = r.DB.Delete(&probe).Error
+		if err != nil && gorm.IsRecordNotFoundError(err) == false {
+			log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "probeID": probe.ID})
+			return nil, err
+		}
 	}
 
 	var deploymentStrategy model.ServiceDeploymentStrategy
-	r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy)
-	r.DB.Delete(&deploymentStrategy)
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&deploymentStrategy).Error; err != nil && gorm.IsRecordNotFoundError(err) == false {
+		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID})
+		return nil, err
+	}
+
+	if err := r.DB.Delete(&deploymentStrategy).Error; err != nil && gorm.IsRecordNotFoundError(err) == false {
+		log.ErrorWithFields(err.Error(), log.Fields{"ServiceID": serviceID, "DeploymentStrategyID": deploymentStrategy.ID})
+		return nil, err
+	}
 
 	return &ServiceResolver{DBServiceResolver: &db_resolver.ServiceResolver{DB: r.DB, Service: service}}, nil
 }
