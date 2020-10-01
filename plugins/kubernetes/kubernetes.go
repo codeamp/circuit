@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -90,26 +91,6 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		return nil
 	}
 
-	if e.Matches(".*kubernetes:ingress:") == true {
-		x.ProcessIngressRoute(e)
-		return nil
-	}
-
-	if e.Matches(".*kubernetes:ingressroute:") == true {
-		x.ProcessIngressRoute(e)
-		return nil
-	}
-
-	if e.Matches(".*kubernetes:ingresskong:") == true {
-		x.ProcessKongIngress(e)
-		return nil
-	}
-
-	if e.Matches(".*kubernetes:redis:") == true {
-		x.ProcessRedis(e)
-		return nil
-	}
-
 	return nil
 }
 
@@ -144,7 +125,7 @@ func (x *Kubernetes) GenOneShotServiceName(slugName string, serviceName string) 
 
 func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
 	// Create namespace if it does not exist.
-	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
+	_, nameGetErr := coreInterface.Namespaces().Get(context.TODO(), namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
 		if k8s_errors.IsNotFound(nameGetErr) {
 			log.Warn(fmt.Sprintf("Namespace %s does not yet exist, creating.", namespace))
@@ -157,7 +138,7 @@ func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface 
 					Name: namespace,
 				},
 			}
-			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
+			_, createNamespaceErr := coreInterface.Namespaces().Create(context.TODO(), namespaceParams, meta_v1.CreateOptions{})
 			if createNamespaceErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' creating namespace %s", createNamespaceErr, namespace))
 				return errors.Wrap(createNamespaceErr, 1)

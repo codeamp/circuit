@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-errors/errors"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
@@ -128,7 +128,7 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	var serviceType v1.ServiceType
 	var servicePorts []v1.ServicePort
 	serviceAnnotations := make(map[string]string)
-	createNamespaceErr := x.CreateNamespaceIfNotExists(namespace, clientset.Core())
+	createNamespaceErr := x.CreateNamespaceIfNotExists(namespace, clientset.CoreV1())
 	if createNamespaceErr != nil {
 		return createNamespaceErr
 	}
@@ -262,9 +262,9 @@ func (x *Kubernetes) doLoadBalancer(e transistor.Event) error {
 	*
 	*********************************************/
 	serviceSpec := v1.ServiceSpec{
-		Selector: map[string]string{"app": deploymentName},
-		Type:     serviceType,
-		Ports:    servicePorts,
+		Selector:                 map[string]string{"app": deploymentName},
+		Type:                     serviceType,
+		Ports:                    servicePorts,
 		LoadBalancerSourceRanges: loadBalancerSourceRanges,
 	}
 	serviceParams := v1.Service{
