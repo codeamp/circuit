@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,7 +17,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/heptio/contour/internal/dag"
+	"github.com/projectcontour/contour/internal/dag"
+	"github.com/projectcontour/contour/internal/envoy"
 )
 
 // quick and dirty dot debugging package
@@ -42,16 +43,22 @@ func (c *ctx) writeVertex(v dag.Vertex) {
 	}
 	c.nodes[v] = true
 	switch v := v.(type) {
+	case *dag.Listener:
+		fmt.Fprintf(c.w, `"%p" [shape=record, label="{listener|%s:%d}"]`+"\n", v, v.Address, v.Port)
 	case *dag.Secret:
 		fmt.Fprintf(c.w, `"%p" [shape=record, label="{secret|%s/%s}"]`+"\n", v, v.Namespace(), v.Name())
 	case *dag.Service:
-		fmt.Fprintf(c.w, `"%p" [shape=record, label="{service|%s/%s:%d}"]`+"\n", v, v.Namespace(), v.Name(), v.Port)
+		fmt.Fprintf(c.w, `"%p" [shape=record, label="{service|%s/%s:%d}"]`+"\n", v, v.Namespace, v.Name, v.Port)
 	case *dag.VirtualHost:
-		fmt.Fprintf(c.w, `"%p" [shape=record, label="{http://%s:%d}"]`+"\n", v, v.Host, v.Port)
+		fmt.Fprintf(c.w, `"%p" [shape=record, label="{http://%s}"]`+"\n", v, v.Name)
 	case *dag.SecureVirtualHost:
-		fmt.Fprintf(c.w, `"%p" [shape=record, label="{https://%s:%d}"]`+"\n", v, v.Host, v.Port)
+		fmt.Fprintf(c.w, `"%p" [shape=record, label="{https://%s}"]`+"\n", v, v.VirtualHost.Name)
 	case *dag.Route:
-		fmt.Fprintf(c.w, `"%p" [shape=record, label="{prefix|%s}"]`+"\n", v, v.Prefix)
+		fmt.Fprintf(c.w, `"%p" [shape=record, label="{%s}"]`+"\n", v, v.PathCondition.String())
+	case *dag.TCPProxy:
+		fmt.Fprintf(c.w, `"%p" [shape=record, label="{tcpproxy}"]`+"\n", v)
+	case *dag.Cluster:
+		fmt.Fprintf(c.w, `"%p" [shape=record, label="{cluster|{%s|weight %d}}"]`+"\n", v, envoy.Clustername(v), v.Weight)
 	}
 }
 
@@ -60,11 +67,7 @@ func (c *ctx) writeEdge(parent, child dag.Vertex) {
 		return
 	}
 	c.edges[pair{parent, child}] = true
-	switch child := child.(type) {
-	default:
-		fmt.Fprintf(c.w, `"%p" -> "%p"`+"\n", parent, child)
-	}
-
+	fmt.Fprintf(c.w, `"%p" -> "%p"`+"\n", parent, child)
 }
 
 func (dw *dotWriter) writeDot(w io.Writer) {

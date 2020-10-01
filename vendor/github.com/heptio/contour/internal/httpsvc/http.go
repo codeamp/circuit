@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -38,9 +38,9 @@ type Service struct {
 func (svc *Service) Start(stop <-chan struct{}) (err error) {
 	defer func() {
 		if err != nil {
-			svc.WithError(err).Error("terminated with error")
+			svc.WithError(err).Error("terminated HTTP server with error")
 		} else {
-			svc.Info("stopped")
+			svc.Info("stopped HTTP server")
 		}
 	}()
 
@@ -60,9 +60,9 @@ func (svc *Service) Start(stop <-chan struct{}) (err error) {
 		ctx := context.Background()
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		s.Shutdown(ctx)
+		_ = s.Shutdown(ctx) // ignored, will always be a cancelation error
 	}()
 
-	svc.WithField("address", s.Addr).Info("started")
+	svc.WithField("address", s.Addr).Info("started HTTP server")
 	return s.ListenAndServe()
 }

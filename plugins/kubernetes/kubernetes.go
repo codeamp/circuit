@@ -11,7 +11,6 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/go-errors/errors"
-	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
 	v1 "k8s.io/api/core/v1"
@@ -26,12 +25,11 @@ import (
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &Kubernetes{
-			K8sContourNamespacer: &ContourNamespace{},
-			K8sNamespacer:        &KubernetesNamespace{},
-			BatchV1Jobber:        &BatchV1Job{},
-			CoreServicer:         &CoreService{},
-			CoreSecreter:         &CoreSecret{},
-			CoreDeploymenter:     &CoreDeployment{},
+			K8sNamespacer:    &KubernetesNamespace{},
+			BatchV1Jobber:    &BatchV1Job{},
+			CoreServicer:     &CoreService{},
+			CoreSecreter:     &CoreSecret{},
+			CoreDeploymenter: &CoreDeployment{},
 		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
@@ -318,25 +316,4 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	}
 
 	return config, nil
-}
-
-func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
-	if x.ContourClient != nil {
-		return x.ContourClient, nil
-	}
-
-	config, err := x.getClientConfig(e)
-	if err != nil {
-		return nil, err
-	}
-
-	clientset, err := x.K8sContourNamespacer.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig", err.Error())
-		log.Error(failMessage)
-		return nil, errors.Wrap(err, 1)
-	}
-
-	x.ContourClient = clientset
-	return x.ContourClient, nil
 }

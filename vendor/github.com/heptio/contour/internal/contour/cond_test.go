@@ -1,4 +1,4 @@
-// Copyright © 2017 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -53,5 +53,56 @@ func TestCondRegisterAfterNotifyWithCorrectSequenceShouldNotBroadcast(t *testing
 	case v := <-ch:
 		t.Fatal("ch was notified immediately with seq", v)
 	default:
+	}
+}
+
+func TestCondRegisterWithHintShouldNotifyWithoutHint(t *testing.T) {
+	var c Cond
+	ch := make(chan int, 1)
+	c.Register(ch, 1, "ingress_https")
+	c.Notify()
+	select {
+	case v := <-ch:
+		if v != 1 {
+			t.Fatal("ch was notified with the wrong sequence number", v)
+		}
+	default:
+		t.Fatal("ch was not notified")
+	}
+}
+
+func TestCondRegisterWithHintShouldNotifyWithHint(t *testing.T) {
+	var c Cond
+	ch := make(chan int, 1)
+	c.Register(ch, 1, "ingress_https")
+	c.Notify("ingress_https")
+	select {
+	case v := <-ch:
+		if v != 1 {
+			t.Fatal("ch was notified with the wrong sequence number", v)
+		}
+	default:
+		t.Fatal("ch was not notified")
+	}
+}
+
+func TestCondRegisterWithHintShouldNotNotifyWithWrongHint(t *testing.T) {
+	var c Cond
+	ch := make(chan int, 1)
+	c.Register(ch, 1, "ingress_https")
+	c.Notify("banana")
+	select {
+	case v := <-ch:
+		t.Fatal("ch was notified when it should not be", v)
+	default:
+	}
+	c.Notify("ingress_https")
+	select {
+	case v := <-ch:
+		if v != 2 {
+			t.Fatal("ch was notified with the wrong sequence number", v)
+		}
+	default:
+		t.Fatal("ch was not notified")
 	}
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/codeamp/circuit/plugins"
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -78,7 +78,7 @@ func (x *Kubernetes) deleteIngress(e transistor.Event) error {
 
 	if ingType.String() == "loadbalancer" {
 		//Delete Ingress
-		networkInterface := clientset.ExtensionsV1beta1()
+		networkInterface := clientset.AppsV1()
 		ingresses := networkInterface.Ingresses(namespace)
 		_, err = ingresses.Get(service.ID, metav1.GetOptions{})
 		if err == nil {
@@ -190,14 +190,14 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 			return err
 		}
 
-		networkInterface := clientset.ExtensionsV1beta1()
+		networkInterface := clientset.AppsV1()
 		ingresses := networkInterface.Ingresses(namespace)
 
-		ingressRuleValue := v1beta1.IngressRuleValue{
-			HTTP: &v1beta1.HTTPIngressRuleValue{
-				Paths: []v1beta1.HTTPIngressPath{
+		ingressRuleValue := appsv1.IngressRuleValue{
+			HTTP: &appsv1.HTTPIngressRuleValue{
+				Paths: []appsv1.HTTPIngressPath{
 					{
-						Backend: v1beta1.IngressBackend{
+						Backend: appsv1.IngressBackend{
 							ServiceName: inputs.Service.ID,
 							ServicePort: intstr.IntOrString{
 								IntVal: inputs.Service.Port.SourcePort,
@@ -208,11 +208,11 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 			},
 		}
 
-		var rules []v1beta1.IngressRule
+		var rules []appsv1.IngressRule
 
 		// Build for Upstream Domains
 		for _, domain := range inputs.UpstreamFQDNs {
-			rule := v1beta1.IngressRule{
+			rule := appsv1.IngressRule{
 				Host:             domain.FQDN,
 				IngressRuleValue: ingressRuleValue,
 			}
@@ -220,15 +220,15 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 			rules = append(rules, rule)
 		}
 
-		ingressSpec := v1beta1.IngressSpec{
+		ingressSpec := appsv1.IngressSpec{
 			Rules: rules,
 		}
 
-		ingressConfig := v1beta1.Ingress{
+		ingressConfig := appsv1.Ingress{
 			TypeMeta: metav1.TypeMeta{
 
 				Kind:       "Ingress",
-				APIVersion: "extensions/v1beta1",
+				APIVersion: "networking.k8s.io/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: inputs.Service.ID,
@@ -240,7 +240,7 @@ func (x *Kubernetes) createIngress(e transistor.Event) error {
 		}
 
 		_, err = ingresses.Get(inputs.Service.ID, metav1.GetOptions{})
-		var nIng *v1beta1.Ingress
+		var nIng *appsv1.Ingress
 		switch {
 		case err == nil:
 			nIng, err = ingresses.Update(&ingressConfig)
@@ -285,7 +285,7 @@ func (x *Kubernetes) isDuplicateIngressHost(e transistor.Event) (bool, error) {
 		return false, err
 	}
 
-	networkInterface := clientset.ExtensionsV1beta1()
+	networkInterface := clientset.AppsV1()
 	ingresses := networkInterface.Ingresses("")
 
 	existingIngresses, err := ingresses.List(metav1.ListOptions{})

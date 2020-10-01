@@ -45,7 +45,7 @@ type Route struct {
 type Routes struct {
 	Data  []*Route `json:"data"`
 	Total int      `json:"total"`
-	Next  *string  `json:"next"`
+	Next  string   `json:"next"`
 }
 
 type RouteQueryString struct {
@@ -117,9 +117,8 @@ func (routeClient *RouteClient) List(query *RouteQueryString) ([]*Route, error) 
 		query.Size = 1000
 	}
 
-	routesPath := RoutesPath
 	for {
-		r, body, errs := newGet(routeClient.config, routeClient.config.HostAddress+routesPath).Query(query).End()
+		r, body, errs := newGet(routeClient.config, routeClient.config.HostAddress+RoutesPath).Query(query).End()
 		if errs != nil {
 			return nil, fmt.Errorf("could not get the route, error: %v", errs)
 		}
@@ -134,10 +133,9 @@ func (routeClient *RouteClient) List(query *RouteQueryString) ([]*Route, error) 
 		}
 
 		routes = append(routes, data.Data...)
-		if data.Next == nil || *data.Next == "" {
+
+		if data.Next == "" {
 			break
-		} else {
-			routesPath = *data.Next
 		}
 
 		query.Offset += query.Size
@@ -170,7 +168,8 @@ func (routeClient *RouteClient) GetRoutesFromServiceId(id string) ([]*Route, err
 		}
 
 		routes = append(routes, data.Data...)
-		if data.Next == nil || *data.Next == "" {
+
+		if data.Next == "" {
 			break
 		}
 

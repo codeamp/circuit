@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,15 +14,21 @@
 package contour
 
 import (
+	"sort"
 	"strings"
+	"sync"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	envoy_api_v2_endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	resource "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	"github.com/golang/protobuf/proto"
+	"github.com/projectcontour/contour/internal/envoy"
+	"github.com/projectcontour/contour/internal/protobuf"
+	"github.com/projectcontour/contour/internal/sorter"
 	"github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	_cache "k8s.io/client-go/tools/cache"
+	k8scache "k8s.io/client-go/tools/cache"
 )
 
 // A EndpointsTranslator translates Kubernetes Endpoints objects into Envoy
@@ -30,7 +36,6 @@ import (
 type EndpointsTranslator struct {
 	logrus.FieldLogger
 	clusterLoadAssignmentCache
-	Cond
 }
 
 func (e *EndpointsTranslator) OnAdd(obj interface{}) {
@@ -60,12 +65,38 @@ func (e *EndpointsTranslator) OnDelete(obj interface{}) {
 	switch obj := obj.(type) {
 	case *v1.Endpoints:
 		e.removeEndpoints(obj)
-	case _cache.DeletedFinalStateUnknown:
+	case k8scache.DeletedFinalStateUnknown:
 		e.OnDelete(obj.Obj) // recurse into ourselves with the tombstoned value
 	default:
 		e.Errorf("OnDelete unexpected type %T: %#v", obj, obj)
 	}
 }
+
+func (e *EndpointsTranslator) Contents() []proto.Message {
+	values := e.clusterLoadAssignmentCache.Contents()
+	sort.Stable(sorter.For(values))
+	return protobuf.AsMessages(values)
+}
+
+func (e *EndpointsTranslator) Query(names []string) []proto.Message {
+	e.clusterLoadAssignmentCache.mu.Lock()
+	defer e.clusterLoadAssignmentCache.mu.Unlock()
+	values := make([]*v2.ClusterLoadAssignment, 0, len(names))
+	for _, n := range names {
+		v, ok := e.entries[n]
+		if !ok {
+			v = &v2.ClusterLoadAssignment{
+				ClusterName: n,
+			}
+		}
+		values = append(values, v)
+	}
+
+	sort.Stable(sorter.For(values))
+	return protobuf.AsMessages(values)
+}
+
+func (*EndpointsTranslator) TypeURL() string { return resource.EndpointType }
 
 func (e *EndpointsTranslator) addEndpoints(ep *v1.Endpoints) {
 	e.recomputeClusterLoadAssignment(nil, ep)
@@ -92,8 +123,6 @@ func (e *EndpointsTranslator) recomputeClusterLoadAssignment(oldep, newep *v1.En
 		return
 	}
 
-	defer e.Notify()
-
 	if oldep == nil {
 		oldep = &v1.Endpoints{
 			ObjectMeta: newep.ObjectMeta,
@@ -106,52 +135,91 @@ func (e *EndpointsTranslator) recomputeClusterLoadAssignment(oldep, newep *v1.En
 		}
 	}
 
-	clas := make(map[string]*v2.ClusterLoadAssignment)
+	seen := make(map[string]bool)
 	// add or update endpoints
 	for _, s := range newep.Subsets {
-		// skip any subsets that don't have ready addresses
-		if len(s.Addresses) == 0 {
+		if len(s.Addresses) < 1 {
+			// skip subset without ready addresses.
 			continue
 		}
-
 		for _, p := range s.Ports {
-			// TODO(dfc) check protocol, don't add UDP enties by mistake
+			if p.Protocol != "TCP" {
+				// skip non TCP ports
+				continue
+			}
 
-			// if this endpoint's service's port has a name, then the endpoint
-			// controller will apply the name here. The name may appear once per subset.
-			portname := p.Name
-			cla, ok := clas[portname]
-			if !ok {
-				cla = clusterloadassignment(servicename(newep.ObjectMeta, portname))
-				clas[portname] = cla
+			addresses := append([]v1.EndpointAddress{}, s.Addresses...) // shallow copy
+			sort.Slice(addresses, func(i, j int) bool { return addresses[i].IP < addresses[j].IP })
+
+			lbendpoints := make([]*envoy_api_v2_endpoint.LbEndpoint, 0, len(addresses))
+			for _, a := range addresses {
+				addr := envoy.SocketAddress(a.IP, int(p.Port))
+				lbendpoints = append(lbendpoints, envoy.LBEndpoint(addr))
 			}
-			for _, a := range s.Addresses {
-				cla.Endpoints[0].LbEndpoints = append(cla.Endpoints[0].LbEndpoints, lbendpoint(a.IP, p.Port))
+
+			cla := &v2.ClusterLoadAssignment{
+				ClusterName: servicename(newep.ObjectMeta, p.Name),
+				Endpoints: []*envoy_api_v2_endpoint.LocalityLbEndpoints{{
+					LbEndpoints: lbendpoints,
+				}},
 			}
+			seen[cla.ClusterName] = true
+			e.Add(cla)
 		}
 	}
 
-	// iterate all the defined clusters and add or update them.
-	for _, c := range clas {
-		e.Add(c)
-	}
-
-	// iterate over the ports in the old spec, remove any that are not
-	// mentioned in clas
+	// iterate over the ports in the old spec, remove any were not seen.
 	for _, s := range oldep.Subsets {
 		if len(s.Addresses) == 0 {
 			continue
 		}
 		for _, p := range s.Ports {
-			// if this endpoint's service's port has a name, then the endpoint
-			// controller will apply the name here. The name may appear once per subset.
-			portname := p.Name
-			if _, ok := clas[portname]; !ok {
-				// port is not present in the list added / updated, so remove it
-				e.Remove(servicename(oldep.ObjectMeta, portname))
+			name := servicename(oldep.ObjectMeta, p.Name)
+			if _, ok := seen[name]; !ok {
+				// port is no longer present, remove it.
+				e.Remove(name)
 			}
 		}
 	}
+
+}
+
+type clusterLoadAssignmentCache struct {
+	mu      sync.Mutex
+	entries map[string]*v2.ClusterLoadAssignment
+	Cond
+}
+
+// Add adds an entry to the cache. If a ClusterLoadAssignment with the same
+// name exists, it is replaced.
+func (c *clusterLoadAssignmentCache) Add(a *v2.ClusterLoadAssignment) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = make(map[string]*v2.ClusterLoadAssignment)
+	}
+	c.entries[a.ClusterName] = a
+	c.Notify(a.ClusterName)
+}
+
+// Remove removes the named entry from the cache. If the entry
+// is not present in the cache, the operation is a no-op.
+func (c *clusterLoadAssignmentCache) Remove(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.entries, name)
+	c.Notify(name)
+}
+
+// Contents returns a copy of the contents of the cache.
+func (c *clusterLoadAssignmentCache) Contents() []*v2.ClusterLoadAssignment {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	values := make([]*v2.ClusterLoadAssignment, 0, len(c.entries))
+	for _, v := range c.entries {
+		values = append(values, v)
+	}
+	return values
 }
 
 // servicename returns the name of the cluster this meta and port
@@ -167,31 +235,4 @@ func servicename(meta metav1.ObjectMeta, portname string) string {
 		name = name[:2]
 	}
 	return strings.Join(name, "/")
-}
-
-func clusterloadassignment(name string, lbendpoints ...endpoint.LbEndpoint) *v2.ClusterLoadAssignment {
-	return &v2.ClusterLoadAssignment{
-		ClusterName: name,
-		Endpoints: []endpoint.LocalityLbEndpoints{{
-			LbEndpoints: lbendpoints,
-		}},
-	}
-}
-
-func lbendpoint(addr string, port int32) endpoint.LbEndpoint {
-	return endpoint.LbEndpoint{
-		Endpoint: &endpoint.Endpoint{
-			Address: &core.Address{
-				Address: &core.Address_SocketAddress{
-					SocketAddress: &core.SocketAddress{
-						Protocol: core.TCP,
-						Address:  addr,
-						PortSpecifier: &core.SocketAddress_PortValue{
-							PortValue: uint32(port),
-						},
-					},
-				},
-			},
-		},
-	}
 }

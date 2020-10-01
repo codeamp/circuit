@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,38 +11,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package e2e provides end-to-end tests.
 package e2e
 
-// grpc helpers
-
 import (
+	"context"
+	"math/rand"
 	"net"
-	"sync"
 	"testing"
+	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	accesslog "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v2"
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
-	"github.com/heptio/contour/apis/generated/clientset/versioned/fake"
-	"github.com/heptio/contour/internal/contour"
-	cgrpc "github.com/heptio/contour/internal/grpc"
-	"github.com/heptio/contour/internal/k8s"
-	"github.com/heptio/contour/internal/metrics"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
+	resource "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
+	"github.com/projectcontour/contour/internal/assert"
+	"github.com/projectcontour/contour/internal/contour"
+	"github.com/projectcontour/contour/internal/dag"
+	cgrpc "github.com/projectcontour/contour/internal/grpc"
+	"github.com/projectcontour/contour/internal/k8s"
+	"github.com/projectcontour/contour/internal/metrics"
+	"github.com/projectcontour/contour/internal/protobuf"
+	"github.com/projectcontour/contour/internal/workgroup"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
 const (
-	googleApis   = "type.googleapis.com/"
-	typePrefix   = googleApis + "envoy.api.v2."
-	endpointType = typePrefix + "ClusterLoadAssignment"
-	clusterType  = typePrefix + "Cluster"
-	routeType    = typePrefix + "RouteConfiguration"
-	listenerType = typePrefix + "Listener"
+	endpointType = resource.EndpointType
+	clusterType  = resource.ClusterType
+	routeType    = resource.RouteType
+	listenerType = resource.ListenerType
+	secretType   = resource.SecretType
+	statsAddress = "0.0.0.0"
+	statsPort    = 8002
 )
 
 type testWriter struct {
@@ -61,7 +67,9 @@ func (d *discardWriter) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-func setup(t *testing.T, opts ...func(*contour.ResourceEventHandler)) (cache.ResourceEventHandler, *grpc.ClientConn, func()) {
+func setup(t *testing.T, opts ...func(*contour.EventHandler)) (cache.ResourceEventHandler, *grpc.ClientConn, func()) {
+	t.Parallel()
+
 	log := logrus.New()
 	log.Out = &testWriter{t}
 
@@ -71,19 +79,29 @@ func setup(t *testing.T, opts ...func(*contour.ResourceEventHandler)) (cache.Res
 
 	r := prometheus.NewRegistry()
 	ch := &contour.CacheHandler{
-		IngressRouteStatus: &k8s.IngressRouteStatus{
-			Client: fake.NewSimpleClientset(),
-		},
-		Metrics: metrics.NewMetrics(r),
+		Metrics:       metrics.NewMetrics(r),
+		ListenerCache: contour.NewListenerCache(statsAddress, statsPort),
+		FieldLogger:   log,
 	}
 
-	reh := contour.ResourceEventHandler{
-		Notifier: ch,
-		Metrics:  ch.Metrics,
+	rand.Seed(time.Now().Unix())
+
+	eh := &contour.EventHandler{
+		Builder: dag.Builder{
+			Source: dag.KubernetesCache{
+				FieldLogger: log,
+			},
+		},
+		CacheHandler:    ch,
+		StatusClient:    &k8s.StatusCacher{},
+		FieldLogger:     log,
+		Sequence:        make(chan int, 1),
+		HoldoffDelay:    time.Duration(rand.Intn(100)) * time.Millisecond,
+		HoldoffMaxDelay: time.Duration(rand.Intn(500)) * time.Millisecond,
 	}
 
 	for _, opt := range opts {
-		opt(&reh)
+		opt(eh)
 	}
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -91,42 +109,61 @@ func setup(t *testing.T, opts ...func(*contour.ResourceEventHandler)) (cache.Res
 	discard := logrus.New()
 	discard.Out = new(discardWriter)
 	// Resource types in xDS v2.
-	srv := cgrpc.NewAPI(discard, map[string]cgrpc.Cache{
-		clusterType:  &ch.ClusterCache,
-		routeType:    &ch.RouteCache,
-		listenerType: &ch.ListenerCache,
-		endpointType: et,
-	})
+	srv := cgrpc.NewAPI(discard, map[string]cgrpc.Resource{
+		ch.ClusterCache.TypeURL():  &ch.ClusterCache,
+		ch.RouteCache.TypeURL():    &ch.RouteCache,
+		ch.ListenerCache.TypeURL(): &ch.ListenerCache,
+		ch.SecretCache.TypeURL():   &ch.SecretCache,
+		et.TypeURL():               et,
+	}, r)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		srv.Serve(l)
-	}()
+	var g workgroup.Group
+
+	g.Add(func(stop <-chan struct{}) error {
+		done := make(chan error)
+		go func() {
+			done <- srv.Serve(l) // srv now owns l and will close l before returning
+		}()
+		<-stop
+		srv.Stop()
+		return <-done
+	})
+	g.Add(eh.Start())
+
 	cc, err := grpc.Dial(l.Addr().String(), grpc.WithInsecure())
 	check(t, err)
 
 	rh := &resourceEventHandler{
-		ResourceEventHandler: &reh,
-		EndpointsTranslator:  et,
+		EventHandler:        eh,
+		EndpointsTranslator: et,
 	}
+
+	stop := make(chan struct{})
+	g.Add(func(_ <-chan struct{}) error {
+		<-stop
+		return nil
+	})
+
+	done := make(chan error)
+	go func() {
+		done <- g.Run()
+	}()
 
 	return rh, cc, func() {
 		// close client connection
 		cc.Close()
 
-		// shut down listener, stop server and wait for it to stop
-		l.Close()
-		srv.Stop()
-		wg.Wait()
+		// stop server
+		close(stop)
+
+		<-done
 	}
 }
 
 // resourceEventHandler composes a contour.Translator and a contour.EndpointsTranslator
 // into a single ResourceEventHandler type.
 type resourceEventHandler struct {
-	*contour.ResourceEventHandler
+	*contour.EventHandler
 	*contour.EndpointsTranslator
 }
 
@@ -135,7 +172,8 @@ func (r *resourceEventHandler) OnAdd(obj interface{}) {
 	case *v1.Endpoints:
 		r.EndpointsTranslator.OnAdd(obj)
 	default:
-		r.ResourceEventHandler.OnAdd(obj)
+		r.EventHandler.OnAdd(obj)
+		<-r.EventHandler.Sequence
 	}
 }
 
@@ -144,7 +182,8 @@ func (r *resourceEventHandler) OnUpdate(oldObj, newObj interface{}) {
 	case *v1.Endpoints:
 		r.EndpointsTranslator.OnUpdate(oldObj, newObj)
 	default:
-		r.ResourceEventHandler.OnUpdate(oldObj, newObj)
+		r.EventHandler.OnUpdate(oldObj, newObj)
+		<-r.EventHandler.Sequence
 	}
 }
 
@@ -153,7 +192,8 @@ func (r *resourceEventHandler) OnDelete(obj interface{}) {
 	case *v1.Endpoints:
 		r.EndpointsTranslator.OnDelete(obj)
 	default:
-		r.ResourceEventHandler.OnDelete(obj)
+		r.EventHandler.OnDelete(obj)
+		<-r.EventHandler.Sequence
 	}
 }
 
@@ -164,11 +204,13 @@ func check(t *testing.T, err error) {
 	}
 }
 
-func any(t *testing.T, pb proto.Message) types.Any {
+func resources(t *testing.T, protos ...proto.Message) []*any.Any {
 	t.Helper()
-	any, err := types.MarshalAny(pb)
-	check(t, err)
-	return *any
+	var anys []*any.Any
+	for _, a := range protos {
+		anys = append(anys, protobuf.MustMarshalAny(a))
+	}
+	return anys
 }
 
 type grpcStream interface {
@@ -185,27 +227,54 @@ func stream(t *testing.T, st grpcStream, req *v2.DiscoveryRequest) *v2.Discovery
 	return resp
 }
 
-func assertEqual(t *testing.T, want, got *v2.DiscoveryResponse) {
-	t.Helper()
-	m := proto.TextMarshaler{Compact: true, ExpandAny: true}
-	a := m.Text(want)
-	b := m.Text(got)
-	if a != b {
-		m := proto.TextMarshaler{
-			Compact:   false,
-			ExpandAny: true,
-		}
-		t.Fatalf("\nexpected:\n%v\ngot:\n%v", m.Text(want), m.Text(got))
+type Contour struct {
+	*grpc.ClientConn
+	*testing.T
+}
+
+func (c *Contour) Request(typeurl string, names ...string) *Response {
+	c.Helper()
+	var st grpcStream
+	ctx := context.Background()
+	switch typeurl {
+	case secretType:
+		sds := discovery.NewSecretDiscoveryServiceClient(c.ClientConn)
+		sts, err := sds.StreamSecrets(ctx)
+		c.check(err)
+		st = sts
+	default:
+		c.Fatal("unknown typeURL: " + typeurl)
+	}
+	resp := c.sendRequest(st, &v2.DiscoveryRequest{
+		TypeUrl:       typeurl,
+		ResourceNames: names,
+	})
+	return &Response{
+		Contour:           c,
+		DiscoveryResponse: resp,
 	}
 }
 
-// fileAccessLog is defined here to avoid the conflict between the package that defines the
-// accesslog.AccessLog interface, "github.com/envoyproxy/go-control-plane/envoy/config/filter/accesslog/v2"
-// and the package the defines the FileAccessLog implement,
-// "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v2"
+func (c *Contour) sendRequest(stream grpcStream, req *v2.DiscoveryRequest) *v2.DiscoveryResponse {
+	err := stream.Send(req)
+	c.check(err)
+	resp, err := stream.Recv()
+	c.check(err)
+	return resp
+}
 
-func fileAccessLog(path string) *accesslog.FileAccessLog {
-	return &accesslog.FileAccessLog{
-		Path: path,
+func (c *Contour) check(err error) {
+	if err != nil {
+		c.Fatal(err)
 	}
+}
+
+type Response struct {
+	*Contour
+	*v2.DiscoveryResponse
+}
+
+func (r *Response) Equals(want *v2.DiscoveryResponse) {
+	r.Helper()
+	assert.Equal(r.T, want, r.DiscoveryResponse)
 }

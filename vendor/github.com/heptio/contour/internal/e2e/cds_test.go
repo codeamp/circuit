@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,15 +18,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	envoy_cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
-	"github.com/gogo/protobuf/types"
-	ingressroutev1 "github.com/heptio/contour/apis/contour/v1beta1"
+	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	projcontour "github.com/projectcontour/contour/apis/projectcontour/v1"
+	"github.com/projectcontour/contour/internal/assert"
+	"github.com/projectcontour/contour/internal/envoy"
+	"github.com/projectcontour/contour/internal/featuretests"
+	"github.com/projectcontour/contour/internal/protobuf"
 	"google.golang.org/grpc"
-	"k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -62,13 +64,13 @@ func TestClusterLongServiceName(t *testing.T) {
 	))
 
 	// check that it's been translated correctly.
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kbujbkuh-c83ceb/8080/da39a3ee5e", "default/kbujbkuhdod66gjdmwmijz8xzgsx1nkfbrloezdjiulquzk4x3p0nnvpzi8r")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "2",
+		Resources: resources(t,
+			cluster("default/kbujbkuh-c83ceb/8080/da39a3ee5e", "default/kbujbkuhdod66gjdmwmijz8xzgsx1nkfbrloezdjiulquzk4x3p0nnvpzi8r", "default_kbujbkuhdod66gjdmwmijz8xzgsx1nkfbrloezdjiulquzk4x3p0nnvpzi8r_8080"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "2",
 	}, streamCDS(t, cc))
 }
 
@@ -124,13 +126,13 @@ func TestClusterAddUpdateDelete(t *testing.T) {
 	})
 	rh.OnAdd(s1)
 
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "3",
+		Resources: resources(t,
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "3",
 	}, streamCDS(t, cc))
 
 	// s2 is the same as s2, but the service port has a name
@@ -145,13 +147,13 @@ func TestClusterAddUpdateDelete(t *testing.T) {
 	rh.OnUpdate(s1, s2)
 
 	// check that we get two CDS records because the port is now named.
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard/http")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "4",
+		Resources: resources(t,
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard/http", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "4",
 	}, streamCDS(t, cc))
 
 	// s3 is like s2, but has a second named port. The k8s spec
@@ -176,14 +178,14 @@ func TestClusterAddUpdateDelete(t *testing.T) {
 
 	// check that we get four CDS records. Order is important
 	// because the CDS cache is sorted.
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/443/da39a3ee5e", "default/kuard/https")),
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard/http")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "5",
+		Resources: resources(t,
+			cluster("default/kuard/443/da39a3ee5e", "default/kuard/https", "default_kuard_443"),
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard/http", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "5",
 	}, streamCDS(t, cc))
 
 	// s4 is s3 with the http port removed.
@@ -201,13 +203,13 @@ func TestClusterAddUpdateDelete(t *testing.T) {
 
 	// check that we get two CDS records only, and that the 80 and http
 	// records have been removed even though the service object remains.
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/443/da39a3ee5e", "default/kuard/https")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "6",
+		Resources: resources(t,
+			cluster("default/kuard/443/da39a3ee5e", "default/kuard/https", "default_kuard_443"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "6",
 	}, streamCDS(t, cc))
 }
 
@@ -261,14 +263,14 @@ func TestClusterRenameUpdateDelete(t *testing.T) {
 	)
 
 	rh.OnAdd(s1)
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/443/da39a3ee5e", "default/kuard/https")),
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard/http")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "2",
+		Resources: resources(t,
+			cluster("default/kuard/443/da39a3ee5e", "default/kuard/https", "default_kuard_443"),
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard/http", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "2",
 	}, streamCDS(t, cc))
 
 	// s2 removes the name on port 80, moves it to port 443 and deletes the https port
@@ -281,34 +283,34 @@ func TestClusterRenameUpdateDelete(t *testing.T) {
 	)
 
 	rh.OnUpdate(s1, s2)
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/443/da39a3ee5e", "default/kuard")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "3",
+		Resources: resources(t,
+			cluster("default/kuard/443/da39a3ee5e", "default/kuard", "default_kuard_443"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "3",
 	}, streamCDS(t, cc))
 
 	// now replace s2 with s1 to check it works in the other direction.
 	rh.OnUpdate(s2, s1)
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/443/da39a3ee5e", "default/kuard/https")),
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard/http")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "4",
+		Resources: resources(t,
+			cluster("default/kuard/443/da39a3ee5e", "default/kuard/https", "default_kuard_443"),
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard/http", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "4",
 	}, streamCDS(t, cc))
 
 	// cleanup and check
 	rh.OnDelete(s1)
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources:   []types.Any{},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "5",
+		Resources:   resources(t),
 		TypeUrl:     clusterType,
-		Nonce:       "0",
+		Nonce:       "5",
 	}, streamCDS(t, cc))
 }
 
@@ -340,13 +342,13 @@ func TestIssue243(t *testing.T) {
 			},
 		)
 		rh.OnAdd(s1)
-		assertEqual(t, &v2.DiscoveryResponse{
-			VersionInfo: "0",
-			Resources: []types.Any{
-				any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard")),
-			},
+		assert.Equal(t, &v2.DiscoveryResponse{
+			VersionInfo: "2",
+			Resources: resources(t,
+				cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+			),
 			TypeUrl: clusterType,
-			Nonce:   "0",
+			Nonce:   "2",
 		}, streamCDS(t, cc))
 	})
 }
@@ -383,13 +385,13 @@ func TestIssue247(t *testing.T) {
 		},
 	)
 	rh.OnAdd(s1)
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "2",
+		Resources: resources(t,
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "2",
 	}, streamCDS(t, cc))
 }
 func TestCDSResourceFiltering(t *testing.T) {
@@ -442,33 +444,32 @@ func TestCDSResourceFiltering(t *testing.T) {
 		},
 	)
 	rh.OnAdd(s2)
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "3",
+		Resources: resources(t,
 			// note, resources are sorted by Cluster.Name
-			any(t, cluster("default/httpbin/8080/da39a3ee5e", "default/httpbin")),
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard")),
-		},
+			cluster("default/httpbin/8080/da39a3ee5e", "default/httpbin", "default_httpbin_8080"),
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "3",
 	}, streamCDS(t, cc))
 
 	// assert we can filter on one resource
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "3",
+		Resources: resources(t,
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "3",
 	}, streamCDS(t, cc, "default/kuard/80/da39a3ee5e"))
 
-	// assert a non matching filter returns no results
-	// note: streamCDS would stall at this point.
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
+	// assert a non matching filter returns a response with no entries.
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "3",
 		TypeUrl:     clusterType,
-		Nonce:       "0",
+		Nonce:       "3",
 	}, streamCDS(t, cc, "default/httpbin/9000"))
 }
 
@@ -494,10 +495,10 @@ func TestClusterCircuitbreakerAnnotations(t *testing.T) {
 		"default",
 		"kuard",
 		map[string]string{
-			"contour.heptio.com/max-connections":      "9000",
-			"contour.heptio.com/max-pending-requests": "4096",
-			"contour.heptio.com/max-requests":         "404",
-			"contour.heptio.com/max-retries":          "7",
+			"projectcontour.io/max-connections":      "9000",
+			"projectcontour.io/max-pending-requests": "4096",
+			"projectcontour.io/max-requests":         "404",
+			"projectcontour.io/max-retries":          "7",
 		},
 		v1.ServicePort{
 			Protocol:   "TCP",
@@ -508,35 +509,29 @@ func TestClusterCircuitbreakerAnnotations(t *testing.T) {
 	rh.OnAdd(s1)
 
 	// check that it's been translated correctly.
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, &v2.Cluster{
-				Name: "default/kuard/8080/da39a3ee5e",
-				Type: v2.Cluster_EDS,
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "2",
+		Resources: resources(t,
+			featuretests.DefaultCluster(&v2.Cluster{
+				Name:                 "default/kuard/8080/da39a3ee5e",
+				AltStatName:          "default_kuard_8080",
+				ClusterDiscoveryType: envoy.ClusterDiscoveryType(v2.Cluster_EDS),
 				EdsClusterConfig: &v2.Cluster_EdsClusterConfig{
-					EdsConfig:   apiconfigsource("contour"), // hard coded by initconfig
+					EdsConfig:   envoy.ConfigSource("contour"),
 					ServiceName: "default/kuard",
 				},
-				ConnectTimeout: 250 * time.Millisecond,
-				LbPolicy:       v2.Cluster_ROUND_ROBIN,
 				CircuitBreakers: &envoy_cluster.CircuitBreakers{
 					Thresholds: []*envoy_cluster.CircuitBreakers_Thresholds{{
-						MaxConnections:     uint32t(9000),
-						MaxPendingRequests: uint32t(4096),
-						MaxRequests:        uint32t(404),
-						MaxRetries:         uint32t(7),
+						MaxConnections:     protobuf.UInt32(9000),
+						MaxPendingRequests: protobuf.UInt32(4096),
+						MaxRequests:        protobuf.UInt32(404),
+						MaxRetries:         protobuf.UInt32(7),
 					}},
 				},
-				CommonLbConfig: &v2.Cluster_CommonLbConfig{
-					HealthyPanicThreshold: &envoy_type.Percent{ // Disable HealthyPanicThreshold
-						Value: 0,
-					},
-				},
 			}),
-		},
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "2",
 	}, streamCDS(t, cc))
 
 	// update s1 with slightly weird values
@@ -544,9 +539,9 @@ func TestClusterCircuitbreakerAnnotations(t *testing.T) {
 		"default",
 		"kuard",
 		map[string]string{
-			"contour.heptio.com/max-pending-requests": "9999",
-			"contour.heptio.com/max-requests":         "1e6",
-			"contour.heptio.com/max-retries":          "0",
+			"projectcontour.io/max-pending-requests": "9999",
+			"projectcontour.io/max-requests":         "1e6",
+			"projectcontour.io/max-retries":          "0",
 		},
 		v1.ServicePort{
 			Protocol:   "TCP",
@@ -557,32 +552,26 @@ func TestClusterCircuitbreakerAnnotations(t *testing.T) {
 	rh.OnUpdate(s1, s2)
 
 	// check that it's been translated correctly.
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, &v2.Cluster{
-				Name: "default/kuard/8080/da39a3ee5e",
-				Type: v2.Cluster_EDS,
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "3",
+		Resources: resources(t,
+			featuretests.DefaultCluster(&v2.Cluster{
+				Name:                 "default/kuard/8080/da39a3ee5e",
+				AltStatName:          "default_kuard_8080",
+				ClusterDiscoveryType: envoy.ClusterDiscoveryType(v2.Cluster_EDS),
 				EdsClusterConfig: &v2.Cluster_EdsClusterConfig{
-					EdsConfig:   apiconfigsource("contour"), // hard coded by initconfig
+					EdsConfig:   envoy.ConfigSource("contour"),
 					ServiceName: "default/kuard",
 				},
-				ConnectTimeout: 250 * time.Millisecond,
-				LbPolicy:       v2.Cluster_ROUND_ROBIN,
 				CircuitBreakers: &envoy_cluster.CircuitBreakers{
 					Thresholds: []*envoy_cluster.CircuitBreakers_Thresholds{{
-						MaxPendingRequests: uint32t(9999),
+						MaxPendingRequests: protobuf.UInt32(9999),
 					}},
 				},
-				CommonLbConfig: &v2.Cluster_CommonLbConfig{
-					HealthyPanicThreshold: &envoy_type.Percent{ // Disable HealthyPanicThreshold
-						Value: 0,
-					},
-				},
 			}),
-		},
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "3",
 	}, streamCDS(t, cc))
 }
 
@@ -606,23 +595,27 @@ func TestClusterPerServiceParameters(t *testing.T) {
 		},
 	})
 
-	rh.OnAdd(&ingressroutev1.IngressRoute{
+	rh.OnAdd(&projcontour.HTTPProxy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "simple",
 			Namespace: "default",
 		},
-		Spec: ingressroutev1.IngressRouteSpec{
-			VirtualHost: &ingressroutev1.VirtualHost{Fqdn: "www.example.com"},
-			Routes: []ingressroutev1.Route{{
-				Match: "/a",
-				Services: []ingressroutev1.Service{{
+		Spec: projcontour.HTTPProxySpec{
+			VirtualHost: &projcontour.VirtualHost{Fqdn: "www.example.com"},
+			Routes: []projcontour.Route{{
+				Conditions: []projcontour.Condition{{
+					Prefix: "/a",
+				}},
+				Services: []projcontour.Service{{
 					Name:   "kuard",
 					Port:   80,
 					Weight: 90,
 				}},
 			}, {
-				Match: "/b",
-				Services: []ingressroutev1.Service{{
+				Conditions: []projcontour.Condition{{
+					Prefix: "/a",
+				}},
+				Services: []projcontour.Service{{
 					Name:   "kuard",
 					Port:   80,
 					Weight: 60,
@@ -631,13 +624,13 @@ func TestClusterPerServiceParameters(t *testing.T) {
 		},
 	})
 
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, cluster("default/kuard/80/da39a3ee5e", "default/kuard")),
-		},
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "1",
+		Resources: resources(t,
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "1",
 	}, streamCDS(t, cc))
 }
 
@@ -661,72 +654,199 @@ func TestClusterLoadBalancerStrategyPerRoute(t *testing.T) {
 		},
 	})
 
-	rh.OnAdd(&ingressroutev1.IngressRoute{
+	rh.OnAdd(&projcontour.HTTPProxy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "simple",
 			Namespace: "default",
 		},
-		Spec: ingressroutev1.IngressRouteSpec{
-			VirtualHost: &ingressroutev1.VirtualHost{Fqdn: "www.example.com"},
-			Routes: []ingressroutev1.Route{{
-				Match: "/a",
-				Services: []ingressroutev1.Service{{
-					Name:     "kuard",
-					Port:     80,
+		Spec: projcontour.HTTPProxySpec{
+			VirtualHost: &projcontour.VirtualHost{Fqdn: "www.example.com"},
+			Routes: []projcontour.Route{{
+				Conditions: []projcontour.Condition{{
+					Prefix: "/a",
+				}},
+				LoadBalancerPolicy: &projcontour.LoadBalancerPolicy{
 					Strategy: "Random",
+				},
+				Services: []projcontour.Service{{
+					Name: "kuard",
+					Port: 80,
 				}},
 			}, {
-				Match: "/b",
-				Services: []ingressroutev1.Service{{
-					Name:     "kuard",
-					Port:     80,
-					Strategy: "Maglev",
+				Conditions: []projcontour.Condition{{
+					Prefix: "/b",
+				}},
+				LoadBalancerPolicy: &projcontour.LoadBalancerPolicy{
+					Strategy: "WeightedLeastRequest",
+				},
+				Services: []projcontour.Service{{
+					Name: "kuard",
+					Port: 80,
 				}},
 			}},
 		},
 	})
 
-	assertEqual(t, &v2.DiscoveryResponse{
-		VersionInfo: "0",
-		Resources: []types.Any{
-			any(t, &v2.Cluster{
-				Name: "default/kuard/80/58d888c08a",
-				Type: v2.Cluster_EDS,
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "1",
+		Resources: resources(t,
+			featuretests.DefaultCluster(&v2.Cluster{
+				Name:                 "default/kuard/80/58d888c08a",
+				AltStatName:          "default_kuard_80",
+				ClusterDiscoveryType: envoy.ClusterDiscoveryType(v2.Cluster_EDS),
 				EdsClusterConfig: &v2.Cluster_EdsClusterConfig{
-					EdsConfig:   apiconfigsource("contour"), // hard coded by initconfig
+					EdsConfig:   envoy.ConfigSource("contour"),
 					ServiceName: "default/kuard",
 				},
-				ConnectTimeout: 250 * time.Millisecond,
-				LbPolicy:       v2.Cluster_RANDOM,
-				CommonLbConfig: &v2.Cluster_CommonLbConfig{
-					HealthyPanicThreshold: &envoy_type.Percent{ // Disable HealthyPanicThreshold
-						Value: 0,
-					},
-				},
+				LbPolicy: v2.Cluster_RANDOM,
 			}),
-			any(t, &v2.Cluster{
-				Name: "default/kuard/80/843e4ded8f",
-				Type: v2.Cluster_EDS,
+			featuretests.DefaultCluster(&v2.Cluster{
+				Name:                 "default/kuard/80/8bf87fefba",
+				AltStatName:          "default_kuard_80",
+				ClusterDiscoveryType: envoy.ClusterDiscoveryType(v2.Cluster_EDS),
 				EdsClusterConfig: &v2.Cluster_EdsClusterConfig{
-					EdsConfig:   apiconfigsource("contour"), // hard coded by initconfig
+					EdsConfig:   envoy.ConfigSource("contour"),
 					ServiceName: "default/kuard",
 				},
-				ConnectTimeout: 250 * time.Millisecond,
-				LbPolicy:       v2.Cluster_MAGLEV,
-				CommonLbConfig: &v2.Cluster_CommonLbConfig{
-					HealthyPanicThreshold: &envoy_type.Percent{ // Disable HealthyPanicThreshold
-						Value: 0,
-					},
-				},
+				LbPolicy: v2.Cluster_LEAST_REQUEST,
 			}),
-		},
+		),
 		TypeUrl: clusterType,
-		Nonce:   "0",
+		Nonce:   "1",
 	}, streamCDS(t, cc))
 }
 
-func uint32t(v int) *types.UInt32Value {
-	return &types.UInt32Value{Value: uint32(v)}
+func TestClusterWithHealthChecks(t *testing.T) {
+	rh, cc, done := setup(t)
+	defer done()
+
+	rh.OnAdd(&v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kuard",
+			Namespace: "default",
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{{
+				Protocol:   "TCP",
+				Port:       80,
+				TargetPort: intstr.FromInt(8080),
+			}},
+		},
+	})
+
+	rh.OnAdd(&projcontour.HTTPProxy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "simple",
+			Namespace: "default",
+		},
+		Spec: projcontour.HTTPProxySpec{
+			VirtualHost: &projcontour.VirtualHost{Fqdn: "www.example.com"},
+			Routes: []projcontour.Route{{
+				Conditions: []projcontour.Condition{{
+					Prefix: "/a",
+				}},
+				HealthCheckPolicy: &projcontour.HTTPHealthCheckPolicy{
+					Path: "/healthz",
+				},
+				Services: []projcontour.Service{{
+					Name:   "kuard",
+					Port:   80,
+					Weight: 90,
+				}},
+			}},
+		},
+	})
+
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "1",
+		Resources: resources(t,
+			clusterWithHealthCheck("default/kuard/80/bc862a33ca", "default/kuard", "default_kuard_80", "/healthz", true),
+		),
+		TypeUrl: clusterType,
+		Nonce:   "1",
+	}, streamCDS(t, cc))
+}
+
+// Test processing a service that exists but is not referenced
+func TestUnreferencedService(t *testing.T) {
+	rh, cc, done := setup(t)
+	defer done()
+
+	rh.OnAdd(&v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kuard",
+			Namespace: "default",
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{{
+				Protocol:   "TCP",
+				Port:       80,
+				TargetPort: intstr.FromInt(8080),
+			}},
+		},
+	})
+
+	rh.OnAdd(&projcontour.HTTPProxy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "simple",
+			Namespace: "default",
+		},
+		Spec: projcontour.HTTPProxySpec{
+			VirtualHost: &projcontour.VirtualHost{Fqdn: "www.example.com"},
+			Routes: []projcontour.Route{{
+				Conditions: []projcontour.Condition{{
+					Prefix: "/a",
+				}},
+				Services: []projcontour.Service{{
+					Name:   "kuard",
+					Port:   80,
+					Weight: 90,
+				}},
+			}, {
+				Conditions: []projcontour.Condition{{
+					Prefix: "/b",
+				}},
+				Services: []projcontour.Service{{
+					Name:   "kuard",
+					Port:   80,
+					Weight: 60,
+				}},
+			}},
+		},
+	})
+
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "1",
+		Resources: resources(t,
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+		),
+		TypeUrl: clusterType,
+		Nonce:   "1",
+	}, streamCDS(t, cc))
+
+	// This service which is added should not cause a DAG rebuild
+	rh.OnAdd(&v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kuard-notreferenced",
+			Namespace: "default",
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{{
+				Protocol:   "TCP",
+				Port:       80,
+				TargetPort: intstr.FromInt(8080),
+			}},
+		},
+	})
+
+	assert.Equal(t, &v2.DiscoveryResponse{
+		VersionInfo: "1",
+		Resources: resources(t,
+			cluster("default/kuard/80/da39a3ee5e", "default/kuard", "default_kuard_80"),
+		),
+		TypeUrl: clusterType,
+		Nonce:   "1",
+	}, streamCDS(t, cc))
 }
 
 func serviceWithAnnotations(ns, name string, annotations map[string]string, ports ...v1.ServicePort) *v1.Service {
@@ -745,54 +865,40 @@ func serviceWithAnnotations(ns, name string, annotations map[string]string, port
 func streamCDS(t *testing.T, cc *grpc.ClientConn, rn ...string) *v2.DiscoveryResponse {
 	t.Helper()
 	rds := v2.NewClusterDiscoveryServiceClient(cc)
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-	defer cancel()
-	st, err := rds.StreamClusters(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st, err := rds.StreamClusters(context.TODO())
+	check(t, err)
 	return stream(t, st, &v2.DiscoveryRequest{
 		TypeUrl:       clusterType,
 		ResourceNames: rn,
 	})
 }
 
-func cluster(name, servicename string) *v2.Cluster {
-	return &v2.Cluster{
-		Name: name,
-		Type: v2.Cluster_EDS,
+func cluster(name, servicename, statName string) *v2.Cluster {
+	return featuretests.DefaultCluster(&v2.Cluster{
+		Name:                 name,
+		ClusterDiscoveryType: envoy.ClusterDiscoveryType(v2.Cluster_EDS),
+		AltStatName:          statName,
 		EdsClusterConfig: &v2.Cluster_EdsClusterConfig{
-			EdsConfig:   apiconfigsource("contour"), // hard coded by initconfig
+			EdsConfig:   envoy.ConfigSource("contour"),
 			ServiceName: servicename,
 		},
-		ConnectTimeout: 250 * time.Millisecond,
-		LbPolicy:       v2.Cluster_ROUND_ROBIN,
-		CommonLbConfig: &v2.Cluster_CommonLbConfig{
-			HealthyPanicThreshold: &envoy_type.Percent{ // Disable HealthyPanicThreshold
-				Value: 0,
-			},
-		},
-	}
+	})
 }
 
-func apiconfigsource(clusters ...string) *core.ConfigSource {
-	services := make([]*core.GrpcService, 0, len(clusters))
-	for _, c := range clusters {
-		services = append(services, &core.GrpcService{
-			TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
-				EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
-					ClusterName: c,
-				},
-			},
-		})
-	}
-	return &core.ConfigSource{
-		ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
-			ApiConfigSource: &core.ApiConfigSource{
-				ApiType:      core.ApiConfigSource_GRPC,
-				GrpcServices: services,
+func clusterWithHealthCheck(name, servicename, statName, healthCheckPath string, drainConnOnHostRemoval bool) *v2.Cluster {
+	c := cluster(name, servicename, statName)
+	c.HealthChecks = []*envoy_api_v2_core.HealthCheck{{
+		Timeout:            protobuf.Duration(2 * time.Second),
+		Interval:           protobuf.Duration(10 * time.Second),
+		UnhealthyThreshold: protobuf.UInt32(3),
+		HealthyThreshold:   protobuf.UInt32(2),
+		HealthChecker: &envoy_api_v2_core.HealthCheck_HttpHealthCheck_{
+			HttpHealthCheck: &envoy_api_v2_core.HealthCheck_HttpHealthCheck{
+				Host: "contour-envoy-healthcheck",
+				Path: healthCheckPath,
 			},
 		},
-	}
+	}}
+	c.DrainConnectionsOnHostRemoval = drainConnOnHostRemoval
+	return c
 }

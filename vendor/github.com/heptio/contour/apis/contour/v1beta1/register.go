@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2020
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -19,36 +19,48 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-var (
-	// SchemeBuilder collects the scheme builder functions for the Contour API
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-
-	// AddToScheme applies the SchemeBuilder functions to a specified scheme
-	AddToScheme = SchemeBuilder.AddToScheme
-)
-
 const (
 	// GroupName is the group name for the Contour API
 	GroupName = "contour.heptio.com"
-	// ResourceKind is the CRD Kind
-	ResourceKind = "IngressRoute"
-	// ResourcePlural is the CRD Kind pluralized
-	ResourcePlural = "ingressroutes"
 )
 
-// SchemeGroupVersion is the GroupVersion for the Contour API
-var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1beta1"}
+// SchemeGroupVersion is a compatibility name for the GroupVersion.
+// New code should use GroupVersion.
+var SchemeGroupVersion = GroupVersion
+
+var IngressRouteGVR = GroupVersion.WithResource("ingressroutes")
+var TLSCertificateDelegationGVR = GroupVersion.WithResource("tlscertificatedelegations")
 
 // Resource gets an Contour GroupResource for a specified resource
 func Resource(resource string) schema.GroupResource {
-	return SchemeGroupVersion.WithResource(resource).GroupResource()
+	return GroupVersion.WithResource(resource).GroupResource()
 }
 
-func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(SchemeGroupVersion,
+// AddKnownTypes is exported for backwards compatibility with third
+// parties who depend on this symbol, but all new code should use
+// AddToScheme.
+func AddKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(
+		GroupVersion,
 		&IngressRoute{},
 		&IngressRouteList{},
+		&TLSCertificateDelegation{},
+		&TLSCertificateDelegationList{},
 	)
-	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	metav1.AddToGroupVersion(scheme, GroupVersion)
 	return nil
 }
+
+// The following declarations are kubebuilder-compatible and will be expected
+// by third parties who import the Contour API types.
+
+var (
+	// GroupVersion is group version used to register these objects
+	GroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1beta1"}
+
+	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
+	SchemeBuilder = runtime.NewSchemeBuilder(AddKnownTypes)
+
+	// AddToScheme adds the types in this group-version to the given scheme.
+	AddToScheme = SchemeBuilder.AddToScheme
+)

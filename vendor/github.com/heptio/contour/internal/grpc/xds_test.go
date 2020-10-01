@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,54 +17,17 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"reflect"
+	"io/ioutil"
 	"testing"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/gogo/protobuf/proto"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus"
 )
 
-func TestXDSHandlerFetch(t *testing.T) {
-	log := testLogger(t)
-	tests := map[string]struct {
-		xh   xdsHandler
-		req  *v2.DiscoveryRequest
-		want error
-	}{
-		"no registered typeURL": {
-			xh:   xdsHandler{FieldLogger: log},
-			req:  &v2.DiscoveryRequest{TypeUrl: "com.heptio.potato"},
-			want: fmt.Errorf("no resource registered for typeURL %q", "com.heptio.potato"),
-		},
-		"failed to convert values to any": {
-			xh: xdsHandler{
-				FieldLogger: log,
-				resources: map[string]resource{
-					"com.heptio.potato": &mockResource{
-						values: func(fn func(string) bool) []proto.Message {
-							return []proto.Message{nil}
-						},
-						typeurl: func() string { return "com.heptio.potato" },
-					},
-				},
-			},
-			req:  &v2.DiscoveryRequest{TypeUrl: "com.heptio.potato"},
-			want: fmt.Errorf("proto: Marshal called with nil"),
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			_, got := tc.xh.fetch(tc.req)
-			if !reflect.DeepEqual(tc.want, got) {
-				t.Fatalf("expected: %v, got: %v", tc.want, got)
-			}
-		})
-	}
-}
-
 func TestXDSHandlerStream(t *testing.T) {
-	log := testLogger(t)
+	log := logrus.New()
+	log.SetOutput(ioutil.Discard)
 	tests := map[string]struct {
 		xh     xdsHandler
 		stream grpcStream
@@ -95,14 +58,15 @@ func TestXDSHandlerStream(t *testing.T) {
 		"failed to convert values to any": {
 			xh: xdsHandler{
 				FieldLogger: log,
-				resources: map[string]resource{
+				resources: map[string]Resource{
 					"com.heptio.potato": &mockResource{
 						register: func(ch chan int, i int) {
 							ch <- i + 1
 						},
-						values: func(fn func(string) bool) []proto.Message {
+						contents: func() []proto.Message {
 							return []proto.Message{nil}
 						},
+						typeurl: func() string { return "com.heptio.potato" },
 					},
 				},
 			},
@@ -119,12 +83,12 @@ func TestXDSHandlerStream(t *testing.T) {
 		"failed to send": {
 			xh: xdsHandler{
 				FieldLogger: log,
-				resources: map[string]resource{
+				resources: map[string]Resource{
 					"com.heptio.potato": &mockResource{
 						register: func(ch chan int, i int) {
 							ch <- i + 1
 						},
-						values: func(fn func(string) bool) []proto.Message {
+						contents: func() []proto.Message {
 							return []proto.Message{new(v2.ClusterLoadAssignment)}
 						},
 						typeurl: func() string { return "com.heptio.potato" },
@@ -147,11 +111,12 @@ func TestXDSHandlerStream(t *testing.T) {
 		"context canceled": {
 			xh: xdsHandler{
 				FieldLogger: log,
-				resources: map[string]resource{
+				resources: map[string]Resource{
 					"com.heptio.potato": &mockResource{
 						register: func(ch chan int, i int) {
 							// do nothing
 						},
+						typeurl: func() string { return "com.heptio.potato" },
 					},
 				},
 			},
@@ -171,14 +136,14 @@ func TestXDSHandlerStream(t *testing.T) {
 					return io.EOF
 				},
 			},
-			want: fmt.Errorf("context canceled"),
+			want: context.Canceled,
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			got := tc.xh.stream(tc.stream)
-			if !reflect.DeepEqual(tc.want, got) {
+			if !equalError(tc.want, got) {
 				t.Fatalf("expected: %v, got: %v", tc.want, got)
 			}
 		})
@@ -196,62 +161,16 @@ func (m *mockStream) Send(resp *v2.DiscoveryResponse) error { return m.send(resp
 func (m *mockStream) Recv() (*v2.DiscoveryRequest, error)   { return m.recv() }
 
 type mockResource struct {
-	values   func(func(string) bool) []proto.Message
+	contents func() []proto.Message
+	query    func([]string) []proto.Message
 	register func(chan int, int)
 	typeurl  func() string
 }
 
-func (m *mockResource) Values(fn func(string) bool) []proto.Message { return m.values(fn) }
-func (m *mockResource) Register(ch chan int, last int)              { m.register(ch, last) }
-func (m *mockResource) TypeURL() string                             { return m.typeurl() }
-
-func TestToFilter(t *testing.T) {
-	tests := map[string]struct {
-		names []string
-		input []string
-		want  []string
-	}{
-		"empty names": {
-			names: nil,
-			input: []string{"a", "b", "c"},
-			want:  []string{"a", "b", "c"},
-		},
-		"empty input": {
-			names: []string{"a", "b", "c"},
-			input: nil,
-			want:  []string{},
-		},
-		"fully matching filter": {
-			names: []string{"a", "b", "c"},
-			input: []string{"a", "b", "c"},
-			want:  []string{"a", "b", "c"},
-		},
-		"non matching filter": {
-			names: []string{"d", "e"},
-			input: []string{"a", "b", "c"},
-			want:  []string{},
-		},
-		"partially matching filter": {
-			names: []string{"c", "e"},
-			input: []string{"a", "b", "c", "d"},
-			want:  []string{"c"},
-		},
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			got := []string{}
-			filter := toFilter(tc.names)
-			for _, i := range tc.input {
-				if filter(i) {
-					got = append(got, i)
-				}
-			}
-			if !reflect.DeepEqual(tc.want, got) {
-				t.Fatalf("expected: %v, got: %v", tc.want, got)
-			}
-		})
-	}
-}
+func (m *mockResource) Contents() []proto.Message                       { return m.contents() }
+func (m *mockResource) Query(names []string) []proto.Message            { return m.query(names) }
+func (m *mockResource) Register(ch chan int, last int, hints ...string) { m.register(ch, last) }
+func (m *mockResource) TypeURL() string                                 { return m.typeurl() }
 
 func TestCounterNext(t *testing.T) {
 	var c counter
@@ -277,4 +196,14 @@ func TestCounterNext(t *testing.T) {
 			t.Fatalf("expected %d, got %d", tc.want, got)
 		}
 	}
+}
+
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
 }

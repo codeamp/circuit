@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,28 +14,25 @@
 package main
 
 import (
-	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+	"github.com/projectcontour/contour/internal/envoy"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-type configWriter interface {
-	WriteYAML(io.Writer) error
-}
+// registerBootstrap registers the bootstrap subcommand and flags
+// with the Application provided.
+func registerBootstrap(app *kingpin.Application) (*kingpin.CmdClause, *envoy.BootstrapConfig) {
+	var config envoy.BootstrapConfig
 
-// writeBootstrapConfig writes a bootstrap configuration to the supplied path.
-// If the path ends in .yaml, the configuration file will be in v2 YAML format.
-func writeBootstrapConfig(config configWriter, path string) {
-	f, err := os.Create(path)
-	check(err)
-	switch filepath.Ext(path) {
-	case ".yaml":
-		err = config.WriteYAML(f)
-		check(err)
-	default:
-		f.Close()
-		check(fmt.Errorf("path %s must end in .yaml", path))
-	}
-	check(f.Close())
+	bootstrap := app.Command("bootstrap", "Generate bootstrap configuration.")
+	bootstrap.Arg("path", "Configuration file ('-' for standard output).").Required().StringVar(&config.Path)
+	bootstrap.Flag("resources-dir", "Directory where configuration files will be written to.").StringVar(&config.ResourcesDir)
+	bootstrap.Flag("admin-address", "Envoy admin interface address.").StringVar(&config.AdminAddress)
+	bootstrap.Flag("admin-port", "Envoy admin interface port.").IntVar(&config.AdminPort)
+	bootstrap.Flag("xds-address", "xDS gRPC API address.").StringVar(&config.XDSAddress)
+	bootstrap.Flag("xds-port", "xDS gRPC API port.").IntVar(&config.XDSGRPCPort)
+	bootstrap.Flag("envoy-cafile", "gRPC CA Filename for Envoy to load.").Envar("ENVOY_CAFILE").StringVar(&config.GrpcCABundle)
+	bootstrap.Flag("envoy-cert-file", "gRPC Client cert filename for Envoy to load.").Envar("ENVOY_CERT_FILE").StringVar(&config.GrpcClientCert)
+	bootstrap.Flag("envoy-key-file", "gRPC Client key filename for Envoy to load.").Envar("ENVOY_KEY_FILE").StringVar(&config.GrpcClientKey)
+	bootstrap.Flag("namespace", "The namespace the Envoy container will run in.").Envar("CONTOUR_NAMESPACE").Default("projectcontour").StringVar(&config.Namespace)
+	return bootstrap, &config
 }

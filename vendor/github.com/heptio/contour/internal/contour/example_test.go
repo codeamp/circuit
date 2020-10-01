@@ -1,4 +1,4 @@
-// Copyright © 2017 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/heptio/contour/internal/contour"
+	"github.com/projectcontour/contour/internal/contour"
 )
 
 func ExampleCond() {

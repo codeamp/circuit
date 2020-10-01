@@ -1,0 +1,43 @@
+run:
+  timeout: 10m
+
+linters:
+  enable:
+  - bodyclose
+  - goimports
+  - gosec
+  - misspell
+  - unconvert
+  - unparam
+
+# TODO(jpeach): enable these later:
+#  - gocyclo
+#  - gocognit
+
+linters-settings:
+  misspell:
+    ignore-words:
+    - clas
+    - cancelled
+    locale: US
+  gofmt:
+    simplify: true
+  unparam:
+    check-exported: false
+
+issues:
+  exclude:
+  # TODO(jpeach): exclude unparam warnings about functions that always recieve
+  # the same arguments. We should clean those up some time.
+  - always receives
+  exclude-rules:
+  - path: zz_generated
+    linters:
+    - goimports
+  # TODO(youngnick): Disable the deprecation warnings, because of the "github.com/golang/protobuf/proto"
+  # libraries. We can't stop using them yet, because they move from Proto v1 to V2
+  # And we can't nolint them by line, because https://github.com/golangci/golangci-lint/issues/741
+  - linters:
+    - staticcheck
+    text: "SA1019: package github.com/golang/protobuf"
+

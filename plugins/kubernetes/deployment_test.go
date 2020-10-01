@@ -15,9 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,10 +37,9 @@ plugins:
 `)
 
 	suite.KubernetesPlugin = kubernetes.Kubernetes{
-		K8sContourNamespacer: &MockContourNamespacer{},
-		K8sNamespacer:        &MockKubernetesNamespacer{},
-		BatchV1Jobber:        &suite.MockBatchV1Job,
-		CoreSecreter:         &MockCoreSecret{},
+		K8sNamespacer: &MockKubernetesNamespacer{},
+		BatchV1Jobber: &suite.MockBatchV1Job,
+		CoreSecreter:  &MockCoreSecret{},
 	}
 
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin { return &suite.KubernetesPlugin }, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
@@ -108,7 +108,7 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwindFirstDeploy() {
 	namespace := fmt.Sprintf("%s-%s", failingReleaseExtension.Release.Environment, failingReleaseExtension.Release.Project.Slug)
 	deploymentName := fmt.Sprintf("%s-%s", failingReleaseExtension.Release.Project.Slug, failingReleaseExtension.Release.Services[0].Name)
 
-	clientset.Extensions().ReplicaSets(namespace).Create(&v1beta1.ReplicaSet{
+	clientset.Extensions().ReplicaSets(namespace).Create(&appsv1.ReplicaSet{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Generation: 1,
 			Labels: map[string]string{
@@ -138,7 +138,7 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwindFirstDeploy() {
 	for {
 		res, _ := clientset.Extensions().Deployments(namespace).List(meta_v1.ListOptions{})
 		if len(res.Items) > 0 && hasFailedDeployment == false {
-			res.Items[0].Status = v1beta1.DeploymentStatus{
+			res.Items[0].Status = appsv1.DeploymentStatus{
 				UnavailableReplicas: 1,
 			}
 
@@ -198,7 +198,7 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwind() {
 	for {
 		res, _ := clientset.Extensions().Deployments(namespace).List(meta_v1.ListOptions{})
 		if len(res.Items) > 0 && hasFailedDeployment == false {
-			res.Items[0].Status = v1beta1.DeploymentStatus{
+			res.Items[0].Status = appsv1.DeploymentStatus{
 				UnavailableReplicas: 1,
 			}
 

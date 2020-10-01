@@ -1,4 +1,4 @@
-// Copyright © 2018 Heptio
+// Copyright © 2019 VMware
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,51 +14,119 @@
 package k8s
 
 import (
-	"encoding/json"
+	"errors"
+	"fmt"
 
-	jsonpatch "github.com/evanphx/json-patch"
-	ingressroutev1 "github.com/heptio/contour/apis/contour/v1beta1"
-	clientset "github.com/heptio/contour/apis/generated/clientset/versioned"
-	"k8s.io/apimachinery/pkg/types"
+	projcontour "github.com/projectcontour/contour/apis/projectcontour/v1"
 )
 
-// IngressRouteStatus allows for updating the object's Status field
-type IngressRouteStatus struct {
-	Client clientset.Interface
+const (
+	StatusValid    = "valid"
+	StatusInvalid  = "invalid"
+	StatusOrphaned = "orphaned"
+)
+
+// StatusClient updates the Status on a Kubernetes object.
+type StatusClient interface {
+	SetStatus(status string, desc string, obj interface{}) error
+	GetStatus(obj interface{}) (*projcontour.Status, error)
 }
 
-// SetStatus sets the IngressRoute status field to an Valid or Invalid status
-func (irs *IngressRouteStatus) SetStatus(status, desc string, existing *ingressroutev1.IngressRoute) error {
-	// Check if update needed by comparing status & desc
-	if existing.CurrentStatus != status || existing.Description != desc {
-		updated := existing.DeepCopy()
-		updated.Status = ingressroutev1.Status{
-			CurrentStatus: status,
-			Description:   desc,
-		}
-		return irs.setStatus(existing, updated)
+// StatusCacher keeps a cache of the latest status updates for Kubernetes objects.
+type StatusCacher struct {
+	objectStatus map[string]projcontour.Status
+}
+
+func objectKey(obj interface{}) string {
+	switch obj := obj.(type) {
+	case *projcontour.HTTPProxy:
+		return fmt.Sprintf("%s/%s/%s",
+			KindOf(obj),
+			obj.GetObjectMeta().GetNamespace(),
+			obj.GetObjectMeta().GetName())
+	default:
+		panic(fmt.Sprintf("status caching not supported for object type %T", obj))
 	}
+}
+
+// IsCacheable returns whether this type of object can be stored in
+// the status cache.
+func (c *StatusCacher) IsCacheable(obj interface{}) bool {
+	switch obj.(type) {
+	case *projcontour.HTTPProxy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Delete removes an object from the status cache.
+func (c *StatusCacher) Delete(obj interface{}) {
+	if c.objectStatus != nil {
+		delete(c.objectStatus, objectKey(obj))
+	}
+}
+
+// GetStatus returns the status (if any) for this given object.
+func (c *StatusCacher) GetStatus(obj interface{}) (*projcontour.Status, error) {
+	if c.objectStatus == nil {
+		c.objectStatus = make(map[string]projcontour.Status)
+	}
+
+	s, ok := c.objectStatus[objectKey(obj)]
+	if !ok {
+		return nil, fmt.Errorf("no status for key '%s'", objectKey(obj))
+	}
+
+	return &s, nil
+}
+
+// SetStatus sets the HTTPProxy status field to an Valid or Invalid status
+func (c *StatusCacher) SetStatus(status, desc string, obj interface{}) error {
+	if c.objectStatus == nil {
+		c.objectStatus = make(map[string]projcontour.Status)
+	}
+
+	c.objectStatus[objectKey(obj)] = projcontour.Status{
+		CurrentStatus: status,
+		Description:   desc,
+	}
+
 	return nil
 }
 
-func (irs *IngressRouteStatus) setStatus(existing, updated *ingressroutev1.IngressRoute) error {
-	existingBytes, err := json.Marshal(existing)
-	if err != nil {
-		return err
-	}
-	// Need to set the resource version of the updated endpoints to the resource
-	// version of the current service. Otherwise, the resulting patch does not
-	// have a resource version, and the server complains.
-	updated.ResourceVersion = existing.ResourceVersion
-	updatedBytes, err := json.Marshal(updated)
-	if err != nil {
-		return err
-	}
-	patchBytes, err := jsonpatch.CreateMergePatch(existingBytes, updatedBytes)
-	if err != nil {
-		return err
-	}
+// StatusWriter updates the object's Status field.
+type StatusWriter struct {
+	Updater StatusUpdater
+}
 
-	_, err = irs.Client.ContourV1beta1().IngressRoutes(existing.GetNamespace()).Patch(existing.GetName(), types.MergePatchType, patchBytes)
-	return err
+// GetStatus is not implemented for StatusWriter.
+func (irs *StatusWriter) GetStatus(obj interface{}) (*projcontour.Status, error) {
+	return nil, errors.New("not implemented")
+}
+
+// SetStatus sets the HTTPProxy status field to an Valid or Invalid status
+func (irs *StatusWriter) SetStatus(status, desc string, existing interface{}) error {
+	switch exist := existing.(type) {
+	case *projcontour.HTTPProxy:
+		// StatusUpdateWriters only apply an update if required, so
+		// we don't need to check here.
+		irs.Updater.Update(exist.Name,
+			exist.Namespace,
+			projcontour.HTTPProxyGVR,
+			StatusMutatorFunc(func(obj interface{}) interface{} {
+				switch o := obj.(type) {
+				case *projcontour.HTTPProxy:
+					dco := o.DeepCopy()
+					dco.Status.CurrentStatus = status
+					dco.Status.Description = desc
+					return dco
+				default:
+					panic(fmt.Sprintf("Unsupported object %s/%s in status Address mutator",
+						exist.Namespace, exist.Name,
+					))
+				}
+			}))
+	}
+	return nil
 }

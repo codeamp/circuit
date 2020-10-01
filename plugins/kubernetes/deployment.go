@@ -15,9 +15,9 @@ import (
 	"github.com/codeamp/transistor"
 	"k8s.io/client-go/kubernetes"
 
+	appsv1 "k8s.io/api/apps/v1"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -216,10 +216,10 @@ func detectPodRestart(pod v1.Pod) (string, int) {
 	}
 }
 
-func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.DeploymentStrategy {
-	var defaultDeploymentStrategy = v1beta1.DeploymentStrategy{
-		Type: v1beta1.RollingUpdateDeploymentStrategyType,
-		RollingUpdate: &v1beta1.RollingUpdateDeployment{
+func getDeploymentStrategy(service plugins.Service, rollback bool) appsv1.DeploymentStrategy {
+	var defaultDeploymentStrategy = appsv1.DeploymentStrategy{
+		Type: appsv1.RollingUpdateDeploymentStrategyType,
+		RollingUpdate: &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
 				StrVal: "30%",
@@ -232,9 +232,9 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 	}
 
 	if rollback {
-		return v1beta1.DeploymentStrategy{
-			Type: v1beta1.RollingUpdateDeploymentStrategyType,
-			RollingUpdate: &v1beta1.RollingUpdateDeployment{
+		return appsv1.DeploymentStrategy{
+			Type: appsv1.RollingUpdateDeploymentStrategyType,
+			RollingUpdate: &appsv1.RollingUpdateDeployment{
 				MaxUnavailable: &intstr.IntOrString{
 					Type:   intstr.String,
 					StrVal: "70%",
@@ -255,12 +255,12 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 	case plugins.GetType("default"):
 		return defaultDeploymentStrategy
 	case plugins.GetType("recreate"):
-		return v1beta1.DeploymentStrategy{
-			Type: v1beta1.RecreateDeploymentStrategyType,
+		return appsv1.DeploymentStrategy{
+			Type: appsv1.RecreateDeploymentStrategyType,
 		}
 	case plugins.GetType("rollingUpdate"):
 		customDeploymentStrategy := defaultDeploymentStrategy
-		customDeploymentStrategy.RollingUpdate = &v1beta1.RollingUpdateDeployment{
+		customDeploymentStrategy.RollingUpdate = &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
 				StrVal: fmt.Sprintf("%d%%", service.DeploymentStrategy.MaxUnavailable),
@@ -867,7 +867,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 		deploymentName := genDeploymentName(projectSlug, service.Name)
 		deployPorts := getContainerPorts(service)
 
-		var deployStrategy v1beta1.DeploymentStrategy
+		var deployStrategy appsv1.DeploymentStrategy
 
 		// Support ready and liveness probes
 		readinessProbe := getReadinessProbe(service)
@@ -974,7 +974,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 		}
 		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Deployment")
 
-		var deployParams *v1beta1.Deployment
+		var deployParams *appsv1.Deployment
 
 		deploySelector := meta_v1.LabelSelector{
 			MatchLabels: map[string]string{
@@ -982,15 +982,15 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			},
 		}
 
-		deployParams = &v1beta1.Deployment{
+		deployParams = &appsv1.Deployment{
 			TypeMeta: meta_v1.TypeMeta{
 				Kind:       "Deployment",
-				APIVersion: "extensions/v1beta1",
+				APIVersion: "apps/v1",
 			},
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name: deploymentName,
 			},
-			Spec: v1beta1.DeploymentSpec{
+			Spec: appsv1.DeploymentSpec{
 				ProgressDeadlineSeconds: int32Ptr(300),
 				Replicas:                &replicas,
 				Strategy:                deployStrategy,
@@ -1072,7 +1072,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
 
 				var err error
-				var deployment *v1beta1.Deployment
+				var deployment *appsv1.Deployment
 				deployment, err = clientset.Extensions().Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Error '%s' fetching deployment status for %s", err, deploymentName))
@@ -1107,7 +1107,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 						continue
 					}
 
-					var currentReplica v1beta1.ReplicaSet
+					var currentReplica appsv1.ReplicaSet
 					for _, r := range replicaSetList.Items {
 						if r.Annotations["deployment.kubernetes.io/revision"] == latestRevision {
 							currentReplica = r
@@ -1251,7 +1251,7 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 		return nil
 	}
 	var foundIt bool
-	var orphans []v1beta1.Deployment
+	var orphans []appsv1.Deployment
 	for _, deployment := range allDeploymentsList.Items {
 		foundIt = false
 		for _, service := range services {
@@ -1528,7 +1528,7 @@ func (x *Kubernetes) unwindFailedDeployments(clientset kubernetes.Interface, nam
 
 		// Try to find the deployment associated with this service
 		var err error
-		var deployment *v1beta1.Deployment
+		var deployment *appsv1.Deployment
 		deployment, err = clientset.Extensions().Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
 		if err != nil {
 			log.Error(fmt.Sprintf("UNWIND-DEPLOY: Error '%s' fetching deployment status for %s", err, deploymentName))
@@ -1565,7 +1565,7 @@ func (x *Kubernetes) unwindFailedDeployments(clientset kubernetes.Interface, nam
 }
 
 func (x *Kubernetes) handleFirstDeploymentUnwind(clientset kubernetes.Interface, namespace string, deploymentName string,
-	deployment *v1beta1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *v1beta1.ReplicaSetList) error {
+	deployment *appsv1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *appsv1.ReplicaSetList) error {
 	log.Warn("There were no previous generations found. Was this a first deploy?")
 
 	// Delete the deployment
@@ -1584,7 +1584,7 @@ func (x *Kubernetes) handleFirstDeploymentUnwind(clientset kubernetes.Interface,
 }
 
 func (x *Kubernetes) handleTypicalUnwind(clientset kubernetes.Interface, namespace string, deploymentName string,
-	deployment *v1beta1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *v1beta1.ReplicaSetList) error {
+	deployment *appsv1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *appsv1.ReplicaSetList) error {
 	var ok bool
 	var err error
 	var preExistingDeploymentConfiguration *DeploymentConfiguration
@@ -1665,7 +1665,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			// while searching for it, keep track of the most
 			// recent RS so if we can't find the revision
 			// we're looking for we can unwind to the most recent replicaset
-			var mostRecentReplicaSet *v1beta1.ReplicaSet
+			var mostRecentReplicaSet *appsv1.ReplicaSet
 			if len(replicaSets.Items) > 0 {
 				mostRecentReplicaSet = &replicaSets.Items[0]
 			}

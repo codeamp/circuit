@@ -280,6 +280,14 @@
   revision = "3ed64d21fb0b6bd8b49bcfec08f3004daee8723d"
 
 [[projects]]
+  digest = "1:20e5ca13e477e4cb55fe78dc34e4a1ac681cccf415ab6fa42c76c9ff3607c1a7"
+  name = "github.com/evanphx/json-patch"
+  packages = ["."]
+  pruneopts = ""
+  revision = "162e5629780b286cc21cd80f1114a71f5917951f"
+  version = "v5.1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:66f7e7bffe48737b6680998ae3c100212f0da2c763d3d75ea2bda9a27fddfc69"
   name = "github.com/extemporalgenome/slug"
@@ -348,6 +356,14 @@
   pruneopts = ""
   revision = "ace140f73450505f33e8b8418216792275ae82a7"
   version = "v1.35.0"
+
+[[projects]]
+  digest = "1:1cc6926d3c2365e0039544842011ce78b5c5c12f2fe72660eb546cc85414f98c"
+  name = "github.com/go-logr/logr"
+  packages = ["."]
+  pruneopts = ""
+  revision = "ff9374eda70c55592ad54d87839c59db58257d2f"
+  version = "v0.2.1"
 
 [[projects]]
   digest = "1:48f9a43c330434d61098a65bdf4d8cbfbdc0eecf30ab35b1b88405868df6a42b"
@@ -515,14 +531,6 @@
   revision = "2a8bb927dd31d8daada140a5d09578521ce5c36a"
 
 [[projects]]
-  branch = "master"
-  digest = "1:1e5b1e14524ed08301977b7b8e10c719ed853cbf3f24ecb66fae783a46f207a6"
-  name = "github.com/google/btree"
-  packages = ["."]
-  pruneopts = ""
-  revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
-
-[[projects]]
   digest = "1:cea4aa2038169ee558bf507d5ea02c94ca85bcca28a4c7bb99fd59b31e43a686"
   name = "github.com/google/go-querystring"
   packages = ["query"]
@@ -599,17 +607,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5e345eb75d8bfb2b91cfbfe02a82a79c0b2ea55cf06c5a4d180a9321f36973b4"
-  name = "github.com/gregjones/httpcache"
-  packages = [
-    ".",
-    "diskcache",
-  ]
-  pruneopts = ""
-  revision = "c63ab54fda8f77302f8d414e19933f2b6026a089"
-
-[[projects]]
-  branch = "master"
   digest = "1:9b7c5846d70f425d7fe279595e32a20994c6075e87be03b5c367ed07280877c5"
   name = "github.com/hashicorp/hcl"
   packages = [
@@ -628,17 +625,12 @@
   revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
 
 [[projects]]
-  branch = "master"
-  digest = "1:40ea06297b9e54eceee8313657a4bb9fb116089f973d2dce1ec94efb7ba78bf3"
+  digest = "1:7d5eaf460d3fd389887035ae3447b1bb49cf04b276f3e756adf606159c2efc31"
   name = "github.com/heptio/contour"
-  packages = [
-    "apis/contour/v1beta1",
-    "apis/generated/clientset/versioned",
-    "apis/generated/clientset/versioned/scheme",
-    "apis/generated/clientset/versioned/typed/contour/v1beta1",
-  ]
+  packages = ["apis/contour/v1beta1"]
   pruneopts = ""
-  revision = "adef47c918fffa526237c801508f3da29de66686"
+  revision = "b6629b0a0e3feb17757ba797bc3ee63f69da6391"
+  version = "v1.6.1"
 
 [[projects]]
   digest = "1:ea625f4c9123f980f6b008d387f812c9327ac1eb5bbcc4e55eff3566f2798e27"
@@ -861,22 +853,6 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:c24598ffeadd2762552269271b3b1510df2d83ee6696c1e543a0ff653af494bc"
-  name = "github.com/petar/GoLLRB"
-  packages = ["llrb"]
-  pruneopts = ""
-  revision = "53be0d36a84c2a886ca057d34b6aa4468df9ccb4"
-
-[[projects]]
-  digest = "1:b46305723171710475f2dd37547edd57b67b9de9f2a6267cafdd98331fd6897f"
-  name = "github.com/peterbourgon/diskv"
-  packages = ["."]
-  pruneopts = ""
-  revision = "5f041e8faa004a95c88a202771f4cc3e991971e6"
-  version = "v2.0.1"
-
-[[projects]]
   digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -902,6 +878,14 @@
   ]
   pruneopts = ""
   revision = "525d0eb5f91d30e3b1548de401b7ef9ea6898520"
+
+[[projects]]
+  digest = "1:4ee19ee934fa6f2abd5aa7ead1ce23a3a33c56f113dd17aa06c7e61bc2f841d1"
+  name = "github.com/projectcontour/contour"
+  packages = ["apis/projectcontour/v1"]
+  pruneopts = ""
+  revision = "0893c3531ed5a0e1562e5b3d957ab4fc74448916"
+  version = "v1.8.2"
 
 [[projects]]
   digest = "1:6f218995d6a74636cfcab45ce03005371e682b4b9bee0e5eb0ccfd83ef85364f"
@@ -1279,14 +1263,15 @@
   revision = "7b8349ac747c6a24702b762d2c4fd9266cf4f1d6"
 
 [[projects]]
-  digest = "1:5f076f6f9c3ac4f2b99d79dc7974eabd3f51be35254aa0d8c4cf920fdb9c7ff8"
+  digest = "1:ac32fe737bd5a3bbbca17add2bb7e5bef926842c4b847666690eae4b30d6b2de"
   name = "k8s.io/api"
   packages = [
-    "admissionregistration/v1alpha1",
+    "admissionregistration/v1",
     "admissionregistration/v1beta1",
     "apps/v1",
     "apps/v1beta1",
     "apps/v1beta2",
+    "auditregistration/v1alpha1",
     "authentication/v1",
     "authentication/v1beta1",
     "authorization/v1",
@@ -1298,15 +1283,21 @@
     "batch/v1beta1",
     "batch/v2alpha1",
     "certificates/v1beta1",
+    "coordination/v1",
     "coordination/v1beta1",
     "core/v1",
+    "discovery/v1alpha1",
     "events/v1beta1",
     "extensions/v1beta1",
     "networking/v1",
+    "networking/v1beta1",
+    "node/v1alpha1",
+    "node/v1beta1",
     "policy/v1beta1",
     "rbac/v1",
     "rbac/v1alpha1",
     "rbac/v1beta1",
+    "scheduling/v1",
     "scheduling/v1alpha1",
     "scheduling/v1beta1",
     "settings/v1alpha1",
@@ -1315,7 +1306,8 @@
     "storage/v1beta1",
   ]
   pruneopts = ""
-  revision = "fd83cbc87e7632ccd8bbab63d2b673d4e0c631cc"
+  revision = "fbb031a40da117f8453c213a058938f92ac78eb6"
+  version = "v0.18.9"
 
 [[projects]]
   digest = "1:7aa037a4df5432be2820d164f378d7c22335e5cbba124e90e42114757ebd11ac"
@@ -1354,6 +1346,7 @@
     "pkg/util/strategicpatch",
     "pkg/util/validation",
     "pkg/util/validation/field",
+    "pkg/util/wait",
     "pkg/util/yaml",
     "pkg/version",
     "pkg/watch",
@@ -1364,7 +1357,7 @@
   revision = "6dd46049f39503a1fc8d65de4bd566829e95faff"
 
 [[projects]]
-  digest = "1:5d4153d12c3aed2c90a94262520d2498d5afa4d692554af55e65a7c5af0bc399"
+  digest = "1:772668611d962ea0c2bf88e10bba3e4c4945f2e6c5a9e2e5f977ec81e0ae32fa"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -1372,8 +1365,8 @@
     "kubernetes",
     "kubernetes/fake",
     "kubernetes/scheme",
-    "kubernetes/typed/admissionregistration/v1alpha1",
-    "kubernetes/typed/admissionregistration/v1alpha1/fake",
+    "kubernetes/typed/admissionregistration/v1",
+    "kubernetes/typed/admissionregistration/v1/fake",
     "kubernetes/typed/admissionregistration/v1beta1",
     "kubernetes/typed/admissionregistration/v1beta1/fake",
     "kubernetes/typed/apps/v1",
@@ -1382,6 +1375,8 @@
     "kubernetes/typed/apps/v1beta1/fake",
     "kubernetes/typed/apps/v1beta2",
     "kubernetes/typed/apps/v1beta2/fake",
+    "kubernetes/typed/auditregistration/v1alpha1",
+    "kubernetes/typed/auditregistration/v1alpha1/fake",
     "kubernetes/typed/authentication/v1",
     "kubernetes/typed/authentication/v1/fake",
     "kubernetes/typed/authentication/v1beta1",
@@ -1404,16 +1399,26 @@
     "kubernetes/typed/batch/v2alpha1/fake",
     "kubernetes/typed/certificates/v1beta1",
     "kubernetes/typed/certificates/v1beta1/fake",
+    "kubernetes/typed/coordination/v1",
+    "kubernetes/typed/coordination/v1/fake",
     "kubernetes/typed/coordination/v1beta1",
     "kubernetes/typed/coordination/v1beta1/fake",
     "kubernetes/typed/core/v1",
     "kubernetes/typed/core/v1/fake",
+    "kubernetes/typed/discovery/v1alpha1",
+    "kubernetes/typed/discovery/v1alpha1/fake",
     "kubernetes/typed/events/v1beta1",
     "kubernetes/typed/events/v1beta1/fake",
     "kubernetes/typed/extensions/v1beta1",
     "kubernetes/typed/extensions/v1beta1/fake",
     "kubernetes/typed/networking/v1",
     "kubernetes/typed/networking/v1/fake",
+    "kubernetes/typed/networking/v1beta1",
+    "kubernetes/typed/networking/v1beta1/fake",
+    "kubernetes/typed/node/v1alpha1",
+    "kubernetes/typed/node/v1alpha1/fake",
+    "kubernetes/typed/node/v1beta1",
+    "kubernetes/typed/node/v1beta1/fake",
     "kubernetes/typed/policy/v1beta1",
     "kubernetes/typed/policy/v1beta1/fake",
     "kubernetes/typed/rbac/v1",
@@ -1422,6 +1427,8 @@
     "kubernetes/typed/rbac/v1alpha1/fake",
     "kubernetes/typed/rbac/v1beta1",
     "kubernetes/typed/rbac/v1beta1/fake",
+    "kubernetes/typed/scheduling/v1",
+    "kubernetes/typed/scheduling/v1/fake",
     "kubernetes/typed/scheduling/v1alpha1",
     "kubernetes/typed/scheduling/v1alpha1/fake",
     "kubernetes/typed/scheduling/v1beta1",
@@ -1454,11 +1461,19 @@
     "util/connrotation",
     "util/flowcontrol",
     "util/homedir",
-    "util/integer",
+    "util/keyutil",
   ]
   pruneopts = ""
-  revision = "1638f8970cefaa404ff3a62950f88b08292b2696"
-  version = "v9.0.0"
+  revision = "4744acb1ce5432afaa74b71df88af7063572bffc"
+  version = "v0.16.15"
+
+[[projects]]
+  digest = "1:5ad0a3bf1b13f9b8bd99f4079c635cb813d87b70db65b98fe5503762e1d39735"
+  name = "k8s.io/klog"
+  packages = ["."]
+  pruneopts = ""
+  revision = "b5c3182dac44f851522e32c97c86ac32755c296d"
+  version = "v2.3.0"
 
 [[projects]]
   branch = "master"
@@ -1467,6 +1482,14 @@
   packages = ["pkg/util/proto"]
   pruneopts = ""
   revision = "0317810137be915b9cf888946c6e115c1bfac693"
+
+[[projects]]
+  branch = "master"
+  digest = "1:c88cfbe3e454dc2f4ea12d4009634ec6017a639fd76db02e3123a3a6679333c6"
+  name = "k8s.io/utils"
+  packages = ["integer"]
+  pruneopts = ""
+  revision = "4140de9c8800f5b18f8fc59798e11862f2bb00cb"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -1495,7 +1518,6 @@
     "github.com/graph-gophers/graphql-go",
     "github.com/graph-gophers/graphql-go/relay",
     "github.com/heptio/contour/apis/contour/v1beta1",
-    "github.com/heptio/contour/apis/generated/clientset/versioned",
     "github.com/jinzhu/gorm",
     "github.com/jinzhu/gorm/dialects/mysql",
     "github.com/jinzhu/gorm/dialects/postgres",
@@ -1522,7 +1544,6 @@
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
-    "k8s.io/api/extensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
