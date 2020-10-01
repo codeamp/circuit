@@ -1,6 +1,7 @@
 package kubernetes_test
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -108,18 +109,18 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwindFirstDeploy() {
 	namespace := fmt.Sprintf("%s-%s", failingReleaseExtension.Release.Environment, failingReleaseExtension.Release.Project.Slug)
 	deploymentName := fmt.Sprintf("%s-%s", failingReleaseExtension.Release.Project.Slug, failingReleaseExtension.Release.Services[0].Name)
 
-	clientset.Extensions().ReplicaSets(namespace).Create(&appsv1.ReplicaSet{
+	clientset.AppsV1().ReplicaSets(namespace).Create(context.TODO(), &appsv1.ReplicaSet{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Generation: 1,
 			Labels: map[string]string{
 				"app": deploymentName,
 			},
 		},
-	})
+	}, meta_v1.CreateOptions{})
 
 	suite.transistor.Events <- releaseEvent
 
-	clientset.Core().Pods(namespace).Create(&corev1.Pod{
+	clientset.CoreV1().Pods(namespace).Create(context.TODO(), &corev1.Pod{
 		ObjectMeta: meta_v1.ObjectMeta{
 			OwnerReferences: []meta_v1.OwnerReference{
 				meta_v1.OwnerReference{
@@ -131,18 +132,18 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwindFirstDeploy() {
 		Status: corev1.PodStatus{
 			ContainerStatuses: []corev1.ContainerStatus{corev1.ContainerStatus{State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}}},
 		},
-	})
+	}, meta_v1.CreateOptions{})
 
 	hasFailedDeployment := false
 	var e transistor.Event
 	for {
-		res, _ := clientset.Extensions().Deployments(namespace).List(meta_v1.ListOptions{})
+		res, _ := clientset.AppsV1().Deployments(namespace).List(context.TODO(), meta_v1.ListOptions{})
 		if len(res.Items) > 0 && hasFailedDeployment == false {
 			res.Items[0].Status = appsv1.DeploymentStatus{
 				UnavailableReplicas: 1,
 			}
 
-			_, err := clientset.Extensions().Deployments(namespace).Update(&res.Items[0])
+			_, err := clientset.AppsV1().Deployments(namespace).Update(context.TODO(), &res.Items[0], meta_v1.UpdateOptions{})
 			if err != nil {
 				suite.T().Error(err)
 			}
@@ -178,7 +179,7 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwind() {
 	}
 
 	suite.transistor.Events <- releaseEvent
-	clientset.Core().Pods(namespace).Create(&corev1.Pod{
+	clientset.CoreV1().Pods(namespace).Create(context.TODO(), &corev1.Pod{
 		ObjectMeta: meta_v1.ObjectMeta{
 			OwnerReferences: []meta_v1.OwnerReference{
 				meta_v1.OwnerReference{
@@ -190,19 +191,19 @@ func (suite *TestSuiteDeployment) TestFailedDeployUnwind() {
 		Status: corev1.PodStatus{
 			ContainerStatuses: []corev1.ContainerStatus{corev1.ContainerStatus{State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}}},
 		},
-	})
+	}, meta_v1.CreateOptions{})
 
 	hasFailedDeployment := false
 
 	var e transistor.Event
 	for {
-		res, _ := clientset.Extensions().Deployments(namespace).List(meta_v1.ListOptions{})
+		res, _ := clientset.AppsV1().Deployments(namespace).List(context.TODO(), meta_v1.ListOptions{})
 		if len(res.Items) > 0 && hasFailedDeployment == false {
 			res.Items[0].Status = appsv1.DeploymentStatus{
 				UnavailableReplicas: 1,
 			}
 
-			clientset.Extensions().Deployments(namespace).Update(&res.Items[0])
+			clientset.AppsV1().Deployments(namespace).Update(context.TODO(), &res.Items[0], meta_v1.UpdateOptions{})
 
 			hasFailedDeployment = true
 		}
