@@ -34,15 +34,11 @@ plugins:
     workers: 1
   githubstatus:
     workers: 1
-  drone:
-    workers: 1
   route53:
     workers: 1
   slack:
     workers: 1
   s3:
-    workers: 1
-  mongo:
     workers: 1
   scheduledbranchreleaser:
     workers: 1
