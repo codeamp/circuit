@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	log "github.com/codeamp/logger"
 	"github.com/codeamp/transistor"
 	"github.com/go-errors/errors"
-	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 
 	uuid "github.com/satori/go.uuid"
 	v1 "k8s.io/api/core/v1"
@@ -26,12 +26,11 @@ import (
 func init() {
 	transistor.RegisterPlugin("kubernetes", func() transistor.Plugin {
 		return &Kubernetes{
-			K8sContourNamespacer: &ContourNamespace{},
-			K8sNamespacer:        &KubernetesNamespace{},
-			BatchV1Jobber:        &BatchV1Job{},
-			CoreServicer:         &CoreService{},
-			CoreSecreter:         &CoreSecret{},
-			CoreDeploymenter:     &CoreDeployment{},
+			K8sNamespacer:    &KubernetesNamespace{},
+			BatchV1Jobber:    &BatchV1Job{},
+			CoreServicer:     &CoreService{},
+			CoreSecreter:     &CoreSecret{},
+			CoreDeploymenter: &CoreDeployment{},
 		}
 	}, plugins.ReleaseExtension{}, plugins.ProjectExtension{})
 }
@@ -92,26 +91,6 @@ func (x *Kubernetes) Process(e transistor.Event) error {
 		return nil
 	}
 
-	if e.Matches(".*kubernetes:ingress:") == true {
-		x.ProcessIngressRoute(e)
-		return nil
-	}
-
-	if e.Matches(".*kubernetes:ingressroute:") == true {
-		x.ProcessIngressRoute(e)
-		return nil
-	}
-
-	if e.Matches(".*kubernetes:ingresskong:") == true {
-		x.ProcessKongIngress(e)
-		return nil
-	}
-
-	if e.Matches(".*kubernetes:redis:") == true {
-		x.ProcessRedis(e)
-		return nil
-	}
-
 	return nil
 }
 
@@ -146,7 +125,7 @@ func (x *Kubernetes) GenOneShotServiceName(slugName string, serviceName string) 
 
 func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface corev1.CoreV1Interface) error {
 	// Create namespace if it does not exist.
-	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
+	_, nameGetErr := coreInterface.Namespaces().Get(context.TODO(), namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
 		if k8s_errors.IsNotFound(nameGetErr) {
 			log.Warn(fmt.Sprintf("Namespace %s does not yet exist, creating.", namespace))
@@ -159,7 +138,7 @@ func (x *Kubernetes) CreateNamespaceIfNotExists(namespace string, coreInterface 
 					Name: namespace,
 				},
 			}
-			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
+			_, createNamespaceErr := coreInterface.Namespaces().Create(context.TODO(), namespaceParams, meta_v1.CreateOptions{})
 			if createNamespaceErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' creating namespace %s", createNamespaceErr, namespace))
 				return errors.Wrap(createNamespaceErr, 1)
@@ -318,25 +297,4 @@ func (x *Kubernetes) getClientConfig(e transistor.Event) (*rest.Config, error) {
 	}
 
 	return config, nil
-}
-
-func (x *Kubernetes) getContourClient(e transistor.Event) (contour_client.Interface, error) {
-	if x.ContourClient != nil {
-		return x.ContourClient, nil
-	}
-
-	config, err := x.getClientConfig(e)
-	if err != nil {
-		return nil, err
-	}
-
-	clientset, err := x.K8sContourNamespacer.NewForConfig(config)
-	if err != nil {
-		failMessage := fmt.Sprintf("ERROR: %s; setting NewForConfig", err.Error())
-		log.Error(failMessage)
-		return nil, errors.Wrap(err, 1)
-	}
-
-	x.ContourClient = clientset
-	return x.ContourClient, nil
 }

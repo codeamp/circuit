@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"regexp"
@@ -15,9 +16,9 @@ import (
 	"github.com/codeamp/transistor"
 	"k8s.io/client-go/kubernetes"
 
+	appsv1 "k8s.io/api/apps/v1"
 	apis_batch_v1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -110,10 +111,10 @@ func secretifyDockerCred(e transistor.Event) (string, error) {
 }
 
 func (x *Kubernetes) createDockerIOSecretIfNotExists(namespace string, clientset kubernetes.Interface, e transistor.Event) error {
-	coreInterface := clientset.Core()
+	coreInterface := clientset.CoreV1()
 
 	// Load up the docker-io secrets for image pull if not exists
-	_, dockerIOSecretErr := coreInterface.Secrets(namespace).Get("docker-io", meta_v1.GetOptions{})
+	_, dockerIOSecretErr := coreInterface.Secrets(namespace).Get(context.TODO(), "docker-io", meta_v1.GetOptions{})
 	if dockerIOSecretErr != nil {
 		if k8s_errors.IsNotFound(dockerIOSecretErr) {
 			dockerCred, err := secretifyDockerCred(e)
@@ -150,10 +151,10 @@ func (x *Kubernetes) createDockerIOSecretIfNotExists(namespace string, clientset
 }
 
 func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kubernetes.Interface) error {
-	coreInterface := clientset.Core()
+	coreInterface := clientset.CoreV1()
 
 	// Create namespace if it does not exist.
-	_, nameGetErr := coreInterface.Namespaces().Get(namespace, meta_v1.GetOptions{})
+	_, nameGetErr := coreInterface.Namespaces().Get(context.TODO(), namespace, meta_v1.GetOptions{})
 	if nameGetErr != nil {
 		if k8s_errors.IsNotFound(nameGetErr) {
 			log.Debug(fmt.Sprintf("Namespace %s does not yet exist, creating.", namespace))
@@ -166,7 +167,7 @@ func (x *Kubernetes) createNamespaceIfNotExists(namespace string, clientset kube
 					Name: namespace,
 				},
 			}
-			_, createNamespaceErr := coreInterface.Namespaces().Create(namespaceParams)
+			_, createNamespaceErr := coreInterface.Namespaces().Create(context.TODO(), namespaceParams, meta_v1.CreateOptions{})
 			if createNamespaceErr != nil {
 				log.Error(fmt.Sprintf("Error '%s' creating namespace %s", createNamespaceErr, namespace))
 				return createNamespaceErr
@@ -216,10 +217,10 @@ func detectPodRestart(pod v1.Pod) (string, int) {
 	}
 }
 
-func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.DeploymentStrategy {
-	var defaultDeploymentStrategy = v1beta1.DeploymentStrategy{
-		Type: v1beta1.RollingUpdateDeploymentStrategyType,
-		RollingUpdate: &v1beta1.RollingUpdateDeployment{
+func getDeploymentStrategy(service plugins.Service, rollback bool) appsv1.DeploymentStrategy {
+	var defaultDeploymentStrategy = appsv1.DeploymentStrategy{
+		Type: appsv1.RollingUpdateDeploymentStrategyType,
+		RollingUpdate: &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
 				StrVal: "30%",
@@ -232,9 +233,9 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 	}
 
 	if rollback {
-		return v1beta1.DeploymentStrategy{
-			Type: v1beta1.RollingUpdateDeploymentStrategyType,
-			RollingUpdate: &v1beta1.RollingUpdateDeployment{
+		return appsv1.DeploymentStrategy{
+			Type: appsv1.RollingUpdateDeploymentStrategyType,
+			RollingUpdate: &appsv1.RollingUpdateDeployment{
 				MaxUnavailable: &intstr.IntOrString{
 					Type:   intstr.String,
 					StrVal: "70%",
@@ -255,12 +256,12 @@ func getDeploymentStrategy(service plugins.Service, rollback bool) v1beta1.Deplo
 	case plugins.GetType("default"):
 		return defaultDeploymentStrategy
 	case plugins.GetType("recreate"):
-		return v1beta1.DeploymentStrategy{
-			Type: v1beta1.RecreateDeploymentStrategyType,
+		return appsv1.DeploymentStrategy{
+			Type: appsv1.RecreateDeploymentStrategyType,
 		}
 	case plugins.GetType("rollingUpdate"):
 		customDeploymentStrategy := defaultDeploymentStrategy
-		customDeploymentStrategy.RollingUpdate = &v1beta1.RollingUpdateDeployment{
+		customDeploymentStrategy.RollingUpdate = &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
 				StrVal: fmt.Sprintf("%d%%", service.DeploymentStrategy.MaxUnavailable),
@@ -666,7 +667,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 	envVars []v1.EnvVar, volumeMounts []v1.VolumeMount, deployVolumes []v1.Volume, secretItems []v1.KeyToPath,
 	oneShotServices []plugins.Service) error {
 	batchv1DepInterface := clientset.BatchV1()
-	coreInterface := clientset.Core()
+	coreInterface := clientset.CoreV1()
 
 	// For all OneShot Services
 	for index, service := range oneShotServices {
@@ -674,7 +675,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 
 		// Check and delete any completed or failed jobs, and delete respective pods
 		listOptions := meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}
-		existingJobs, err := batchv1DepInterface.Jobs(namespace).List(listOptions)
+		existingJobs, err := batchv1DepInterface.Jobs(namespace).List(context.TODO(), listOptions)
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to list existing jobs with label app=%s, with error: %s", oneShotServiceName, err)
 			log.Error(errMsg)
@@ -695,19 +696,19 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				GracePeriodSeconds: &gracePeriod,
 			}
 
-			err = batchv1DepInterface.Jobs(namespace).Delete(job.Name, &deleteOptions)
+			err = batchv1DepInterface.Jobs(namespace).Delete(context.TODO(), job.Name, deleteOptions)
 			if err != nil {
 				log.Error(fmt.Sprintf("Failed to delete job %s with err %s", job.Name, err))
 			}
 
-			correspondingPods, err := coreInterface.Pods(namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
+			correspondingPods, err := coreInterface.Pods(namespace).List(context.TODO(), meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)})
 			if err != nil {
 				log.Error(fmt.Sprintf("Failed to find corresponding pods with job-name %s with err %s", job.Name, err))
 			}
 
 			// delete associated pods
 			for _, cp := range correspondingPods.Items {
-				err := coreInterface.Pods(namespace).Delete(cp.Name, &meta_v1.DeleteOptions{})
+				err := coreInterface.Pods(namespace).Delete(context.TODO(), cp.Name, meta_v1.DeleteOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Failed to delete pod %s with err %s", cp.Name, err))
 				}
@@ -814,7 +815,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 				activeDeadlineSeconds := int64(1)
 
 				job.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
-				job, err = batchv1DepInterface.Jobs(namespace).Update(job)
+				job, err = batchv1DepInterface.Jobs(namespace).Update(context.TODO(), job, meta_v1.UpdateOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Error %s updating job %s before deletion", job.Name, err))
 				}
@@ -836,7 +837,7 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 			}
 
 			// Check Job's Pod status
-			if pods, err := coreInterface.Pods(job.Namespace).List(meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
+			if pods, err := coreInterface.Pods(job.Namespace).List(context.TODO(), meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", "app", oneShotServiceName)}); err != nil {
 				log.Error(fmt.Errorf("List Pods of service[%s] error: %v", job.Name, err))
 				return errors.New(ErrDeployListingPods)
 			} else {
@@ -860,14 +861,14 @@ func (x *Kubernetes) deployOneShotServices(clientset kubernetes.Interface,
 func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 	e transistor.Event, namespace string, projectSlug string, isRollback bool,
 	envVars []v1.EnvVar, volumeMounts []v1.VolumeMount, deployVolumes []v1.Volume, secretItems []v1.KeyToPath, deploymentServices []plugins.Service) error {
-	depInterface := clientset.Extensions()
+	depInterface := clientset.AppsV1()
 
 	// Now process all deployment services
 	for _, service := range deploymentServices {
 		deploymentName := genDeploymentName(projectSlug, service.Name)
 		deployPorts := getContainerPorts(service)
 
-		var deployStrategy v1beta1.DeploymentStrategy
+		var deployStrategy appsv1.DeploymentStrategy
 
 		// Support ready and liveness probes
 		readinessProbe := getReadinessProbe(service)
@@ -974,7 +975,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 		}
 		podTemplateSpec := genPodTemplateSpec(e, simplePod, "Deployment")
 
-		var deployParams *v1beta1.Deployment
+		var deployParams *appsv1.Deployment
 
 		deploySelector := meta_v1.LabelSelector{
 			MatchLabels: map[string]string{
@@ -982,15 +983,15 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			},
 		}
 
-		deployParams = &v1beta1.Deployment{
+		deployParams = &appsv1.Deployment{
 			TypeMeta: meta_v1.TypeMeta{
 				Kind:       "Deployment",
-				APIVersion: "extensions/v1beta1",
+				APIVersion: "apps/v1",
 			},
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name: deploymentName,
 			},
-			Spec: v1beta1.DeploymentSpec{
+			Spec: appsv1.DeploymentSpec{
 				ProgressDeadlineSeconds: int32Ptr(300),
 				Replicas:                &replicas,
 				Strategy:                deployStrategy,
@@ -1006,12 +1007,12 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 		log.Info(fmt.Sprintf("Getting list of deployments/ jobs matching %s", deploymentName))
 
 		deployments := depInterface.Deployments(namespace)
-		_, err = deployments.List(meta_v1.ListOptions{})
+		_, err = deployments.List(context.TODO(), meta_v1.ListOptions{})
 		if err != nil {
 			log.Panic(err)
 		}
 
-		_, err = depInterface.Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
+		_, err = depInterface.Deployments(namespace).Get(context.TODO(), deploymentName, meta_v1.GetOptions{})
 
 		var myError error
 		if err != nil {
@@ -1020,7 +1021,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			// Sanity check that we were told to create this service or error out.
 
 			x.sendInProgress(e, "Successfully creating Deployment.")
-			_, myError = depInterface.Deployments(namespace).Create(deployParams)
+			_, myError = depInterface.Deployments(namespace).Create(context.TODO(), deployParams, meta_v1.CreateOptions{})
 			if myError != nil {
 				// send failed status
 				errMsg := fmt.Errorf("Failed to create service deployment %s, with error: %s", deploymentName, myError)
@@ -1029,7 +1030,7 @@ func (x *Kubernetes) deployServices(clientset kubernetes.Interface,
 			}
 		} else {
 			// Deployment exists, update deployment with new configuration
-			_, myError = depInterface.Deployments(namespace).Update(deployParams)
+			_, myError = depInterface.Deployments(namespace).Update(context.TODO(), deployParams, meta_v1.UpdateOptions{})
 			if myError != nil {
 				errMsg := fmt.Errorf("Failed to update service deployment %s, with error: %s", deploymentName, myError)
 				log.Error(errors.New(ErrServiceUpdateFailed))
@@ -1072,8 +1073,8 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 				deploymentName := strings.ToLower(genDeploymentName(projectSlug, service.Name))
 
 				var err error
-				var deployment *v1beta1.Deployment
-				deployment, err = clientset.Extensions().Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
+				var deployment *appsv1.Deployment
+				deployment, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, meta_v1.GetOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Error '%s' fetching deployment status for %s", err, deploymentName))
 					continue
@@ -1099,7 +1100,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 						deployment.Status.AvailableReplicas, deployment.Status.UnavailableReplicas))
 
 					// Check for indications of pod failures on the latest replicaSet so we can fail faster than waiting for a timeout.
-					replicaSetList, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
+					replicaSetList, err := clientset.AppsV1().ReplicaSets(namespace).List(context.TODO(), meta_v1.ListOptions{
 						LabelSelector: "app=" + deploymentName,
 					})
 					if err != nil {
@@ -1107,7 +1108,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 						continue
 					}
 
-					var currentReplica v1beta1.ReplicaSet
+					var currentReplica appsv1.ReplicaSet
 					for _, r := range replicaSetList.Items {
 						if r.Annotations["deployment.kubernetes.io/revision"] == latestRevision {
 							currentReplica = r
@@ -1115,7 +1116,7 @@ func (x *Kubernetes) waitForDeploymentSuccess(clientset kubernetes.Interface,
 						}
 					}
 
-					allPods, podErr := clientset.Core().Pods(namespace).List(meta_v1.ListOptions{})
+					allPods, podErr := clientset.CoreV1().Pods(namespace).List(context.TODO(), meta_v1.ListOptions{})
 					if podErr != nil {
 						log.Error(fmt.Sprintf("Error retrieving list of pods for %s", namespace))
 						continue
@@ -1209,10 +1210,10 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 	namespace string, projectSlug string, oneShotServices []plugins.Service, services []plugins.Service) error {
 
 	batchv1DepInterface := clientset.BatchV1()
-	depInterface := clientset.Extensions()
-	coreInterface := clientset.Core()
+	depInterface := clientset.AppsV1()
+	coreInterface := clientset.CoreV1()
 
-	existingJobs, err := batchv1DepInterface.Jobs(namespace).List(meta_v1.ListOptions{})
+	existingJobs, err := batchv1DepInterface.Jobs(namespace).List(context.TODO(), meta_v1.ListOptions{})
 
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to list existing jobs in namespace %s, with error: %s", namespace, err))
@@ -1236,7 +1237,7 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 				OrphanDependents:   &isOrphan,
 			}
 
-			err = batchv1DepInterface.Jobs(namespace).Delete(job.Name, &deleteOptions)
+			err = batchv1DepInterface.Jobs(namespace).Delete(context.TODO(), job.Name, deleteOptions)
 			if err != nil {
 				log.Error(fmt.Sprintf("Failed to delete orphan job %s with err %s", job.Name, err))
 			}
@@ -1244,14 +1245,14 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 	}
 
 	// cleanup Orphans! (these are deployments leftover from rename or etc.)
-	allDeploymentsList, listErr := depInterface.Deployments(namespace).List(meta_v1.ListOptions{})
+	allDeploymentsList, listErr := depInterface.Deployments(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if listErr != nil {
 		// If we can't list the deployments just return.  We have already sent the success message.
 		log.Error(fmt.Sprintf("Fatal Error listing deployments during cleanup.  %s", listErr))
 		return nil
 	}
 	var foundIt bool
-	var orphans []v1beta1.Deployment
+	var orphans []appsv1.Deployment
 	for _, deployment := range allDeploymentsList.Items {
 		foundIt = false
 		for _, service := range services {
@@ -1265,14 +1266,14 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 	}
 
 	// Preload list of all replica sets
-	repSets, repErr := depInterface.ReplicaSets(namespace).List(meta_v1.ListOptions{})
+	repSets, repErr := depInterface.ReplicaSets(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if repErr != nil {
 		log.Error(fmt.Sprintf("Error retrieving list of replicasets for %s: %s", namespace, repErr.Error()))
 		return errors.New(ErrDeployListingReplicaSets)
 	}
 
 	// Preload list of all pods
-	allPods, podErr := coreInterface.Pods(namespace).List(meta_v1.ListOptions{})
+	allPods, podErr := coreInterface.Pods(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if podErr != nil {
 		log.Error(fmt.Sprintf("Error retrieving list of pods for %s : %s", namespace, podErr.Error()))
 		return errors.New(ErrDeployListingPods)
@@ -1286,7 +1287,7 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 		}
 
 		log.Debug(fmt.Sprintf("Deleting deployment orphan: %s", deleteThis.Name))
-		err := depInterface.Deployments(namespace).Delete(deleteThis.Name, &meta_v1.DeleteOptions{})
+		err := depInterface.Deployments(namespace).Delete(context.TODO(), deleteThis.Name, meta_v1.DeleteOptions{})
 		if err != nil {
 			log.Error(fmt.Sprintf("Error when deleting: %s", err))
 		}
@@ -1295,7 +1296,7 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 		for _, repSet := range repSets.Items {
 			if repSet.ObjectMeta.Labels["app"] == deleteThis.Name {
 				log.Debug(fmt.Sprintf("Deleting replicaset orphan: %s", repSet.Name))
-				err := depInterface.ReplicaSets(namespace).Delete(repSet.Name, &meta_v1.DeleteOptions{})
+				err := depInterface.ReplicaSets(namespace).Delete(context.TODO(), repSet.Name, meta_v1.DeleteOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Error '%s' while deleting replica set %s", err, repSet.Name))
 				}
@@ -1306,7 +1307,7 @@ func (x *Kubernetes) cleanupOrphans(clientset kubernetes.Interface,
 		for _, pod := range allPods.Items {
 			if pod.ObjectMeta.Labels["app"] == deleteThis.Name {
 				log.Debug(fmt.Sprintf("Deleting pod orphan: %s", pod.Name))
-				err := coreInterface.Pods(namespace).Delete(pod.Name, &meta_v1.DeleteOptions{})
+				err := coreInterface.Pods(namespace).Delete(context.TODO(), pod.Name, meta_v1.DeleteOptions{})
 				if err != nil {
 					log.Error(fmt.Sprintf("Error '%s' while deleting pod %s", err, pod.Name))
 				}
@@ -1528,15 +1529,15 @@ func (x *Kubernetes) unwindFailedDeployments(clientset kubernetes.Interface, nam
 
 		// Try to find the deployment associated with this service
 		var err error
-		var deployment *v1beta1.Deployment
-		deployment, err = clientset.Extensions().Deployments(namespace).Get(deploymentName, meta_v1.GetOptions{})
+		var deployment *appsv1.Deployment
+		deployment, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, meta_v1.GetOptions{})
 		if err != nil {
 			log.Error(fmt.Sprintf("UNWIND-DEPLOY: Error '%s' fetching deployment status for %s", err, deploymentName))
 			continue
 		}
 
 		// Grab all the replica sets that match this criteria
-		replicaSets, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
+		replicaSets, err := clientset.AppsV1().ReplicaSets(namespace).List(context.TODO(), meta_v1.ListOptions{
 			LabelSelector: fmt.Sprintf("app=%s", deploymentName),
 		})
 		if err != nil {
@@ -1565,14 +1566,14 @@ func (x *Kubernetes) unwindFailedDeployments(clientset kubernetes.Interface, nam
 }
 
 func (x *Kubernetes) handleFirstDeploymentUnwind(clientset kubernetes.Interface, namespace string, deploymentName string,
-	deployment *v1beta1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *v1beta1.ReplicaSetList) error {
+	deployment *appsv1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *appsv1.ReplicaSetList) error {
 	log.Warn("There were no previous generations found. Was this a first deploy?")
 
 	// Delete the deployment
 	propagationPolicy := meta_v1.DeletePropagationForeground
 
 	log.Warn(fmt.Sprintf("Deleting deployment for first deployment unwind: %s, %s", namespace, deploymentName))
-	err := clientset.Extensions().Deployments(namespace).Delete(deploymentName, &meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
+	err := clientset.AppsV1().Deployments(namespace).Delete(context.TODO(), deploymentName, meta_v1.DeleteOptions{TypeMeta: meta_v1.TypeMeta{
 		Kind: "Deployment",
 	}, PropagationPolicy: &propagationPolicy})
 	if err != nil {
@@ -1584,7 +1585,7 @@ func (x *Kubernetes) handleFirstDeploymentUnwind(clientset kubernetes.Interface,
 }
 
 func (x *Kubernetes) handleTypicalUnwind(clientset kubernetes.Interface, namespace string, deploymentName string,
-	deployment *v1beta1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *v1beta1.ReplicaSetList) error {
+	deployment *appsv1.Deployment, preExistingDeploymentConfigurations map[string]*DeploymentConfiguration, replicaSets *appsv1.ReplicaSetList) error {
 	var ok bool
 	var err error
 	var preExistingDeploymentConfiguration *DeploymentConfiguration
@@ -1605,7 +1606,7 @@ func (x *Kubernetes) handleTypicalUnwind(clientset kubernetes.Interface, namespa
 
 	// Update the deployment, change the spec to match
 	// the replicaset spec
-	_, err = clientset.Extensions().Deployments(namespace).Update(deployment)
+	_, err = clientset.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, meta_v1.UpdateOptions{})
 	if err != nil {
 		log.Error(err.Error())
 		return err
@@ -1624,7 +1625,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 	results := make(map[string]*DeploymentConfiguration, 0)
 
 	// Grab all the deployments in the namespace that we are deploying to
-	deployments, err := clientset.Extensions().Deployments(namespace).List(meta_v1.ListOptions{})
+	deployments, err := clientset.AppsV1().Deployments(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -1643,7 +1644,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			deploymentName := deployment.GetName()
 
 			// Find all the replica sets for this deployment
-			replicaSets, err := clientset.Extensions().ReplicaSets(namespace).List(meta_v1.ListOptions{
+			replicaSets, err := clientset.AppsV1().ReplicaSets(namespace).List(context.TODO(), meta_v1.ListOptions{
 				LabelSelector: fmt.Sprintf("app=%s", deploymentName),
 			})
 			if err != nil {
@@ -1665,7 +1666,7 @@ func (x *Kubernetes) getExistingDeploymentConfigurations(clientset kubernetes.In
 			// while searching for it, keep track of the most
 			// recent RS so if we can't find the revision
 			// we're looking for we can unwind to the most recent replicaset
-			var mostRecentReplicaSet *v1beta1.ReplicaSet
+			var mostRecentReplicaSet *appsv1.ReplicaSet
 			if len(replicaSets.Items) > 0 {
 				mostRecentReplicaSet = &replicaSets.Items[0]
 			}

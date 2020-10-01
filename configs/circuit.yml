@@ -34,19 +34,10 @@ plugins:
     workers: 1
   githubstatus:
     workers: 1
-  drone:
-    workers: 1
   route53:
     workers: 1
   slack:
     workers: 1
-  s3:
-    workers: 1
-  mongo:
-    workers: 1
-  scheduledbranchreleaser:
-    workers: 1
-    workdir: "/tmp/scheduledbranchreleaser"
   dockerbuilder:
     workers: 1
     registry_host: "docker.io"

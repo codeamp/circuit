@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"github.com/codeamp/circuit/plugins"
 	"github.com/codeamp/transistor"
-	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -38,7 +37,6 @@ type SimplePodSpec struct {
 type Kubernetes struct {
 	events chan transistor.Event
 	K8sNamespacer
-	K8sContourNamespacer
 	BatchV1Jobber
 	CoreServicer
 	CoreSecreter
@@ -50,7 +48,6 @@ type Kubernetes struct {
 type KubernetesConfig struct {
 	Hash string
 
-	ContourClient    contour_client.Interface
 	KubernetesClient kubernetes.Interface
 }
 

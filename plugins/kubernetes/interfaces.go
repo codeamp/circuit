@@ -1,7 +1,8 @@
 package kubernetes
 
 import (
-	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
+	"context"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -26,19 +27,6 @@ func (l KubernetesNamespace) NewForConfig(config *rest.Config) (kubernetes.Inter
 
 ///////////////////////////////////////////////////
 
-type K8sContourNamespacer interface {
-	NewForConfig(*rest.Config) (contour_client.Interface, error)
-}
-
-type ContourNamespace struct{}
-
-func (l ContourNamespace) NewForConfig(config *rest.Config) (contour_client.Interface, error) {
-	clientset, err := contour_client.NewForConfig(config)
-	return clientset, err
-}
-
-///////////////////////////////////////////////////
-
 type BatchV1Jobber interface {
 	Create(kubernetes.Interface, string, *v1.Job) (*v1.Job, error)
 	Get(kubernetes.Interface, string, string, meta_v1.GetOptions) (*v1.Job, error)
@@ -47,11 +35,11 @@ type BatchV1Jobber interface {
 type BatchV1Job struct{}
 
 func (l BatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error) {
-	return clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
+	return clientset.BatchV1().Jobs(namespace).Get(context.TODO(), jobName, getOptions)
 }
 
 func (l BatchV1Job) Create(clientset kubernetes.Interface, namespace string, job *v1.Job) (*v1.Job, error) {
-	return clientset.BatchV1().Jobs(namespace).Create(job)
+	return clientset.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{})
 }
 
 ///////////////////////////////////////////////////
@@ -67,19 +55,19 @@ type CoreServicer interface {
 type CoreService struct{}
 
 func (l CoreService) Get(clientset kubernetes.Interface, namespace string, serviceName string, getOptions meta_v1.GetOptions) (*corev1.Service, error) {
-	return clientset.Core().Services(namespace).Get(serviceName, getOptions)
+	return clientset.CoreV1().Services(namespace).Get(context.TODO(), serviceName, getOptions)
 }
 
 func (l CoreService) Delete(clientset kubernetes.Interface, namespace string, serviceName string, deleteOptions *meta_v1.DeleteOptions) error {
-	return clientset.Core().Services(namespace).Delete(serviceName, deleteOptions)
+	return clientset.CoreV1().Services(namespace).Delete(context.TODO(), serviceName, *deleteOptions)
 }
 
 func (l CoreService) Create(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
-	return clientset.Core().Services(namespace).Create(service)
+	return clientset.CoreV1().Services(namespace).Create(context.TODO(), service, meta_v1.CreateOptions{})
 }
 
 func (l CoreService) Update(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
-	return clientset.Core().Services(namespace).Update(service)
+	return clientset.CoreV1().Services(namespace).Update(context.TODO(), service, meta_v1.UpdateOptions{})
 }
 
 ///////////////////////////////////////////////////
@@ -91,11 +79,11 @@ type CoreDeploymenter interface {
 type CoreDeployment struct{}
 
 func (l CoreDeployment) Create(clientset kubernetes.Interface, namespace string, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	return clientset.AppsV1().Deployments(namespace).Create(deployment)
+	return clientset.AppsV1().Deployments(namespace).Create(context.TODO(), deployment, meta_v1.CreateOptions{})
 }
 
 func (l CoreDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {
-	return clientset.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
+	return clientset.AppsV1().Deployments(namespace).Delete(context.TODO(), deploymentName, *deleteOptions)
 }
 
 ///////////////////////////////////////////////////
@@ -107,5 +95,5 @@ type CoreSecreter interface {
 type CoreSecret struct{}
 
 func (l CoreSecret) Create(clientset kubernetes.Interface, namespace string, secretParams *corev1.Secret) (*corev1.Secret, error) {
-	return clientset.Core().Secrets(namespace).Create(secretParams)
+	return clientset.CoreV1().Secrets(namespace).Create(context.TODO(), secretParams, meta_v1.CreateOptions{})
 }

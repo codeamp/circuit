@@ -1,2 +1,0 @@
-- [ ] Update swagger.yml version
-- [ ] Run "make generate"

@@ -1,9 +1,9 @@
 package kubernetes_test
 
 import (
+	"context"
 	"fmt"
 
-	contour_client "github.com/heptio/contour/apis/generated/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -24,19 +24,13 @@ func (l MockKubernetesNamespacer) NewForConfig(config *rest.Config) (kubernetes.
 }
 
 /////////////////////////////////////////////////////////////////////////
-type MockContourNamespacer struct{}
-
-func (l MockContourNamespacer) NewForConfig(config *rest.Config) (contour_client.Interface, error) {
-	clientset, err := contour_client.NewForConfig(config)
-	return clientset, err
-}
 
 type MockBatchV1Job struct {
 	StatusOverride v1.JobStatus
 }
 
 func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jobName string, getOptions meta_v1.GetOptions) (*v1.Job, error) {
-	job, err := clientset.BatchV1().Jobs(namespace).Get(jobName, getOptions)
+	job, err := clientset.BatchV1().Jobs(namespace).Get(context.TODO(), jobName, getOptions)
 	job.Status = l.StatusOverride
 
 	return job, err
@@ -44,7 +38,7 @@ func (l MockBatchV1Job) Get(clientset kubernetes.Interface, namespace string, jo
 
 func (l MockBatchV1Job) Create(clientset kubernetes.Interface, namespace string, job *v1.Job) (*v1.Job, error) {
 	job.ObjectMeta.Name = job.ObjectMeta.GenerateName
-	return clientset.BatchV1().Jobs(namespace).Create(job)
+	return clientset.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{})
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -52,7 +46,7 @@ func (l MockBatchV1Job) Create(clientset kubernetes.Interface, namespace string,
 type MockCoreService struct{}
 
 func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, serviceName string, getOptions meta_v1.GetOptions) (*corev1.Service, error) {
-	service, err := clientset.Core().Services(namespace).Get(serviceName, getOptions)
+	service, err := clientset.CoreV1().Services(namespace).Get(context.TODO(), serviceName, getOptions)
 
 	if service != nil {
 		fakeIngressList := []corev1.LoadBalancerIngress{
@@ -69,15 +63,15 @@ func (l MockCoreService) Get(clientset kubernetes.Interface, namespace string, s
 }
 
 func (l MockCoreService) Delete(clientset kubernetes.Interface, namespace string, serviceName string, deleteOptions *meta_v1.DeleteOptions) error {
-	return clientset.Core().Services(namespace).Delete(serviceName, deleteOptions)
+	return clientset.CoreV1().Services(namespace).Delete(context.TODO(), serviceName, *deleteOptions)
 }
 
 func (l MockCoreService) Create(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
-	return clientset.Core().Services(namespace).Create(service)
+	return clientset.CoreV1().Services(namespace).Create(context.TODO(), service, meta_v1.CreateOptions{})
 }
 
 func (l MockCoreService) Update(clientset kubernetes.Interface, namespace string, service *corev1.Service) (*corev1.Service, error) {
-	return clientset.Core().Services(namespace).Update(service)
+	return clientset.CoreV1().Services(namespace).Update(context.TODO(), service, meta_v1.UpdateOptions{})
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -85,11 +79,11 @@ func (l MockCoreService) Update(clientset kubernetes.Interface, namespace string
 type MockCoreDeployment struct{}
 
 func (l MockCoreDeployment) Delete(clientset kubernetes.Interface, namespace string, deploymentName string, deleteOptions *meta_v1.DeleteOptions) error {
-	return clientset.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
+	return clientset.AppsV1().Deployments(namespace).Delete(context.TODO(), deploymentName, *deleteOptions)
 }
 
 func (l MockCoreDeployment) Create(clientset kubernetes.Interface, namespace string, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	return clientset.AppsV1().Deployments(namespace).Create(deployment)
+	return clientset.AppsV1().Deployments(namespace).Create(context.TODO(), deployment, meta_v1.CreateOptions{})
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -109,5 +103,5 @@ func (l MockCoreSecret) Create(clientset kubernetes.Interface, namespace string,
 		}
 	}
 
-	return clientset.Core().Secrets(namespace).Create(&secretsCopy)
+	return clientset.CoreV1().Secrets(namespace).Create(context.TODO(), &secretsCopy, meta_v1.CreateOptions{})
 }
